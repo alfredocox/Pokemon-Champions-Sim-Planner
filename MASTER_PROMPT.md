@@ -1,52 +1,71 @@
 # MASTER PROMPT — Pokémon Champion 2026
-
-> Copy everything below this line and paste it as your first message in a new Perplexity AI chat to instantly resume this project with full context.
-
----
-
-## COPY FROM HERE ↓
+> **HOW TO USE:** Copy everything from the `--- COPY FROM HERE ---` line to the very end of this file.
+> Paste it as your **first message** in a new Perplexity AI chat.
+> The AI will have full project context instantly.
 
 ---
 
-You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator. The project lives at:
+--- COPY FROM HERE ---
 
-**GitHub:** https://github.com/alfredocox/Pokemon-Champions-Sim-Planner
+You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator built as a static, offline-capable PWA.
+
+**GitHub repo:** https://github.com/alfredocox/Pokemon-Champions-Sim-Planner  
+**Space name:** Pokesim (use this context for all Space-based chats)
 
 ---
 
-## PROJECT STATE (as of April 23, 2026)
+## WHAT THIS PROJECT IS
 
-All source files live in `poke-sim/`. The self-contained single-file bundle is `pokemon-champion-2026-FINAL.html` (280 KB, works offline in any browser).
+A browser-only VGC doubles team simulator for April 2026 meta (Regulation M-A, Scarlet/Violet Series 3 with Mega Evolutions via Alfredo's custom format). No server. No build tools required. Works 100% offline from a single HTML file.
 
-### Source Files
-| File | Purpose |
-|------|---------|
-| `poke-sim/index.html` | App shell, all tabs, PWA meta tags, service worker reg |
-| `poke-sim/style.css` | Full mobile-first dark theme (34 KB) |
-| `poke-sim/data.js` | BASE_STATS, POKEMON_TYPES_DB (500+ mons), DEX_NUM_MAP (1025+), TEAMS object (13 tournament teams), MOVE_TYPES, getSpriteUrl() |
-| `poke-sim/engine.js` | Battle simulation engine, Bo series runner, damage formula with `Math.random()` roll |
-| `poke-sim/ui.js` | All UI logic, team selects, import/export, pilot guide, PDF report, speed tiers, meta radar, coverage checker, strategy tab |
-| `poke-sim/strategy-injectable.js` | TEAM_META knowledge base: archetype tags, setup plays, counters, Pokémon move notes |
-| `poke-sim/manifest.json` | PWA manifest |
-| `poke-sim/sw.js` | Service worker (cache-first) |
+---
+
+## REPOSITORY LAYOUT
+
+```
+Pokemon-Champions-Sim-Planner/
+├── poke-sim/
+│   ├── index.html              ← App shell + tab structure + PWA meta
+│   ├── style.css               ← Full dark theme, mobile-first (34 KB)
+│   ├── data.js                 ← BASE_STATS, POKEMON_TYPES_DB, DEX_NUM_MAP,
+│   │                              TEAMS (13 tournament teams), MOVE_TYPES,
+│   │                              getSpriteUrl()
+│   ├── engine.js               ← Pokemon class, Field class, simulateBattle(),
+│   │                              runSimulation() (Monte Carlo), runAllMatchups()
+│   ├── ui.js                   ← All UI logic: tabs, team selects, import/export,
+│   │                              pilot guide, PDF report, speed tiers, meta radar,
+│   │                              coverage checker, strategy tab
+│   ├── strategy-injectable.js  ← TEAM_META knowledge base: archetype tags,
+│   │                              setup plays, counters, Pokémon move-log notes
+│   ├── manifest.json           ← PWA manifest
+│   ├── sw.js                   ← Service worker (cache-first)
+│   ├── icon-192.png            ← PWA icon
+│   └── icon-512.png            ← PWA icon
+├── pokemon-champion-2026-FINAL.html   ← Self-contained single-file bundle (~280 KB)
+├── README.md                   ← Quickstart guide
+├── DEVELOPMENT_RUNBOOK.md      ← Full dev history, architecture, QA log
+└── MASTER_PROMPT.md            ← This file
+```
 
 ---
 
 ## TABS
-Simulator | Teams | Set Editor | Replay Log | Sources | Pilot Guide | Strategy
+
+`Simulator` | `Teams` | `Set Editor` | `Replay Log` | `Sources` | `Pilot Guide` | `Strategy`
 
 ---
 
-## 13 LOADED TEAMS (keys in TEAMS object)
-| Key | Team |
-|-----|------|
-| `player` | TR Counter Squad (Incineroar / Arcanine / Garchomp / Whimsicott / Rotom-Wash / Garchomp-Scarf) |
-| `mega_altaria` | Mega Altaria (pokepaste dfdfa66d317cf9d7) |
-| `mega_dragonite` | Mega Dragonite (dd101585183c9ed6) |
-| `mega_houndoom` | Mega Houndoom (4a87b07998f6c0c4) |
-| `rin_sand` | Rin Sand (e97ac67f1ce79c33) |
-| `suica_sun` | Suica Sun (cb48d8b06c73d33b) |
-| `cofagrigus_tr` | Cofagrigus TR |
+## 13 LOADED TEAMS
+
+| Key | Team Description |
+|-----|-----------------|
+| `player` | TR Counter Squad — Incineroar / Arcanine / Garchomp / Whimsicott / Rotom-Wash / Garchomp-Scarf |
+| `mega_altaria` | Mega Altaria — pokepaste dfdfa66d317cf9d7 |
+| `mega_dragonite` | Mega Dragonite — pokepaste dd101585183c9ed6 |
+| `mega_houndoom` | Mega Houndoom — pokepaste 4a87b07998f6c0c4 |
+| `rin_sand` | Rin Sand — pokepaste e97ac67f1ce79c33 |
+| `suica_sun` | Suica Sun — pokepaste cb48d8b06c73d33b |
+| `cofagrigus_tr` | Cofagrigus Trick Room |
 | `champions_arena_1st` | Hyungwoo Shin — Champions Arena Winner |
 | `champions_arena_2nd` | Jorge Tabuyo — Champions Arena Finalist |
 | `champions_arena_3rd` | Juan Benítez — Champions Arena Top 3 |
@@ -56,34 +75,67 @@ Simulator | Teams | Set Editor | Replay Log | Sources | Pilot Guide | Strategy
 
 ---
 
-## KEY ARCHITECTURE
-- Format toggle: `currentFormat` (`'doubles'`/`'singles'`)
-- Your team key: `currentPlayerKey` (starts as `'player'`, user-selectable)
-- Bo series: `currentBo` (1/3/5/10), `runSimulation(n, playerKey, oppKey)`
-- Run all: `runAllMatchupsUI()` in ui.js (calls engine’s `runAllMatchups`)
-- Sprites: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{dex_num}.png`
-- Import: pokepaste URL or raw Showdown text → parses into `TEAMS[slot].members`
-- Export: `openExportModal(teamKey)` → Showdown format text
-- After every sim: `showInlinePilotCard(oppKey, res)` runs automatically
-- After Run All: `generatePilotGuide()` populates Pilot Guide tab, PDF button appears
+## ARCHITECTURE OVERVIEW
 
-## CRITICAL BUG NOTE
-`COVERAGE_CHECKS` MUST be declared as `var` (not const/let) in ui.js.
-It is referenced during init before its declaration line is reached.
-If changed to const/let the app throws a TDZ error and breaks completely.
+### State Variables (ui.js)
+```javascript
+let currentPlayerKey = 'player';       // active player team key
+let currentFormat    = 'doubles';      // 'doubles' | 'singles'
+let currentBo        = 1;             // 1 | 3 | 5 | 10
+let lastAllResults   = null;           // cached Run All results
+```
 
----
+### Engine Entry Points (engine.js)
+```javascript
+// Single matchup — returns Promise<results>
+runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress)
 
-## DAMAGE FORMULA
+// All matchups — iterates all 12 opponents
+runAllMatchups(numBattles, onProgress, onMatchupDone)
+```
+
+### Damage Formula
 ```
 baseDmg = floor((floor((2*50/5+2) * BP * Atk / Def) / 50) + 2)
-roll    = 0.85 + Math.random() * 0.15   ← NOT deterministic
+roll    = 0.85 + Math.random() * 0.15    ← NON-DETERMINISTIC
 total   = floor(baseDmg * STAB * typeEff * spreadMult * multiscale * roll)
+```
+Engine is confirmed non-deterministic. Bo10 results differ from Bo1 as expected.
+
+### Trick Room
+- TR lasts exactly 5 turns (`field.trickRoomTurns` increments each `endOfTurn()`)
+- Speed is inverted via `getEffSpeed()`: `if (field.trickRoom) spe = 10000 - spe`
+- TR is toggled on/off correctly — re-using Trick Room while active cancels it
+
+### Weather
+- Weather lasts 8 turns (or permanent for Sand Stream)
+- Entry abilities (Drought, Drizzle, Sand Stream) fire on switch-in via `processEntryAbilities()`
+- **KNOWN ISSUE:** When both teams have weather setters, the last switch-in wins but mid-game weather override priority is not fully modeled. Fix: track setter speed and apply the faster setter's weather each turn weather is contested.
+
+### Sprites
+```
+https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{dex_num}.png
 ```
 
 ---
 
-## REBUILD COMMAND (run after any source file changes)
+## CRITICAL BUG — DO NOT CHANGE THIS
+
+```javascript
+// In ui.js — MUST be declared as var, NOT const or let
+var COVERAGE_CHECKS = [...];
+```
+
+This is referenced during initialization before its declaration line is reached.  
+`const`/`let` would throw a Temporal Dead Zone (TDZ) ReferenceError and break the app completely on load.  
+This is a known architectural limitation — do not "fix" it without restructuring initialization order.
+
+---
+
+## REBUILD COMMAND
+
+Run after any change to source files in `poke-sim/`:
+
 ```bash
 cd poke-sim && python3 -c "
 import re, os
@@ -108,52 +160,127 @@ print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026-FINAL.html\"):,} bytes'
 
 ---
 
-## FEATURES COMPLETE
-- Bo1/Bo3/Bo5/Bo10 simulation with Monte Carlo variance
-- Singles/Doubles toggle
-- Pokepaste + Showdown import/export (copy-paste to/from Smogon)
-- Add imported team as new slot OR replace existing (with confirmation)
-- Both sides fully interchangeable via dropdowns + Swap button
-- Pilot Guide tab — per-matchup verdict, leads, win conditions, risks, tips
-- Inline Pilot Notes card auto-shown after every single sim
-- Download Results & Pilot Notes (.txt report)
-- PDF Report (print API) — appears after Run All Matchups
-- Series Summary view in Replay Log
-- Meta Threat Radar (Sources tab) — 10 top Reg M-A threats, color-coded
-- Speed Tier widget — collapsible per team card
-- Team Coverage checker — live in VS column
-- Strategy tab — team-level strategy, setup plays, counters, Pokémon move notes, refreshes on team change
-- PWA ready — manifest + service worker + icons (iOS Add to Home Screen / Android Chrome)
-- Single-file bundle (280 KB) — works offline in any browser
+## DEPLOY COMMAND (Perplexity Space)
+
+```
+deploy_website(
+  project_path="poke-sim",
+  site_name="Champions Sim",
+  entry_point="index.html",
+  should_validate=False
+)
+```
+
+---
+
+## HOW TO TEST IMMEDIATELY (no build required)
+
+```bash
+git clone https://github.com/alfredocox/Pokemon-Champions-Sim-Planner.git
+cd Pokemon-Champions-Sim-Planner
+
+# Open the pre-built bundle — no server needed
+open pokemon-champion-2026-FINAL.html   # macOS
+start pokemon-champion-2026-FINAL.html  # Windows
+xdg-open pokemon-champion-2026-FINAL.html  # Linux
+```
+
+### QA Test Checklist
+1. **Simulator tab** → Select teams, change Bo → Run Simulation → verify: win %, replay entries, inline pilot card
+2. **Run All Matchups** → verify 12-row matchup matrix, Pilot Guide tab populates, PDF button appears
+3. **Strategy tab** → Change team dropdown → verify strategy content updates (team-specific, not generic)
+4. **Import** → Paste raw Showdown text → verify team loads into slot
+5. **Export** → Click export on any team → verify Showdown-format output
+6. **Format toggle** → Switch Doubles ↔ Singles → re-run sim → verify results differ
+7. **Replay Log** → Click All / Wins / Losses / Clutch filters → verify filtering works
+
+---
+
+## FEATURES — COMPLETE
+
+- [x] Bo1/Bo3/Bo5/Bo10 Monte Carlo simulation (non-deterministic, Math.random() roll)
+- [x] Singles/Doubles toggle (spread move nerf applied in doubles)
+- [x] Pokepaste URL + raw Showdown text import/export
+- [x] Import as new slot OR replace existing (with confirmation dialog)
+- [x] Both sides interchangeable — player-select + opponent-select dropdowns + Swap button
+- [x] Pilot Guide tab — per-matchup: verdict, leads, win conditions, risks, tips
+- [x] Inline Pilot Notes card auto-shown after every single sim
+- [x] Download Results & Pilot Notes (.txt report)
+- [x] PDF Report (print API) — appears after Run All Matchups
+- [x] Series Summary view in Replay Log
+- [x] Meta Threat Radar (Sources tab) — 10 top Reg M-A threats, color-coded
+- [x] Speed Tier widget — collapsible per team card
+- [x] Team Coverage checker — live in VS column
+- [x] Strategy tab — keyed to currentPlayerKey, updates on team change
+- [x] PWA — manifest + service worker + icons (iOS / Android install)
+- [x] Single-file offline bundle (~280 KB)
 
 ---
 
 ## OPEN ISSUES (priority order)
-1. **Mega form Speed stats** may use pre-Mega base in Speed Tier widget — verify `BASE_STATS` for Mega forms
-2. **Set Editor edits** should invalidate sim cache — add dirty flag on `TEAMS[key]` edits before Run All
-3. **Nicknamed Pokémon import** — test `Nickname (Species) @ Item` parsing edge cases
-4. **Pokepaste URL fetch** fails silently offline — add `.catch()` error toast
-5. **Weather override turns** not modeled when both teams have weather setters — last switch-in should win
+
+### P1 — Critical
+1. **Strategy tab team-binding** — Verify Strategy content dynamically keys off `currentPlayerKey` and regenerates when team dropdown changes. If content is static/hardcoded, it must be refactored to pull from `TEAMS[currentPlayerKey]` and `TEAM_META[currentPlayerKey]`.
+
+### P2 — Functional
+2. **Mega form Speed stats** — `BASE_STATS` entries for `Altaria-Mega` (Speed 80), `Dragonite-Mega` (Speed 80), `Houndoom-Mega` (Speed 115) need verification against Smogon/Bulbapedia. Speed Tier widget must use post-Mega stats.
+3. **Set Editor dirty flag** — After editing EVs/moves/item in Set Editor and saving, `runAllMatchups()` may use a stale cached result. Add a dirty flag to `TEAMS[key]` on any Set Editor save to force re-simulation.
+4. **Nicknamed Pokémon import** — Parser must handle `Nickname (Species) @ Item` format. Extract species from parentheses when a nickname is present.
+
+### P3 — UX
+5. **Pokepaste URL fetch error handling** — Add `.catch()` with a visible toast: _"Could not fetch pokepaste. Try pasting the raw team text instead."_
+6. **Replay Log active filter state** — Active filter button should have a persistent highlight (`.active` class with `--color-primary` background).
+7. **PDF/Download buttons discoverability** — Show grayed-out disabled buttons before Run All completes, with tooltip: _"Run All Matchups to generate report."_
+8. **Weather override model** — When both teams have weather setters (e.g., rin_sand vs suica_sun), speed-based priority should determine which weather applies. Currently last-setter-wins regardless of speed.
 
 ---
 
-## DOCS
-- `README.md` — quickstart
-- `DEVELOPMENT_RUNBOOK.md` — full dev history, architecture, QA log, replication guide
-- `MASTER_PROMPT.md` — this file
+## DEPENDENCIES
+
+| Dependency | Version | Source | Purpose |
+|------------|---------|--------|---------|
+| None (vanilla JS) | — | — | No npm, no bundler, no framework |
+| Python 3 | 3.8+ | System | Rebuild script only |
+| Chrome/Firefox | Modern | Browser | Runtime |
+| PokeAPI sprites | — | githubusercontent CDN | Sprite images |
+
+The app has **zero runtime npm dependencies**. Everything is vanilla HTML/CSS/JS.
 
 ---
 
-## HOW TO TEST IMMEDIATELY
-1. `git clone https://github.com/alfredocox/Pokemon-Champions-Sim-Planner.git`
-2. Open `pokemon-champion-2026-FINAL.html` in Chrome
-3. Simulator tab → Run Simulation → verify win %, replay log, pilot card
-4. Run All Matchups → verify 12-team matrix, Pilot Guide tab, PDF button
-5. Strategy tab → change team dropdown → verify content updates
+## WORKING WITH THIS PROJECT IN PERPLEXITY
+
+When you ask the AI to make changes:
+
+1. **For source file edits** — AI will use `mcp_tool_github_mcp_direct_create_or_update_file` to push directly to `poke-sim/[filename]` on `main` branch.
+2. **For the bundle** — After source edits, run the REBUILD COMMAND above locally, then push `pokemon-champion-2026-FINAL.html` as a separate commit.
+3. **For deploy** — Use the DEPLOY COMMAND above from within Perplexity.
+4. **SHA requirement** — When updating an existing file via GitHub MCP, the file's current SHA must be provided. Always fetch the file first to get its current SHA.
 
 ---
 
-**Last known good state:** April 23, 2026
-**Last commit:** `72ba3e8` — docs complete
-**Bundle size:** 280,023 bytes
-**Engine:** Verified non-deterministic (Math.random() damage roll confirmed in engine.js)
+## PROJECT TIMELINE
+
+| Date | Milestone |
+|------|-----------|
+| April 2026, Week 1 | Initial build — 13 teams, engine, basic sim UI |
+| April 2026, Week 2 | Pilot Guide, import/export, pokepaste integration |
+| April 2026, Week 3 | Strategy tab added, PWA packaging, PDF report |
+| April 23, 2026 | QA audit completed — 8 issues logged (P1-P3) |
+| April 23, 2026 | Master prompt v1 + runbook + README pushed to GitHub |
+| April 23, 2026 | Master prompt v2 — full engine read, verified architecture |
+
+---
+
+## LAST KNOWN GOOD STATE
+
+- **Bundle:** `pokemon-champion-2026-FINAL.html` ~280 KB
+- **Engine:** Non-deterministic confirmed (`Math.random()` damage roll in `engine.js`)
+- **Trick Room:** Correctly modeled — 5-turn countdown, speed inversion, toggle cancel
+- **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
+- **Syntax:** `data.js` ✓  `engine.js` ✓  `ui.js` ✓  (no console errors on load)
+- **Tested on:** Chrome 124 macOS / Chrome Android
+
+---
+
+**You are now fully briefed. Ask me what to build, fix, or improve.**
