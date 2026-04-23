@@ -339,14 +339,12 @@ document.getElementById('copy-export-btn')?.addEventListener('click', function()
     btn.textContent = '✓ Copied!'; btn.style.background = 'var(--green)';
     setTimeout(()=>{ btn.innerHTML = origHTML; btn.style.background = ''; }, 1800);
   }
-  // Modern clipboard API (requires HTTPS or localhost)
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(ta.value).then(showCopied).catch(()=>{
       ta.select(); ta.setSelectionRange(0, 99999);
       try { document.execCommand('copy'); showCopied(); } catch(e) {}
     });
   } else {
-    // Fallback for HTTP or older browsers (iOS Safari < 13.4)
     ta.select(); ta.setSelectionRange(0, 99999);
     try { document.execCommand('copy'); showCopied(); } catch(e) {}
   }
@@ -411,7 +409,6 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
   if (activeTab === 'url') {
     const url = document.getElementById('paste-url-input').value.trim();
     if (!url) { statusEl.textContent = 'Enter a pokepast.es URL'; statusEl.className='modal-status err'; return; }
-    // Extract paste ID and fetch raw
     const match = url.match(/pokepast\.es\/([a-f0-9]+)/i);
     if (!match) { statusEl.textContent = 'Invalid pokepast.es URL format'; statusEl.className='modal-status err'; return; }
     statusEl.textContent = 'Fetching paste…';
@@ -420,7 +417,6 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
       if (!resp.ok) throw new Error('Fetch failed');
       pasteText = await resp.text();
     } catch(e) {
-      // CORS fallback — try without cors
       statusEl.textContent = `Could not fetch directly (CORS). Copy the paste text from pokepast.es and use the "Paste Text" tab instead.`;
       statusEl.className = 'modal-status err';
       return;
@@ -438,9 +434,7 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
   let teamName = '';
 
   if (slot === '__new__') {
-    // Create a new team slot with a unique key
     const newKey = 'custom_' + Date.now();
-    // Detect team name from first Pokémon or use generic
     const guessedName = members[0] ? `${members[0].name}'s Team` : 'Imported Team';
     TEAMS[newKey] = {
       name: guessedName,
@@ -451,7 +445,6 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
     };
     targetSlot = newKey;
     teamName = guessedName;
-    // Add to opponent select dropdown
     const oppSel = document.getElementById('opponent-select');
     if (oppSel) {
       const opt = document.createElement('option');
@@ -459,7 +452,6 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
       opt.textContent = guessedName;
       oppSel.appendChild(opt);
     }
-    // Add to import-slot dropdown for future reference
     const importSlot = document.getElementById('import-slot');
     if (importSlot) {
       const opt = document.createElement('option');
@@ -468,19 +460,15 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
       importSlot.appendChild(opt);
     }
   } else {
-    // Load into team slot
     const teamKeys = Object.keys(TEAMS);
     if (!teamKeys.includes(slot)) { statusEl.textContent = 'Unknown slot'; statusEl.className='modal-status err'; return; }
-    // Preserve team metadata, replace members
     TEAMS[slot].members = members;
     targetSlot = slot;
     teamName = TEAMS[slot].name;
-    // If player team, re-render editor
     if (slot === 'player') {
       renderRoster('player-roster', TEAMS.player.members);
       renderEditorRoster();
     }
-    // Update opponent roster if currently selected
     const oppSel = document.getElementById('opponent-select');
     if (oppSel && oppSel.value === slot) renderRoster('opp-roster', TEAMS[slot].members);
   }
@@ -507,7 +495,6 @@ function drawBarChart(canvasId, labels, values, color) {
   const cv = document.getElementById(canvasId);
   if (!cv) return;
   const ctx = cv.getContext('2d');
-  // HiDPI/Retina support
   const dpr = window.devicePixelRatio || 1;
   if (!cv._dprSet) {
     const w = cv.width, h = cv.height;
@@ -576,10 +563,10 @@ function displayResults(res, oppKey) {
   const wcEntries = Object.entries(res.winConditions||{}).sort((a,b)=>b[1]-a[1]).slice(0,7);
   if (!wcEntries.length || !res.wins) { wc.innerHTML='<p style="color:var(--text-m);font-size:11px">No wins recorded</p>'; }
   else {
-    const maxWC = wcEntries[0][1]; // normalize to max for bar width
+    const maxWC = wcEntries[0][1];
     for (const [cond,cnt] of wcEntries) {
-      const barPct = Math.round(cnt/maxWC*100); // relative bar width
-      const labelPct = Math.min(100, Math.round(cnt/total*100)); // % of all series
+      const barPct = Math.round(cnt/maxWC*100);
+      const labelPct = Math.min(100, Math.round(cnt/total*100));
       const d = document.createElement('div');
       d.className='win-cond-row';
       d.innerHTML=`<div style="display:flex;justify-content:space-between"><span>${cond}</span><span style="color:var(--primary);font-family:var(--font-mono);font-weight:700">${labelPct}%</span></div><div class="win-cond-bar" style="width:${barPct}%"></div>`;
@@ -591,7 +578,6 @@ function displayResults(res, oppKey) {
   const gn=isDark?'#4ec994':'#2a9d6a', rd=isDark?'#f05464':'#d63048', gd=isDark?'#f5c542':'#c89a00';
   const pri=isDark?'#7c6af5':'#5b49d6';
 
-  // Outcome split chart
   setTimeout(()=>{
     const cv = document.getElementById('ko-chart');
     if (!cv) return;
@@ -614,7 +600,6 @@ function displayResults(res, oppKey) {
     }
   },60);
 
-  // Game length chart
   setTimeout(()=>{
     const td=res.turnDist||{};
     const turns=Object.keys(td).map(Number).sort((a,b)=>a-b);
@@ -622,6 +607,63 @@ function displayResults(res, oppKey) {
   },60);
 
   addReplays(res.allLogs||[], oppKey);
+
+  // Auto-show inline pilot card after every single sim
+  showInlinePilotCard(oppKey, res);
+}
+
+// ============================================================
+// INLINE PILOT CARD — shown after every single sim run
+// ============================================================
+function showInlinePilotCard(oppKey, res) {
+  // Find or create the inline pilot container in the results section
+  let container = document.getElementById('inline-pilot-card');
+  if (!container) {
+    const resultsSection = document.getElementById('results-section');
+    if (!resultsSection) return;
+    container = document.createElement('div');
+    container.id = 'inline-pilot-card';
+    container.style.cssText = 'margin-top:var(--sp5,20px);';
+    resultsSection.appendChild(container);
+  }
+
+  const total = res.wins + res.losses + res.draws;
+  const winPct = Math.round(res.winRate * 100);
+  const oppTeam = TEAMS[oppKey];
+  const teamName = oppTeam ? oppTeam.name : oppKey;
+
+  let verdict, verdictClass;
+  if (winPct >= 65) { verdict = 'Favorable'; verdictClass = 'verdict-favorable'; }
+  else if (winPct >= 45) { verdict = 'Even'; verdictClass = 'verdict-even'; }
+  else if (winPct >= 30) { verdict = 'Risky'; verdictClass = 'verdict-risky'; }
+  else { verdict = 'Avoid'; verdictClass = 'verdict-avoid'; }
+
+  const wcEntries = Object.entries(res.winConditions || {}).sort((a,b) => b[1]-a[1]).slice(0,2);
+
+  // Top leads from winning logs
+  const leadCounts = {};
+  const winLogs = (res.allLogs || []).filter(g => g.result === 'win');
+  for (const game of winLogs) {
+    const firstLines = (game.log || []).slice(0,8).join(' ');
+    for (const m of TEAMS.player.members) {
+      if (firstLines.includes(m.name)) leadCounts[m.name] = (leadCounts[m.name]||0)+1;
+    }
+  }
+  const leads = Object.entries(leadCounts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
+
+  const tips = [];
+  if (leads.length >= 2) tips.push(`Lead ${leads[0]} + ${leads[1]}`);
+  if (wcEntries.length) tips.push(`Win condition: ${wcEntries[0][0]} (${Math.round(wcEntries[0][1]/total*100)}%)`);
+  if (winPct < 45) tips.push('Use speed control to disrupt their gameplan');
+
+  container.innerHTML = `
+    <div class="pilot-card" style="border:1px solid var(--border,#333);border-radius:8px;padding:14px;background:var(--surface,#1c1b19)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:700;font-size:13px">📋 Pilot Notes vs ${teamName}</span>
+        <span class="pilot-verdict ${verdictClass}" style="font-size:11px;padding:3px 8px;border-radius:4px">${verdict} · ${winPct}%</span>
+      </div>
+      ${tips.length ? `<div style="font-size:11px;color:var(--text-m,#888);line-height:1.7">${tips.map(t=>`• ${t}`).join('<br>')}</div>` : ''}
+    </div>`;
 }
 
 // ============================================================
@@ -695,7 +737,6 @@ window.lastSimResults = {};
 
 // ============================================================
 // BO SERIES RUNNER
-// Wraps individual battles into a Bo series
 // ============================================================
 async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress) {
   const results = { wins:0, losses:0, draws:0, totalTurns:0, totalTrTurns:0, winConditions:{}, allLogs:[], turnDist:{} };
@@ -705,7 +746,6 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
   for (let i=0; i<numSeries; i+=BATCH) {
     const bSize = Math.min(BATCH, numSeries-i);
     for (let j=0; j<bSize; j++) {
-      // Play a series
       let seriesW=0, seriesL=0;
       const gamesNeeded = Math.ceil(bo/2);
       let gamesPlayed = 0;
@@ -741,7 +781,8 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
   return results;
 }
 
-async function runAllMatchups(numSeries, bo, onProgress, onDone) {
+// runAllMatchupsUI — UI wrapper; distinct from engine.js runAllMatchups
+async function runAllMatchupsUI(numSeries, bo, onProgress, onDone) {
   const opps = Object.keys(TEAMS).filter(k=>k!=='player');
   let done=0;
   for (const opp of opps) {
@@ -809,11 +850,10 @@ document.getElementById('run-all-btn')?.addEventListener('click', async function
   tbody.innerHTML='';
   let totalW=0,totalL=0;
 
-  await runAllMatchups(n,bo,(cur,tot,w,l)=>{
+  await runAllMatchupsUI(n,bo,(cur,tot,w,l)=>{
     totalW=w; totalL=l;
     setProgress(Math.round(cur/tot*100),`Running matchups… ${cur} / ${tot}`,w,l);
   },(opp,res)=>{
-    // Store results globally
     window.lastSimResults[opp] = res;
     const winPct=Math.round(res.winRate*100);
     const pillCls=winPct>=55?'fav':winPct<=45?'unfav':'even';
@@ -830,12 +870,10 @@ document.getElementById('run-all-btn')?.addEventListener('click', async function
       <td><span class="assess-chip ${aCls}">${aLbl}</span></td>`;
     tbody.appendChild(tr);
     addReplays(res.allLogs||[], opp);
-    // Generate pilot guide for this opponent
     generatePilotGuide(opp, res);
   });
 
   document.getElementById('progress-wrap').style.display='none';
-  // Show PDF report button
   const pdfBtn = document.getElementById('pdf-report-btn');
   if (pdfBtn) pdfBtn.style.display = '';
   simRunning=false; this.disabled=false; document.getElementById('run-sim-btn').disabled=false;
@@ -848,33 +886,27 @@ function generatePilotGuide(oppKey, results) {
   const el = document.getElementById('pilot-content');
   if (!el) return;
 
-  // Remove empty state
   const emptyEl = el.querySelector('.pilot-empty');
   if (emptyEl) emptyEl.remove();
 
   const total = results.wins + results.losses + results.draws;
   const winPct = Math.round(results.winRate * 100);
 
-  // Verdict
   let verdict, verdictClass;
   if (winPct >= 65) { verdict = 'Favorable'; verdictClass = 'verdict-favorable'; }
   else if (winPct >= 45) { verdict = 'Even'; verdictClass = 'verdict-even'; }
   else if (winPct >= 30) { verdict = 'Risky'; verdictClass = 'verdict-risky'; }
   else { verdict = 'Avoid'; verdictClass = 'verdict-avoid'; }
 
-  // Top 2 win conditions
   const wcEntries = Object.entries(results.winConditions || {}).sort((a,b) => b[1]-a[1]).slice(0,2);
   const maxWC = wcEntries.length ? wcEntries[0][1] : 1;
 
-  // Find recommended leads from winning game logs
   const leadCounts = {};
   const allLogs = results.allLogs || [];
   const winLogs = allLogs.filter(g => g.result === 'win');
   for (const game of winLogs) {
     const log = game.log || [];
-    // First turn is typically lines 0-5 in the log
     const firstTurnLines = log.slice(0, 8).join(' ');
-    // Find pokemon names from player team
     for (const m of TEAMS.player.members) {
       if (firstTurnLines.includes(m.name)) {
         leadCounts[m.name] = (leadCounts[m.name] || 0) + 1;
@@ -883,7 +915,6 @@ function generatePilotGuide(oppKey, results) {
   }
   const leads = Object.entries(leadCounts).sort((a,b) => b[1]-a[1]).slice(0,2).map(e => e[0]);
 
-  // Risk warnings: opponent pokemon appearing in loss game KO messages > 40%
   const lossSeries = allLogs.filter(g => g.result === 'loss');
   const riskCounts = {};
   for (const game of lossSeries) {
@@ -903,7 +934,6 @@ function generatePilotGuide(oppKey, results) {
     .slice(0,3)
     .map(e => e[0]);
 
-  // Auto-generate tips
   const tips = [];
   if (leads.length >= 2) tips.push(`Lead with ${leads[0]} + ${leads[1]} for best results.`);
   if (wcEntries.length) tips.push(`${wcEntries[0][0]} was the top win condition in ${Math.round(wcEntries[0][1]/total*100)}% of all series.`);
@@ -959,7 +989,6 @@ function generatePDFReport() {
   const bo = currentBo;
   const fmt = currentFormat === 'doubles' ? 'Doubles' : 'Singles';
 
-  // Build summary table rows
   const summaryRows = Object.entries(results).map(([opp, res]) => {
     const winPct = Math.round(res.winRate * 100);
     let verdict, verdictCls;
@@ -975,7 +1004,6 @@ function generatePDFReport() {
     </tr>`;
   }).join('');
 
-  // Build detail sections
   const detailSections = Object.entries(results).map(([opp, res]) => {
     const total = res.wins + res.losses + res.draws;
     const winPct = Math.round(res.winRate * 100);
@@ -988,7 +1016,6 @@ function generatePDFReport() {
     const wcEntries = Object.entries(res.winConditions || {}).sort((a,b) => b[1]-a[1]).slice(0,3);
     const wcText = wcEntries.map(([c,n]) => `${c} (${Math.round(n/total*100)}%)`).join(', ');
 
-    // Leads from winning logs
     const leadCounts = {};
     const winLogs = (res.allLogs || []).filter(g => g.result === 'win');
     for (const game of winLogs) {
@@ -999,7 +1026,6 @@ function generatePDFReport() {
     }
     const leads = Object.entries(leadCounts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
 
-    // Risks
     const lossSeries = (res.allLogs || []).filter(g => g.result === 'loss');
     const riskCounts = {};
     for (const game of lossSeries) {
@@ -1044,7 +1070,7 @@ function generatePDFReport() {
 // ============================================================
 // PART 4: SERIES SUMMARY MODE (Replay Log)
 // ============================================================
-let replayMode = 'log'; // 'log' or 'summary'
+let replayMode = 'log';
 
 document.getElementById('replay-mode-toggle')?.addEventListener('click', function() {
   replayMode = replayMode === 'log' ? 'summary' : 'log';
@@ -1071,10 +1097,8 @@ function renderSeriesSummary() {
     const total = logs.length;
     const wins = logs.filter(g => g.result === 'win').length;
     const losses = logs.filter(g => g.result === 'loss').length;
-    const draws = total - wins - losses;
     const winPct = total ? Math.round(wins/total*100) : 0;
 
-    // Key KO = first fainted found in the log
     let keyKO = '—';
     for (const game of logs) {
       const faintedLine = (game.log || []).find(l => l.includes('fainted'));
@@ -1084,11 +1108,9 @@ function renderSeriesSummary() {
       }
     }
 
-    // Top win condition
     const wcTop = Object.entries(res.winConditions || {}).sort((a,b)=>b[1]-a[1])[0];
     const winCond = wcTop ? wcTop[0] : '—';
 
-    // Verdict color
     let verdictCls = winPct >= 65 ? 'verdict-favorable' : winPct >= 45 ? 'verdict-even' : winPct >= 30 ? 'verdict-risky' : 'verdict-avoid';
 
     rows += `<tr class="ss-row ss-${winPct>=55?'win':winPct<=45?'loss':'draw'}">
@@ -1122,7 +1144,6 @@ function getEffectiveSpe(member) {
   const base = BASE_STATS[member.name];
   if (!base) return 0;
   const nat = NATURE_SPE[member.nature] || 1;
-  // Approximate Lv50 speed: floor((2*base + 31 + ev/4) * 50/100 + 5) * nature
   const ev = (member.evs && member.evs.spe) ? member.evs.spe : 0;
   const raw = Math.floor((2 * base.spe + 31 + Math.floor(ev / 4)) * 50 / 100 + 5);
   return Math.floor(raw * nat);
@@ -1150,7 +1171,6 @@ function buildSpeedTierHTML(members) {
   </div>`;
 }
 
-// Speed tier sections are appended by renderSpeedTiersForGrid() which is called after renderTeamsGrid()
 function renderSpeedTiersForGrid() {
   const grid = document.getElementById('teams-grid');
   if (!grid) return;
@@ -1160,7 +1180,6 @@ function renderSpeedTiersForGrid() {
     const key = teamKeys[idx];
     const team = TEAMS[key];
     if (!team || !team.members) return;
-    // Remove existing speed tier if re-rendering
     const existing = card.querySelector('.speed-tier-section');
     if (existing) existing.remove();
     card.insertAdjacentHTML('beforeend', buildSpeedTierHTML(team.members));
@@ -1169,8 +1188,9 @@ function renderSpeedTiersForGrid() {
 
 // ============================================================
 // PART 5B: ROLE COVERAGE CHECKER
+// FIX: Must use var (not const/let) — referenced during init before declaration
 // ============================================================
-const COVERAGE_CHECKS = [
+var COVERAGE_CHECKS = [
   { label: 'Fake Out', check: m => m.moves && m.moves.includes('Fake Out') },
   { label: 'Trick Room Counter', check: m => m.moves && (m.moves.includes('Taunt') || m.moves.includes('Imprison') || m.moves.includes('Tailwind') || m.moves.includes('Icy Wind')) },
   { label: 'Redirection', check: m => m.moves && (m.moves.includes('Follow Me') || m.moves.includes('Rage Powder')) },
@@ -1196,8 +1216,6 @@ renderCoverageWidget();
 // Render speed tiers for initial teams grid
 renderSpeedTiersForGrid();
 
-// Coverage widget is updated directly inside saveEdits() above
-
 // ============================================================
 // PART 6: META THREAT RADAR
 // ============================================================
@@ -1215,12 +1233,10 @@ const META_THREATS = [
 ];
 
 function computeThreatLevel(threat) {
-  // Check if player team has SE coverage (moves that hit the threat's types SE)
   const playerMoves = TEAMS.player.members.flatMap(m => m.moves || []);
   const playerSpeeds = TEAMS.player.members.map(m => getEffectiveSpe(m));
   const maxPlayerSpe = Math.max(...playerSpeeds);
 
-  // SE coverage check
   let hasSECoverage = false;
   for (const mv of playerMoves) {
     const mvType = (typeof MOVE_TYPES !== 'undefined') ? MOVE_TYPES[mv] : null;
@@ -1233,7 +1249,6 @@ function computeThreatLevel(threat) {
     if (eff >= 2) { hasSECoverage = true; break; }
   }
 
-  // Speed advantage check
   const threatBase = BASE_STATS[threat.name];
   const threatSpe = threatBase ? threatBase.spe : 100;
   const hasSpeedAdv = maxPlayerSpe > threatSpe;
@@ -1264,9 +1279,3 @@ function renderMetaRadar() {
 }
 
 renderMetaRadar();
-
-// ============================================================
-// PART 4: SERIES SUMMARY — RE-RENDER ON IMPORT SLOT CLICK
-// ============================================================
-// (Series Summary is already handled by the patched renderReplays above)
-
