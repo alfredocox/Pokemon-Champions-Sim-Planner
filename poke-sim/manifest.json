@@ -1,1 +1,35 @@
-{}
+{
+  "name": "Champions Sim 2026",
+  "short_name": "ChampSim",
+  "description": "Pokémon VGC competitive team simulator for Champions 2026",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "orientation": "any",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "sports"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Run Simulation",
+      "short_name": "Simulate",
+      "url": "./index.html#sim",
+      "description": "Jump straight to the battle simulator"
+    }
+  ]
+}
