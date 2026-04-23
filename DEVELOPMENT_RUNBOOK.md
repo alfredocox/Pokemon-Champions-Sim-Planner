@@ -87,6 +87,22 @@ Fixes applied:
 - Added `DEVELOPMENT_RUNBOOK.md` (this file)
 - Added `MASTER_PROMPT.md`
 
+### Phase 6 — Live URL Investigation + Master Prompt v3 (April 23, 2026)
+**Commit:** [`8f8e7d8`](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/commit/8f8e7d81aae54726c3ea80a33ce2757f970a5132)
+
+**Problem reported:** `htmlpreview.github.io/?https://raw.githubusercontent.com/alfredocox/Pokemon-Champions-Sim-Planner/main/pokemon-champion-2026-FINAL.html` did not load the app.
+
+**Root cause:** Two compounding issues:
+1. **MIME type mismatch** — GitHub serves raw `.html` files with `Content-Type: text/plain`, not `text/html`. Browsers refuse to render HTML with the wrong MIME type.
+2. **Cross-origin asset blocking** — The bundle embeds CSS, JS, and sprite URLs that are fetched cross-origin. htmlpreview rewrites the HTML URL but cannot rewrite the `<script>` and `<link>` asset paths, causing CORS failures.
+3. **Service worker scope** — The PWA service worker is scoped to `poke-sim/`. When opened via a raw GitHub URL outside that scope, the service worker is inactive and cached assets are unavailable.
+
+**Resolution:**
+- Documented in MASTER_PROMPT.md under “LIVE APP — HOW TO ACCESS” section
+- Three confirmed working access methods: (1) local clone + open file, (2) `npx serve` local server, (3) Perplexity Space deploy
+- htmlpreview.github.io marked as **DO NOT USE** for this project
+- Logged as P1 open issue in MASTER_PROMPT.md
+
 ---
 
 ## 4. 13 Loaded Teams
@@ -164,6 +180,7 @@ Tabs: `simulator` | `teams` | `set-editor` | `replay` | `sources` | `pilot` | `s
 |----|----------|-------|--------|
 | C1 | High | `COVERAGE_CHECKS` must stay `var` — TDZ if changed to `const`/`let` | Fixed (var) |
 | C2 | Medium | Strategy tab must re-render on team change | Fixed (player-select listener) |
+| P1 | High | htmlpreview.github.io URL does not work for this app — MIME type + CORS | Documented; use local clone |
 | F1 | Medium | Mega form Speed stats may use pre-Mega base in Speed Tier widget | Open |
 | F2 | Medium | Set Editor edits should invalidate prior sim cache before Run All | Open |
 | F3 | Medium | Nicknamed Pokémon import parser needs `(Species)` fallback test | Open |
@@ -175,7 +192,11 @@ Tabs: `simulator` | `teams` | `set-editor` | `replay` | `sources` | `pilot` | `s
 
 ## 8. Replication Guide (Any Developer)
 
-### Option A — Just open the app (zero setup)
+### ⚠️ Important: Do NOT use htmlpreview.github.io
+
+`htmlpreview.github.io` does not work for this app. GitHub serves raw `.html` files with `text/plain` MIME type, and the app's cross-origin asset references are blocked by CORS when loaded from a non-origin host. Use one of the three methods below instead.
+
+### Option A — Just open the app (zero setup, recommended)
 ```bash
 # Clone repo
 git clone https://github.com/alfredocox/Pokemon-Champions-Sim-Planner.git
@@ -192,10 +213,11 @@ xdg-open pokemon-champion-2026-FINAL.html  # Linux
 cd poke-sim
 
 # Any static server works:
-npx serve .          # Node.js
+npx serve .          # Node.js (recommended — full PWA service worker)
 python3 -m http.server 8080  # Python (no PWA service worker)
 
-# Open: http://localhost:8080
+# Open: http://localhost:3000  (npx serve)
+# Open: http://localhost:8080  (python)
 ```
 > Note: Service worker requires HTTPS or localhost. Use `npx serve` for full PWA testing.
 
@@ -283,6 +305,7 @@ print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026-FINAL.html\"):,} bytes'
 
 | Commit | Date | Author | Description |
 |--------|------|--------|-------------|
+| `8f8e7d8` | 2026-04-23 | TheYfactora12 | docs: MASTER_PROMPT v3 — htmlpreview URL fix, Phase 6 change log |
 | `0b41074` | 2026-04-23 | TheYfactora12 | docs: README + runbook + master prompt |
 | `261120b` | 2026-04-23 | TheYfactora12 | fix: COVERAGE_CHECKS TDZ, showInlinePilotCard, runAllMatchups conflict |
 | `f52949b` | 2026-04-23 | alfredocox | chore: clean repo structure |
