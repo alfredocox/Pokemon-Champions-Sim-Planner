@@ -5331,7 +5331,7 @@ const MOVE_TARGETS = {
   'Taunt':'normal', 'Sleep Powder':'normal', 'Spore':'normal', 'Hypnosis':'normal',
   'Encore':'normal', 'Clear Smog':'normal', 'Rock Tomb':'normal',
   'Heal Pulse':'normal', 'Coaching':'normal',
-  'Expanding Force':'normal',  // dynamic → 'all-adjacent-foes' under Psychic Terrain (Issue #36)
+  'Expanding Force':'normal',  // dynamic → 'all-adjacent-foes' under Psychic Terrain (Issue #36 -- T9j.17 IMPLEMENTED in engine.js executeMove)
   'Tera Blast':'normal',       // normally single-target; type changes with Tera (Issue #7)
 };
 
@@ -5471,8 +5471,12 @@ var CHAMPIONS_MEGAS = {
 // filed GitHub issues). Each entry records the Mega holder + effect tag
 // for dispatch wiring.
 var CHAMPIONS_NEW_ABILITIES = {
-  'Piercing Drill': { holder:'Excadrill-Mega',  effect:'contact-bypass-protect-25pct',
-                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
+  // T9j.17 (Refs #101) -- Piercing Drill rewritten to a flat 25% miss chance
+  // on every move. Replaces the prior contact-bypass-Protect interpretation.
+  // Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+  'Piercing Drill': { holder:'Excadrill-Mega',  effect:'miss-25pct',
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml',
+                               'https://game8.co/games/Pokemon-Champions/archives/590403'] },
   'Dragonize':      { holder:'Feraligatr-Mega', effect:'normal-to-dragon-plus-20pct',
                       sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
   'Mega Sol':       { holder:'Meganium-Mega',   effect:'personal-sun-no-weather',
@@ -5592,26 +5596,37 @@ if (typeof module !== 'undefined' && module.exports) {
 //   Alignment = 0.9 (lowered) | 1.0 (neutral) | 1.1 (raised)
 //   All IVs fixed at 31.
 //
-// Status nerfs (PENDING engine work, filed as GitHub issues):
+// Status nerfs (IMPLEMENTED — see canInflictStatus + getStat + end-of-turn):
 //   Paralysis full-para: 12.5%  (was 25%). Speed -50% unchanged.
 //   Sleep:  max 3 turns  (T1 cant act, T2 33% wake, T3 guaranteed).
 //   Freeze: 25% thaw/turn, guaranteed thaw T3. Sun thaws.
+//   Frostbite (T9j.17): 1/16 chip, SpA halved, no action skip.
+//     Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+//   Toxic ramp: N/16 escalating, capped at N=15.
 //
-// Doubles (PENDING):
+// Doubles:
 //   Spread modifier 0.75x; spread MUST hit all valid targets.
-//   Fake Out: locked after first turn in battle.
+//   Fake Out (T9j.17 hard-gate): cannot be selected past first turn out;
+//     resets on switch-in. Encore->Struggle handled in executeAction.
 //   Protect PP halved 16 -> 8.
 //
 // Ability nerfs (flags in data.js::CHAMPIONS_UPDATED_ABILITIES):
 //   Unseen Fist:   25% damage through Protect (was 100%).
-//   Parental Bond: child hit 1/4 power (was 1/2).
+//   Parental Bond: child hit 1/4 power (was 1/2). T9j.8 inline 2-strike loop.
 //   Protean:       fires once per entry (was every move).
 //
 // New abilities (data.js::CHAMPIONS_NEW_ABILITIES):
-//   Piercing Drill (Mega Excadrill): contact @ 25% through Protect.
+//   Piercing Drill (Mega Excadrill): 25% miss chance on every move (T9j.17).
+//     Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
 //   Dragonize (Mega Feraligatr):     Normal -> Dragon, +20% BP.
 //   Mega Sol (Mega Meganium):        personal sun, no weather set.
 //   Spicy Spray (Mega Scovillain):   burn attacker on any damage taken.
+//
+// T9j.17 move/item additions:
+//   Expanding Force x Psychic Terrain: grounded user spreads to all foes
+//     and gains 1.5x BP. Cite: https://bulbapedia.bulbagarden.net/wiki/Expanding_Force_(move)
+//   Terrain Seeds (Grassy/Electric +1 Def, Psychic/Misty +1 SpD): consume
+//     on switch-in to matching terrain. Cite: https://bulbapedia.bulbagarden.net/wiki/Grassy_Seed
 //
 // Items NOT in Champions (enforced in legality.js::CHAMPIONS_BANNED_ITEMS):
 //   Life Orb, Choice Band/Specs, Assault Vest, Rocky Helmet, HDB,
@@ -5863,13 +5878,14 @@ var ABILITIES = {
     }
   },
   'Piercing Drill': {
-    // Contact moves deal 25% damage through Protect (deterministic — not a proc).
+    // T9j.17 (Refs #101) -- Champions Piercing Drill: 25% miss chance on every move.
+    // The previous T9j.8 implementation (25% Protect bypass on contact) was
+    // incorrect for Champions Reg M-A. Rewritten per user-confirmed spec.
+    // The 25% miss roll fires inside executeMove right after the standard
+    // accuracy check; this entry is intentionally hookless (no onProtectResolve)
+    // so Mega Excadrill obeys default full-block Protect rules.
     // Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
     // Cite: https://bulbapedia.bulbagarden.net/wiki/Piercing_Drill_(Ability)
-    onProtectResolve: function(ctx) {
-      if (ctx.isContact) return { damageMult: 0.25 };
-      return null;
-    }
   },
   'Unseen Fist': {
     // Champions: 25% damage through Protect on contact moves (nerfed from 100%).
@@ -5910,6 +5926,51 @@ var ABILITIES = {
   }
   // Parental Bond handled inline in executeMove (2-strike loop with BP override)
 };
+
+// ============================================================
+// T9j.17 (Refs #44) -- TERRAIN SEEDS
+// One-shot consumable items that boost the holder by +1 to a defensive stat
+// when present in matching terrain at switch-in. Standard mainline behavior
+// per Bulbapedia. Champions inherits this verbatim (no nerfs).
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Grassy_Seed
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Electric_Seed
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Psychic_Seed
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Misty_Seed
+// In-engine, the trigger fires inside applyEntryAbility when the holder
+// switches into a matching terrain. Trigger on terrain-set (e.g. a partner
+// uses Grassy Terrain mid-match) is wired in via the same helper called
+// from terrain-setting hooks; until terrain-setting moves are added to the
+// engine, only the switch-in path activates in real battles. Tests cover
+// both paths via direct helper invocation.
+// ============================================================
+var TERRAIN_SEEDS = {
+  'Grassy Seed':  { terrain: 'grassy',   stat: 'def', stages: 1 },
+  'Electric Seed':{ terrain: 'electric', stat: 'def', stages: 1 },
+  'Psychic Seed': { terrain: 'psychic',  stat: 'spd', stages: 1 },
+  'Misty Seed':   { terrain: 'misty',    stat: 'spd', stages: 1 },
+};
+
+// T9j.17 helper -- triggered from applyEntryAbility (switch-in) and from any
+// future terrain-set hook. Returns true iff the seed activated. Boosts cap
+// at +6, item is consumed (sets itemConsumed flag for Unburden).
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Grassy_Seed (mechanics box)
+function tryTerrainSeed(mon, field, log) {
+  if (!mon || !mon.alive) return false;
+  if (mon.itemConsumed) return false;
+  var seed = TERRAIN_SEEDS[mon.item];
+  if (!seed) return false;
+  if (!field || field.terrain !== seed.terrain) return false;
+  // Ungrounded mons (Flying / Levitate) do NOT receive terrain effects, so
+  // their seed should not consume either. Cite: Bulbapedia Terrain.
+  if (mon.flying) return false;
+  if (!mon.statBoosts) mon.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
+  var prev = mon.statBoosts[seed.stat] || 0;
+  mon.statBoosts[seed.stat] = Math.min(6, prev + seed.stages);
+  mon.itemConsumed = true;
+  var prettyStat = (seed.stat === 'def') ? 'Defense' : 'Special Defense';
+  if (log) log.push(mon.name + "'s " + mon.item + ' raised its ' + prettyStat + '!');
+  return true;
+}
 
 // T9j.8 — Ability hook dispatcher. Safe call: returns null when no ability or
 // no matching hook. Invoked from engine trigger points.
@@ -6034,6 +6095,10 @@ class Pokemon {
     this.toxicCounter = 0;
     this.frozenTurns  = 0;
     this.sleepTurns   = 0;
+    // T9j.17 (Refs #101) -- Fake Out hard-gate flag. Initialized false so first
+    // turn out is the only legal use. Reset on every switch-in (replaceOnField).
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out_(move)
+    this._fakeDone    = false;
     // T9j.6 (#18) — Choice Scarf move lock. Set to move name after first use,
     // cleared on switch in. Champions only has Choice Scarf (Band/Specs absent).
     this.choiceLock   = null;
@@ -6164,6 +6229,9 @@ class Pokemon {
     let val = boost >= 0 ? base * boostTable[boost] : base / boostTable[-boost];
     // Burn halves attack
     if (stat === 'atk' && this.status === 'burn') val *= 0.5;
+    // T9j.17 (Refs #101) -- Frostbite halves Special Attack (mirrors burn -> Atk).
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+    if (stat === 'spa' && this.status === 'frostbite') val *= 0.5;
     // Paralysis halves speed (Gen 9 — no action skip, speed only)
     if (stat === 'spe' && this.status === 'paralysis') val *= 0.5;
     // Sand Rush doubles speed in sand
@@ -6476,6 +6544,12 @@ function canInflictStatus(mon, status, field) {
   if (status === 'frozen'    && field && field.weather === 'sun') return false;
   if (status === 'sleep'     && mon.ability === 'Sweet Veil')   return false;
   if (status === 'frozen'    && mon.ability === 'Magma Armor')  return false;
+  // T9j.17 (Refs #101) -- Frostbite gates. Ice types and Magma Armor block,
+  // mirroring Champions' Freeze immunity rules. Sun thaws/prevents same as freeze.
+  // Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+  if (status === 'frostbite' && types.includes('Ice')) return false;
+  if (status === 'frostbite' && mon.ability === 'Magma Armor') return false;
+  if (status === 'frostbite' && field && field.weather === 'sun') return false;
   return true;
 }
 
@@ -6718,6 +6792,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const ally = playerActive.find(a => a !== mon && a.alive);
       if (ally) { ally.hp = Math.min(ally.maxHp, ally.hp + Math.floor(ally.maxHp * 0.25)); log.push(`${mon.name}'s Hospitality restored ${ally.name}'s HP!`); }
     }
+    // T9j.17 (Refs #44) -- Terrain Seed switch-in trigger.
+    // Grassy/Electric/Misty/Psychic Seed give +1 Def or +1 SpD when the
+    // matching terrain is already active as the holder switches in. Item is
+    // consumed in the process. Helper handles ungrounded skip + match logic.
+    if (typeof tryTerrainSeed === 'function') tryTerrainSeed(mon, field, log);
   }
 
   for (const m of playerActive) applyEntryAbility(m, 'player', field, log);
@@ -6777,7 +6856,13 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
       // Priority move logic
       if (PRIORITY_MOVES.has(move)) {
-        if (move === 'Fake Out' && !attacker._fakeDone) {
+        // T9j.17 (Refs #101) -- Fake Out hard-gate: skip selection entirely past
+        // first turn out. Previously it fell through to the damage-scoring loop
+        // below, which let the AI "select" Fake Out turn 2+ as a 40-BP attack.
+        // Champions rule: Fake Out is only legal on the user's first turn out.
+        // Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out_(move)
+        if (move === 'Fake Out') {
+          if (attacker._fakeDone) continue; // illegal selection -- skip entirely
           const target = liveEnemies[0];
           if (target) {
             const dmg = attacker.calcDamage(move, target, field, null, rng);
@@ -6987,25 +7072,52 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return;
     }
 
+    // T9j.17 (Refs #101) -- Fake Out hard-gate enforced inside executeAction.
+    // selectMove already filters Fake Out past turn 1, so this branch is a
+    // safety net for forced-move paths (Encore lock, imported test moves).
+    // Champions rule: if a Pokemon is forced into Fake Out past its first turn
+    // out, the move fails and the user Struggles instead (mirrors Encore -> Struggle
+    // when no legal move remains). Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Encore_(move)
+    //
+    // PLACEMENT: this block lives ABOVE the Protect check so that even when
+    // a legal Fake Out is blocked by Protect, the _fakeDone flag is still set --
+    // i.e. the user has spent its one Fake Out window for this stay on the field.
+    if (move === 'Fake Out') {
+      if (attacker._fakeDone) {
+        log.push(`${attacker.name} tried Fake Out -- but it failed! (only on first turn out)`);
+        // Encore -> Struggle path: deal 1/4 max HP fixed damage to a live
+        // enemy and recoil 1/4 max HP. Standard Struggle resolution.
+        // Cite: https://bulbapedia.bulbagarden.net/wiki/Struggle
+        const _struggleTgt = (target && target.alive) ? target : enemies.find(e => e.alive);
+        if (_struggleTgt && _struggleTgt.alive) {
+          const _stDmg = Math.max(1, Math.floor(_struggleTgt.maxHp * 0.25));
+          applyDamage(attacker, 'Struggle', _struggleTgt, _stDmg, field, log, rng);
+        }
+        const _stRecoil = Math.max(1, Math.floor(attacker.maxHp * 0.25));
+        attacker.hp = Math.max(0, attacker.hp - _stRecoil);
+        log.push(`${attacker.name} is hit by Struggle recoil! [${_stRecoil} dmg]`);
+        if (attacker.hp === 0) {
+          attacker.alive = false;
+          log.push(`${attacker.name} fainted from Struggle recoil!`);
+        }
+        return;
+      }
+      // Mark the Fake Out window consumed BEFORE the Protect check so that a
+      // Protect-blocked Fake Out still counts as the user's one attempt.
+      attacker._fakeDone = true;
+    }
+
     // Skip if target protected.
     // T9j.8 (Refs #30): Piercing Drill / Unseen Fist piercing paths are resolved
     // inside executeMove (per-target loop). Utility branches reaching THIS block
     // (U-turn / Flip Turn / Dragon Darts below) fall through to those specific
-    // handlers, which all delegate to applyDamage directly — and currently treat
+    // handlers, which all delegate to applyDamage directly -- and currently treat
     // Protect as full block. Keeping default full-block here preserves parity
     // with pre-T9j.8 behavior for those narrow paths.
     if (target && target.protected) {
       log.push(`${attacker.name} used ${move}! But ${target.name} was protected!`);
       return;
-    }
-
-    // Fake Out: only first turn
-    if (move === 'Fake Out') {
-      if (attacker._fakeDone) {
-        // Fall through to damage
-      } else {
-        attacker._fakeDone = true;
-      }
     }
 
     // Miss chance for low-accuracy moves
@@ -7084,9 +7196,24 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   function executeMove(attacker, move, intendedTarget, allies, enemies, field, log, rng) {
     const format = (opts && opts.format) || 'doubles';
     const isDoubles = (format !== 'singles');
-    const targetCat = (typeof getMoveTarget === 'function')
+    let targetCat = (typeof getMoveTarget === 'function')
       ? getMoveTarget(move)
       : 'normal';
+
+    // T9j.17 (Refs #36) -- Expanding Force x Psychic Terrain dynamic target.
+    // When the user is grounded AND Psychic Terrain is active, Expanding Force
+    // becomes a spread move hitting all adjacent foes and gets a 1.5x BP boost.
+    // Ungrounded users (Flying-type or Levitate) keep the default single-target.
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Expanding_Force_(move)
+    // Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+    const _prevBpMult = (field._ctx && field._ctx.bpMult) || 1;
+    let _bpMultPushed = false;
+    if (move === 'Expanding Force' && field.terrain === 'psychic' && !attacker.flying) {
+      targetCat = 'all-adjacent-foes';
+      field._ctx.bpMult = _prevBpMult * 1.5;
+      _bpMultPushed = true;
+      log.push(`${attacker.name}'s Expanding Force surged through the Psychic Terrain!`);
+    }
 
     const liveEnemies = enemies.filter(e => e.alive);
     const liveAllies  = allies.filter(a => a !== attacker && a.alive);
@@ -7174,6 +7301,18 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     const acc = ACC_MAP[move] || 1.0;
     if (rng() > acc) {
       log.push(`${attacker.name} used ${move}! It missed!`);
+      if (_bpMultPushed) field._ctx.bpMult = _prevBpMult;
+      return;
+    }
+
+    // T9j.17 (Refs #101) -- Piercing Drill 25% miss chance on every move.
+    // Replaces the prior contact-bypass-Protect interpretation. The roll fires
+    // here (after the move is selected and the standard ACC_MAP roll passes)
+    // so it stacks correctly with low-accuracy moves.
+    // Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+    if (attacker.ability === 'Piercing Drill' && rng() < 0.25) {
+      log.push(`${attacker.name} used ${move}! But Piercing Drill missed!`);
+      if (_bpMultPushed) field._ctx.bpMult = _prevBpMult;
       return;
     }
 
@@ -7228,6 +7367,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       }
       if (!attacker.alive) break;
     }
+    // Restore the prior bpMult so we don't leak the 1.5x onto a Parental Bond
+    // second strike or any subsequent move.
+    if (_bpMultPushed) field._ctx.bpMult = _prevBpMult;
   }
 
   function applyDamage(attacker, move, target, dmg, field, log, rng) {
@@ -7446,6 +7588,17 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
     }
 
+    // T9j.17 (Refs #101) -- Frostbite residual (1/16 max HP). Mirrors burn chip.
+    // Frostbite is the SpA-side analogue of burn introduced in Gen IX/Champions:
+    // halves SpA (handled in getStat) and chips 1/16 maxHp end-of-turn.
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+    for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'frostbite')) {
+      const frostDmg = Math.max(1, Math.floor(mon.maxHp / 16));
+      mon.hp = Math.max(0, mon.hp - frostDmg);
+      log.push(`${mon.name} is hurt by frostbite! [${frostDmg} dmg]`);
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+    }
+
     // T9j.4 (#41) — Poison residual (1/8 max HP). Cite: Bulbapedia Status; Spec §1.6.
     for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'poison')) {
       const poisonDmg = Math.max(1, Math.floor(mon.maxHp / 8));
@@ -7497,6 +7650,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           replacement.toxicCounter = 0;
           replacement.frozenTurns  = 0;
           replacement.sleepTurns   = 0;
+          // T9j.17 (Refs #101) -- Fake Out window resets on switch out/in.
+          // Each fresh stay on the field grants exactly one legal Fake Out turn.
+          // Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out
+          replacement._fakeDone    = false;
           // T9j.6 (#29) — stat stages must not leak across switches. Entry at all-zero.
           replacement.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
           // T9j.6 (#18) — Choice Scarf lock clears on switch in.
@@ -9501,6 +9658,20 @@ function showInlinePilotCard(oppKey, res) {
   if (wcEntries.length) tips.push(`Win condition: ${wcEntries[0][0]} (${Math.round(wcEntries[0][1]/total*100)}%)`);
   if (winPct < 45) tips.push('Use speed control to disrupt their gameplan');
 
+  // T9j.16 (Refs #65) - inject top critical/high coaching rule for this matchup.
+  // Lightweight: builds a single-matchup report and pulls the top-severity rule.
+  try {
+    if (typeof buildStrategyReport === 'function' && typeof currentPlayerKey !== 'undefined') {
+      const singleResults = {}; singleResults[oppKey] = res;
+      const fmt = (typeof currentFormat !== 'undefined') ? currentFormat : 'doubles';
+      const rep = buildStrategyReport(currentPlayerKey, singleResults, fmt);
+      if (rep && rep.coaching_rules && rep.coaching_rules.length) {
+        const top = rep.coaching_rules[0];
+        tips.push(`<strong>Coach (${top.severity}):</strong> ${top.correction}`);
+      }
+    }
+  } catch(e) { /* silent - inline card stays minimal on error */ }
+
   container.innerHTML = `
     <div class="pilot-card" style="border:1px solid var(--border,#333);border-radius:8px;padding:14px;background:var(--surface,#1c1b19)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -9855,6 +10026,9 @@ document.getElementById('run-all-btn')?.addEventListener('click', async function
   document.getElementById('progress-wrap').style.display='none';
   const pdfBtn = document.getElementById('pdf-report-btn');
   if (pdfBtn) pdfBtn.style.display = '';
+  // T9j.16 (Refs #65) - auto-save Strategy Report after Run All Matchups completes.
+  // Persists to localStorage keyed on teamSignature so any imported team gets continuity.
+  try { if (typeof t9j16AutoSave === 'function') t9j16AutoSave(); } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
   simRunning=false; this.disabled=false; document.getElementById('run-sim-btn').disabled=false;
 });
 
@@ -10658,6 +10832,16 @@ function generatePDFReport() {
       coachingHtml,
     '</div>',
 
+    // T9j.16 (Refs #65) — Champions Coaching Engine sections
+    (function(){
+      try {
+        var report = (typeof buildStrategyReport === 'function')
+          ? buildStrategyReport(playerKey, results, pdfFormat) : null;
+        if (!report) return '';
+        return _renderT9j16PdfSections(report);
+      } catch(e) { console.warn('[T9j.16] PDF sections skipped:', e && e.message); return ''; }
+    })(),
+
     '<div class="pdf-footer">Generated by Pokémon Champion 2026 Simulator — ' + _escapeHtml(date) + '</div>'
   ].join('');
 
@@ -10961,6 +11145,790 @@ function renderMetaRadar() {
 }
 
 renderMetaRadar();
+// ============================================================
+// T9j.16 (Refs #65) - Champions Coaching Engine PDF renderer
+// ============================================================
+// Renders the Strategy Report into the existing pdf-section / pdf-table
+// styles. No new CSS classes - reuses pdf-coach-item / pdf-coach-badge
+// shipped with T9j.14. Output is concatenated into the PDF body so
+// generatePDFReport stays a single innerHTML assignment.
+function _renderT9j16PdfSections(report) {
+  if (!report) return '';
+  var esc = (typeof _escapeHtml === 'function') ? _escapeHtml : function(s){ return String(s||''); };
+
+  var id = report.team_identity || {};
+  var ls = report.lead_system || {};
+  var pp = report.pilot_plan || {};
+  var elite = report.elite_decision_analysis || {};
+  var warnings = report.matchup_warnings || [];
+  var rules = report.coaching_rules || [];
+  var trend = report.trend_analysis || {};
+
+  var sevColor = function(s){ return s==='critical' ? '#ef4444' : s==='high' ? '#f59e0b' : s==='medium' ? '#3b82f6' : '#6b7280'; };
+  var stateColor = function(v){
+    if (v === 'losing' || v === 'too aggressive' || v === 'too passive' || v === 'too long' || v === 'weak') return '#ef4444';
+    if (v === 'optimal' || v === 'strong' || v === 'winning' || v === 'balanced') return '#22c55e';
+    return '#6b7280';
+  };
+
+  // ---- Team Identity ----
+  var identityHtml = '<div class="pdf-section">' +
+    '<div class="pdf-h2">TEAM IDENTITY</div>' +
+    '<table class="pdf-table"><tbody>' +
+      '<tr><td><strong>Playstyle</strong></td><td>' + esc(id.playstyle || '—') + '</td></tr>' +
+      '<tr><td><strong>Primary Win Condition</strong></td><td>' + esc(id.primary_win_condition || '—') + ' (' + (id.primary_win_path_pct||0) + '% of wins)</td></tr>' +
+      '<tr><td><strong>Secondary Win Condition</strong></td><td>' + esc(id.secondary_win_condition || '—') + '</td></tr>' +
+      '<tr><td><strong>Synergy Core</strong></td><td>' + esc((id.synergy_core||[]).join(', ')) + '</td></tr>' +
+      '<tr><td><strong>Format Viability</strong></td><td>' + esc(id.format_viability || '—') + '</td></tr>' +
+      '<tr><td><strong>Confidence Tier</strong></td><td><strong>' + esc((report.confidence_tier||'').toUpperCase()) + '</strong> (' + (report.sample_size||0) + ' games sampled)</td></tr>' +
+    '</tbody></table>' +
+  '</div>';
+
+  // ---- Coaching Summary (top of new sections) ----
+  var summaryHtml = '<div class="pdf-section">' +
+    '<div class="pdf-h2">COACH’S TAKE</div>' +
+    '<p class="pdf-p" style="font-style:italic;border-left:3px solid #f59e0b;padding-left:10px">' + esc(report.coaching_summary || '') + '</p>' +
+  '</div>';
+
+  // ---- Pilot Plan ----
+  var planHtml = '<div class="pdf-section">' +
+    '<div class="pdf-h2">PILOT PLAN</div>' +
+    '<table class="pdf-table"><tbody>' +
+      '<tr><td style="width:32%"><strong>Turn 1</strong></td><td>' + esc(pp.turn_1 || '') + '</td></tr>' +
+      '<tr><td><strong>Turn 2</strong></td><td>' + esc(pp.turn_2 || '') + '</td></tr>' +
+      '<tr><td><strong>When to Protect</strong></td><td>' + esc(pp.when_to_protect || '') + '</td></tr>' +
+      '<tr><td><strong>When to Switch</strong></td><td>' + esc(pp.when_to_switch || '') + '</td></tr>' +
+      '<tr><td><strong>When to Sacrifice</strong></td><td>' + esc(pp.when_to_sacrifice || '') + '</td></tr>' +
+      '<tr><td><strong>Preserve Win Condition</strong></td><td>' + esc(pp.when_to_preserve_win_condition || '') + '</td></tr>' +
+      '<tr><td><strong>Bad Lead Recovery</strong></td><td>' + esc(ls.recovery_plan || '') + '</td></tr>' +
+    '</tbody></table>' +
+  '</div>';
+
+  // ---- Elite Decision Analysis ----
+  var eliteRow = function(label, value) {
+    var color = stateColor(value);
+    return '<tr><td style="width:32%"><strong>' + esc(label) + '</strong></td>' +
+      '<td><span style="display:inline-block;padding:2px 10px;border-radius:4px;background:' + color + '20;color:' + color + ';font-weight:700;text-transform:uppercase;font-size:11px">' + esc(value || 'unknown') + '</span></td></tr>';
+  };
+  var eliteHtml = '<div class="pdf-section">' +
+    '<div class="pdf-h2">ELITE DECISION ANALYSIS</div>' +
+    '<table class="pdf-table"><tbody>' +
+      eliteRow('Tempo Control', elite.tempo_control) +
+      eliteRow('Risk Profile', elite.risk_profile) +
+      eliteRow('Win Path Length', elite.win_path_length) +
+      eliteRow('Information Usage', elite.information_usage) +
+      eliteRow('Endgame Setup', elite.endgame_setup) +
+    '</tbody></table>' +
+    '<p class="pdf-p" style="font-size:11px;color:#666">Switch rate: ' + (elite.switch_rate||0) + ' (vs opp ' + (elite.opp_switch_rate||0) + ') · Lead concentration: ' + Math.round((elite.lead_concentration||0)*100) + '% · Avg win turns: ' + (elite.avg_win_turns||0) + ' · Avg loss turns: ' + (elite.avg_loss_turns||0) + '</p>' +
+  '</div>';
+
+  // ---- Matchup Warnings ----
+  var warningsHtml = warnings.length
+    ? '<div class="pdf-section">' +
+        '<div class="pdf-h2">MATCHUP WARNINGS</div>' +
+        '<table class="pdf-table"><thead><tr><th style="width:25%">Category</th><th>Risk</th></tr></thead><tbody>' +
+        warnings.map(function(w){ return '<tr><td><strong>' + esc(w.category) + '</strong></td><td>' + esc(w.note) + '</td></tr>'; }).join('') +
+        '</tbody></table>' +
+      '</div>'
+    : '';
+
+  // ---- Coaching Rules (severity-sorted, full explain + correction) ----
+  var rulesHtml = rules.length
+    ? '<div class="pdf-section pdf-coach-section">' +
+        '<div class="pdf-h2">COACHING RULES TRIGGERED</div>' +
+        rules.map(function(r){
+          var c = sevColor(r.severity);
+          return '<div class="pdf-coach-item" style="border-left:4px solid ' + c + ';padding:8px 12px;margin-bottom:8px">' +
+            '<div><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:' + c + '20;color:' + c + ';font-weight:700;text-transform:uppercase;font-size:10px;margin-right:6px">' + esc(r.severity) + '</span><strong>' + esc(r.id) + '</strong></div>' +
+            '<div style="margin-top:4px;font-size:12px">' + esc(r.explanation) + '</div>' +
+            '<div style="margin-top:4px;font-size:12px;color:#444"><strong>Fix:</strong> ' + esc(r.correction) + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>'
+    : '';
+
+  // ---- Trend Analysis (compact) ----
+  var trendHtml = '<div class="pdf-section">' +
+    '<div class="pdf-h2">TREND ANALYSIS</div>' +
+    '<table class="pdf-table"><tbody>' +
+      '<tr><td><strong>Best Win Path</strong></td><td>' + esc(trend.best_win_path || '—') + '</td></tr>' +
+      '<tr><td><strong>Most Common Loss</strong></td><td>' + esc(trend.most_common_loss_condition || '—') + '</td></tr>' +
+      '<tr><td><strong>Most Lost Pokemon</strong></td><td>' + esc((trend.most_lost_mons||[]).join(', ') || '—') + '</td></tr>' +
+      '<tr><td><strong>Trick Room in Losses</strong></td><td>' + (trend.tr_pct_in_losses||0) + '%</td></tr>' +
+      '<tr><td><strong>Opponent Tailwind in Losses</strong></td><td>' + (trend.tw_opp_pct_in_losses||0) + '%</td></tr>' +
+    '</tbody></table>' +
+  '</div>';
+
+  return summaryHtml + identityHtml + planHtml + eliteHtml + warningsHtml + rulesHtml + trendHtml;
+}
+
+// ============================================================
+// T9j.16 (Refs #65) - Champions Coaching Engine
+// ============================================================
+// Pure analysis layer over shipped sim outputs. NO ENGINE CHANGES.
+//
+// Inputs: TEAMS[teamKey].members, window.lastSimResults, currentFormat
+// Outputs: structured Strategy Report (Sections 1-6 + Elite Decision
+// Analysis + human coaching summary), persisted via localStorage and
+// keyed on a stable team signature so any imported/custom team gets
+// continuous coaching history across sessions.
+//
+// Wiring points (no renderer churn):
+//   - PDF coaching section consumes coaching_rules + coaching_summary
+//   - Pilot Guide tab can render the full report behind a toggle
+//   - Inline pilot card shows top-2 critical rules + 1-line summary
+//
+// 17 coaching rules total:
+//   Base 6:    protect-pp-burn, fake-out-illegal-timing,
+//              redirection-vs-spread, double-switch-over-read,
+//              hazard-in-doubles-noise, single-mode-safe-lead
+//   Human 3:   win-condition-clarity, overprediction-risk,
+//              role-overlap-warning
+//   Elite 8:   tempo-control-loss, unnecessary-risk,
+//              passive-play-when-behind, win-path-overextension,
+//              information-neglect, positioning-over-damage,
+//              endgame-misalignment, predictable-pattern
+//
+// Primary-source citations (Bulbapedia, verified 2026-04-24):
+//   - Fake Out fails outside first turn out, +3 priority
+//   - Protect priority +4, success drops on consecutive use
+//   - Unseen Fist bypasses Protect on contact moves only
+// All rules below stay within these established mechanics.
+
+var T9J16_STORAGE_KEY = 'champions_strategy_v1';
+var T9J16_HISTORY_BUFFER = 5; // rolling buffer of last N runs per team
+
+// ---------- helpers ---------------------------------------------------
+
+function _t9j16_hash(s) {
+  // Simple stable string hash (djb2). Not cryptographic; collision-safe
+  // enough for localStorage keying across any reasonable team count.
+  var h = 5381;
+  for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+function teamSignature(team) {
+  if (!team || !Array.isArray(team.members) || !team.members.length) return 'empty';
+  var parts = team.members.map(function(m){
+    var moves = (m.moves || []).slice().sort().join(',');
+    return [m.name||'', m.item||'', m.ability||'', moves].join('|');
+  }).sort();
+  return _t9j16_hash(parts.join('||'));
+}
+
+function _t9j16_lsGet(sig) {
+  try {
+    var raw = localStorage.getItem(T9J16_STORAGE_KEY + '::' + sig);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+
+function _t9j16_lsSet(sig, payload) {
+  try { localStorage.setItem(T9J16_STORAGE_KEY + '::' + sig, JSON.stringify(payload)); }
+  catch(e){ /* quota exceeded — silent skip */ }
+}
+
+// ---------- STEP 1: TEAM IDENTITY -------------------------------------
+
+function inferTeamIdentity(team, results, fmt) {
+  var members = (team && team.members) || [];
+  var playstyle = inferPlaystyle(members);
+  var format = fmt || 'doubles';
+
+  // Aggregate win paths across all matchups
+  var totalWins = 0, pathCounts = {};
+  Object.values(results || {}).forEach(function(r){
+    totalWins += r.wins || 0;
+    Object.entries(r.winConditions || {}).forEach(function(p){
+      pathCounts[p[0]] = (pathCounts[p[0]] || 0) + p[1];
+    });
+  });
+  var sorted = Object.entries(pathCounts).sort(function(a,b){ return b[1]-a[1]; });
+  var primary = sorted[0] ? sorted[0][0] : null;
+  var secondary = sorted[1] ? sorted[1][0] : null;
+  var primaryPct = (primary && totalWins) ? (sorted[0][1] / totalWins) : 0;
+
+  // Synergy: pivot + speed control + finisher
+  var hasFO = members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+  var hasSpeed = members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM); });
+  var hasFinisher = members.some(function(m){ return _pdfHasAny(m, PDF_PRIORITY) || (m.item||'').indexOf('Scarf') >= 0; });
+  var synergy = [];
+  if (hasFO && hasSpeed) synergy.push('Fake Out + speed control combo');
+  if (hasSpeed && hasFinisher) synergy.push('speed control into priority finisher');
+  if (members.some(function(m){ return PDF_TRAP_ABILITIES.indexOf(m.ability||'') >= 0; })) synergy.push('trap-ability removal');
+  if (!synergy.length) synergy.push('no clear synergy core');
+
+  // Format viability heuristic
+  var viability = 'both';
+  if (members.some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); })) viability = 'doubles-favored';
+  else if (members.length === 6 && format === 'singles' && !hasFO) viability = 'singles-favored';
+
+  return {
+    playstyle: playstyle,
+    primary_win_condition: primary || 'unclear',
+    secondary_win_condition: secondary || 'none observed',
+    synergy_core: synergy,
+    format_viability: viability,
+    primary_win_path_pct: Math.round(primaryPct * 100)
+  };
+}
+
+// ---------- STEP 2: LEAD SYSTEM (reuses buildLeadSystem) --------------
+// buildLeadSystem already returns { safe, speed, pressure, punish }.
+// We add a Bad Lead Recovery Plan derived from team composition.
+
+function buildLeadRecoveryPlan(members) {
+  var pivots = members.filter(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT) || /U-turn|Volt Switch|Flip Turn|Parting Shot|Teleport/.test((m.moves||[]).join(',')); });
+  var redirectors = members.filter(function(m){ return _pdfHasAny(m, PDF_REDIRECT); });
+  if (pivots.length) return 'Pivot out with ' + pivots[0].name + ' to reset board state, then reassess matchup before committing your win condition.';
+  if (redirectors.length) return 'Bring in ' + redirectors[0].name + ' to absorb pressure with redirection while you stabilize.';
+  return 'No natural pivot — sacrifice the weakest mon to bring in a fresh pair, then play one turn of Protect to read intent.';
+}
+
+// ---------- STEP 3: COACHING RULES (17 total) -------------------------
+
+var T9J16_RULES = [
+  // ---- Base 6 ----
+  {
+    id: 'protect-pp-burn',
+    when: function(c){
+      var protectUsers = (c.members||[]).filter(function(m){ return (m.moves||[]).indexOf('Protect') >= 0 || (m.moves||[]).indexOf('Detect') >= 0; });
+      return protectUsers.length >= 2;
+    },
+    severity: function(){ return 'medium'; },
+    explain: function(c){ var n = (c.members||[]).filter(function(m){ return (m.moves||[]).indexOf('Protect') >= 0; }).length; return 'You have ' + n + ' Protect users. Strong players track Protect and punish predictable usage.'; },
+    correct: function(){ return 'Use Protect to secure positioning, not stall every turn. Save it for when you need to bait a commitment.'; }
+  },
+  {
+    id: 'fake-out-illegal-timing',
+    when: function(c){
+      var foUsers = (c.members||[]).filter(function(m){ return (m.moves||[]).indexOf('Fake Out') >= 0; });
+      if (!foUsers.length) return false;
+      // Leads aggregated; if no FO user appears in top leads, FO is unused
+      var leadNames = (c.lead_top || []);
+      return !foUsers.some(function(m){ return leadNames.indexOf(m.name) >= 0; });
+    },
+    severity: function(){ return 'high'; },
+    explain: function(){ return 'Fake Out only works the first turn a Pokemon is out. Your sim shows it never triggering because the user is not leading.'; },
+    correct: function(){ return 'Lead with your Fake Out user, or click it the turn they switch in. Otherwise drop it for coverage.'; }
+  },
+  {
+    id: 'redirection-vs-spread',
+    when: function(c){
+      var hasSpread = (c.members||[]).some(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
+      var hasRedirect = (c.members||[]).some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); });
+      return hasSpread && !hasRedirect && c.format === 'doubles';
+    },
+    severity: function(){ return 'medium'; },
+    explain: function(){ return 'Your spread damage gets canceled into Follow Me / Rage Powder teams. You have no redirector to mirror it.'; },
+    correct: function(){ return 'Click target-pressure single-target moves into redirection. Save spread for when redirect is gone or off-target.'; }
+  },
+  {
+    id: 'double-switch-over-read',
+    when: function(c){
+      var pivots = (c.members||[]).filter(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT) || /U-turn|Volt Switch|Flip Turn|Parting Shot/.test((m.moves||[]).join(',')); });
+      return c.trends && c.trends.avgFirstKoTurn && c.trends.avgFirstKoTurn <= 2 && !pivots.length;
+    },
+    severity: function(){ return 'high'; },
+    explain: function(c){ return 'Your first Pokemon dies on average turn ' + (c.trends ? c.trends.avgFirstKoTurn : '?') + ' and you have no pivot tools. You are getting outplayed on the lead exchange.'; },
+    correct: function(){ return 'Stabilize first. Add U-turn / Volt Switch / Parting Shot or a redirector before chasing aggressive double-switches.'; }
+  },
+  {
+    id: 'hazard-in-doubles-noise',
+    when: function(c){
+      if (c.format !== 'doubles') return false;
+      return (c.members||[]).some(function(m){ return /Stealth Rock|Spikes|Toxic Spikes|Sticky Web/.test((m.moves||[]).join(',')); });
+    },
+    severity: function(){ return 'medium'; },
+    explain: function(){ return 'Hazards rarely pay off in doubles - games end before chip damage matters and you spend a turn not pressuring the opposing pair.'; },
+    correct: function(){ return 'Drop hazards for a Fake Out / redirector / spread move. Doubles rewards immediate impact, not long-term setup.'; }
+  },
+  {
+    id: 'single-mode-safe-lead',
+    when: function(c){
+      if (c.format !== 'singles') return false;
+      var leads = c.lead_top || [];
+      if (!leads.length) return false;
+      var leadMons = leads.map(function(n){ return (c.members||[]).find(function(m){ return m.name === n; }); }).filter(Boolean);
+      return leadMons.every(function(m){
+        var item = m.item || '';
+        var ab = m.ability || '';
+        return !/Sash|Sturdy|Eviolite|Berry/i.test(item) && ab !== 'Sturdy';
+      });
+    },
+    severity: function(){ return 'high'; },
+    explain: function(){ return 'Your singles lead has no safety net (no Focus Sash / Sturdy / Eviolite). One crit or super-effective hit and you are down a mon turn 1.'; },
+    correct: function(){ return 'Add Focus Sash to the lead, swap to a Sturdy user, or change your opener to a bulkier piece.'; }
+  },
+
+  // ---- Human 3 ----
+  {
+    id: 'win-condition-clarity',
+    when: function(c){ return c.identity && c.identity.primary_win_path_pct < 30; },
+    severity: function(){ return 'critical'; },
+    explain: function(c){ return 'No win path appears in more than ' + (c.identity ? c.identity.primary_win_path_pct : 0) + '% of wins. Your team has tools but no clear closer.'; },
+    correct: function(){ return 'Pick the matchup you win most and reverse-engineer why. Build the rest of the team to enable that win condition every game.'; }
+  },
+  {
+    id: 'overprediction-risk',
+    when: function(c){
+      // Early losses + high switch rate signal over-reading
+      var earlyLoss = c.trends && c.trends.avgFirstKoTurn && c.trends.avgFirstKoTurn <= 2.5;
+      return earlyLoss && c.elite && c.elite.switch_rate > 0.3;
+    },
+    severity: function(){ return 'high'; },
+    explain: function(){ return 'You are losing your first mon early and switching often. That is the read-heavy pattern of a player trying to outguess instead of outplay.'; },
+    correct: function(){ return 'Simplify your first two turns. Click your highest-EV move and force the opponent to respond. Switch only when shape demands it.'; }
+  },
+  {
+    id: 'role-overlap-warning',
+    when: function(c){
+      var roles = {};
+      (c.members||[]).forEach(function(m){ var r = inferRole(m); roles[r] = (roles[r]||0)+1; });
+      var maxOverlap = Math.max.apply(null, Object.values(roles).concat([0]));
+      var hasSpeedCtrl = (c.members||[]).some(function(m){ return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM); });
+      var hasFinisher = (c.members||[]).some(function(m){ return _pdfHasAny(m, PDF_PRIORITY); });
+      return maxOverlap >= 3 && (!hasSpeedCtrl || !hasFinisher);
+    },
+    severity: function(){ return 'medium'; },
+    explain: function(){ return 'You have 3+ Pokemon in the same role and a key role missing (speed control or finisher). That is redundancy without coverage.'; },
+    correct: function(){ return 'Replace the third overlap slot with a pivot, speed setter, or priority cleaner.'; }
+  },
+
+  // ---- Elite 8 ----
+  {
+    id: 'tempo-control-loss',
+    when: function(c){ return c.elite && c.elite.tempo_control === 'losing'; },
+    severity: function(){ return 'high'; },
+    explain: function(){ return 'You are reacting more than acting. Your switch rate in losses outpaces the opponent by 1.5x or more.'; },
+    correct: function(){ return 'Stop reacting. Force your opponent to respond to your speed control or threat first.'; }
+  },
+  {
+    id: 'unnecessary-risk',
+    when: function(c){ return c.elite && c.elite.risk_profile === 'too aggressive'; },
+    severity: function(){ return 'medium'; },
+    explain: function(){ return 'You are taking risky shots (low-acc, recoil, locked-in moves) while ahead. Variance is throwing winnable games.'; },
+    correct: function(){ return 'Lock the game down when ahead. Click safe damage and conservative positioning, not 80%-acc gambles.'; }
+  },
+  {
+    id: 'passive-play-when-behind',
+    when: function(c){ return c.elite && c.elite.risk_profile === 'too passive'; },
+    severity: function(){ return 'high'; },
+    explain: function(){ return 'You are clicking Protect or switching when behind on HP. Safe play loses slowly.'; },
+    correct: function(){ return 'When behind, force a swing. Click your highest-damage line and create an immediate KO threat.'; }
+  },
+  {
+    id: 'win-path-overextension',
+    when: function(c){ return c.elite && c.elite.win_path_length === 'too long'; },
+    severity: function(){ return 'low'; },
+    explain: function(){ return 'Your wins drag past turn 6+ with HP advantage from turn 3. You are not closing efficiently.'; },
+    correct: function(){ return 'When you have HP lead by turn 3, click the KO line, do not stall it out. Long games invite mistakes.'; }
+  },
+  {
+    id: 'information-neglect',
+    when: function(c){ return c.elite && c.elite.information_usage === 'weak'; },
+    severity: function(){ return 'medium'; },
+    explain: function(){ return 'You repeated the same lead pair after losing 3+ times to the same opponent. You ignored revealed info.'; },
+    correct: function(){ return 'After every loss, change leads or your opening move. Information-driven adjustment is what separates top players.'; }
+  },
+  {
+    id: 'positioning-over-damage',
+    when: function(c){
+      // Triggered when team has spread + opponent likely has redirect
+      // (we approximate by: spread used in losses where opp has redirect-eligible mon)
+      var hasSpread = (c.members||[]).some(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
+      return hasSpread && c.elite && c.elite.redirect_collisions > 0;
+    },
+    severity: function(){ return 'medium'; },
+    explain: function(){ return 'You clicked spread damage while the opponent had Follow Me / Rage Powder up. Damage was wasted on the redirector.'; },
+    correct: function(){ return 'Read the board: kill the redirector first with a single-target move, THEN spread.'; }
+  },
+  {
+    id: 'endgame-misalignment',
+    when: function(c){
+      if (!c.identity || !c.identity.primary_win_condition) return false;
+      // primary win condition usually maps to a mon name fragment in winConditions string
+      var trends = c.trends || {};
+      return trends.mostLostMons && trends.mostLostMons.some(function(n){
+        return c.identity.primary_win_condition.indexOf(n) >= 0;
+      });
+    },
+    severity: function(){ return 'critical'; },
+    explain: function(){ return 'Your primary win condition Pokemon is the one fainting most in losses. You are not protecting your closer.'; },
+    correct: function(){ return 'Save your win-condition mon. Sacrifice support pieces first, bring it in clean for the endgame, do not lead with it.'; }
+  },
+  {
+    id: 'predictable-pattern',
+    when: function(c){ return c.elite && c.elite.lead_concentration > 0.8; },
+    severity: function(){ return 'medium'; },
+    explain: function(){ return 'You used the same lead pair in over 80% of games. Top players will have your opening solved by game 2.'; },
+    correct: function(){ return 'Build 2-3 viable lead pairs and rotate. Even rotating 30% of the time forces opponents to play honest.'; }
+  }
+];
+
+function evaluateT9j16Rules(ctx) {
+  var SEVERITY = { critical: 0, high: 1, medium: 2, low: 3 };
+  return T9J16_RULES.map(function(r){
+    var triggered = false;
+    try { triggered = !!r.when(ctx); } catch(e) { triggered = false; }
+    return {
+      id: r.id,
+      triggered: triggered,
+      severity: triggered ? r.severity(ctx) : null,
+      explanation: triggered ? r.explain(ctx) : null,
+      correction: triggered ? r.correct(ctx) : null
+    };
+  }).filter(function(r){ return r.triggered; })
+    .sort(function(a,b){ return SEVERITY[a.severity] - SEVERITY[b.severity]; });
+}
+
+// ---------- STEP 4: ELITE DECISION ANALYSIS ---------------------------
+
+function analyzeEliteDecisions(results, members) {
+  var allLogs = [];
+  Object.values(results || {}).forEach(function(r){
+    (r.allLogs || []).forEach(function(g){ allLogs.push(g); });
+  });
+  if (!allLogs.length) {
+    return {
+      tempo_control: 'unknown', risk_profile: 'unknown',
+      win_path_length: 'unknown', information_usage: 'unknown',
+      endgame_setup: 'unknown',
+      switch_rate: 0, lead_concentration: 0, redirect_collisions: 0
+    };
+  }
+
+  var playerNames = (members || []).map(function(m){ return m.name; });
+
+  // Switch rate: fraction of player turns that are switches
+  var totalSwitches = 0, totalTurns = 0, oppSwitches = 0;
+  // Lead concentration: most common lead pair % of all games
+  var leadCounts = {};
+  // Redirect collisions: spread move clicked while redirector active
+  var redirectCollisions = 0;
+  // Win path length: avg turn-count of wins
+  var winTurns = [], lossTurns = [];
+
+  allLogs.forEach(function(g){
+    if (g.result === 'win') winTurns.push(g.turns || 0);
+    else if (g.result === 'loss') lossTurns.push(g.turns || 0);
+    totalTurns += (g.turns || 0);
+
+    var leads = (g.leads && g.leads.player) || [];
+    if (leads.length) {
+      var key = leads.slice().sort().join('+');
+      leadCounts[key] = (leadCounts[key] || 0) + 1;
+    }
+
+    (g.log || []).forEach(function(line){
+      if (typeof line !== 'string') return;
+      // Crude switch detection: "switched in" or "withdrew"
+      if (/switched in|withdrew/.test(line)) {
+        if (playerNames.some(function(n){ return line.indexOf(n) >= 0; })) totalSwitches++;
+        else oppSwitches++;
+      }
+    });
+
+    // Redirect collision approximation: lines mentioning Follow Me / Rage Powder + spread move name same turn
+    var redirectActive = false;
+    (g.log || []).forEach(function(line){
+      if (typeof line !== 'string') return;
+      if (/Follow Me|Rage Powder/.test(line)) redirectActive = true;
+      if (/\[TURN/.test(line)) redirectActive = false;
+      if (redirectActive && PDF_SPREAD.some(function(s){ return line.indexOf(s) >= 0 && playerNames.some(function(n){ return line.indexOf(n) >= 0; }); })) {
+        redirectCollisions++;
+      }
+    });
+  });
+
+  var nGames = allLogs.length;
+  var switchRate = totalTurns ? (totalSwitches / totalTurns) : 0;
+  var oppSwitchRate = totalTurns ? (oppSwitches / totalTurns) : 0;
+  var leadEntries = Object.entries(leadCounts).sort(function(a,b){return b[1]-a[1];});
+  var leadConcentration = leadEntries.length ? (leadEntries[0][1] / nGames) : 0;
+
+  // Tempo: losing if player switches >= 1.5x opponent switches
+  var tempo = 'balanced';
+  if (oppSwitchRate > 0 && switchRate / oppSwitchRate >= 1.5) tempo = 'losing';
+  else if (switchRate < oppSwitchRate * 0.7) tempo = 'winning';
+
+  // Risk profile (heuristic):
+  //   - too aggressive: many low-HP wins (turns < 4 avg)
+  //   - too passive: high loss-turn count (> 7) with low win rate
+  var avgWinTurns = winTurns.length ? (winTurns.reduce(function(s,x){return s+x;},0)/winTurns.length) : 0;
+  var avgLossTurns = lossTurns.length ? (lossTurns.reduce(function(s,x){return s+x;},0)/lossTurns.length) : 0;
+  var winRate = nGames ? (winTurns.length / nGames) : 0;
+  var risk = 'optimal';
+  if (winRate < 0.4 && avgLossTurns > 7) risk = 'too passive';
+  else if (winRate < 0.4 && avgWinTurns < 4 && avgLossTurns < 4) risk = 'too aggressive';
+
+  // Win path length: too long if avg win turns > 6 and avg loss turns < avg win turns
+  var winLen = (avgWinTurns > 6 && avgWinTurns > avgLossTurns) ? 'too long' : 'optimal';
+
+  // Information usage: weak if same lead pair > 80% AND win rate < 50%
+  var infoUse = (leadConcentration > 0.8 && winRate < 0.5) ? 'weak' : 'strong';
+
+  // Endgame setup: weak if losses end with primary mon fainted late
+  var endgame = (avgLossTurns > 5 && lossTurns.length > winTurns.length) ? 'weak' : 'strong';
+
+  return {
+    tempo_control: tempo,
+    risk_profile: risk,
+    win_path_length: winLen,
+    information_usage: infoUse,
+    endgame_setup: endgame,
+    switch_rate: +switchRate.toFixed(3),
+    opp_switch_rate: +oppSwitchRate.toFixed(3),
+    lead_concentration: +leadConcentration.toFixed(2),
+    redirect_collisions: redirectCollisions,
+    avg_win_turns: +avgWinTurns.toFixed(1),
+    avg_loss_turns: +avgLossTurns.toFixed(1)
+  };
+}
+
+// ---------- STEP 5: PILOT PLAN ----------------------------------------
+
+function buildPilotPlan(team, leadSystem, trends, fmt) {
+  var members = (team && team.members) || [];
+  var hasFO = members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+  var hasTW = members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND); });
+  var hasTR = members.some(function(m){ return _pdfHasAny(m, PDF_TRICK_ROOM); });
+  var hasProtect = members.some(function(m){ return (m.moves||[]).indexOf('Protect') >= 0; });
+
+  var turn1 = leadSystem.safe
+    ? 'Lead ' + leadSystem.safe + (hasFO ? ', click Fake Out + speed control' : ', stabilize before committing')
+    : 'Read the matchup before committing - no clear safe lead has emerged from sims.';
+
+  var turn2 = hasTW
+    ? 'If Tailwind is up, force a KO. If not, set Tailwind on Turn 2 before opponent stabilizes.'
+    : hasTR
+      ? 'If Trick Room is up, hard commit your slow attackers. If denied, switch to Plan B.'
+      : 'Adapt to revealed information - punish the opponent\'s exposed piece.';
+
+  var whenProtect = hasProtect
+    ? 'Protect when: opponent has obvious KO threat AND you can stack passive damage, OR you need one more turn to set speed control.'
+    : 'Your team has no Protect - you must outpace or out-bulk threats directly.';
+
+  var whenSwitch = 'Switch when: lead is bad-matched (>30% incoming KO chance), opponent reveals locked-in attacker, or you need to bring in your win condition fresh.';
+
+  var whenSacrifice = 'Sacrifice a support piece to bring in your closer. Never sac the win-condition holder - they must enter clean.';
+
+  var preserveWC = 'Keep your primary win-condition Pokemon at >50% HP through Turn 4. If they take chip, switch out immediately to preserve them.';
+
+  return {
+    turn_1: turn1,
+    turn_2: turn2,
+    when_to_protect: whenProtect,
+    when_to_switch: whenSwitch,
+    when_to_sacrifice: whenSacrifice,
+    when_to_preserve_win_condition: preserveWC
+  };
+}
+
+// ---------- STEP 6: MATCHUP WARNINGS ----------------------------------
+
+function buildMatchupWarnings(team, results, fmt) {
+  var members = (team && team.members) || [];
+  var warnings = [];
+
+  if (!members.some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); })) {
+    warnings.push({ category: 'Spread damage', note: 'No redirector - vulnerable to teams that mirror spread.' });
+  }
+  if (!members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); })) {
+    warnings.push({ category: 'Fake Out pressure', note: 'No Fake Out user - tempo lost on Turn 1 to opposing FO leads.' });
+  }
+  if (!members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM); })) {
+    warnings.push({ category: 'Speed control', note: 'No Tailwind or Trick Room - faster meta teams will outpace you.' });
+  }
+  if (!members.some(function(m){ return _pdfHasAny(m, PDF_PRIORITY); })) {
+    warnings.push({ category: 'Endgame priority', note: 'No priority moves - cannot revenge-kill setup sweepers cleanly.' });
+  }
+  // Trick Room vulnerability: fast team with no TR counter
+  var avgSpe = members.reduce(function(s,m){
+    var b = (typeof BASE_STATS !== 'undefined' && BASE_STATS[m.name]) ? BASE_STATS[m.name].spe : 100;
+    return s + b;
+  }, 0) / Math.max(1, members.length);
+  if (avgSpe > 90 && !members.some(function(m){ return (m.moves||[]).indexOf('Taunt') >= 0; })) {
+    warnings.push({ category: 'Trick Room', note: 'Fast team with no Taunt - Trick Room teams flip your speed advantage.' });
+  }
+  // Hazards relevance only in singles
+  if (fmt === 'singles' && !members.some(function(m){ return /Defog|Rapid Spin|Court Change/.test((m.moves||[]).join(',')); })) {
+    warnings.push({ category: 'Hazards', note: 'No hazard removal - chip damage will accumulate over a long singles series.' });
+  }
+  return warnings;
+}
+
+// ---------- STEP 7: COACHING SUMMARY (real coach voice) ---------------
+
+function buildCoachingSummary(rules, identity, elite) {
+  var top = rules.slice(0, 2);
+  if (!top.length) return 'No critical issues. Team executes its win condition cleanly. Keep refining lead reads to stay ahead of the meta.';
+
+  var lines = [];
+  if (top[0]) lines.push('You lost because: ' + top[0].explanation);
+  if (top[0]) lines.push('Fix it: ' + top[0].correction);
+  if (top[1]) lines.push('Also: ' + top[1].correction);
+
+  // Add tempo / risk one-liner
+  if (elite && elite.tempo_control === 'losing') {
+    lines.push('You are reacting too much. Take initiative on Turn 1.');
+  } else if (elite && elite.risk_profile === 'too aggressive') {
+    lines.push('Stop gambling. Lock in safer lines when ahead.');
+  } else if (elite && elite.risk_profile === 'too passive') {
+    lines.push('Stop hiding. When behind, force a swing.');
+  }
+
+  return lines.join(' ');
+}
+
+// ---------- STRATEGY REPORT (full assembly) ---------------------------
+
+function buildStrategyReport(teamKey, results, fmt) {
+  var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+  if (!team) return null;
+  var members = team.members || [];
+  var format = fmt || (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles');
+
+  var identity = inferTeamIdentity(team, results, format);
+  var leadSystem = buildLeadSystem(results || {}, members);
+  leadSystem.recovery_plan = buildLeadRecoveryPlan(members);
+
+  var trends = analyzeLossTrends(results || {}, members);
+  var deadMoves = findDeadMoves(results || {}, members);
+  var gaps = findCoverageGaps(members);
+  var elite = analyzeEliteDecisions(results || {}, members);
+
+  // Top leads (names) for fake-out-illegal and other rules
+  var leadNamesUnion = [];
+  ['safe','speed','pressure','punish'].forEach(function(k){
+    if (leadSystem[k]) leadSystem[k].split(' + ').forEach(function(n){ if (leadNamesUnion.indexOf(n) < 0) leadNamesUnion.push(n); });
+  });
+
+  var ruleCtx = {
+    members: members,
+    format: format,
+    trends: trends,
+    deadMoves: deadMoves,
+    gaps: gaps,
+    elite: elite,
+    identity: identity,
+    lead_top: leadNamesUnion
+  };
+  var coachingRules = evaluateT9j16Rules(ruleCtx);
+
+  var pilotPlan = buildPilotPlan(team, leadSystem, trends, format);
+  var matchupWarnings = buildMatchupWarnings(team, results, format);
+
+  // Confidence tier — total games sampled
+  var totalGames = 0;
+  Object.values(results || {}).forEach(function(r){ totalGames += (r.wins||0) + (r.losses||0) + (r.draws||0); });
+  var confidenceTier = totalGames < 20 ? 'low' : totalGames < 100 ? 'moderate' : totalGames < 500 ? 'high' : 'elite';
+
+  var summary = buildCoachingSummary(coachingRules, identity, elite);
+
+  return {
+    schema_version: 1,
+    team_key: teamKey,
+    team_signature: teamSignature(team),
+    format: format,
+    generated_at: new Date().toISOString(),
+    sample_size: totalGames,
+    confidence_tier: confidenceTier,
+    team_identity: identity,
+    lead_system: leadSystem,
+    coaching_rules: coachingRules,
+    elite_decision_analysis: elite,
+    pilot_plan: pilotPlan,
+    matchup_warnings: matchupWarnings,
+    coaching_notes: {
+      how_team_wants_to_win: identity.primary_win_condition,
+      common_mistakes: coachingRules.slice(0,3).map(function(r){ return r.id; }),
+      key_habits_to_improve: coachingRules.filter(function(r){ return r.severity === 'high' || r.severity === 'critical'; }).slice(0,3).map(function(r){ return r.correction; }),
+      top_critical_rules: coachingRules.filter(function(r){ return r.severity === 'critical' || r.severity === 'high'; }).slice(0,2)
+    },
+    trend_analysis: {
+      most_common_loss_condition: trends.topOppFinishers && trends.topOppFinishers.length ? trends.topOppFinishers[0] : null,
+      dead_moves: deadMoves,
+      most_lost_mons: trends.mostLostMons || [],
+      best_win_path: identity.primary_win_condition,
+      tr_pct_in_losses: trends.trPctInLosses,
+      tw_opp_pct_in_losses: trends.twPctInLosses,
+      coverage_gaps: gaps,
+      confidence_tier: confidenceTier,
+      sample_size: totalGames
+    },
+    coaching_summary: summary
+  };
+}
+
+// ---------- PERSISTENCE + EVOLUTION -----------------------------------
+
+function saveStrategyReport(teamKey, report) {
+  if (!report || !report.team_signature) return;
+  var prev = _t9j16_lsGet(report.team_signature) || { history: [] };
+  // Rolling buffer of last N runs
+  var hist = (prev.history || []).slice(-1 * (T9J16_HISTORY_BUFFER - 1));
+  hist.push({
+    generated_at: report.generated_at,
+    sample_size: report.sample_size,
+    confidence_tier: report.confidence_tier,
+    primary_win_condition: report.team_identity.primary_win_condition,
+    triggered_rule_ids: report.coaching_rules.map(function(r){ return r.id; })
+  });
+  var payload = {
+    latest: report,
+    history: hist,
+    last_saved: new Date().toISOString()
+  };
+  _t9j16_lsSet(report.team_signature, payload);
+}
+
+function loadStrategyReport(teamKey) {
+  var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+  if (!team) return null;
+  var sig = teamSignature(team);
+  var stored = _t9j16_lsGet(sig);
+  return stored ? stored.latest : null;
+}
+
+function evolveReport(teamKey, newResults, fmt) {
+  var fresh = buildStrategyReport(teamKey, newResults, fmt);
+  if (!fresh) return null;
+  saveStrategyReport(teamKey, fresh);
+  return fresh;
+}
+
+// ---------- AUTO-SAVE HOOK --------------------------------------------
+// Called from runAllMatchupsUI completion path (see ui.js wiring).
+function t9j16AutoSave() {
+  try {
+    if (typeof currentPlayerKey === 'undefined') return;
+    if (!window.lastSimResults || !Object.keys(window.lastSimResults).length) return;
+    var fmt = (typeof currentFormat !== 'undefined') ? currentFormat : 'doubles';
+    evolveReport(currentPlayerKey, window.lastSimResults, fmt);
+  } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
+}
+
+// Expose for tests
+if (typeof window !== 'undefined') {
+  window.T9J16 = {
+    teamSignature: teamSignature,
+    inferTeamIdentity: inferTeamIdentity,
+    buildLeadRecoveryPlan: buildLeadRecoveryPlan,
+    evaluateT9j16Rules: evaluateT9j16Rules,
+    analyzeEliteDecisions: analyzeEliteDecisions,
+    buildPilotPlan: buildPilotPlan,
+    buildMatchupWarnings: buildMatchupWarnings,
+    buildCoachingSummary: buildCoachingSummary,
+    buildStrategyReport: buildStrategyReport,
+    saveStrategyReport: saveStrategyReport,
+    loadStrategyReport: loadStrategyReport,
+    evolveReport: evolveReport,
+    autoSave: t9j16AutoSave,
+    rules: T9J16_RULES
+  };
+}
 
 </script>
 </body>

@@ -91,7 +91,10 @@ node tests/t9j12_tests.js      # 11/11 — simulator bring picker
 node tests/t9j13_tests.js      # 47/47 — format-mismatch guard + SP rescale
 node tests/t9j14_tests.js      # 25/25 — Shadow Pressure PDF + coaching notes
 node tests/t9j15_tests.js      # 22/22 — Best Mega Trigger Turn card (Pilot Guide + PDF)
+node tests/t9j16_tests.js      # 58/58 — Elite Coaching Engine + Strategy Report (17 rules)
 node tests/audit.js            # 5070 battles, 0 errors
+
+# Total: 343/343 across all suites
 
 # Nightly (not in fast loop)
 N=500 node tests/nightly_bring_harness.js   # end-to-end bring picker wiring check

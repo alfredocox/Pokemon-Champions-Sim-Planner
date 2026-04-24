@@ -1,8 +1,8 @@
 # Pokemon Champions Sim — Product Roadmap (DRAFT for approval)
 
 **Author role:** PM + Product Developer hat
-**Status:** Awaiting user approval before creating GitHub Milestones
-**Last updated:** 2026-04-24
+**Status:** M1-M6 live on GitHub. M7-M11 infrastructure milestones added April 24 with 23 issues filed (#77-#99).
+**Last updated:** 2026-04-24 (post-T9j.16 + infra audit)
 
 ---
 
@@ -144,25 +144,111 @@ Milestones are **sequential** — each depends on the one before. Engine truth f
 
 ---
 
+## M7 - Architecture & Modularity (v2.1)
+
+**Outcome:** ui.js (3,872 lines) split into focused modules. No more hidden globals. localStorage centralized. The TDZ landmine on COVERAGE_CHECKS gone.
+
+**Ship criteria:**
+- ui.js split into rendering / analytics / persistence / sim-glue modules, each under 1,200 lines
+- Zero `window.*` writes outside `window.ChampionsSim` namespace
+- Single Storage adapter; all four legacy localStorage key patterns migrated
+- COVERAGE_CHECKS lazy-init replaces hoisted-var workaround
+- All 343 tests still pass, audit clean
+
+**Tickets:** #77, #78, #79, #80 (all alfredocox)
+
+---
+
+## M8 - Profile & Sync (v2.2) - the headline ask
+
+**Outcome:** Users have profiles. Profiles export to a single file. Multiple profiles for different goals (Tournament / Ladder / Theorymon). Schema versioned for forward compat. Optional cross-device sync via signed URL + PIN. Per-profile coaching rule preferences.
+
+**Ship criteria:**
+- Profile schema documented, default profile auto-built from current data with zero loss
+- `.champions-profile` export/import round-trips perfectly
+- Multi-profile picker with three preset bundles
+- Migration runner walks v0 -> vN cleanly
+- Sync flow zero-knowledge (PIN-derived AES key); opt-in only
+- 17 coaching rules each have toggle + weight slider + difficulty preset
+
+**Tickets:** #81, #82, #83, #84, #85, #86 (TheYfactora12 product, alfredocox migration #84)
+
+---
+
+## M9 - Observability & QA (v2.3)
+
+**Outcome:** GitHub Actions runs every test + audit + bundle freshness on every PR. Structured logging replaces scattered console.log. Analytics surface (buildAnalysisPayload / generatePilotGuide / showInlinePilotCard) finally test-covered. Local opt-in rule telemetry tells us which rules fire most.
+
+**Ship criteria:**
+- CI green required on `main`
+- Source change without bundle rebuild fails PR
+- All 14 console.log sites moved to namespaced logger
+- 30+ new test assertions on the analytics layer
+- Local-only rule fire counter behind off-by-default toggle
+
+**Tickets:** #87, #88, #89, #90, #91 (alfredocox + Jdoutt38 #90)
+
+---
+
+## M10 - Performance & Quality (v2.4)
+
+**Outcome:** Strategy report memoized. Battle log retention bounded. innerHTML XSS surface audited. Service worker cache bumps every release. Tab navigation works for keyboard and screen reader users.
+
+**Ship criteria:**
+- buildStrategyReport second call under 1ms
+- 200-line cap per matchup log
+- All 35 innerHTML sites classified, hostile-input fixture test passes
+- CI rule: source change forces CACHE_NAME bump
+- WAI-ARIA Tabs Pattern compliance, NVDA + VoiceOver pass recorded
+
+**Tickets:** #92, #93, #94, #95, #96 (alfredocox + Jdoutt38 #96)
+
+---
+
+## M11 - Advanced Features (v2.5)
+
+**Outcome:** Replay shortlinks, multi-team comparison view, live opponent fingerprinting from partial reveal.
+
+**Ship criteria:**
+- Encode/decode round-trip identical sim results
+- Compare tab: 2-4 teams x meta gauntlet matrix with heatmap + delta column
+- Pilot Guide live-update panel narrows candidates as observed mons added, sub-100ms recompute
+
+**Tickets:** #97, #98, #99 (TheYfactora12)
+
+---
+
 ## Proposed Sequencing & Timing
 
 | Milestone | Target | Gate |
 |---|---|---|
-| M1 Engine Truth | Next 2 weeks | 40/40 golden tests |
-| M2 Dynamic Coach | +3 weeks | Coaching layer spec approved first |
-| M3 Piloting Analytics | +3 weeks | M1 engine stable (deltas need correct engine) |
-| M4 Tournament PDF | +2 weeks | M2 coaching content available |
-| M5 Meta Intelligence | +3 weeks | External data source identified |
-| M6 Polish & Launch | +2 weeks | All prior milestones closed |
+| M1 Engine Truth | Shipped | 40/40 golden tests, T9j.7-15 done |
+| M2 Dynamic Coach | Shipped | T9j.14 + T9j.16 v3 coaching engine live |
+| M3 Piloting Analytics | Partial | Replay log live, trends + decision flagger pending |
+| M4 Tournament PDF | Shipped | T9j.14 PDF master sheet + T9j.16 Strategy Report sections |
+| M5 Meta Intelligence | Pending | Awaiting external data source decision |
+| M6 Polish & Launch | Pending | M1-M5 + M7-M10 close first |
+| M7 Architecture | Next 2 weeks | Foundation for M8 |
+| M8 Profile & Sync | +3 weeks | M7 modules + #84 migration runner |
+| M9 Observability | +2 weeks | Run in parallel with M7 |
+| M10 Performance & Quality | +2 weeks | After M7 modular split |
+| M11 Advanced Features | +3 weeks | After M8 profile container |
 
-Total runway: ~15 weeks to v2.0 if sequential. M3 and M4 can parallelize after M2.
+M7 and M9 can parallelize. M10 follows M7. M11 follows M8.
 
 ---
 
-## Open Decisions (need your input before GH milestone creation)
+## Open Decisions
 
-1. **Sequencing** — approve sequential order above, or parallelize any milestones?
-2. **NEW tickets** — do I file all ~25 NEW tickets at milestone creation time, or only M1+M2 now and file later as we get there?
-3. **Naming** — happy with "M1 Engine Truth" / "v1.0", or prefer different labels (e.g., "Phase 1", "Alpha")?
-4. **External data source for M5** — any preference for Victory Road, Limitless, or we defer sourcing decision until we reach M5?
-5. **Issue labels** — create new labels (`milestone:m1`, `milestone:m2`, etc.) or rely solely on GH Milestones feature?
+1. **External data source for M5** - any preference for Victory Road, Limitless, or defer sourcing decision until we reach M5?
+2. **Sync provider for M8 #85** - Gist (auth friction) vs S3 presigned (we run a tiny serverless) vs defer entirely.
+3. **Difficulty preset granularity for M8 #86** - three levels (Beginner / Standard / Expert) is the current proposal; happy to expand.
+4. **Bundle size budget** - currently 547KB (above the original M6 < 400KB target). Re-baseline or stay strict?
+
+## Standing Assignment Policy (binding)
+
+- **TheYfactora12** - product / feature scoping, rule design, user-facing capability decisions
+- **alfredocox** - engineering refactors, infra, perf, security
+- **Jdoutt38** - testing + a11y
+
+All tickets get plain-English explanations. No em-dashes in commit messages.

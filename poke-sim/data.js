@@ -4034,7 +4034,7 @@ const MOVE_TARGETS = {
   'Taunt':'normal', 'Sleep Powder':'normal', 'Spore':'normal', 'Hypnosis':'normal',
   'Encore':'normal', 'Clear Smog':'normal', 'Rock Tomb':'normal',
   'Heal Pulse':'normal', 'Coaching':'normal',
-  'Expanding Force':'normal',  // dynamic → 'all-adjacent-foes' under Psychic Terrain (Issue #36)
+  'Expanding Force':'normal',  // dynamic → 'all-adjacent-foes' under Psychic Terrain (Issue #36 -- T9j.17 IMPLEMENTED in engine.js executeMove)
   'Tera Blast':'normal',       // normally single-target; type changes with Tera (Issue #7)
 };
 
@@ -4174,8 +4174,12 @@ var CHAMPIONS_MEGAS = {
 // filed GitHub issues). Each entry records the Mega holder + effect tag
 // for dispatch wiring.
 var CHAMPIONS_NEW_ABILITIES = {
-  'Piercing Drill': { holder:'Excadrill-Mega',  effect:'contact-bypass-protect-25pct',
-                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
+  // T9j.17 (Refs #101) -- Piercing Drill rewritten to a flat 25% miss chance
+  // on every move. Replaces the prior contact-bypass-Protect interpretation.
+  // Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+  'Piercing Drill': { holder:'Excadrill-Mega',  effect:'miss-25pct',
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml',
+                               'https://game8.co/games/Pokemon-Champions/archives/590403'] },
   'Dragonize':      { holder:'Feraligatr-Mega', effect:'normal-to-dragon-plus-20pct',
                       sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
   'Mega Sol':       { holder:'Meganium-Mega',   effect:'personal-sun-no-weather',
