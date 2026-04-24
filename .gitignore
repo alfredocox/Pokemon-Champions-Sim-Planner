@@ -1,0 +1,45 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Node / JS tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# Python scratch
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Logs / tmp
+*.log
+*.tmp
+*.bak
+*.backup
+.tmp/
+
+# Test scratch outputs
+/tmp-tests/
+coverage/
+.nyc_output/
+poke-sim/tests/audit_matrix.json
+
+# Build artifacts (bundle is intentionally committed — see poke-sim/pokemon-champion-2026.html)
+# but keep unstaged work-in-progress HTML scratch files out
+*.html.bak
+*-scratch.html
+
+# Environment
+.env
+.env.local
+.env.*.local

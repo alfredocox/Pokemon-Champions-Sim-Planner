@@ -1,0 +1,896 @@
+[
+  {
+    "name": "Piercing Drill",
+    "isNew": true,
+    "isUpdated": false,
+    "trigger": "When the holder uses a contact move",
+    "effect": "Contact moves bypass protective effects (Protect, Detect, King's Shield, Spiky Shield, etc.), dealing 1/4 of what the move would normally deal. All non-protective effects of the protection move still trigger (e.g., King's Shield stat drops still apply).",
+    "damageImpact": "x0.25 vs protected target; full damage vs unprotected target",
+    "spreadInteraction": "Per-target; each protected target individually takes 25% of the move's full damage",
+    "protectInteraction": "Bypasses Protect/Detect/King's Shield/Spiky Shield for damage; secondary effects of protection still fire",
+    "immunityOverrides": [],
+    "stackingRules": "Does not stack with Unseen Fist — they are functionally identical abilities; only one user can have it active. No known interaction with Punching Glove (Punching Glove removes contact classification, which would disable Piercing Drill on punch moves).",
+    "megaUsers": ["Mega Excadrill"],
+    "sources": [
+      "https://www.serebii.net/pokemonchampions/newabilities.shtml",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://game8.co/games/Pokemon-Champions/archives/592472"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Mechanically identical to Champions-updated Unseen Fist but branded as a new ability. Datamined before launch alongside Spicy Spray."
+  },
+  {
+    "name": "Dragonize",
+    "isNew": true,
+    "isUpdated": false,
+    "trigger": "Passive — applies to all Normal-type moves used by the holder",
+    "effect": "The holder's Normal-type moves are converted to Dragon-type and receive a 20% power boost (same modifier as Pixilate, Refrigerate, Aerilate).",
+    "damageImpact": "Normal-type move power x1.2, then calculated as Dragon-type",
+    "spreadInteraction": "Applies individually to each target hit by spread Normal-type moves",
+    "protectInteraction": "No special interaction; converted Dragon-type moves are still blocked by Protect normally",
+    "immunityOverrides": ["Overrides Normal immunity of Ghost types if the move converts to Dragon (Dragon hits Ghost normally)"],
+    "stackingRules": "Does not stack with other type-converting abilities (Pixilate, Refrigerate, Aerilate). Mega Feraligatr's Water/Dragon typing means Dragon STAB further boosts converted moves.",
+    "megaUsers": ["Mega Feraligatr"],
+    "sources": [
+      "https://www.serebii.net/pokemonchampions/newabilities.shtml",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://www.destructoid.com/all-mega-evolutions-and-abilities-in-pokemon-champions/"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Combined with Mega Feraligatr's Water/Dragon typing, converted moves also receive Dragon STAB (x2 Adaptability-like total vs x1.2 for other type-converters without STAB)."
+  },
+  {
+    "name": "Mega Sol",
+    "isNew": true,
+    "isUpdated": false,
+    "trigger": "Passive — always active while the Pokémon is on the field",
+    "effect": "The holder's moves function as if harsh sunlight is active, regardless of actual weather. Specifically: Fire-type moves get the 1.5x sun boost, Solar Beam/Solar Blade require no charge turn, Weather Ball becomes Fire-type, Synthesis/Morning Sun/Moonlight restore full HP, Chlorophyll and other sun-dependent abilities activate for the holder. Does NOT change the actual weather for other Pokémon.",
+    "damageImpact": "Fire-type moves x1.5 for holder; Water-type moves are NOT reduced (not actual sun). Sun-boosted moves benefit but rain/sun interactions for opponents are unaffected.",
+    "spreadInteraction": "Only benefits the holder, not allies",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Stacks additively with actual harsh sunlight if weather is set by another source (though actual sun behavior for the full field would override). If both Mega Sol and real harsh sunlight exist simultaneously, the holder benefits from both (same net effect as sun alone for the holder).",
+    "megaUsers": ["Mega Meganium"],
+    "sources": [
+      "https://www.serebii.net/pokemonchampions/newabilities.shtml",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://game8.co/games/Pokemon-Champions/archives/592472"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Key distinction: Mega Sol does NOT summon actual harsh sunlight — opponents do not lose the x0.5 Water-type multiplier. Only the holder gains the sun-based benefits."
+  },
+  {
+    "name": "Spicy Spray",
+    "isNew": true,
+    "isUpdated": false,
+    "trigger": "When the holder takes damage from a move",
+    "effect": "Burns the attacker after the holder takes damage from their move.",
+    "damageImpact": "Burn inflicts the attacker with 1/16 max HP damage per turn and halves the attacker's physical attack damage",
+    "spreadInteraction": "Triggers for each Pokémon that damages the holder in a spread move scenario; each attacker is individually burned",
+    "protectInteraction": "Does not trigger if the holder is protected (no damage occurs)",
+    "immunityOverrides": ["Fire-type Pokémon are immune to burn; they cannot be burned by Spicy Spray"],
+    "stackingRules": "Only one burn per attacker applies. Does not interact with contact requirement — any damaging move triggers it, not just contact moves.",
+    "megaUsers": ["Mega Scovillain"],
+    "sources": [
+      "https://www.serebii.net/pokemonchampions/newabilities.shtml",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://game8.co/games/Pokemon-Champions/archives/592472"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Essentially a reverse Flame Body: any hit (not just contact) causes burn to the attacker. More broadly applicable than Flame Body."
+  },
+  {
+    "name": "Unseen Fist",
+    "isNew": false,
+    "isUpdated": true,
+    "trigger": "When the holder uses a contact move",
+    "effect": "Contact moves bypass the target's protective effects, dealing 1/4 of normal damage through protection. All non-protective effects of the protection move still trigger. CHAMPIONS UPDATE: Damage reduced from 100% to 25% when hitting through protection.",
+    "damageImpact": "x0.25 vs protected target (DOWN from x1.0 in Gen 8-9); full damage vs unprotected",
+    "spreadInteraction": "Per-target; each protected target takes 25% through protection",
+    "protectInteraction": "Bypasses Protect/Detect for contact moves; damage capped at 25%",
+    "immunityOverrides": [],
+    "stackingRules": "Functionally identical to Piercing Drill in Champions. Punching Glove disables Unseen Fist on punch moves by removing contact classification. Surging Strikes special rule: multi-hit means each hit deals 25%, total ≈ 50% for 2-hit, ≈75% for 3-hit — still outperforms single-hit Unseen Fist users.",
+    "megaUsers": ["Mega Golurk"],
+    "otherUsers": ["Urshifu-Single Strike Style", "Urshifu-Rapid Strike Style"],
+    "sources": [
+      "https://www.serebii.net/pokemonchampions/updatedabilities.shtml",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://bulbapedia.bulbagarden.net/wiki/Unseen_Fist_(Ability)",
+      "https://www.reddit.com/r/PokemonChampions/comments/1sh4vf0/was_unseen_fist_really_the_problem_or_was_it_just/"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "UPDATED in Champions: was 100% damage through protect in Gen 8-9 (original Urshifu ability). Now 25% in Champions. Mega Golurk is the only Mega user. Urshifu is NOT a Mega but still uses this ability with the Champions nerf applied."
+  },
+  {
+    "name": "Tough Claws",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applied to all contact moves used by the holder",
+    "effect": "Boosts the power of the Pokémon's contact moves by 30%.",
+    "damageImpact": "x1.3 multiplier on all contact moves",
+    "spreadInteraction": "Applied per target on contact spread moves",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Stacks multiplicatively with other power boosts (STAB, type effectiveness, etc.)",
+    "megaUsers": ["Mega Charizard X", "Mega Aerodactyl"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Drought",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "On entry into battle",
+    "effect": "Summons harsh sunlight for 5 turns when the Pokémon enters a battle.",
+    "damageImpact": "Harsh sunlight: Fire moves x1.5, Water moves x0.5 for all Pokémon on field",
+    "spreadInteraction": "Weather is global, affects all Pokémon on field",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "If another weather is set after Drought, harsh sunlight ends. Heat Rock extends duration to 8 turns (if available in Champions).",
+    "megaUsers": ["Mega Charizard Y"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "5-turn duration confirmed in Champions. Note: Mega Sol (Mega Meganium) provides personal sun simulation without triggering actual Drought."
+  },
+  {
+    "name": "Thick Fat",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active when holder is targeted by Fire or Ice moves",
+    "effect": "Halves the damage the Pokémon takes from Fire- and Ice-type moves.",
+    "damageImpact": "Fire and Ice moves deal x0.5 damage to holder",
+    "spreadInteraction": "Applies only to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Stacks multiplicatively with other damage reduction (e.g., screens). Reduces super-effective Fire/Ice damage significantly.",
+    "megaUsers": ["Mega Venusaur"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Adaptability",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applied to all STAB moves",
+    "effect": "Boosts the power of moves of the same type as the Pokémon by 100% (x2.0) instead of the standard 50% (x1.5).",
+    "damageImpact": "STAB moves deal x2.0 instead of x1.5",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Dual-type Pokémon get x2.0 STAB on moves matching either type",
+    "megaUsers": ["Mega Beedrill", "Mega Lucario", "Mega Glimmora"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Mold Breaker",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to all moves used by the holder",
+    "effect": "The Pokémon's moves are unaffected by the Ability of the target, with certain exceptions (e.g., cannot bypass Disguise).",
+    "damageImpact": "Ignores defensive abilities like Levitate, Sturdy, Multiscale, Thick Fat on targets",
+    "spreadInteraction": "Each target's ability is individually ignored",
+    "protectInteraction": "No special interaction with Protect itself, but bypasses abilities that would otherwise block damage (e.g., Levitate on Ground moves)",
+    "immunityOverrides": ["Bypasses Levitate for Ground-type moves", "Bypasses Sturdy for OHKO", "Bypasses Wonder Guard"],
+    "stackingRules": "Turboblaze and Teravolt have equivalent effects",
+    "megaUsers": ["Mega Gyarados", "Mega Ampharos", "Mega Emboar"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Magic Bounce",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "When the holder is targeted by a status move",
+    "effect": "Instead of being affected by opponents' status moves, the Pokémon bounces them back at the user.",
+    "damageImpact": "No direct damage; reflected moves affect the original user instead",
+    "spreadInteraction": "Reflects moves targeting the holder; in doubles, reflected moves may target original user (interaction with spread status moves may vary)",
+    "protectInteraction": "Reflected moves bypass the original user's Protect in some scenarios — verify per Champions engine",
+    "immunityOverrides": [],
+    "stackingRules": "If two Magic Bounce users face each other, the move bounces back and forth indefinitely until it fails — in practice treated as a miss",
+    "megaUsers": ["Mega Clefable", "Mega Sableye", "Mega Absol"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Huge Power",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applied to all physical moves used by the holder",
+    "effect": "Doubles the power of the Pokémon's physical moves. Functionally equivalent to a doubled Attack stat.",
+    "damageImpact": "Physical moves deal x2.0 damage (effective Attack x2)",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Stacks multiplicatively with other attack boosts; Pure Power is an identical ability",
+    "megaUsers": ["Mega Starmie"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Notable on Mega Starmie (Water/Psychic): despite low base Atk, Huge Power makes physical Starmie viable."
+  },
+  {
+    "name": "Sand Stream",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "On entry into battle",
+    "effect": "Summons a sandstorm for 5 turns when the Pokémon enters a battle.",
+    "damageImpact": "Sandstorm deals 1/16 max HP damage per turn to non-Rock, Steel, Ground types",
+    "spreadInteraction": "Weather is global",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Smooth Rock extends duration to 8 turns if available",
+    "megaUsers": ["Mega Tyranitar"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Sand Force",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to holder's Rock, Ground, and Steel moves when sandstorm is active",
+    "effect": "Boosts the power of the Pokémon's Rock-, Ground-, and Steel-type moves by 30% in a sandstorm.",
+    "damageImpact": "Affected moves x1.3 in sand",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Sandstorm damage immunity is NOT granted by Sand Force (only Sand Rush, Sand Veil, and Rock/Steel/Ground types are immune)",
+    "megaUsers": ["Mega Steelix", "Mega Garchomp"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Pixilate",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to all Normal-type moves used by the holder",
+    "effect": "The Pokémon's Normal-type moves become Fairy-type moves and their power is boosted by 20%.",
+    "damageImpact": "Normal-type moves x1.2, then calculated as Fairy-type",
+    "spreadInteraction": "Applied individually per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": ["Normal-type immunity of Ghost types is bypassed (converted Fairy moves hit Ghost types)"],
+    "stackingRules": "Mutual exclusion with Refrigerate, Aerilate, Dragonize — only one can apply",
+    "megaUsers": ["Mega Gardevoir", "Mega Altaria"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Refrigerate",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to all Normal-type moves used by the holder",
+    "effect": "The Pokémon's Normal-type moves become Ice-type moves and their power is boosted by 20%.",
+    "damageImpact": "Normal-type moves x1.2, then calculated as Ice-type",
+    "spreadInteraction": "Applied individually per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": ["Normal-type immunity of Ghost types is bypassed"],
+    "stackingRules": "Mutual exclusion with Pixilate, Aerilate, Dragonize",
+    "megaUsers": ["Mega Glalie"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Aerilate",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to all Normal-type moves used by the holder",
+    "effect": "The Pokémon's Normal-type moves become Flying-type moves and their power is boosted by 20%.",
+    "damageImpact": "Normal-type moves x1.2, then calculated as Flying-type",
+    "spreadInteraction": "Applied individually per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": ["Normal-type immunity of Ghost types is bypassed"],
+    "stackingRules": "Mutual exclusion with Pixilate, Refrigerate, Dragonize",
+    "megaUsers": ["Mega Pinsir"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Technician",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to moves with base power ≤60 used by the holder",
+    "effect": "Boosts the power of the Pokémon's moves by 50% if their power is 60 or less.",
+    "damageImpact": "Moves with BP ≤60 receive x1.5 multiplier. Multi-hit moves: each hit is checked individually (if each hit is ≤60, each hit benefits).",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Variable-power moves use their final calculated power to determine if Technician applies",
+    "megaUsers": ["Mega Scizor"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Skill Link",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to multistrike moves used by the holder",
+    "effect": "The Pokémon's multistrike moves always hit the maximum number of times (typically 5).",
+    "damageImpact": "Multistrike moves always hit 5 times (max). Icicle Spear, Rock Blast, Bullet Seed, Pin Missile, etc. hit 5x guaranteed.",
+    "spreadInteraction": "Each target is hit max times in spread scenarios",
+    "protectInteraction": "No special interaction — each hit can be blocked individually by Protect",
+    "immunityOverrides": [],
+    "stackingRules": "Each individual hit can trigger secondary effects independently",
+    "megaUsers": ["Mega Heracross"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Solar Power",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active during harsh sunlight",
+    "effect": "In harsh sunlight, the Pokémon's Sp. Atk stat is boosted by 50%, but it loses 1/8 of its max HP at the end of every turn.",
+    "damageImpact": "SpA x1.5 in sun; 1/8 max HP lost per turn in sun",
+    "spreadInteraction": "Only applies to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Synergizes with Mega Sol (if ally), Drought, or other sun sources",
+    "megaUsers": ["Mega Houndoom"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Levitate",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — permanent",
+    "effect": "The Pokémon floats off the ground, making it immune to Ground-type moves, as well as the Spikes, Toxic Spikes, and Sticky Web statuses.",
+    "damageImpact": "Ground-type moves deal 0 damage to holder",
+    "spreadInteraction": "Immunity applies only to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": ["Ground-type immunity"],
+    "stackingRules": "Gravity removes Levitate temporarily. Smack Down/Thousand Arrows can negate Levitate temporarily.",
+    "megaUsers": ["Mega Chimecho", "Mega Delphox"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Mega Chimecho is Steel/Psychic but has Levitate, granting Ground immunity despite Steel typing."
+  },
+  {
+    "name": "Intimidate",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "On entry into battle",
+    "effect": "When the Pokémon enters a battle, it lowers the Attack stats of opponents by 1 stage.",
+    "damageImpact": "Opponent Attack -1 stage (x0.67 effective attack)",
+    "spreadInteraction": "In Doubles: lowers Attack of BOTH opponents when entering",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Blocked by: Inner Focus (Mega Gallade), Oblivious, Own Tempo, Scrappy (Mega Lopunny). Mirror Armor reflects the drop back.",
+    "megaUsers": ["Mega Manectric"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Strong Jaw",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to biting moves used by the holder",
+    "effect": "Boosts the power of the Pokémon's biting moves by 50%.",
+    "damageImpact": "Biting moves x1.5",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Biting move list: Bite, Crunch, Fire Fang, Ice Fang, Thunder Fang, Psychic Fangs, Fishious Rend, etc.",
+    "megaUsers": ["Mega Sharpedo"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Sheer Force",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to moves with secondary effects used by the holder",
+    "effect": "The Pokémon's moves lose their additional effects, but the power of those moves will be boosted by 30%.",
+    "damageImpact": "Moves with secondary effects: x1.3 power, secondary effect removed",
+    "spreadInteraction": "Applied per target; all targets lose the secondary effect benefit",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Life Orb recoil is also negated for Sheer Force-boosted moves (Life Orb still gives the x1.3 boost). Moves with only self-affecting secondary effects (stat boost to user) are NOT boosted by Sheer Force.",
+    "megaUsers": ["Mega Camerupt"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Prankster",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applied to all status moves used by the holder",
+    "effect": "Increases the priority of the Pokémon's status moves by 1 stage.",
+    "damageImpact": "No direct damage; status moves gain +1 priority",
+    "spreadInteraction": "Status moves with spread targets also gain +1 priority",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": ["Dark-type Pokémon are immune to Prankster-boosted moves"],
+    "stackingRules": "Priority +1 can be countered by Trick Room (priority negative goes first in Trick Room)",
+    "megaUsers": ["Mega Banette"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Scrappy",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies when holder uses Normal or Fighting moves",
+    "effect": "The Pokémon can hit Ghost types with Normal- and Fighting-type moves. It is also unaffected by Intimidate.",
+    "damageImpact": "Normal and Fighting moves hit Ghost types for neutral damage",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": ["Removes Ghost-type immunity to Normal and Fighting moves"],
+    "stackingRules": "Champions-specific: also grants Intimidate immunity (this is the Game8/Champions wording — may be a Champions-specific addition to Scrappy)",
+    "megaUsers": ["Mega Lopunny"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Champions description explicitly adds Intimidate immunity. This may be a Champions-specific extension of the ability's behavior."
+  },
+  {
+    "name": "No Guard",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to all moves used by and against the holder",
+    "effect": "The accuracy of moves used both by and against the Pokémon becomes 100%.",
+    "damageImpact": "All moves always hit the holder; all moves used by the holder always hit",
+    "spreadInteraction": "Applies to all moves targeting the holder and all moves used by the holder against any target",
+    "protectInteraction": "No Guard does NOT bypass Protect — it only overrides accuracy checks, not protection",
+    "immunityOverrides": [],
+    "stackingRules": "One-hit KO moves (Fissure, Sheer Cold, etc.) also always hit with No Guard, but still fail if target is higher level",
+    "megaUsers": ["Mega Pidgeot", "Mega Hawlucha"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Mega Launcher",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to pulse and aura moves used by the holder",
+    "effect": "Boosts the power of the Pokémon's pulse moves by 50%.",
+    "damageImpact": "Pulse/aura moves x1.5",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Pulse move list: Aura Sphere, Dark Pulse, Dragon Pulse, Heal Pulse, Origin Pulse, Water Pulse, Terrain Pulse, etc.",
+    "megaUsers": ["Mega Blastoise"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Shadow Tag",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active while holder is on field",
+    "effect": "Opponents cannot be switched out of battle.",
+    "damageImpact": "No direct damage; prevents opponent switches (trapping)",
+    "spreadInteraction": "In Doubles: traps both opponents simultaneously",
+    "protectInteraction": "No special interaction with Protect",
+    "immunityOverrides": [],
+    "stackingRules": "Ghost-type Pokémon are immune to Shadow Tag trapping. Shed Shell also bypasses Shadow Tag. U-turn/Volt Switch/Flip Turn/Teleport can bypass in their respective ways.",
+    "megaUsers": ["Mega Gengar"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Mega Gengar is Ghost type, so immune to its own Shadow Tag effect from opponents who also have Shadow Tag."
+  },
+  {
+    "name": "Parental Bond",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to single-target moves used by the holder",
+    "effect": "The parent and child attack one after the other. The power of the child's attacks is 1/4 of those of the parent.",
+    "damageImpact": "Single-target moves hit twice: first hit at full power, second hit at 1/4 power. Total effective multiplier: x1.25.",
+    "spreadInteraction": "Does NOT apply to spread moves (moves already targeting multiple Pokémon are excluded)",
+    "protectInteraction": "Both hits check Protect independently; if second hit is blocked, it still triggers secondary protection effects",
+    "immunityOverrides": [],
+    "stackingRules": "Each hit can independently trigger secondary effects (burn chance, flinch chance, etc.). OHKO moves hit only once. Recoil applied to combined damage.",
+    "megaUsers": ["Mega Kangaskhan"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Champions update: second hit is 1/4 power (was 1/2 in original Gen 6). This is a significant nerf from Gen 6 Parental Bond."
+  },
+  {
+    "name": "Protean",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "When the holder selects a move (before the move executes)",
+    "effect": "Changes the Pokémon's type to the type of the move it's about to use. This works only once per time the Pokémon enters battle.",
+    "damageImpact": "Holder's type changes, affecting STAB; every move used while active becomes STAB",
+    "spreadInteraction": "Type change affects type matchups for incoming attacks on that turn",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Champions-specific: triggers ONCE per entry, not every move (this is a Champions nerf vs Gen 8/9 where it worked every move). After the first move, type locks to that type for the rest of the battle entry.",
+    "megaUsers": ["Mega Greninja"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Game8 explicitly states 'This works only once per time the Pokémon enters battle' — this is a Champions-specific limitation from the Gen 8/9 behavior."
+  },
+  {
+    "name": "Fairy Aura",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active while holder is on the field",
+    "effect": "Boosts the power of the Fairy-type moves of all Pokémon on the field by 33%.",
+    "damageImpact": "All Fairy-type moves (from all Pokémon including opponents) x1.33",
+    "spreadInteraction": "Field-wide effect; affects all Fairy moves from all sources",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Affects opponent's Fairy moves too. If two Fairy Aura users are on field simultaneously, the boost does NOT stack (still x1.33). Aura Break reverses this to x0.75.",
+    "megaUsers": ["Mega Floette"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Boosts opponent Fairy moves too — doubles-relevant risk when facing Fairy-type opponents."
+  },
+  {
+    "name": "Trace",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "On entry into battle",
+    "effect": "When the Pokémon enters a battle, it changes its Ability to match that of an opponent.",
+    "damageImpact": "Variable — depends on copied ability",
+    "spreadInteraction": "In Doubles: copies one opponent's ability (typically the first listed, but Champions implementation may vary)",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Cannot copy certain abilities (Trace, Flower Gift, Forecast, Illusion, Imposter, etc.)",
+    "megaUsers": ["Mega Alakazam", "Mega Meowstic (Male)", "Mega Meowstic (Female)"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "In Doubles, Trace can copy powerful abilities like Intimidate (triggering again on copy), or trapping abilities — high-skill ability."
+  },
+  {
+    "name": "Iron Fist",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to punching moves used by the holder",
+    "effect": "Boosts the power of the Pokémon's punching moves by 20%.",
+    "damageImpact": "Punching moves x1.2",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Punching Glove (if available) would double-dip: removes contact classification AND Iron Fist still applies",
+    "megaUsers": ["Mega Crabominable"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Berserk",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "When the holder's HP drops to 1/2 or below from an attack",
+    "effect": "Boosts the Pokémon's Sp. Atk stat by 1 stage when an attack causes its HP to drop to 1/2 or less of its max.",
+    "damageImpact": "Sp. Atk +1 stage when dropped to half HP",
+    "spreadInteraction": "Only applies to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Triggers only once per instance of dropping to half HP from above half. Does not trigger if HP was already at or below half.",
+    "megaUsers": ["Mega Drampa"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Synergizes with Trick Room. Mega Drampa's improved bulk means it can survive the hit that drops it to Berserk range more reliably."
+  },
+  {
+    "name": "Infiltrator",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applies to all moves used by the holder",
+    "effect": "When using its moves, the Pokémon ignores the effects of targets' Light Screen, Reflect, Aurora Veil, Safeguard, and substitutes.",
+    "damageImpact": "Ignores screen halving: attacks deal full damage through Light Screen/Reflect/Aurora Veil",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "Does NOT bypass Protect — only bypasses screens and Substitute",
+    "immunityOverrides": [],
+    "stackingRules": "Does not stack — already bypasses all screens",
+    "megaUsers": ["Mega Chandelure"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Bulletproof",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active against ball and bomb moves targeting the holder",
+    "effect": "The Pokémon is immune to ball and bomb moves.",
+    "damageImpact": "Ball/bomb moves deal 0 damage to holder",
+    "spreadInteraction": "Immunity applies only to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": ["Ball/Bomb move immunity: Shadow Ball, Aura Sphere, Focus Blast, Sludge Bomb, etc."],
+    "stackingRules": "Ball/Bomb move list includes: Acid Spray, Aura Sphere, Beak Blast, Bullet Seed, Egg Bomb, Electro Ball, Energy Ball, Focus Blast, Gyro Ball, Ice Ball, Magnet Bomb, Mist Ball, Mud Bomb, Octazooka, Pollen Puff, Pyro Ball, Rock Blast, Rock Wrecker, Seed Bomb, Shadow Ball, Sludge Bomb, Weather Ball, Zap Cannon, etc.",
+    "megaUsers": ["Mega Chesnaught"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Notably immune to Shadow Ball, Aura Sphere, and Focus Blast — common coverage moves."
+  },
+  {
+    "name": "Snow Warning",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "On entry into battle",
+    "effect": "Summons snow for 5 turns when the Pokémon enters a battle.",
+    "damageImpact": "Snow boosts Ice-type Pokémon Defense by 50%. Snow deals no direct damage (unlike Hail in Gen 8 and earlier). Enables Aurora Veil.",
+    "spreadInteraction": "Weather is global",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Icy Rock extends duration to 8 turns. Only one weather active at a time.",
+    "megaUsers": ["Mega Abomasnow", "Mega Froslass"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Mega Froslass is the primary Aurora Veil setter archetype in VGC."
+  },
+  {
+    "name": "Multiscale",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active when holder is at full HP",
+    "effect": "Halves the damage the Pokémon takes while its HP is full.",
+    "damageImpact": "All incoming damage x0.5 when holder at full HP. Effectively doubles bulk on the first hit.",
+    "spreadInteraction": "Only applies to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Broken by any damage (including sand, burn, recoil). Entry hazards damage breaks Multiscale before Mega Dragonite can attack.",
+    "megaUsers": ["Mega Dragonite"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Innards Out",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "When the holder is knocked out by a move",
+    "effect": "When the Pokémon takes damage from a move that knocks it out, it deals the same amount of damage to the attacker.",
+    "damageImpact": "Deals damage equal to the holder's remaining HP before the KO hit",
+    "spreadInteraction": "Only the Pokémon that dealt the KO hit is damaged",
+    "protectInteraction": "No special interaction — if the holder is KO'd through protection (e.g., Unseen Fist), Innards Out still triggers",
+    "immunityOverrides": [],
+    "stackingRules": "Does not trigger from passive damage (poison, burn, sand, recoil). Only from direct move damage.",
+    "megaUsers": ["Mega Victreebel"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Stalwart",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active while holder is on field",
+    "effect": "The Pokémon ignores the effects of Abilities and moves that draw in moves (i.e., redirection).",
+    "damageImpact": "Moves always hit intended targets regardless of redirection",
+    "spreadInteraction": "Critical in Doubles — moves target originally intended Pokémon even if opponent uses Follow Me, Rage Powder, or ally has Lightning Rod/Storm Drain",
+    "protectInteraction": "No special interaction with Protect itself",
+    "immunityOverrides": [],
+    "stackingRules": "Bypasses: Follow Me, Rage Powder, Spotlight, Lightning Rod (Electric draw), Storm Drain (Water draw). Does NOT bypass Protect.",
+    "megaUsers": ["Mega Skarmory"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403",
+      "https://www.serebii.net/pokemonchampions/megaabilities.shtml"
+    ],
+    "confidence": "VERIFIED",
+    "notes": "Highly valuable in VGC Doubles for ignoring Rage Powder / Follow Me redirectors."
+  },
+  {
+    "name": "Shell Armor",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive",
+    "effect": "Attacks landed on the Pokémon will never be critical hits.",
+    "damageImpact": "Prevents critical hits",
+    "spreadInteraction": "Only applies to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Battle Armor has identical effect",
+    "megaUsers": ["Mega Slowbro"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Filter",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — active when holder takes super-effective damage",
+    "effect": "Reduces the damage the Pokémon takes from super-effective moves by 25%.",
+    "damageImpact": "Super-effective moves deal x0.75 effective multiplier on top of the type modifier",
+    "spreadInteraction": "Only applies to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Solid Rock has identical effect",
+    "megaUsers": ["Mega Aggron"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Pure Power",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive — applied to all physical moves used by the holder",
+    "effect": "Doubles the power of the Pokémon's physical moves. Functionally equivalent to Huge Power.",
+    "damageImpact": "Physical moves deal x2.0 damage (effective Attack x2)",
+    "spreadInteraction": "Applied per target",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Identical to Huge Power",
+    "megaUsers": ["Mega Medicham"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Healer",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "End of each turn",
+    "effect": "The Pokémon has a 50% chance of curing the status conditions of its allies at the end of every turn.",
+    "damageImpact": "No direct damage; heals ally status conditions",
+    "spreadInteraction": "In Doubles: 50% chance each to cure each ally's status condition",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "",
+    "megaUsers": ["Mega Audino"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  },
+  {
+    "name": "Inner Focus",
+    "isNew": false,
+    "isUpdated": false,
+    "trigger": "Passive",
+    "effect": "The Pokémon never flinches when attacked and is unaffected by Intimidate.",
+    "damageImpact": "No direct damage effect",
+    "spreadInteraction": "Only applies to the holder",
+    "protectInteraction": "No special interaction",
+    "immunityOverrides": [],
+    "stackingRules": "Champions description explicitly mentions Intimidate immunity for this ability — consistent with Champions Scrappy wording pattern",
+    "megaUsers": ["Mega Gallade"],
+    "sources": [
+      "https://game8.co/games/Pokemon-Champions/archives/592472",
+      "https://game8.co/games/Pokemon-Champions/archives/590403"
+    ],
+    "confidence": "VERIFIED",
+    "notes": ""
+  }
+]
