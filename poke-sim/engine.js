@@ -5,6 +5,58 @@
 // ============================================================
 
 // ============================================================
+// CHAMPIONS REG M-A MECHANICS REFERENCE (T10, verified April 2026)
+// See docs/CHAMPIONS_MEGA_SYSTEM.md + docs/CHAMPIONS_LEGALITY.md +
+// CHAMPIONS_MECHANICS_VERIFICATION.md + ENGINE_AUDIT_REPORT.md for
+// full audit. Engine hooks for the behaviors below are DEFERRED;
+// this block documents target behavior for future engine tickets.
+//
+// Stat formula (IMPLEMENTED in T1):
+//   HP     = Base + SP + 75
+//   Other  = floor((Base + SP + 20) * Alignment)
+//   Alignment = 0.9 (lowered) | 1.0 (neutral) | 1.1 (raised)
+//   All IVs fixed at 31.
+//
+// Status nerfs (PENDING engine work, filed as GitHub issues):
+//   Paralysis full-para: 12.5%  (was 25%). Speed -50% unchanged.
+//   Sleep:  max 3 turns  (T1 cant act, T2 33% wake, T3 guaranteed).
+//   Freeze: 25% thaw/turn, guaranteed thaw T3. Sun thaws.
+//
+// Doubles (PENDING):
+//   Spread modifier 0.75x; spread MUST hit all valid targets.
+//   Fake Out: locked after first turn in battle.
+//   Protect PP halved 16 -> 8.
+//
+// Ability nerfs (flags in data.js::CHAMPIONS_UPDATED_ABILITIES):
+//   Unseen Fist:   25% damage through Protect (was 100%).
+//   Parental Bond: child hit 1/4 power (was 1/2).
+//   Protean:       fires once per entry (was every move).
+//
+// New abilities (data.js::CHAMPIONS_NEW_ABILITIES):
+//   Piercing Drill (Mega Excadrill): contact @ 25% through Protect.
+//   Dragonize (Mega Feraligatr):     Normal -> Dragon, +20% BP.
+//   Mega Sol (Mega Meganium):        personal sun, no weather set.
+//   Spicy Spray (Mega Scovillain):   burn attacker on any damage taken.
+//
+// Items NOT in Champions (enforced in legality.js::CHAMPIONS_BANNED_ITEMS):
+//   Life Orb, Choice Band/Specs, Assault Vest, Rocky Helmet, HDB,
+//   Black Sludge, Eviolite, Light Clay, weather rocks, Terrain Extender,
+//   Toxic Orb, Flame Orb.
+//
+// Sources:
+//   https://www.serebii.net/pokemonchampions/rankedbattle/regulationm-a.shtml
+//   https://www.serebii.net/pokemonchampions/statusconditions.shtml
+//   https://www.serebii.net/pokemonchampions/newabilities.shtml
+//   https://www.serebii.net/pokemonchampions/updatedabilities.shtml
+//   https://bulbapedia.bulbagarden.net/wiki/Stat_point
+//   https://game8.co/games/Pokemon-Champions/archives/588871
+//   https://victoryroad.pro/champions-regulations/
+// ============================================================
+
+var CHAMPIONS_FORMAT_ID = 'champions-vgc-2026-regma';
+var CHAMPIONS_FORMAT_LABEL = 'Champions Reg M-A (Apr 8 - Jun 17, 2026)';
+
+// ============================================================
 // SEEDED PRNG — Issue #2 FIX
 // Mulberry32: fast, deterministic, browser-safe.
 // All battle randomness goes through rng() — never Math.random().
