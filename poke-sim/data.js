@@ -762,10 +762,11 @@ const TEAMS = {
         "url": "",
         "status": "unproven"
     },
-    "legality_status": "illegal",
-    "legality_notes": "Species Clause violation: duplicate Garchomp. Fixed in T7.",
+    "legality_status": "legal",
+    "legality_notes": "SV-format team validated under gen9vgc2024regh. Slot-6 duplicate Garchomp replaced with Dragapult-Scarf in T7 to resolve Species Clause.",
     "assumption_register": [
-        "Team is SV-format; validated against gen9vgc rules not Champions."
+        "Team is SV-format; validated against gen9vgc rules, not Champions Reg M-A.",
+        "Dragapult slot is SV-legal and also Champions Reg M-A legal (not restricted/paradox)."
     ],
     "members": [
       {
@@ -879,9 +880,10 @@ const TEAMS = {
         "role": "Spread Check"
       },
       {
-        "name": "Garchomp",
+        "name": "Dragapult",
         "item": "Choice Scarf",
-        "ability": "Sand Veil",
+        "ability": "Clear Body",
+        "teraType": "Fairy",
         "nature": "Jolly",
         "level": 50,
         "evs": {
@@ -893,12 +895,12 @@ const TEAMS = {
           "spe": 252
         },
         "moves": [
-          "Earthquake",
-          "Dragon Claw",
-          "Rock Slide",
-          "Fire Fang"
+          "Dragon Darts",
+          "U-turn",
+          "Tera Blast",
+          "Sucker Punch"
         ],
-        "role": "Speed Control / Scarf"
+        "role": "Speed Control / Scarf Revenge"
       }
     ]
   },
