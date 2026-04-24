@@ -22,7 +22,7 @@ You are continuing development of **Pokémon Champion 2026**, a production-grade
 
 **Option 1 — htmlpreview bundle link (easiest, no setup):**
 ```
-https://htmlpreview.github.io/?https://raw.githubusercontent.com/alfredocox/Pokemon-Champions-Sim-Planner/main/poke-sim/pokemon-champion-2026-FINAL.html
+https://htmlpreview.github.io/?https://raw.githubusercontent.com/alfredocox/Pokemon-Champions-Sim-Planner/main/poke-sim/pokemon-champion-2026.html
 ```
 
 **Option 2 — GitHub Pages (same bundle, auto-deploys on push):**
@@ -34,8 +34,8 @@ https://alfredocox.github.io/Pokemon-Champions-Sim-Planner/
 ```bash
 git clone https://github.com/alfredocox/Pokemon-Champions-Sim-Planner.git
 cd Pokemon-Champions-Sim-Planner/poke-sim
-open pokemon-champion-2026-FINAL.html   # macOS
-start pokemon-champion-2026-FINAL.html  # Windows
+open pokemon-champion-2026.html   # macOS
+start pokemon-champion-2026.html  # Windows
 ```
 
 **Option 4 — Local dev server (full PWA, service worker active):**
@@ -45,7 +45,7 @@ npx serve .
 # Open: http://localhost:3000
 ```
 
-> **Why htmlpreview works for the bundle but not index.html:** The bundle (`pokemon-champion-2026-FINAL.html`) is fully self-contained — all CSS/JS inlined. htmlpreview works fine for it. The multi-file `index.html` loads `data.js`, `engine.js`, `ui.js`, `style.css` as separate files which fail cross-origin.
+> **Why htmlpreview works for the bundle but not index.html:** The bundle (`pokemon-champion-2026.html`) is fully self-contained — all CSS/JS inlined. htmlpreview works fine for it. The multi-file `index.html` loads `data.js`, `engine.js`, `ui.js`, `style.css` as separate files which fail cross-origin.
 
 ---
 
@@ -76,7 +76,7 @@ Pokemon-Champions-Sim-Planner/
 │   ├── sw.js                   ← Service worker (cache-first)
 │   ├── icon-192.png            ← PWA icon
 │   └── icon-512.png            ← PWA icon
-├── pokemon-champion-2026-FINAL.html   ← Self-contained single-file bundle (~280 KB)
+├── pokemon-champion-2026.html   ← Self-contained single-file bundle (~400 KB)
 ├── README.md                   ← Quickstart guide
 ├── DEVELOPMENT_RUNBOOK.md      ← Full dev history, architecture, QA log
 └── MASTER_PROMPT.md            ← This file
@@ -169,7 +169,7 @@ This is a known architectural limitation — do not "fix" it without restructuri
 
 ## ⚠️ REBUILD WARNING — READ BEFORE TOUCHING SOURCE FILES
 
-The bundle (`pokemon-champion-2026-FINAL.html`) contains features that are **not fully reflected in the individual source files** (`index.html`, `ui.js`). Specifically:
+The bundle (`pokemon-champion-2026.html`) is the rebuilt artifact — generated from the source files (`index.html`, `style.css`, `data.js`, `engine.js`, `ui.js`) via the rebuild command. Always edit sources and rebuild; never edit the bundle directly.
 
 - `player-select` dropdown in the Simulator tab
 - Swap button between player/opponent
@@ -198,8 +198,8 @@ html=html.replace('<link rel=\"manifest\" href=\"manifest.json\"/>','')
 html=html.replace('<link rel=\"apple-touch-icon\" href=\"icon-192.png\"/>','')
 html=html.replace('</head>','<style>\n'+css+'\n</style>\n</head>')
 html=html.replace('</body>','<script>\n'+data+'\n\n'+engine+'\n\n'+strat+'\n\n'+ui+'\n</script>\n</body>')
-with open('pokemon-champion-2026-FINAL.html','w') as f: f.write(html)
-print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026-FINAL.html\"):,} bytes')
+with open('pokemon-champion-2026.html','w') as f: f.write(html)
+print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
 "
 ```
 
@@ -248,7 +248,7 @@ deploy_website(
 - [x] Team Coverage checker — live in VS column
 - [x] Strategy tab — keyed to currentPlayerKey, updates on team change
 - [x] PWA — manifest + service worker + icons (iOS / Android install)
-- [x] Single-file offline bundle (~280 KB)
+- [x] Single-file offline bundle (~400 KB)
 
 ---
 
@@ -351,7 +351,7 @@ When you ask the AI to make changes:
 ## LAST KNOWN GOOD STATE
 
 - **Commit:** `8a0df59` — last verified working state before April 23 write-back experiments
-- **Bundle:** `pokemon-champion-2026-FINAL.html` ~280 KB
+- **Bundle:** `pokemon-champion-2026.html` ~400 KB
 - **Engine:** Non-deterministic confirmed (`Math.random()` damage roll in `engine.js`)
 - **Trick Room:** Correctly modeled — 5-turn countdown, speed inversion, toggle cancel
 - **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
