@@ -26,6 +26,12 @@ Last updated: 2026-04
 - **Champions deviation:** Full-paralysis chance halved from 25% → 12.5%. Speed reduction unchanged.
 - **Sources:** [Serebii Champions Status Conditions](https://www.serebii.net/pokemonchampions/statusconditions.shtml), [IGN Champions Changes](https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained), [games.gg status nerfs](https://games.gg/news/pokemon-champions-nerfs-freeze-sleep-paralysis/)
 
+#### 1.2.1 Engine implementation (T9j.5, #17)
+- Speed halving already handled by `getStat('spe')` and retained unchanged.
+- Full-para roll enforced as `rng() < 0.125` in the pre-action gate (`engine.js` turn loop).
+- Electric-type immunity enforced via `canInflictStatus(mon, 'paralysis', field)`.
+- **Note on #17 body:** ticket text said "remove para skip entirely" (Gen 9 core = 0%). Cited Champions sources (Serebii, games.gg) explicitly list **12.5%**, not 0%. Engine follows cited value.
+
 ### 1.3 Sleep
 - **Normal sleep (not Rest):** Lasts **1–2 turns**. 33.3% chance to wake on Turn 2 of sleep; **guaranteed wake on Turn 3** (i.e., max duration is 2 turns of being unable to move, always wakes on the turn after that). `CHAMPIONS-CONFIRMED`
   - IGN wording: "will wake up by the second turn at most" for non-Rest sleep.
@@ -37,6 +43,13 @@ Last updated: 2026-04
 - **Wake on switch:** `CHAMPIONS-UNKNOWN` — no Champions-specific ruling found; assume no (sleep persists through switches, SV behavior).
 - **Sources:** [Serebii Champions Status Conditions](https://www.serebii.net/pokemonchampions/statusconditions.shtml), [IGN Champions Changes](https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained), [games.gg](https://games.gg/news/pokemon-champions-nerfs-freeze-sleep-paralysis/)
 
+#### 1.3.1 Engine implementation (T9j.5, #17)
+- Storage: `mon.status = 'sleep'`, `mon.statusTurns` (countdown), `mon.sleepTurns` (turns-asleep counter).
+- Turn 1 asleep: always skips (`sleepTurns == 1`).
+- Turn 2 asleep: 33.3% early-wake roll (`sleepTurns == 2 && rng() < 0.333`), else skip.
+- Turn 3 asleep: guaranteed wake before acting (`sleepTurns >= 3`).
+- `sleepTurns` reset to 0 on inflict (Sleep Powder path), on wake, and on switch in.
+
 ### 1.4 Freeze
 - **Thaw rate per turn:** **25%** chance to thaw when the frozen Pokémon attempts to use a move (up from 20% in prior gens) `CHAMPIONS-CONFIRMED`
 - **Guaranteed thaw turn:** Always thaws on **Turn 3** of being frozen (3-turn maximum). `CHAMPIONS-CONFIRMED`
@@ -45,6 +58,13 @@ Last updated: 2026-04
 - **Ice-type immunity to Freeze:** Ice types cannot be frozen `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
 - **Champions deviation:** Thaw chance raised 20%→25%. Guaranteed thaw on Turn 3 (was unlimited prior gens).
 - **Sources:** [Serebii Champions Status Conditions](https://www.serebii.net/pokemonchampions/statusconditions.shtml), [Game8 Changes](https://game8.co/games/Pokemon-Champions/archives/593893), [Bulbapedia Freeze](https://bulbapedia.bulbagarden.net/wiki/Freeze_(status_condition)), [games.gg](https://games.gg/news/pokemon-champions-nerfs-freeze-sleep-paralysis/)
+
+#### 1.4.1 Engine implementation (T9j.4, #41)
+- Storage: `mon.status = 'frozen'`, `mon.frozenTurns` counter (0 on inflict).
+- Gate: `canInflictStatus(mon, 'frozen', field)` blocks Ice types, Sun, and Magma Armor.
+- Resolution: at start of a frozen mon's move attempt, increment `frozenTurns`; if counter ≥ 3, force-thaw; else roll `rng() < 0.25` to thaw and act, or skip the turn.
+- Fire-move thaw: in `applyDamage`, any damaging Fire-type hit on a frozen, still-alive target clears status.
+- Reset on switch in: `frozenTurns = 0` when a new mon enters the slot.
 
 ### 1.5 Frostbite
 - **Does Champions use Frostbite instead of Freeze?** **NO.** Freeze exists in Champions as a status condition (explicitly listed in Serebii's status changes page). Frostbite was a Legends: Arceus-exclusive mechanic and was not in Legends: Z-A. Community consensus (Smogon thread): "Frostbite will never happen, it wasn't even in ZA." `CHAMPIONS-CONFIRMED`
@@ -57,7 +77,15 @@ Last updated: 2026-04
 - **Toxic Spikes interaction:** Toxic Spikes not currently in Champions (VGC Doubles format; entry hazards generally not relevant in 4v4 doubles). `CHAMPIONS-LIKELY-INHERITED-FROM-SV` for mechanics if ever relevant.
 - **Toxic Orb:** **NOT in Champions** at launch. `CHAMPIONS-CONFIRMED`
 - **Champions deviation:** No mechanical deviation found for poison itself.
-- **Sources:** [IGN Champions Changes](https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained)
+- **Sources:** [IGN Champions Changes](https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained), [Bulbapedia Status](https://bulbapedia.bulbagarden.net/wiki/Status_condition)
+
+#### 1.6.1 Engine implementation (T9j.4, #41)
+- Storage: `mon.status = 'poison' | 'toxic'`, `mon.toxicCounter` (N in N/16 formula).
+- Gate: `canInflictStatus(mon, 'poison'|'toxic', field)` blocks Poison + Steel types.
+- Regular poison residual: `floor(maxHp / 8)` end of turn; minimum 1.
+- Toxic residual: `floor(maxHp * N / 16)` where `N = min(15, toxicCounter)`; counter starts at 1 on inflict and increments post-tick; cap 15 (matches SV cap, no Champions deviation found).
+- Switch-out reset: `toxicCounter = 0` on the new mon entering the slot (covers voluntary-switch case once that is modeled; fainted replacements already always use a fresh counter).
+- Inflict paths wired: `Toxic` move (10% miss, sets counter=1) and `Poison Powder` move (Grass-immune, 25% miss).
 
 ### 1.7 Confusion
 **Champions:** Inherited from SV. `CHAMPIONS-LIKELY-INHERITED-FROM-SV`

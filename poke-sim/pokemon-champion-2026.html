@@ -5369,8 +5369,18 @@ class Pokemon {
     this.level = data.level || 50;
     this._calcStats();
     this.hp = this.maxHp;
-    this.status = null; // burn, paralysis, sleep, poison
+    this.status = null; // burn, paralysis, sleep, poison, toxic, frozen
     this.statusTurns = 0;
+    // T9j.4 (#41) — status residual counters.
+    // toxicCounter: N in the N/16 Bad Poison formula. Starts at 1 on inflict,
+    //   increments post-tick, caps at 15, resets on switch-out.
+    // frozenTurns: turns spent frozen. Champions: 25% thaw per move attempt;
+    //   guaranteed thaw on turn 3 (3-turn maximum).
+    // sleepTurns: turns-asleep counter for 33% turn-2 wake and 3-turn cap.
+    // Cite: Bulbapedia Freeze (Pokemon Champions section); Bulbapedia Status.
+    this.toxicCounter = 0;
+    this.frozenTurns  = 0;
+    this.sleepTurns   = 0;
     this.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
     this.alive = true;
     this.hasActed = false;
@@ -5694,11 +5704,32 @@ class Pokemon {
 }
 
 // ============================================================
+// STATUS INFLICT GATE (T9j.4 #41)
+// ============================================================
+// Central gate for status inflict attempts. Returns false if the target is
+// type-immune, already statused, under weather protection, or has a blocking
+// ability. Cite: Bulbapedia Status; Bulbapedia Freeze.
+function canInflictStatus(mon, status, field) {
+  if (!mon || !mon.alive) return false;
+  if (mon.status) return false; // one major status at a time
+  const types = mon.types || [];
+  if (status === 'burn'      && (types.includes('Fire')     || mon.ability === 'Water Veil')) return false;
+  if (status === 'paralysis' &&  types.includes('Electric')) return false;
+  if ((status === 'poison' || status === 'toxic') &&
+      (types.includes('Poison') || types.includes('Steel'))) return false;
+  if (status === 'frozen'    &&  types.includes('Ice')) return false;
+  if (status === 'frozen'    && field && field.weather === 'sun') return false;
+  if (status === 'sleep'     && mon.ability === 'Sweet Veil')   return false;
+  if (status === 'frozen'    && mon.ability === 'Magma Armor')  return false;
+  return true;
+}
+
+// ============================================================
 // FIELD STATE
 // ============================================================
 class Field {
   constructor() {
-    this.weather      = 'none'; // 'sun','rain','sand','hail','snow'
+    this.weather      = 'none'; // 'sun','rain','sand','snow' (Hail does not exist in Champions; Snow replaces it)
     this.weatherTurns = 0;
     this.trickRoom    = false;
     this.trickRoomTurns = 0;
@@ -6099,9 +6130,24 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (move === 'Thunder Wave' && target && target.alive && !target.status && !target.types.includes('Electric') && !target.types.includes('Ground')) {
         target.status = 'paralysis'; log.push(`${target.name} is paralysed! It may be unable to move!`);
       }
+      // T9j.4 (#41) — Toxic / Poison Powder inflict paths. Gate via canInflictStatus.
+      if (move === 'Toxic' && target && target.alive &&
+          canInflictStatus(target, 'toxic', field)) {
+        if (rng() < 0.10) { log.push(`${attacker.name}'s Toxic missed!`); return; }
+        target.status = 'toxic';
+        target.toxicCounter = 1;
+        log.push(`${target.name} was badly poisoned!`);
+      }
+      if (move === 'Poison Powder' && target && target.alive &&
+          canInflictStatus(target, 'poison', field) && !target.types.includes('Grass')) {
+        if (rng() < 0.25) { log.push(`${attacker.name}'s Poison Powder missed!`); return; }
+        target.status = 'poison';
+        log.push(`${target.name} was poisoned!`);
+      }
       if (move === 'Sleep Powder' && target && target.alive && !target.status) {
         if (rng() < 0.25) { log.push(`${attacker.name}'s Sleep Powder missed!`); return; }
         target.status = 'sleep'; target.statusTurns = 2 + Math.floor(rng() * 2);
+        target.sleepTurns = 0;
         log.push(`${target.name} fell asleep from ${attacker.name}'s Sleep Powder!`);
       }
       if (move === 'Life Dew') {
@@ -6333,6 +6379,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     }
     target.hp = Math.max(0, target.hp - finalDmg);
     log.push(`${attacker.name} used ${move}! → ${target.name} [${finalDmg} dmg, ${target.hp}/${target.maxHp} HP]`);
+    // T9j.4 (#41) — Fire-move thaw on hit. Any damaging Fire move thaws target.
+    // Cite: Bulbapedia Freeze.
+    if (target.status === 'frozen' && finalDmg > 0 && target.hp > 0 &&
+        (MOVE_TYPES[move] || 'Normal') === 'Fire') {
+      target.status = null;
+      target.frozenTurns = 0;
+      log.push(`${target.name} was thawed out by ${attacker.name}'s ${move}!`);
+    }
     // Recoil
     if (move === 'Flare Blitz' || move === 'Head Smash' || move === 'Wave Crash') {
       const recoil = Math.floor(finalDmg / 3);
@@ -6430,18 +6484,44 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // Execute actions
     for (const action of actions) {
       if (!action.attacker.alive) continue;
-      // Status check before acting
-      if (action.attacker.status === 'sleep') {
-        action.attacker.statusTurns--;
-        if (action.attacker.statusTurns <= 0) {
+      // T9j.4 (#41) — Freeze resolution per Champions rules:
+      //   25% thaw per move attempt, guaranteed thaw on turn 3 (3-turn cap).
+      // Cite: Bulbapedia Freeze — Pokemon Champions section.
+      if (action.attacker.status === 'frozen') {
+        action.attacker.frozenTurns = (action.attacker.frozenTurns || 0) + 1;
+        if (action.attacker.frozenTurns >= 3 || rng() < 0.25) {
           action.attacker.status = null;
+          action.attacker.frozenTurns = 0;
+          log.push(`${action.attacker.name} thawed out!`);
+          // falls through to act this turn
+        } else {
+          log.push(`${action.attacker.name} is frozen solid!`);
+          continue;
+        }
+      }
+      // T9j.5 (#17) — Sleep: turn 1 always skip; turn 2 33% early wake;
+      // turn 3 guaranteed wake (3-turn cap). Cite: games.gg Champions nerfs.
+      if (action.attacker.status === 'sleep') {
+        action.attacker.sleepTurns = (action.attacker.sleepTurns || 0) + 1;
+        action.attacker.statusTurns--;
+        if (action.attacker.sleepTurns >= 3 || action.attacker.statusTurns <= 0) {
+          action.attacker.status = null;
+          action.attacker.sleepTurns = 0;
+          action.attacker.statusTurns = 0;
           log.push(`${action.attacker.name} woke up!`);
+        } else if (action.attacker.sleepTurns === 2 && rng() < 0.333) {
+          action.attacker.status = null;
+          action.attacker.sleepTurns = 0;
+          action.attacker.statusTurns = 0;
+          log.push(`${action.attacker.name} woke up early!`);
         } else {
           log.push(`${action.attacker.name} is fast asleep!`);
           continue;
         }
       }
-      if (action.attacker.status === 'paralysis' && rng() < 0.25) {
+      // T9j.5 (#17) — Paralysis full-skip nerfed from 25% to 12.5% in Champions.
+      // Cite: Serebii Champions Status; games.gg. Spec §1.2.
+      if (action.attacker.status === 'paralysis' && rng() < 0.125) {
         log.push(`${action.attacker.name} is fully paralysed and can't move!`);
         continue;
       }
@@ -6472,6 +6552,27 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
     }
 
+    // T9j.4 (#41) — Poison residual (1/8 max HP). Cite: Bulbapedia Status; Spec §1.6.
+    for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'poison')) {
+      const poisonDmg = Math.max(1, Math.floor(mon.maxHp / 8));
+      mon.hp = Math.max(0, mon.hp - poisonDmg);
+      log.push(`${mon.name} is hurt by poison! [${poisonDmg} dmg]`);
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+    }
+
+    // T9j.4 (#41) — Toxic residual (N/16 escalating, cap N=15; counter increments post-tick).
+    // Cite: Bulbapedia Status; Spec §1.6.
+    for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'toxic')) {
+      if (!mon.toxicCounter || mon.toxicCounter < 1) mon.toxicCounter = 1;
+      const n = Math.min(15, mon.toxicCounter);
+      const toxicDmg = Math.max(1, Math.floor(mon.maxHp * n / 16));
+      mon.hp = Math.max(0, mon.hp - toxicDmg);
+      log.push(`${mon.name} is hurt by toxic! [${toxicDmg} dmg] (tick ${n}/16)`);
+      mon.toxicCounter++;
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+    }
+    // Note: Snow intentionally has no chip damage (Champions Gen-IX). Hail is absent.
+
     // Field upkeep
     field.tick(log);
 
@@ -6489,6 +6590,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         const replacement = bench.find(b => b.alive);
         if (replacement) {
           bench.splice(bench.indexOf(replacement), 1);
+          // T9j.4 (#41) — toxicCounter + frozenTurns reset on switch in.
+          // Cite: Bulbapedia Status (toxic counter resets on switch out/in).
+          replacement.toxicCounter = 0;
+          replacement.frozenTurns  = 0;
+          replacement.sleepTurns   = 0;
           activeArr[idx] = replacement;
           log.push(`${replacement.name} was sent out!`);
           applyEntryAbility(replacement, side, field, log);
