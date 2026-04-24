@@ -3212,7 +3212,11 @@ async function saveTeamsToGitHub(reason) {
       /const TEAMS\s*=\s*\{[\s\S]*?\};\s*/m,
       newTeamsBlock
     );
-    const b64 = btoa(unescape(encodeURIComponent(replaced)));
+    // UTF-8 safe base64 encoding — handles é, —, · and all non-ASCII chars
+    const bytes = new TextEncoder().encode(replaced);
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    const b64 = btoa(binary);
 
     const respPut = await fetch('https://api.github.com/repos/alfredocox/Pokemon-Champions-Sim-Planner/contents/poke-sim/data.js', {
       method: 'PUT',
