@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="ChampSim"/>
 <meta name="mobile-web-app-capable" content="yes"/>
-<meta name="theme-color" content="#4f46e5"/>
+<meta name="theme-color" content="#22d3ee"/>
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Pokémon Champion 2026 — VGC Team Simulator</title>
@@ -24,11 +24,23 @@
 <header class="site-header">
   <div class="header-inner">
     <div class="logo-block">
-      <svg class="logo-icon" width="34" height="34" viewBox="0 0 36 36" fill="none" aria-label="Pokeball">
-        <circle cx="18" cy="18" r="17" stroke="var(--color-primary)" stroke-width="2"/>
-        <path d="M1 18h34" stroke="var(--color-primary)" stroke-width="2"/>
-        <circle cx="18" cy="18" r="5" fill="var(--color-bg)" stroke="var(--color-primary)" stroke-width="2"/>
-        <circle cx="18" cy="18" r="2.5" fill="var(--color-primary)"/>
+      <svg class="logo-icon" width="36" height="36" viewBox="0 0 36 36" fill="none" role="img" aria-label="Champions Sim">
+        <title>Champions Sim</title>
+        <defs>
+          <linearGradient id="hHex" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#67e8f9"/>
+            <stop offset="1" stop-color="#0e7490"/>
+          </linearGradient>
+          <linearGradient id="hBolt" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#a5f3fc"/>
+            <stop offset="1" stop-color="#0891b2"/>
+          </linearGradient>
+        </defs>
+        <polygon points="18,2 32,10 32,26 18,34 4,26 4,10" fill="#0b1f2e" stroke="url(#hHex)" stroke-width="2" stroke-linejoin="round"/>
+        <polyline points="4,26 18,34 32,26" fill="none" stroke="#ef4444" stroke-width="1" stroke-linejoin="round" opacity="0.85"/>
+        <ellipse cx="18" cy="20" rx="9" ry="2.6" fill="none" stroke="#22d3ee" stroke-width="0.9" opacity="0.85"/>
+        <ellipse cx="18" cy="20" rx="6" ry="1.6" fill="none" stroke="#67e8f9" stroke-width="0.6" opacity="0.6"/>
+        <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
         <h1 class="site-title">Pokémon Champion 2026</h1>

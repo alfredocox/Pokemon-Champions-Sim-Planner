@@ -42,6 +42,7 @@ table{border-collapse:collapse;width:100%}
 .site-header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
 .header-inner{max-width:1400px;margin:0 auto;padding:var(--sp3) var(--sp4);display:flex;align-items:center;justify-content:space-between;gap:var(--sp3);flex-wrap:wrap}
 .logo-block{display:flex;align-items:center;gap:var(--sp3)}
+.logo-icon{flex:none;filter:drop-shadow(0 0 8px rgba(34,211,238,.35))}
 .site-title{font-size:var(--text-lg);font-weight:900;letter-spacing:-.02em;line-height:1.1}
 .site-sub{font-size:10px;color:var(--text-m);font-family:var(--font-mono);margin-top:1px}
 .header-right{display:flex;align-items:center;gap:var(--sp3)}

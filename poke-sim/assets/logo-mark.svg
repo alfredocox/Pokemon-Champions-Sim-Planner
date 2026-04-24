@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Champions Sim logo">
+  <title>Champions Sim</title>
+  <defs>
+    <!-- Hex outer stroke gradient -->
+    <linearGradient id="hexStroke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="0.55" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+
+    <!-- Hex inner fill (deep navy) -->
+    <radialGradient id="hexFill" cx="0.5" cy="0.45" r="0.7">
+      <stop offset="0" stop-color="#0f3a52"/>
+      <stop offset="0.6" stop-color="#0b1f2e"/>
+      <stop offset="1" stop-color="#070d16"/>
+    </radialGradient>
+
+    <!-- Lightning bolt gradient -->
+    <linearGradient id="boltFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a5f3fc"/>
+      <stop offset="0.5" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+
+    <!-- Arena ring gradient -->
+    <linearGradient id="ringFill" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.85"/>
+      <stop offset="0.5" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0.85"/>
+    </linearGradient>
+
+    <!-- Crimson corner accent -->
+    <linearGradient id="emberAccent" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#ef4444"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+
+    <!-- Bolt outer glow -->
+    <filter id="boltGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background dark plate (rounded square so PWA maskable icon looks clean) -->
+  <rect x="0" y="0" width="512" height="512" rx="96" fill="#0b1220"/>
+
+  <!-- Subtle hex mesh background pattern -->
+  <g opacity="0.10" stroke="#22d3ee" stroke-width="1.5" fill="none">
+    <polygon points="64,80 104,57 144,80 144,126 104,149 64,126"/>
+    <polygon points="368,80 408,57 448,80 448,126 408,149 368,126"/>
+    <polygon points="64,386 104,363 144,386 144,432 104,455 64,432"/>
+    <polygon points="368,386 408,363 448,386 448,432 408,455 368,432"/>
+  </g>
+
+  <!-- Outer hexagon frame (pointy-top), centered -->
+  <!-- Hex math: center 256,256, radius 180 -->
+  <polygon points="256,76 411,166 411,346 256,436 101,346 101,166"
+           fill="url(#hexFill)"
+           stroke="url(#hexStroke)"
+           stroke-width="14"
+           stroke-linejoin="round"/>
+
+  <!-- Inner hex bevel line for depth -->
+  <polygon points="256,108 384,182 384,330 256,404 128,330 128,182"
+           fill="none"
+           stroke="#0891b2"
+           stroke-opacity="0.55"
+           stroke-width="3"
+           stroke-linejoin="round"/>
+
+  <!-- Crimson accent stripe (bottom-left edge of hex) -->
+  <polyline points="101,346 256,436 411,346"
+            fill="none"
+            stroke="url(#emberAccent)"
+            stroke-width="6"
+            stroke-linejoin="round"
+            opacity="0.9"/>
+
+  <!-- Arena ring (battle platform) -->
+  <g transform="translate(256 282)">
+    <ellipse rx="115" ry="36" fill="none" stroke="url(#ringFill)" stroke-width="6" opacity="0.95"/>
+    <ellipse rx="92" ry="26" fill="none" stroke="#67e8f9" stroke-width="2" opacity="0.65"/>
+    <ellipse rx="70" ry="18" fill="none" stroke="#a5f3fc" stroke-width="1.5" opacity="0.45"/>
+  </g>
+
+  <!-- Arena base platform (hex-tile floor hint) -->
+  <g transform="translate(256 332)" opacity="0.85">
+    <path d="M -120 0 L -90 -22 L 90 -22 L 120 0 L 90 22 L -90 22 Z"
+          fill="#0e2a3d" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M -90 -22 L -90 22 M 0 -22 L 0 22 M 90 -22 L 90 22"
+          stroke="#22d3ee" stroke-width="1.5" opacity="0.55"/>
+    <path d="M -120 0 L 120 0" stroke="#67e8f9" stroke-width="1.2" opacity="0.5"/>
+  </g>
+
+  <!-- Lightning bolt (center, top-right to bottom-left) -->
+  <g filter="url(#boltGlow)">
+    <path d="M 296 110 L 224 246 L 268 246 L 216 402 L 304 240 L 256 240 L 308 110 Z"
+          fill="url(#boltFill)"
+          stroke="#a5f3fc"
+          stroke-width="3"
+          stroke-linejoin="round"/>
+  </g>
+
+  <!-- Bolt highlight stripe -->
+  <path d="M 290 132 L 240 240 L 272 240 L 232 372"
+        fill="none"
+        stroke="#ecfeff"
+        stroke-width="2"
+        stroke-linecap="round"
+        opacity="0.75"/>
+</svg>
