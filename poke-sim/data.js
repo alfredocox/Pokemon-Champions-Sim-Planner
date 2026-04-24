@@ -745,6 +745,28 @@ const TEAMS = {
     "label": "YOUR TEAM",
     "style": "speed",
     "description": "Fast offensive pressure with Intimidate + Will-O-Wisp support. Built to break Trick Room before it starts.",
+    "champion_pack_id": "player_tr_counter_v1",
+    "format": "sv",
+    "formatid": "gen9vgc2024regh",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "user-authored",
+        "spread_source": "user-authored",
+        "author": "user",
+        "url": "",
+        "status": "unproven"
+    },
+    "legality_status": "illegal",
+    "legality_notes": "Species Clause violation: duplicate Garchomp. Fixed in T7.",
+    "assumption_register": [
+        "Team is SV-format; validated against gen9vgc rules not Champions."
+    ],
     "members": [
       {
         "name": "Incineroar",
@@ -886,6 +908,26 @@ const TEAMS = {
     "style": "weather_support",
     "format": "gen9championsvgc2026regma",
     "description": "Sun-rain hybrid with Trick Room threat via Sinistcha. Prankster Whimsicott provides flexible speed control.",
+    "champion_pack_id": "mega_altaria_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "https://pokepast.es/dfdfa66d317cf9d7",
+        "spread_source": "https://pokepast.es/dfdfa66d317cf9d7",
+        "author": "community",
+        "url": "https://pokepast.es/dfdfa66d317cf9d7",
+        "status": "exact"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Remove invented gen9championsvgc2026regma tag in T10.",
+    "assumption_register": [],
     "members": [
       {
         "name": "Typhlosion-Hisui",
@@ -1021,6 +1063,28 @@ const TEAMS = {
     "style": "rain",
     "format": "gen9championsvgc2026regma",
     "description": "Rain team with Mega Dragonite as the primary sweeper. Basculegion Adaptability + Archaludon Electro Shot under rain.",
+    "champion_pack_id": "mega_dragonite_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "https://pokepast.es/dd101585183c9ed6",
+        "spread_source": "https://pokepast.es/dd101585183c9ed6",
+        "author": "community",
+        "url": "https://pokepast.es/dd101585183c9ed6",
+        "status": "unproven"
+    },
+    "legality_status": "illegal",
+    "legality_notes": "Contains Dragonite-Mega (fakemon). Quarantined in T9.",
+    "assumption_register": [
+        "Dragonite has no Mega Evolution in any official game."
+    ],
     "members": [
       {
         "name": "Dragonite-Mega",
@@ -1156,6 +1220,28 @@ const TEAMS = {
     "style": "sun_tr",
     "format": "gen9championsvgc2026regma",
     "description": "Sun + Trick Room hybrid. Mega Houndoom Solar Power nukes under sun. Flexible TR setters in Sinistcha, Farigiraf, Whimsicott.",
+    "champion_pack_id": "mega_houndoom_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "https://pokepast.es/4a87b07998f6c0c4",
+        "spread_source": "https://pokepast.es/4a87b07998f6c0c4",
+        "author": "community",
+        "url": "https://pokepast.es/4a87b07998f6c0c4",
+        "status": "unproven"
+    },
+    "legality_status": "illegal",
+    "legality_notes": "Contains Drampa-Mega (fakemon). Quarantined in T9.",
+    "assumption_register": [
+        "Drampa has no Mega Evolution in any official game."
+    ],
     "members": [
       {
         "name": "Houndoom-Mega",
@@ -1290,6 +1376,28 @@ const TEAMS = {
     "label": "RIN",
     "style": "sand",
     "description": "Sand offense with Tyranitar + Excadrill core. Sneasler Unburden for burst speed. Dragapult for speed and spread.",
+    "champion_pack_id": "rin_sand_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "https://pokepast.es/e97ac67f1ce79c33",
+        "spread_source": "https://pokepast.es/e97ac67f1ce79c33",
+        "author": "community",
+        "url": "https://pokepast.es/e97ac67f1ce79c33",
+        "status": "unproven"
+    },
+    "legality_status": "illegal",
+    "legality_notes": "Contains Meganium-Mega (fakemon). Quarantined in T9.",
+    "assumption_register": [
+        "Meganium has no Mega Evolution in any official game."
+    ],
     "members": [
       {
         "name": "Sneasler",
@@ -1429,6 +1537,26 @@ const TEAMS = {
     "label": "SUICA",
     "style": "sun",
     "description": "Charizard Y sun offense. Sneasler + Basculegion revenge killers. Incineroar provides Intimidate support.",
+    "champion_pack_id": "suica_sun_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "https://pokepast.es/cb48d8b06c73d33b",
+        "spread_source": "https://pokepast.es/cb48d8b06c73d33b",
+        "author": "community",
+        "url": "https://pokepast.es/cb48d8b06c73d33b",
+        "status": "exact"
+    },
+    "legality_status": "legal",
+    "legality_notes": "",
+    "assumption_register": [],
     "members": [
       {
         "name": "Charizard",
@@ -1563,6 +1691,28 @@ const TEAMS = {
     "label": "TRICK ROOM",
     "style": "trick_room",
     "description": "Classic Trick Room team. Cofagrigus + Sinistcha lead sets TR. Slow, powerful sweepers underneath.",
+    "champion_pack_id": "cofagrigus_tr_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "community",
+        "spread_source": "community",
+        "author": "community",
+        "url": "",
+        "status": "assumed"
+    },
+    "legality_status": "illegal",
+    "legality_notes": "Contains Flutter Mane (Paradox, banned). Fixed in T8.",
+    "assumption_register": [
+        "Spreads inferred from meta norms, not a pinned paste."
+    ],
     "members": [
       {
         "name": "Cofagrigus",
@@ -1697,6 +1847,26 @@ const TEAMS = {
     "label": "1ST CHAMPIONS ARENA",
     "style": "sun",
     "description": "Mega Charizard-Y Sun with Coil Milotic secret weapon. Champions Arena winner April 2026. Rental: SQMPYRW6BP",
+    "champion_pack_id": "champions_arena_1st_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "Victory Road Champions Arena coverage",
+        "spread_source": "Victory Road Champions Arena coverage",
+        "author": "Hyungwoo Shin",
+        "url": "https://victoryroad.pro/champions-regulations/",
+        "status": "exact"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Champions Arena Winner.",
+    "assumption_register": [],
     "members": [
       {
         "name": "Charizard-Mega-Y",
@@ -1831,6 +2001,26 @@ const TEAMS = {
     "label": "2ND CHAMPIONS ARENA",
     "style": "balance",
     "description": "Double Mega Charizard-X + Tyranitar with Sinistcha TR fallback. Rental: P08QQ5NU9C",
+    "champion_pack_id": "champions_arena_2nd_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "Victory Road Champions Arena coverage",
+        "spread_source": "Victory Road Champions Arena coverage",
+        "author": "Jorge Tabuyo",
+        "url": "https://victoryroad.pro/champions-regulations/",
+        "status": "exact"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Champions Arena Finalist.",
+    "assumption_register": [],
     "members": [
       {
         "name": "Charizard-Mega-X",
@@ -1965,6 +2155,26 @@ const TEAMS = {
     "label": "3RD CHAMPIONS ARENA",
     "style": "sun",
     "description": "Mega Charizard-Y + Max Speed Kingambit tech. Prankster Whimsicott + Scarf Garchomp. Rental: KN6SNLGUPA",
+    "champion_pack_id": "champions_arena_3rd_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "Victory Road Champions Arena coverage",
+        "spread_source": "Victory Road Champions Arena coverage",
+        "author": "Juan Benitez",
+        "url": "https://victoryroad.pro/champions-regulations/",
+        "status": "exact"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Champions Arena Top 3.",
+    "assumption_register": [],
     "members": [
       {
         "name": "Charizard-Mega-Y",
@@ -2099,6 +2309,28 @@ const TEAMS = {
     "label": "REGIONAL WINNER",
     "style": "balance",
     "description": "Adaptability Basculegion + Last Respects win-con. Pittsburgh Regional champion. Focus Sash + Maushold Follow Me.",
+    "champion_pack_id": "chuppa_balance_sv_v1",
+    "format": "sv",
+    "formatid": "gen9vgc2024regh",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "community",
+        "spread_source": "community",
+        "author": "Chuppa Cross IV",
+        "url": "",
+        "status": "unproven"
+    },
+    "legality_status": "legal",
+    "legality_notes": "SV-format. Fabricated 'Pittsburgh Regional' description removed in T10.",
+    "assumption_register": [
+        "Team attribution to Chuppa Cross IV not verified from a pinned source."
+    ],
     "members": [
       {
         "name": "Basculegion",
@@ -2233,6 +2465,28 @@ const TEAMS = {
     "label": "VEIL TEAM",
     "style": "veil",
     "description": "Mega Froslass Snow Warning sets instant Aurora Veil. Dragonite + Kingambit behind veil. High win-condition team.",
+    "champion_pack_id": "aurora_veil_froslass_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "community",
+        "spread_source": "community",
+        "author": "community",
+        "url": "",
+        "status": "unproven"
+    },
+    "legality_status": "illegal",
+    "legality_notes": "Contains Froslass-Mega (fakemon). Quarantined in T9.",
+    "assumption_register": [
+        "Froslass has no Mega Evolution in any official game."
+    ],
     "members": [
       {
         "name": "Froslass-Mega",
@@ -2367,6 +2621,28 @@ const TEAMS = {
     "label": "META CORE",
     "style": "offense",
     "description": "The #1 ranked meta core in Reg M-A. 1,329 teams tracked. Defiant Kingambit punishes Intimidate; Unburden Sneasler cleans up.",
+    "champion_pack_id": "kingambit_sneasler_sv_v1",
+    "format": "sv",
+    "formatid": "gen9vgc2024regh",
+    "gametype": "doubles",
+    "ruleset": [
+        "Species Clause",
+        "Item Clause",
+        "Bring 6 Pick 4",
+        "Level 50"
+    ],
+    "provenance": {
+        "roster_source": "community meta core",
+        "spread_source": "community meta norms",
+        "author": "community",
+        "url": "",
+        "status": "prior_filled"
+    },
+    "legality_status": "legal",
+    "legality_notes": "SV-format meta core.",
+    "assumption_register": [
+        "Spreads are meta-typical, not pinned to a specific paste."
+    ],
     "members": [
       {
         "name": "Kingambit",
