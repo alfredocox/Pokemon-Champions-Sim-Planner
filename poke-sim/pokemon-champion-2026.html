@@ -4789,6 +4789,98 @@ const MOVE_TYPES = {
 
 
 // ============================================================
+// MOVE_CATEGORY / MOVE_BP — T9j.9 (Refs #3 #24)
+// ============================================================
+// Data-driven move metadata replaces engine.js hardcoded whitelists.
+// Category: 'physical' / 'special' / 'status'. BP: base power in (0 for status).
+//
+// Sources:
+//   - Game8 Physical Moves: https://game8.co/games/Pokemon-Champions/archives/590527
+//   - Game8 Special Moves:  https://game8.co/games/Pokemon-Champions/archives/590528
+//   - Game8 Status Moves:   https://game8.co/games/Pokemon-Champions/archives/590529
+//   - Bulbapedia per-move pages (canonical category + BP)
+//   - Serebii Updated Attacks (Champions nerfs): https://www.serebii.net/pokemonchampions/updatedattacks.shtml
+//
+// If a move is missing here, engine.js logs a warning and falls back to the
+// legacy type-based classifier (physical for contact-adjacent types) and 60 BP.
+// ============================================================
+const MOVE_CATEGORY = {
+  // --- Physical ---
+  'Fake Out':'physical','Flare Blitz':'physical','Knock Off':'physical',
+  'Head Smash':'physical','Extreme Speed':'physical','Earthquake':'physical',
+  'Dragon Claw':'physical','Rock Slide':'physical','Fire Fang':'physical',
+  'Ice Fang':'physical','Thunder Fang':'physical','Wave Crash':'physical',
+  'Aqua Jet':'physical','Flip Turn':'physical','Last Respects':'physical',
+  'Foul Play':'physical','U-turn':'physical','Iron Head':'physical',
+  'Close Combat':'physical','Dire Claw':'physical','Ice Punch':'physical',
+  'High Horsepower':'physical','Dragon Darts':'physical','Phantom Force':'physical',
+  'Shadow Sneak':'physical','Kowtow Cleave':'physical','Sucker Punch':'physical',
+  'Low Kick':'physical','Crunch':'physical','Stomping Tantrum':'physical',
+  'Fire Punch':'physical','Liquidation':'physical','Scale Shot':'physical',
+  'Darkest Lariat':'physical','Feint':'physical','Super Fang':'physical',
+  'Throat Chop':'physical','Spirit Shackle':'physical','Trop Kick':'physical',
+  'Psyshield Bash':'physical','Beak Blast':'physical','Mountain Gale':'physical',
+  'First Impression':'physical','Bone Rush':'physical','Body Press':'physical',
+  'Zen Headbutt':'physical','Thunder Punch':'physical','Play Rough':'physical',
+  // --- Special ---
+  'Power Gem':'special','Moonblast':'special','Thunderbolt':'special',
+  'Hydro Pump':'special','Eruption':'special','Heat Wave':'special',
+  'Focus Blast':'special','Shadow Ball':'special','Flamethrower':'special',
+  'Hyper Voice':'special','Matcha Gotcha':'special','Ice Beam':'special',
+  'Thunder':'special','Hurricane':'special','Flash Cannon':'special',
+  'Dragon Pulse':'special','Electro Shot':'special','Weather Ball':'special',
+  'Scorching Sands':'special','Dark Pulse':'special','Psychic Noise':'special',
+  'Draco Meteor':'special','Solar Beam':'special','Dazzling Gleam':'special',
+  'Air Slash':'special','Energy Ball':'special','Sludge Bomb':'special',
+  'Earth Power':'special','Mystical Fire':'special','Muddy Water':'special',
+  'Psychic':'special','Psyshock':'special','Overheat':'special',
+  'Blizzard':'special','Blood Moon':'special','Vacuum Wave':'special',
+  'Make It Rain':'special','Scald':'special','Icy Wind':'special',
+  'Night Daze':'special','Infernal Parade':'special',
+  // --- Status (BP 0) ---
+  'Parting Shot':'status','Will-O-Wisp':'status','Protect':'status',
+  'Tailwind':'status','Sunny Day':'status','Roost':'status',
+  'Trick Room':'status','Life Dew':'status','Rage Powder':'status',
+  'Rain Dance':'status','Thunder Wave':'status','Helping Hand':'status',
+  'Shed Tail':'status','Sleep Powder':'status','Ally Switch':'status',
+  'Lunar Dance':'status','Coil':'status','Hypnosis':'status',
+  'Recover':'status','Dragon Dance':'status','Imprison':'status',
+  'Encore':'status','Aurora Veil':'status','Spore':'status',
+  'Follow Me':'status','Haze':'status','Coaching':'status'
+};
+
+const MOVE_BP = {
+  // --- BPs verified against Bulbapedia per-move pages ---
+  'Fake Out':40,'Flare Blitz':120,'Parting Shot':0,'Knock Off':65,'Power Gem':80,
+  'Head Smash':150,'Extreme Speed':80,'Will-O-Wisp':0,'Earthquake':100,'Dragon Claw':80,
+  'Rock Slide':75,'Protect':0,'Tailwind':0,'Sunny Day':0,'Moonblast':95,'Thunderbolt':90,
+  'Hydro Pump':110,'Fire Fang':65,'Ice Fang':65,'Thunder Fang':65,'Eruption':150,
+  'Heat Wave':95,'Focus Blast':120,'Shadow Ball':80,'Flamethrower':90,'Hyper Voice':90,
+  'Roost':0,'Trick Room':0,'Life Dew':0,'Rage Powder':0,'Matcha Gotcha':80,
+  'Ice Beam':90,'Thunder':110,'Hurricane':110,'Wave Crash':120,'Aqua Jet':40,
+  'Flip Turn':60,'Last Respects':50,'Rain Dance':0,'Thunder Wave':0,'Foul Play':95,
+  'Flash Cannon':80,'Dragon Pulse':85,'Electro Shot':130,'Weather Ball':50,'U-turn':70,
+  'Helping Hand':0,'Shed Tail':0,'Iron Head':80,'Scorching Sands':70,'Dark Pulse':80,
+  'Psychic Noise':75,'Draco Meteor':130,'Close Combat':120,'Dire Claw':60,'Ice Punch':75,
+  'High Horsepower':95,'Dragon Darts':50,'Phantom Force':90,'Solar Beam':120,
+  'Dazzling Gleam':80,'Air Slash':75,'Energy Ball':90,'Sludge Bomb':90,'Sleep Powder':0,
+  'Night Daze':90,'Spirit Shackle':90,'Trop Kick':85,'Psyshield Bash':90,
+  'Beak Blast':120,'Mountain Gale':120,'First Impression':100,'Infernal Parade':65,
+  'Bone Rush':30,'Kowtow Cleave':85,'Sucker Punch':70,'Low Kick':1,'Muddy Water':90,
+  'Coil':0,'Hypnosis':0,'Recover':0,'Crunch':80,'Dragon Dance':0,'Icy Wind':55,
+  'Imprison':0,'Encore':0,'Stomping Tantrum':75,'Overheat':130,'Aurora Veil':0,
+  'Blizzard':110,'Fire Punch':75,'Thunder Punch':75,'Liquidation':85,'Scale Shot':25,
+  'Darkest Lariat':85,'Spore':0,'Blood Moon':140,'Vacuum Wave':40,'Make It Rain':120,
+  'Feint':30,'Follow Me':0,'Haze':0,'Scald':80,'Coaching':0,'Super Fang':1,
+  'Earth Power':90,'Throat Chop':80,'Ally Switch':0,'Lunar Dance':0,'Psychic':90,
+  'Shadow Sneak':40,'Psyshock':80,'Mystical Fire':75,'Play Rough':90,'Body Press':80,
+  'Zen Headbutt':80,'Bite':60,'Twister':40,'Icicle Crash':85,'Waterfall':80,
+  'Astonish':30,'Extrasensory':80,'Heart Stamp':60,'Needle Arm':60,'Bone Club':65,
+  'Headbutt':70,'Rolling Kick':60,'Stomp':65
+};
+
+
+// ============================================================
 // MOVE_TARGETS — Champions 2026 move target categories (T9j.2, Issue #33)
 // ============================================================
 // Categories:
@@ -5723,11 +5815,26 @@ class Pokemon {
       if (_modRes.bpMult) _bpMult = _modRes.bpMult;
     }
     const moveType = _typeOverride || (MOVE_TYPES[move] || 'Normal');
-    const isPhysical = ['Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel','Fire','Water','Grass','Ice','Electric','Dragon','Dark','Fairy'].includes(moveType)
-      && ['Fake Out','Flare Blitz','Head Smash','Power Gem','Earthquake','Dragon Claw','Rock Slide',
-          'Wave Crash','Iron Head','Flash Cannon','Close Combat','Dire Claw','High Horsepower',
-          'Ice Punch','Dragon Darts','Phantom Force','Knock Off','Rock Slide','Extreme Speed',
-          'Ice Punch','Foul Play','Throat Chop','Fire Fang','Shadow Sneak','Aqua Jet'].includes(move);
+
+    // --- T9j.9 (Refs #3) Physical/Special classifier ---
+    // Data-driven: MOVE_CATEGORY from data.js is the canonical source of truth.
+    // Fallback: legacy type-heuristic if the move is missing from the table,
+    // with a one-shot console warning so gaps are visible in the test log.
+    //   Cite: https://game8.co/games/Pokemon-Champions/archives/590527
+    //   Cite: https://bulbapedia.bulbagarden.net/wiki/Damage_category
+    let isPhysical;
+    if (typeof MOVE_CATEGORY !== 'undefined' && MOVE_CATEGORY[move]) {
+      isPhysical = MOVE_CATEGORY[move] === 'physical';
+    } else {
+      // Fallback: Gen 1-3 style type-based physical/special split.
+      const _physTypes = ['Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel'];
+      isPhysical = _physTypes.includes(moveType);
+      if (typeof _WARNED_MOVE_CAT === 'undefined') { globalThis._WARNED_MOVE_CAT = new Set(); }
+      if (!globalThis._WARNED_MOVE_CAT.has(move)) {
+        globalThis._WARNED_MOVE_CAT.add(move);
+        if (typeof console !== 'undefined') console.warn('[MOVE_CATEGORY] missing classification for', move, '- using type fallback');
+      }
+    }
 
     // --- T9j.8 (Refs #27) Crit roll ---
     // Stage ladder: base 0, +1 HIGH_CRIT, +3 ALWAYS_CRIT. Force-crit via field._ctx.forceCrit (tests).
@@ -5763,9 +5870,11 @@ class Pokemon {
     }
 
     // Base power
-    // Issue #T3: Champions move data updates — 9 BPs added from Game8 move list.
-    // Moonblast SpA-drop rate (30% -> 10% in Champions) is a display-text change
-    // only, since secondary effects are not implemented in this engine.
+    // T9j.9 (Refs #24): BP lookup promoted to data.js MOVE_BP table.
+    // Legacy inline BP_MAP kept as secondary fallback for any engine-only
+    // Champions additions not yet migrated. Missing moves warn once and use 60.
+    //   Cite: https://www.serebii.net/pokemonchampions/updatedattacks.shtml
+    //   Cite: https://bulbapedia.bulbagarden.net/wiki/Base_power
     const BP_MAP = {
       'Fake Out':40,'Flare Blitz':120,'Parting Shot':0,'Knock Off':65,'Power Gem':80,
       'Head Smash':150,'Extreme Speed':80,'Will-O-Wisp':0,'Earthquake':100,'Dragon Claw':80,
@@ -5785,7 +5894,19 @@ class Pokemon {
       'Beak Blast':120,'Mountain Gale':120,'First Impression':100,
       'Infernal Parade':65,'Bone Rush':30
     };
-    let bp = BP_MAP[move] || 60;
+    let bp;
+    if (typeof MOVE_BP !== 'undefined' && MOVE_BP[move] !== undefined) {
+      bp = MOVE_BP[move];
+    } else if (BP_MAP[move] !== undefined) {
+      bp = BP_MAP[move];
+    } else {
+      bp = 60;
+      if (typeof _WARNED_MOVE_BP === 'undefined') { globalThis._WARNED_MOVE_BP = new Set(); }
+      if (!globalThis._WARNED_MOVE_BP.has(move)) {
+        globalThis._WARNED_MOVE_BP.add(move);
+        if (typeof console !== 'undefined') console.warn('[MOVE_BP] missing base power for', move, '- defaulting to 60');
+      }
+    }
     // T9j.8 Dragonize BP multiplier applied after base lookup so spread / screens
     // all see the boosted value.
     if (_bpMult !== 1) bp = Math.floor(bp * _bpMult);

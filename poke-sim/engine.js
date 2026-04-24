@@ -609,11 +609,26 @@ class Pokemon {
       if (_modRes.bpMult) _bpMult = _modRes.bpMult;
     }
     const moveType = _typeOverride || (MOVE_TYPES[move] || 'Normal');
-    const isPhysical = ['Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel','Fire','Water','Grass','Ice','Electric','Dragon','Dark','Fairy'].includes(moveType)
-      && ['Fake Out','Flare Blitz','Head Smash','Power Gem','Earthquake','Dragon Claw','Rock Slide',
-          'Wave Crash','Iron Head','Flash Cannon','Close Combat','Dire Claw','High Horsepower',
-          'Ice Punch','Dragon Darts','Phantom Force','Knock Off','Rock Slide','Extreme Speed',
-          'Ice Punch','Foul Play','Throat Chop','Fire Fang','Shadow Sneak','Aqua Jet'].includes(move);
+
+    // --- T9j.9 (Refs #3) Physical/Special classifier ---
+    // Data-driven: MOVE_CATEGORY from data.js is the canonical source of truth.
+    // Fallback: legacy type-heuristic if the move is missing from the table,
+    // with a one-shot console warning so gaps are visible in the test log.
+    //   Cite: https://game8.co/games/Pokemon-Champions/archives/590527
+    //   Cite: https://bulbapedia.bulbagarden.net/wiki/Damage_category
+    let isPhysical;
+    if (typeof MOVE_CATEGORY !== 'undefined' && MOVE_CATEGORY[move]) {
+      isPhysical = MOVE_CATEGORY[move] === 'physical';
+    } else {
+      // Fallback: Gen 1-3 style type-based physical/special split.
+      const _physTypes = ['Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel'];
+      isPhysical = _physTypes.includes(moveType);
+      if (typeof _WARNED_MOVE_CAT === 'undefined') { globalThis._WARNED_MOVE_CAT = new Set(); }
+      if (!globalThis._WARNED_MOVE_CAT.has(move)) {
+        globalThis._WARNED_MOVE_CAT.add(move);
+        if (typeof console !== 'undefined') console.warn('[MOVE_CATEGORY] missing classification for', move, '- using type fallback');
+      }
+    }
 
     // --- T9j.8 (Refs #27) Crit roll ---
     // Stage ladder: base 0, +1 HIGH_CRIT, +3 ALWAYS_CRIT. Force-crit via field._ctx.forceCrit (tests).
@@ -649,9 +664,11 @@ class Pokemon {
     }
 
     // Base power
-    // Issue #T3: Champions move data updates — 9 BPs added from Game8 move list.
-    // Moonblast SpA-drop rate (30% -> 10% in Champions) is a display-text change
-    // only, since secondary effects are not implemented in this engine.
+    // T9j.9 (Refs #24): BP lookup promoted to data.js MOVE_BP table.
+    // Legacy inline BP_MAP kept as secondary fallback for any engine-only
+    // Champions additions not yet migrated. Missing moves warn once and use 60.
+    //   Cite: https://www.serebii.net/pokemonchampions/updatedattacks.shtml
+    //   Cite: https://bulbapedia.bulbagarden.net/wiki/Base_power
     const BP_MAP = {
       'Fake Out':40,'Flare Blitz':120,'Parting Shot':0,'Knock Off':65,'Power Gem':80,
       'Head Smash':150,'Extreme Speed':80,'Will-O-Wisp':0,'Earthquake':100,'Dragon Claw':80,
@@ -671,7 +688,19 @@ class Pokemon {
       'Beak Blast':120,'Mountain Gale':120,'First Impression':100,
       'Infernal Parade':65,'Bone Rush':30
     };
-    let bp = BP_MAP[move] || 60;
+    let bp;
+    if (typeof MOVE_BP !== 'undefined' && MOVE_BP[move] !== undefined) {
+      bp = MOVE_BP[move];
+    } else if (BP_MAP[move] !== undefined) {
+      bp = BP_MAP[move];
+    } else {
+      bp = 60;
+      if (typeof _WARNED_MOVE_BP === 'undefined') { globalThis._WARNED_MOVE_BP = new Set(); }
+      if (!globalThis._WARNED_MOVE_BP.has(move)) {
+        globalThis._WARNED_MOVE_BP.add(move);
+        if (typeof console !== 'undefined') console.warn('[MOVE_BP] missing base power for', move, '- defaulting to 60');
+      }
+    }
     // T9j.8 Dragonize BP multiplier applied after base lookup so spread / screens
     // all see the boosted value.
     if (_bpMult !== 1) bp = Math.floor(bp * _bpMult);
