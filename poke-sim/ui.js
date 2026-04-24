@@ -240,16 +240,105 @@ function saveCustomTeamsToStorage() {
 loadCustomTeamsFromStorage();
 
 // ============================================================
+// T9h: Preloaded overrides + async confirm modal
+// ============================================================
+var PRELOADED_OVERRIDES_KEY = 'champions_sim_preloaded_overrides_v1';
+var PRELOADED_OVERRIDES_SCHEMA = 1;
+
+function loadPreloadedOverridesFromStorage() {
+  try {
+    var raw = localStorage.getItem(PRELOADED_OVERRIDES_KEY);
+    if (!raw) return 0;
+    var parsed = JSON.parse(raw);
+    if (!parsed || parsed.version !== PRELOADED_OVERRIDES_SCHEMA) return 0;
+    var count = 0;
+    for (var key in parsed.overrides) {
+      if (!TEAMS[key]) continue; // only apply to still-existing preloaded keys
+      if (TEAMS[key].source === 'custom') continue;
+      // Override the members only; preserve name/meta/format/legality
+      TEAMS[key].members = parsed.overrides[key].members;
+      TEAMS[key]._hasOverride = true;
+      count++;
+    }
+    return count;
+  } catch (e) {
+    console.warn('[T9h] Failed to load preloaded overrides:', e);
+    return 0;
+  }
+}
+
+function savePreloadedOverride(key) {
+  try {
+    var raw = localStorage.getItem(PRELOADED_OVERRIDES_KEY);
+    var store = (raw && JSON.parse(raw)) || { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} };
+    if (store.version !== PRELOADED_OVERRIDES_SCHEMA) store = { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} };
+    store.overrides[key] = { members: TEAMS[key].members, saved_at: new Date().toISOString() };
+    store.saved_at = new Date().toISOString();
+    localStorage.setItem(PRELOADED_OVERRIDES_KEY, JSON.stringify(store));
+    TEAMS[key]._hasOverride = true;
+    return true;
+  } catch (e) {
+    console.warn('[T9h] Failed to save preloaded override:', e);
+    return false;
+  }
+}
+
+function clearPreloadedOverride(key) {
+  try {
+    var raw = localStorage.getItem(PRELOADED_OVERRIDES_KEY);
+    if (!raw) return false;
+    var store = JSON.parse(raw);
+    if (!store || !store.overrides || !store.overrides[key]) return false;
+    delete store.overrides[key];
+    localStorage.setItem(PRELOADED_OVERRIDES_KEY, JSON.stringify(store));
+    return true;
+  } catch (e) {
+    console.warn('[T9h] Failed to clear preloaded override:', e);
+    return false;
+  }
+}
+
+// Load overrides after initial TEAMS load (and after custom teams)
+loadPreloadedOverridesFromStorage();
+
+// Async confirm (replaces window.confirm — blocked in sandboxed iframes)
+var _pendingConfirm = null;
+function asyncConfirm(title, body, okLabel) {
+  return new Promise(function(resolve) {
+    var modal = document.getElementById('confirm-modal');
+    var titleEl = document.getElementById('confirm-title');
+    var bodyEl = document.getElementById('confirm-body');
+    var okBtn = document.getElementById('confirm-ok');
+    if (!modal || !titleEl || !bodyEl || !okBtn) { resolve(window.confirm(body)); return; }
+    titleEl.textContent = title || 'Confirm';
+    bodyEl.textContent = body || '';
+    okBtn.textContent = okLabel || 'Confirm';
+    modal.style.display = 'flex';
+    _pendingConfirm = resolve;
+  });
+}
+function _resolveConfirm(v) {
+  var modal = document.getElementById('confirm-modal');
+  if (modal) modal.style.display = 'none';
+  if (_pendingConfirm) { var fn = _pendingConfirm; _pendingConfirm = null; fn(v); }
+}
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.id === 'confirm-ok') _resolveConfirm(true);
+  else if (e.target && (e.target.id === 'confirm-cancel' || e.target.id === 'confirm-close')) _resolveConfirm(false);
+});
+
+// ============================================================
 // T9g: Delete custom teams (gated by team.source === 'custom')
 // ============================================================
-function deleteCustomTeam(key) {
+async function deleteCustomTeam(key) {
   var team = TEAMS[key];
   if (!team) return;
   if (team.source !== 'custom') {
     console.warn('[T9g] Refusing to delete preloaded team:', key);
     return;
   }
-  if (!window.confirm('Delete "' + team.name + '"?\n\nThis cannot be undone.')) return;
+  var ok = await asyncConfirm('Delete team', 'Delete "' + team.name + '"?\n\nThis cannot be undone.', 'Delete');
+  if (!ok) return;
 
   delete TEAMS[key];
   if (typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
@@ -339,12 +428,16 @@ document.getElementById('swap-teams-btn')?.addEventListener('click', function() 
 // iterates only those teams. OFF: all teams visible.
 // Reads T5 schema fields: team.format, team.legality_status.
 // ============================================================
-var LADDER_MODE = true;
+// T9h: default OFF so all preloaded + inferred + custom teams are visible.
+// T9h: isLadderLegal accepts 'legal' (manually verified) AND 'legal_inferred'
+// (tournament placement teams with archetype-default spreads).
+var LADDER_MODE = false;
 
 function isLadderLegal(teamKey) {
   var t = (typeof TEAMS !== 'undefined') && TEAMS[teamKey];
   if (!t) return false;
-  return t.format === 'champions' && t.legality_status === 'legal';
+  if (t.format !== 'champions') return false;
+  return t.legality_status === 'legal' || t.legality_status === 'legal_inferred';
 }
 
 function _gateOneSelect(selId) {
@@ -362,8 +455,10 @@ function _gateOneSelect(selId) {
     opt.textContent = opt.textContent.replace(/\s*[\u2705\u26A0\u274C].*$/,'').trim();
     if (team) {
       var glyph = legal ? '\u2705' : (team.legality_status === 'illegal' ? '\u274C' : '\u26A0');
+      // T9h: distinguish inferred from manually-verified legal
+      var legalLabel = (team.legality_status === 'legal_inferred') ? 'Legal (inferred)' : 'Legal';
       opt.textContent = opt.textContent + '  ' + glyph + ' ' +
-        (legal ? 'Legal' : (team.legality_status === 'illegal' ? 'Illegal' : (team.format || '?').toUpperCase()));
+        (legal ? legalLabel : (team.legality_status === 'illegal' ? 'Illegal' : (team.format || '?').toUpperCase()));
     }
     if (LADDER_MODE && team && !legal) {
       opt.hidden = true;
@@ -419,9 +514,10 @@ function renderTeamsGrid() {
         </div>
         <div class="tfcard-badges">
           <span class="badge ${isPlayer?'badge-blue':'badge-red'}">${team.label||key}</span>
-          ${(function(){ /* Issue #T6: legality badge */
+          ${(function(){ /* Issue #T6: legality badge - T9h: legal_inferred */
             var st = team.legality_status; var fmt = team.format;
             if (st === 'legal' && fmt === 'champions') return '<span class="badge-legal">\u2705 LEGAL</span>';
+            if (st === 'legal_inferred' && fmt === 'champions') return '<span class="badge-warn" title="Tournament-placement team; EVs are archetype defaults (Open Team Lists redact EVs). Ladder-legal in Ladder Mode.">\u26A0 LEGAL (inferred)</span>';
             if (st === 'illegal') return '<span class="badge-illegal">\u274C ILLEGAL</span>';
             if (fmt === 'sv') return '<span class="badge-warn">\u26A0 SV FORMAT</span>';
             return '<span class="badge-warn">\u26A0 UNVERIFIED</span>';
@@ -430,6 +526,9 @@ function renderTeamsGrid() {
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Export
           </button>
+          <!-- T9h: universal edit button (works on custom, preloaded, and player slots) -->
+          <button class="edit-card-btn" data-team="${key}" title="Edit this team via Showdown paste"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Edit</button>
+          ${team._hasOverride && team.source !== 'custom' ? `<button class="reset-card-btn" data-team="${key}" title="Revert this preloaded team to its original"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Reset</button>` : ''}
           ${team.source === 'custom' ? `<button class="delete-card-btn" data-team="${key}" title="Delete this custom team"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete</button>` : ''}
         </div>
       </div>
@@ -453,6 +552,14 @@ function renderTeamsGrid() {
   // T9g: delete button wiring (only rendered for custom teams)
   grid.querySelectorAll('.delete-card-btn').forEach(btn => {
     btn.addEventListener('click', () => deleteCustomTeam(btn.dataset.team));
+  });
+  // T9h: edit button wiring (all teams)
+  grid.querySelectorAll('.edit-card-btn').forEach(btn => {
+    btn.addEventListener('click', () => openEditTeamModal(btn.dataset.team));
+  });
+  // T9h: reset button wiring (preloaded teams with overrides)
+  grid.querySelectorAll('.reset-card-btn').forEach(btn => {
+    btn.addEventListener('click', () => resetPreloadedTeam(btn.dataset.team));
   });
   // Speed tier sections appended by renderSpeedTiersForGrid() after TEAMS data
 }
@@ -577,8 +684,75 @@ function openImportModal() {
   document.getElementById('paste-url-input').value = '';
   document.getElementById('import-status').textContent = '';
   document.getElementById('import-preview').style.display = 'none';
+  // T9h: reset modal title + hint to defaults (openEditTeamModal may have changed them)
+  var hdr = document.querySelector('#import-modal .modal-title');
+  if (hdr) hdr.textContent = 'Import Team from Showdown Paste';
+  var hint = document.querySelector('#import-modal .modal-hint');
+  if (hint) hint.innerHTML = 'Paste Showdown-format text directly from <strong>PS! Teambuilder \u2192 Export</strong> or from a pokepast.es page. All 6 Pok\u00e9mon will be parsed automatically.';
 }
 function closeImportModal() { document.getElementById('import-modal').style.display = 'none'; }
+
+// ============================================================
+// T9h: Edit any team (preloaded, opponent-added, or custom)
+// Reuses the import modal pre-populated with the team's current Showdown paste.
+// Saving writes: custom -> localStorage custom; preloaded -> localStorage override.
+// ============================================================
+function openEditTeamModal(teamKey) {
+  var team = TEAMS[teamKey];
+  if (!team) return;
+  // Ensure the import-slot <select> has an option for this key (preloaded keys
+  // may or may not be listed; custom keys are added dynamically on import).
+  var importSlot = document.getElementById('import-slot');
+  if (importSlot) {
+    var has = false;
+    for (var i = 0; i < importSlot.options.length; i++) {
+      if (importSlot.options[i].value === teamKey) { has = true; break; }
+    }
+    if (!has) {
+      var opt = document.createElement('option');
+      opt.value = teamKey;
+      opt.textContent = team.name;
+      importSlot.appendChild(opt);
+    }
+    importSlot.value = teamKey;
+  }
+  // Pre-populate paste from current members
+  var paste = '';
+  try { paste = exportTeamToPaste(team); } catch (e) { paste = ''; }
+  openImportModal();
+  var ta = document.getElementById('showdown-paste');
+  if (ta) {
+    ta.value = paste;
+    // Trigger live preview
+    ta.dispatchEvent(new Event('input'));
+  }
+  // Switch to the "Paste Text" tab
+  var pasteTab = document.querySelector('.import-tab[data-itab="paste"]');
+  if (pasteTab) pasteTab.click();
+  // Update modal title so user knows they're editing
+  var hdr = document.querySelector('#import-modal .modal-title');
+  if (hdr) hdr.textContent = 'Edit Team: ' + team.name;
+  var hint = document.querySelector('#import-modal .modal-hint');
+  if (hint) {
+    hint.innerHTML = 'Editing <strong>' + team.name + '</strong>. Modify the Showdown paste below, then click Load Team. ' +
+      (team.source === 'custom' ? 'Custom team — saved to localStorage.' :
+       'Preloaded team — your edits save as an override; use Reset to revert to the original.');
+  }
+}
+
+async function resetPreloadedTeam(teamKey) {
+  var team = TEAMS[teamKey];
+  if (!team) return;
+  if (team.source === 'custom') return; // wrong button
+  var ok = await asyncConfirm('Reset team',
+    'Revert "' + team.name + '" to the original preloaded version?\n\nYour custom edits to this team will be lost.',
+    'Reset');
+  if (!ok) return;
+  clearPreloadedOverride(teamKey);
+  // Reload page so original BASE data is restored cleanly from data.js
+  // (simpler and safer than trying to re-fetch in-memory defaults).
+  location.reload();
+}
 
 document.getElementById('close-import')?.addEventListener('click', closeImportModal);
 document.getElementById('close-import-2')?.addEventListener('click', closeImportModal);
@@ -684,6 +858,12 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
     TEAMS[slot].members = members;
     targetSlot = slot;
     teamName = TEAMS[slot].name;
+    // T9h: persist edits appropriately by team source
+    if (TEAMS[slot].source === 'custom') {
+      if (typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
+    } else if (typeof savePreloadedOverride === 'function') {
+      savePreloadedOverride(slot); // preloaded override survives reload
+    }
     if (slot === currentPlayerKey) {
       renderRoster('player-roster', TEAMS[currentPlayerKey].members);
       renderEditorRoster();

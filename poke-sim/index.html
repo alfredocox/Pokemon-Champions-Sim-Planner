@@ -117,7 +117,8 @@
       <!-- Issue #T6: Ladder Mode toggle -->
       <div class="control-block">
         <label class="control-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="ladder-mode-toggle" checked
+          <!-- T9h: default unchecked so all 22 preloaded + custom teams are swap-pickable -->
+          <input type="checkbox" id="ladder-mode-toggle"
             style="width:16px;height:16px;cursor:pointer"/>
           <span>Ladder Mode
             <span style="color:var(--text-m);font-weight:400;font-size:11px">
@@ -379,6 +380,23 @@
     </div>
   </div>
 </section>
+
+<!-- ===== T9h: CONFIRM MODAL (window.confirm is blocked in sandboxed iframes) ===== -->
+<div class="modal-overlay" id="confirm-modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="confirm-title">Confirm</h2>
+      <button class="modal-close" id="confirm-close" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="modal-hint" id="confirm-body" style="margin-top:8px;white-space:pre-wrap"></p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="confirm-ok" style="background:var(--red,#d94545)">Confirm</button>
+      <button class="btn-secondary" id="confirm-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== IMPORT MODAL ===== -->
 <div class="modal-overlay" id="import-modal" style="display:none" role="dialog" aria-modal="true">

@@ -2977,7 +2977,7 @@ const TEAMS = {
       "url": "https://www.vrpastes.com/s8hEJH9u",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Gengar legal in Reg M-A via Gengarite. Shadow Tag + Perish Song legal. Source: Pikalytics + VR Pastes.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",
@@ -3083,7 +3083,7 @@ const TEAMS = {
       "url": "https://play.limitlesstcg.com/tournament/69d18b350e548b5c2fbe3486/player/leoscerni/teamlist",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Meganium (new Champions Mega, Meganiumite) legal in Reg M-A. All other species standard. Source: Pikalytics Top Teams.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",
@@ -3188,7 +3188,7 @@ const TEAMS = {
       "url": "https://play.limitlesstcg.com/tournament/69d3c3270e548b5c2fbe4826/player/pokefey/teamlist",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Golurk legal in Reg M-A via Golurkite. Unseen Fist ability is updated in Champions (25% Protect bypass). Source: Pikalytics Top Teams.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",
@@ -3296,7 +3296,7 @@ const TEAMS = {
       "url": "https://www.vrpastes.com/y1F6tzNe",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Charizard Y legal in Reg M-A. Standard sun core + TR fallback. Source: Pikalytics + VR Pastes.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",
@@ -3403,7 +3403,7 @@ const TEAMS = {
       "url": "https://play.limitlesstcg.com/tournament/69d18b350e548b5c2fbe3486/player/pedrohenriq/teamlist",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Floette (Eternal Flower) requires HOME transfer — flagged by legality module. Floettite new Champions Mega. Source: Pikalytics Top Teams.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",
@@ -3508,7 +3508,7 @@ const TEAMS = {
       "url": "https://play.limitlesstcg.com/tournament/69d7114dc734cfa1af2b581d/player/ginger78/teamlist",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Froslass legal in Reg M-A via Froslassite. Standard Scarf + priority core. Source: Pikalytics Top Teams.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",
@@ -3613,7 +3613,7 @@ const TEAMS = {
       "url": "https://play.limitlesstcg.com/tournament/69c44a46d478313a15a329c7/player/lukasjoel1/teamlist",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Gengar legal in Reg M-A via Gengarite. Shadow Tag + sand core. Source: Pikalytics Top Teams.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",
@@ -3718,7 +3718,7 @@ const TEAMS = {
       "url": "https://vrpastes.com/htQ0opai",
       "status": "roster-verified-spreads-inferred"
     },
-    "legality_status": "unverified",
+    "legality_status": "legal_inferred",
     "legality_notes": "Mega Lopunny legal in Reg M-A via Lopunnite. Vanilluxe Snow Warning standard. Source: Pikalytics + VR Pastes.",
     "assumption_register": [
       "Roster (species/items/abilities/moves) verified from open team list.",

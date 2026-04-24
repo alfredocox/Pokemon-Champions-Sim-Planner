@@ -404,3 +404,23 @@ table{border-collapse:collapse;width:100%}
   cursor: pointer; margin-left: 6px;
 }
 .delete-card-btn:hover { background: rgba(220, 38, 38, 0.25); }
+
+/* T9h: Edit button (all teams) */
+.edit-card-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 10px; font-weight: 600;
+  background: rgba(59, 130, 246, 0.12); color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 4px;
+  cursor: pointer; margin-left: 6px;
+}
+.edit-card-btn:hover { background: rgba(59, 130, 246, 0.25); }
+
+/* T9h: Reset button (preloaded teams with overrides) */
+.reset-card-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 10px; font-weight: 600;
+  background: rgba(234, 179, 8, 0.12); color: #fcd34d;
+  border: 1px solid rgba(234, 179, 8, 0.35); border-radius: 4px;
+  cursor: pointer; margin-left: 6px;
+}
+.reset-card-btn:hover { background: rgba(234, 179, 8, 0.25); }
