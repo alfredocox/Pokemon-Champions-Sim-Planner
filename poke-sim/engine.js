@@ -4,6 +4,49 @@
 // weather, Trick Room, Intimidate, and damage variance
 // ============================================================
 
+// ============================================================
+// TEAM LEGALITY VALIDATOR — Issue #5
+// Called before every simulateBattle() invocation.
+// Blocks on errors, warns on warnings.
+// ============================================================
+function validateTeam(team, format = 'vgc') {
+  const errors = [];
+  const warnings = [];
+  if (!team || !team.members || team.members.length === 0) {
+    errors.push('Team has no members.');
+    return { valid: false, errors, warnings };
+  }
+  for (const mon of team.members) {
+    const name = mon.name || 'Unknown';
+    // EV total cap
+    const totalEVs = Object.values(mon.evs || {}).reduce((a, b) => a + b, 0);
+    if (totalEVs > 510) errors.push(`${name}: EVs exceed 510 (got ${totalEVs})`);
+    // Individual EV cap
+    for (const [stat, val] of Object.entries(mon.evs || {})) {
+      if (val > 252) errors.push(`${name}: ${stat} EV exceeds 252 (got ${val})`);
+      if (val < 0)   errors.push(`${name}: ${stat} EV is negative (got ${val})`);
+    }
+    // Move count
+    if (!mon.moves || mon.moves.length === 0) errors.push(`${name}: no moves defined`);
+    if (mon.moves && mon.moves.length > 4)    errors.push(`${name}: more than 4 moves (got ${mon.moves.length})`);
+    // VGC level
+    if (format === 'vgc') {
+      const lvl = mon.level || 50;
+      if (lvl !== 50) warnings.push(`${name}: level should be 50 for VGC (got ${lvl})`);
+    }
+  }
+  // Duplicate species
+  const names = team.members.map(m => m.name);
+  const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+  if (dupes.length > 0) warnings.push(`Duplicate species: ${[...new Set(dupes)].join(', ')}`);
+  // Duplicate items
+  const items = team.members.map(m => m.item).filter(Boolean);
+  const dupeItems = items.filter((it, i) => items.indexOf(it) !== i);
+  if (dupeItems.length > 0) warnings.push(`Duplicate items: ${[...new Set(dupeItems)].join(', ')}`);
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
 class Pokemon {
   constructor(data, teamStyle) {
     this.name = data.name;
@@ -39,19 +82,14 @@ class Pokemon {
     this.multiscaleActive = (this.ability === 'Multiscale');
   }
 
+  // Issue #4 FIX: _stat() is HP-only. Removed broken nature logic that
+  // compared a stat-key string to a numeric base value (always returned nm=1).
+  // Natures do not apply to HP — no nature logic needed here.
   _stat(base, ev, nature, isHp) {
     const iv = 31;
     if (isHp) return Math.floor(((2*base + iv + Math.floor(ev/4)) * this.level / 100) + this.level + 10);
-    const natureMap = {
-      Adamant:{atk:1.1,spa:0.9}, Modest:{spa:1.1,atk:0.9}, Jolly:{spe:1.1,spa:0.9},
-      Timid:{spe:1.1,atk:0.9}, Bold:{def:1.1,atk:0.9}, Calm:{spd:1.1,atk:0.9},
-      Careful:{spd:1.1,spa:0.9}, Quiet:{spa:1.1,spe:0.9}, Relaxed:{def:1.1,spe:0.9},
-      Sassy:{spd:1.1,spe:0.9}, Serious:{}, Hasty:{spe:1.1,def:0.9},
-      Naive:{spe:1.1,spd:0.9}, Hardy:{}
-    };
-    const mult = natureMap[this.nature] || {};
-    const nm = mult[['atk','def','spa','spd','spe'].find(k => mult[k]) === base ? base : ''] || 1;
-    return Math.floor((Math.floor(((2*base+iv+Math.floor(ev/4))*this.level/100)+5) * (natureMap[this.nature]?.[base]||1)));
+    // Non-HP fallback (should not be called — _statRaw() handles all non-HP stats)
+    return Math.floor(Math.floor((2*base + iv + Math.floor(ev/4)) * this.level / 100 + 5));
   }
 
   _calcStats() {
@@ -93,6 +131,12 @@ class Pokemon {
     // Intimidate already applied to statBoosts.atk
     // Eviolite for Dusclops
     if ((stat === 'def' || stat === 'spd') && this.item === 'Eviolite') val *= 1.5;
+    // Issue #9 FIX: Choice item stat multipliers
+    if (stat === 'spe' && this.item === 'Choice Scarf') val *= 1.5;
+    if (stat === 'atk' && this.item === 'Choice Band')  val *= 1.5;
+    if (stat === 'spa' && this.item === 'Choice Specs')  val *= 1.5;
+    // Issue #11: Assault Vest — 1.5x Sp. Def
+    if (stat === 'spd' && this.item === 'Assault Vest') val *= 1.5;
     // Trick Room inverts speed (handled in turn order)
     return Math.floor(val);
   }
@@ -165,6 +209,9 @@ class Pokemon {
     // Helping Hand boost
     if (partner && partner.justUsedHelpingHand) bp = Math.floor(bp * 1.5);
 
+    // Issue #11: Life Orb — 1.3x damage multiplier
+    const lifeOrbMult = (this.item === 'Life Orb' && !this.itemConsumed) ? 1.3 : 1.0;
+
     // Adaptability
     const stab = this.types.includes(moveType) ? (this.ability === 'Adaptability' ? 2.0 : 1.5) : 1.0;
 
@@ -188,34 +235,47 @@ class Pokemon {
     // Random roll [0.85, 1.0]
     const roll = 0.85 + Math.random() * 0.15;
 
-    const total = Math.floor(baseDmg * stab * eff * spreadMult * multiscale * roll);
+    const total = Math.floor(baseDmg * stab * eff * spreadMult * multiscale * lifeOrbMult * roll);
     return Math.max(1, total);
   }
 
   applyDamage(dmg, source) {
-    // Rocky Helmet recoil
-    if (this.item === 'Rocky Helmet' && dmg > 0) {
-      // handled in engine
-    }
+    // Issue #8 FIX: snapshot full-HP status BEFORE applying damage.
+    // The old check (this.hp + dmg === this.maxHp) ran after hp was already 0 — always wrong.
+    const wasFullHp = this.hp === this.maxHp;
+
+    // Rocky Helmet recoil — handled in engine after hit
     this.hp = Math.max(0, this.hp - dmg);
+
+    // Multiscale breaks on any damage
+    if (dmg > 0) this.multiscaleActive = false;
+
+    // Focus Sash: activates only from full HP on a would-be KO
+    if (this.item === 'Focus Sash' && !this.itemConsumed && wasFullHp && this.hp <= 0) {
+      this.hp = 1;
+      this.alive = true;
+      this.itemConsumed = true;
+      return; // stop further processing — mon survived
+    }
+
     if (this.hp <= 0) {
       this.alive = false;
       this.hp = 0;
     }
-    // Multiscale breaks on any damage
-    if (dmg > 0) this.multiscaleActive = false;
+
     // Sitrus Berry
-    if (this.item === 'Sitrus Berry' && !this.itemConsumed && this.hp < this.maxHp / 2) {
+    if (this.item === 'Sitrus Berry' && !this.itemConsumed && this.hp < this.maxHp / 2 && this.hp > 0) {
       this.hp = Math.min(this.maxHp, this.hp + Math.floor(this.maxHp / 4));
       this.itemConsumed = true;
     }
-    // Focus Sash
-    if (this.item === 'Focus Sash' && !this.itemConsumed && this.hp <= 0 && this.hp + dmg === this.maxHp) {
-      this.hp = 1;
-      this.alive = true;
-      this.itemConsumed = true;
+
+    // Issue #11: Life Orb recoil — 1/10 max HP after dealing damage
+    if (source && source.item === 'Life Orb' && !source.itemConsumed && dmg > 0) {
+      const recoil = Math.floor(source.maxHp / 10);
+      source.hp = Math.max(0, source.hp - recoil);
+      if (source.hp <= 0) { source.alive = false; source.hp = 0; }
     }
-    // White Herb consumed on stat drop
+    // White Herb consumed on stat drop — handled separately
   }
 
   applyRecoil(fraction) {
@@ -263,7 +323,7 @@ class Pokemon {
     if (this.item === 'Leftovers' && !this.itemConsumed) {
       this.hp = Math.min(this.maxHp, this.hp + Math.floor(this.maxHp / 16));
     }
-    // Solar Power damage in sun (after healing Houndoom buff already counted in dmg calc)
+    // Solar Power damage in sun
     if (this.ability === 'Solar Power' && field.weather === 'sun') {
       const dmg = Math.floor(this.maxHp / 8);
       this.hp = Math.max(0, this.hp - dmg);
@@ -337,8 +397,35 @@ class Field {
 // ============================================================
 
 function simulateBattle(playerTeam, oppTeam, opts = {}) {
+  // Issue #5 FIX: validate both teams before any simulation begins
+  const pVal = validateTeam(playerTeam, 'vgc');
+  const oVal = validateTeam(oppTeam, 'vgc');
+  if (!pVal.valid) {
+    return {
+      result: 'error',
+      validationErrors: { player: pVal.errors, opponent: oVal.errors },
+      validationWarnings: { player: pVal.warnings, opponent: oVal.warnings },
+      log: [`VALIDATION ERROR (Player): ${pVal.errors.join(' | ')}`],
+      turns: 0, trTurns: 0, winCondition: 'Invalid team'
+    };
+  }
+  if (!oVal.valid) {
+    return {
+      result: 'error',
+      validationErrors: { player: pVal.errors, opponent: oVal.errors },
+      validationWarnings: { player: pVal.warnings, opponent: oVal.warnings },
+      log: [`VALIDATION ERROR (Opponent): ${oVal.errors.join(' | ')}`],
+      turns: 0, trTurns: 0, winCondition: 'Invalid team'
+    };
+  }
+
   const field = new Field();
   const log = [];
+
+  // Attach validation warnings to log (non-blocking)
+  for (const w of [...pVal.warnings, ...oVal.warnings]) {
+    log.push(`<span class="log-warn">⚠ Legality warning: ${w}</span>`);
+  }
 
   // Build Pokemon instances
   const pTeam = playerTeam.members.map(m => new Pokemon(m, playerTeam.style));
@@ -346,10 +433,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
   // Choose leads
   function chooseLead(team, teamObj) {
-    // Smart lead selection based on team style
     const style = teamObj.style;
     if (style === 'trick_room') {
-      // Lead with TR setters
       const setter = team.find(p => p.moves.includes('Trick Room') && p.alive);
       const ragePowder = team.find(p => p.moves.includes('Rage Powder') && p.alive);
       if (setter && ragePowder) return [setter, ragePowder];
@@ -375,13 +460,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   const [pA, pB] = chooseLead(pTeam, playerTeam);
   const [oA, oB] = chooseLead(oTeam, oppTeam);
 
-  // Active battlers
   let active = {
     player: [pA, pB].filter(Boolean),
     opponent: [oA, oB].filter(Boolean)
   };
 
-  // Auto-set weather from abilities on entry
   function processEntryAbilities(mon, side) {
     if (!mon) return;
     if (mon.ability === 'Drought') field.setWeather('sun', false);
@@ -395,13 +478,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       }
     }
     if (mon.hospitality) {
-      // Restore 25% HP to allies
       const ally = active[side].find(a => a !== mon && a.alive);
       if (ally) ally.heal(0.25);
-    }
-    // Cloud Nine: suppress weather
-    if (mon.ability === 'Cloud Nine' || mon.name.includes('Drampa')) {
-      // weather still set but moves don't benefit
     }
   }
 
@@ -419,27 +497,25 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     const alive_allies = allies.filter(a => a && a.alive && a !== mon);
     if (alive_opps.length === 0) return null;
 
-    // Priority moves first if needed
+    // Fake Out
     if (mon.moves.includes('Fake Out') && !mon.hasActed && alive_opps.length > 0) {
       const target = alive_opps.reduce((a,b) => a.hp < b.hp ? a : b);
       return { move: 'Fake Out', target, priority: 3 };
     }
 
-    // TR prevention: if opponent has TR setters and is player team, use Taunt/Wisp/attack
+    // TR prevention
     if (isPlayer && field.trickRoom === false) {
       const trSetter = alive_opps.find(o => o.moves.includes('Trick Room'));
       if (trSetter) {
-        // Prioritize attacking TR setter
         if (mon.moves.includes('Will-O-Wisp')) {
           return { move: 'Will-O-Wisp', target: trSetter, priority: 0 };
         }
-        // Attack the TR setter
         const atkMove = mon.moves.find(m => ['Power Gem','Head Smash','Flare Blitz','Earthquake','Dragon Claw','Thunderbolt','Hydro Pump','Moonblast'].includes(m));
         if (atkMove) return { move: atkMove, target: trSetter, priority: 0 };
       }
     }
 
-    // Protect logic: use protect if HP < 40% and ally can KO
+    // Protect
     if (mon.moves.includes('Protect') && mon.hp < mon.maxHp * 0.4 && Math.random() < 0.35) {
       return { move: 'Protect', target: mon, priority: 4 };
     }
@@ -449,7 +525,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return { move: 'Trick Room', target: null, priority: -7 };
     }
 
-    // Tailwind / Sunny Day / Rain Dance support
+    // Tailwind / weather setup
     if (mon.moves.includes('Tailwind') && !field.tailwind[isPlayer?'player':'opponent'] && Math.random() < 0.7) {
       return { move: 'Tailwind', target: null, priority: 0 };
     }
@@ -460,7 +536,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return { move: 'Rain Dance', target: null, priority: 0 };
     }
 
-    // Rage Powder / Redirection
+    // Rage Powder
     if (mon.moves.includes('Rage Powder') && alive_allies.length > 0) {
       const needsProtection = alive_allies.find(a => a.hp < a.maxHp * 0.6);
       if (needsProtection && Math.random() < 0.6) {
@@ -474,10 +550,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return { move: 'Parting Shot', target, priority: 0 };
     }
 
-    // Choose best damaging move vs best target
+    // Best damaging move
     let bestMove = null, bestDmg = -1, bestTarget = null;
     for (const move of mon.moves) {
-      const bp = (MOVE_TYPES[move]) ? 1 : 0;
       if (['Protect','Tailwind','Trick Room','Sunny Day','Rain Dance','Life Dew','Rage Powder',
            'Parting Shot','Roost','Reflect','Light Screen','Recover','Shed Tail',
            'Helping Hand','Ally Switch','Lunar Dance','Fake Out','Thunder Wave','Sleep Powder',
@@ -489,7 +564,6 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     }
 
     if (!bestMove) {
-      // Use any move
       bestMove = mon.moves.find(m => !['Protect'].includes(m)) || mon.moves[0];
       bestTarget = alive_opps[0];
     }
@@ -604,19 +678,16 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       }
     }
     if (move === 'Shed Tail') {
-      // Give substitute to ally
       if (aliveAllies[0]) aliveAllies[0].substituteHp = Math.floor(mon.maxHp * 0.25);
       logLines.push(`  ${mon.name} used Shed Tail`); return;
     }
     if (move === 'Ally Switch') { return; }
     if (move === 'Lunar Dance') {
-      // Fully heals next Pokemon
       mon.alive = false; mon.hp = 0;
       logLines.push(`  ${mon.name} used Lunar Dance!`);
       return;
     }
     if (move === 'Fake Out') {
-      // Flinch target
       if (target && target.alive) {
         target._flinched = true;
         const dmg = mon.calcDamage(move, target, field, null);
@@ -630,23 +701,16 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // -- DAMAGING MOVES --
     if (!target || !target.alive) return;
 
-    // Check if target is protected
     if (target._protected) {
       logLines.push(`  ${target.name} protected itself from ${move}`);
       return;
     }
 
-    // Rage Powder redirect to Rage Powder user
-    let finalTarget = target;
-    const rpUser = aliveOpps => aliveOpps.find(o => o._ragePowder && o.alive);
-    // (simplified: already targeting correctly)
-
-    // Spread move hits both (simplified: pick strongest target)
     const spreadMoves = ['Earthquake','Rock Slide','Heat Wave','Eruption','Hyper Voice',
-      'Dazzling Gleam','Moonblast','Discharge','Blizzard','Surf','Thunderbolt' /*not actually spread*/];
+      'Dazzling Gleam','Moonblast','Discharge','Blizzard','Surf','Thunderbolt'];
     const isSpread = spreadMoves.includes(move) && aliveOpps.length > 1 && move !== 'Thunderbolt';
 
-    let hitTargets = [finalTarget];
+    let hitTargets = [target];
     if (isSpread) {
       hitTargets = opponents.filter(o => o.alive);
     }
@@ -663,7 +727,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       }
     }
 
-    // Phantom Force / Solar Beam first turn
+    // Phantom Force two-turn
     if (move === 'Phantom Force' && !mon._phantomTurn) {
       mon._phantomTurn = true;
       mon._invisible = true;
@@ -705,9 +769,15 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
       if (!t.alive) logLines.push(`  <span class="log-ko">${t.name} fainted!</span>`);
 
+      // Life Orb recoil log
+      if (mon.item === 'Life Orb' && !mon.itemConsumed && dmg > 0) {
+        logLines.push(`  ${mon.name} lost HP from Life Orb recoil`);
+        if (!mon.alive) logLines.push(`  <span class="log-ko">${mon.name} fainted from Life Orb recoil!</span>`);
+      }
+
       // Recoil moves
       if (['Flare Blitz','Head Smash','Wave Crash'].includes(move)) {
-        const recoil = move === 'Head Smash' ? 0.5 : move === 'Flare Blitz' ? 0.33 : 0.33;
+        const recoil = move === 'Head Smash' ? 0.5 : 0.33;
         mon.applyRecoil(recoil);
         if (!mon.alive) logLines.push(`  <span class="log-ko">${mon.name} fainted from recoil!</span>`);
       }
@@ -717,13 +787,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   // ---- REPLACE FAINTED ----
   function replaceFainted(side, teamArr, activeArr) {
     const bench = teamArr.filter(p => p && p.alive && !activeArr.includes(p));
-    const slots = activeArr.length < 2 ? activeArr : activeArr;
     for (let i = 0; i < activeArr.length; i++) {
       if (!activeArr[i] || !activeArr[i].alive) {
         const next = bench.shift();
         if (next) {
           activeArr[i] = next;
-          // Entry abilities
           if (next.ability === 'Drought') field.setWeather('sun', false);
           if (next.ability === 'Drizzle') field.setWeather('rain', false);
           if (next.ability === 'Sand Stream') field.setWeather('sand', true);
@@ -751,14 +819,12 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     field.turn = turn + 1;
     const turnLog = [`<span class="log-turn">--- Turn ${turn+1} | Weather: ${field.weather} | TR: ${field.trickRoom?'ON':'OFF'} | TW-P:${field.tailwind.player?'✓':'✗'} TW-O:${field.tailwind.opponent?'✓':'✗'} ---</span>`];
 
-    // Reset per-turn flags
     for (const side of ['player','opponent']) {
       for (const m of active[side].filter(Boolean)) {
         m.hasActed = false; m._protected = false; m._ragePowder = false; m.justUsedHelpingHand = false; m._flinched = false;
       }
     }
 
-    // Build action queue
     const actions = [];
     const pActive = active.player.filter(Boolean);
     const oActive = active.opponent.filter(Boolean);
@@ -773,21 +839,18 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (dec) actions.push({ mon:m, dec, side:'opponent', allies:oActive, opponents:pActive });
     }
 
-    // Sort by priority, then speed
     actions.sort((a,b) => {
       const pa = a.dec.priority || 0, pb = b.dec.priority || 0;
       if (pa !== pb) return pb - pa;
       return b.mon.getEffSpeed(field) - a.mon.getEffSpeed(field);
     });
 
-    // Execute actions
     for (const act of actions) {
       if (!act.mon.alive) continue;
       if (act.mon._flinched) { turnLog.push(`  ${act.mon.name} flinched!`); continue; }
       executeMove(act.mon, act.dec, act.allies, act.opponents, act.side, turnLog);
     }
 
-    // End of turn effects
     const allActive = [...active.player.filter(Boolean), ...active.opponent.filter(Boolean)].filter(m => m.alive);
     for (const m of allActive) {
       const eotMsgs = m.endOfTurn(field);
@@ -797,36 +860,23 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
     log.push(...turnLog);
 
-    // Replace fainted
     replaceFainted('player', pTeam, active.player);
     replaceFainted('opponent', oTeam, active.opponent);
 
-    // Check win condition
     const pAlive = pTeam.filter(p => p && p.alive).length;
     const oAlive = oTeam.filter(o => o && o.alive).length;
 
     if (pAlive === 0 && oAlive === 0) { battleResult = 'draw'; break; }
     if (pAlive === 0) { battleResult = 'loss'; break; }
     if (oAlive === 0) { battleResult = 'win'; break; }
-
-    // Determine win condition narratively
-    if (battleResult === 'win') {
-      const firstKO = log.find(l => l.includes('fainted'));
-      winCondition = field.tailwind.player ? 'Tailwind Sweep' :
-                     field.trickRoom ? 'Survived Trick Room' :
-                     log.some(l => l.includes('Fake Out')) ? 'Fake Out + KO' :
-                     log.some(l => l.includes('Intimidate') || l.includes('Parting Shot')) ? 'Atk Pressure' : 'Offensive Burst';
-    }
   }
 
   if (!battleResult) {
-    // Count remaining HP%
     const pHp = pTeam.filter(p=>p&&p.alive).reduce((s,p) => s + p.hp/p.maxHp, 0);
     const oHp = oTeam.filter(o=>o&&o.alive).reduce((s,o) => s + o.hp/o.maxHp, 0);
     battleResult = pHp > oHp ? 'win' : pHp < oHp ? 'loss' : 'draw';
   }
 
-  // Final win condition
   if (battleResult === 'win') {
     winCondition = field.tailwind.player ? 'Tailwind Sweep' :
                    log.some(l => l.includes('Trick Room') && l.includes('NORMAL')) ? 'TR Broken' :
@@ -837,11 +887,12 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   }
 
   return {
-    result: battleResult, // 'win', 'loss', 'draw'
+    result: battleResult,
     turns: field.turn,
     trTurns: trickRoomTurnsActive,
     winCondition,
-    log: log.slice(0, 150), // cap log length
+    validationWarnings: { player: pVal.warnings, opponent: oVal.warnings },
+    log: log.slice(0, 150),
   };
 }
 
@@ -853,14 +904,26 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
   const playerTeamDef = TEAMS[playerTeamKey];
   const oppTeamDef = TEAMS[oppTeamKey];
 
-  const results = { wins:0, losses:0, draws:0, totalTurns:0, totalTrTurns:0,
-    winConditions:{}, allLogs:[], koLogs:[], turnDist:{} };
+  const results = { wins:0, losses:0, draws:0, errors:0, totalTurns:0, totalTrTurns:0,
+    winConditions:{}, allLogs:[], koLogs:[], turnDist:{},
+    // Issue #6: metadata fields for trustworthy win-rate display
+    sampleSize: numBattles,
+    policy: 'greedy-vs-greedy',
+    format: 'vgc-doubles',
+    playerTeam: playerTeamKey,
+    oppTeam: oppTeamKey,
+  };
 
   const BATCH = 50;
   for (let i = 0; i < numBattles; i += BATCH) {
     const batchSize = Math.min(BATCH, numBattles - i);
     for (let j = 0; j < batchSize; j++) {
       const battle = simulateBattle(playerTeamDef, oppTeamDef);
+      if (battle.result === 'error') {
+        results.errors++;
+        if (results.allLogs.length < 5) results.allLogs.push({ ...battle, oppTeam: oppTeamKey });
+        continue;
+      }
       results[battle.result === 'win' ? 'wins' : battle.result === 'loss' ? 'losses' : 'draws']++;
       results.totalTurns += battle.turns;
       results.totalTrTurns += battle.trTurns;
@@ -868,20 +931,22 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
       if (battle.winCondition) {
         results.winConditions[battle.winCondition] = (results.winConditions[battle.winCondition]||0) + 1;
       }
-      // Store interesting battles for replay
       const isClutch = battle.turns >= 8 || battle.result === 'loss';
       if (results.allLogs.length < 30 || (isClutch && results.allLogs.length < 60)) {
         results.allLogs.push({ ...battle, oppTeam: oppTeamKey });
       }
     }
     if (onProgress) onProgress(i + batchSize, numBattles);
-    // Yield to prevent UI block
     await new Promise(r => setTimeout(r, 0));
   }
 
-  results.winRate = results.wins / numBattles;
-  results.avgTurns = results.totalTurns / numBattles;
-  results.avgTrTurns = results.totalTrTurns / numBattles;
+  const validBattles = results.wins + results.losses + results.draws;
+  results.winRate = validBattles > 0 ? results.wins / validBattles : 0;
+  results.avgTurns = validBattles > 0 ? results.totalTurns / validBattles : 0;
+  results.avgTrTurns = validBattles > 0 ? results.totalTrTurns / validBattles : 0;
+  // Issue #6: confidence tier label
+  results.confidenceNote = numBattles < 20  ? 'Low confidence — run more simulations (Bo10+)' :
+                           numBattles < 100 ? 'Moderate confidence' : 'High confidence';
   return results;
 }
 
