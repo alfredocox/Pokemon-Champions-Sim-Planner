@@ -176,6 +176,181 @@ function validateTeam(team, format = 'vgc') {
   return { valid: errors.length === 0, errors, warnings };
 }
 
+// ============================================================
+// T9j.8 — CRITICAL HITS, FLINCH, AND ABILITIES FRAMEWORK
+// Refs #27 (crits), #19 (flinch), #30 (abilities).
+// All tables are `var` for TDZ-safety (referenced from Pokemon methods).
+//
+// CRIT_STAGES: Gen 9 crit probability ladder.
+//   Stage 0 = 1/24 ≈ 4.17%, Stage 1 = 1/8 = 12.5%, Stage 2 = 1/2, Stage 3+ = always.
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Critical_hit
+// HIGH_CRIT_MOVES: moves that START at stage 1 instead of 0. Narrow Champions list.
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Critical_hit#High_critical-hit_ratio_moves
+// ALWAYS_CRIT_MOVES: +3 stage floor (always crit). Frost Breath / Storm Throw.
+//
+// CRIT BYPASS RULES (applied in calcDamage when crit lands):
+//   - Attacker's NEGATIVE Atk/SpA stages ignored (taken as 0).
+//   - Defender's POSITIVE Def/SpD stages ignored (taken as 0).
+//   - Screens (Reflect/Light Screen/Aurora Veil) bypassed — screenMod = 1.
+//   - Burn STILL halves physical Atk on crit (Gen 6+ rule — verified Bulbapedia).
+//   - Final damage × 1.5 (Gen 6+; was × 2 in earlier gens).
+//
+// FLINCH_MOVES: secondary-effect flinch chances. Data-driven per Bulbapedia
+// per-move pages and Pokemon Champions nerfs:
+//   Iron Head: 20% in Champions (nerfed from Gen 9's 30%).
+//     Cite: https://www.serebii.net/pokemonchampions/updatedattacks.shtml
+//     Cite: https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_Champions
+//   Rock Slide / Air Slash / Bite: 30% (unchanged).
+//   Zen Headbutt: 20%. Fire/Ice/Thunder Fang: 10% flinch (+10% independent status).
+//   Dark Pulse / Twister / Icicle Crash / Waterfall: secondary flinch retained.
+//   Cite: https://game8.co/games/Pokemon-Champions/archives/590527 (move list)
+// ============================================================
+var CRIT_STAGES = [1/24, 1/8, 1/2, 1, 1]; // index by clamped stage
+var HIGH_CRIT_MOVES = new Set([
+  // Gen 9 +1 stage list. Champions retains standard list per Game8 move pages.
+  'Night Slash','Cross Poison','Drill Run','Stone Edge','Leaf Blade',
+  'Psycho Cut','Slash','Shadow Claw','Attack Order','Spacial Rend','Blaze Kick'
+]);
+var ALWAYS_CRIT_MOVES = new Set(['Frost Breath','Storm Throw','Surging Strikes']);
+var FLINCH_MOVES = {
+  'Rock Slide':   { chance: 0.30 },
+  'Iron Head':    { chance: 0.20 }, // Champions nerf (30% -> 20%)
+  'Air Slash':    { chance: 0.30 },
+  'Bite':         { chance: 0.30 },
+  'Zen Headbutt': { chance: 0.20 },
+  'Fire Fang':    { chance: 0.10 },
+  'Ice Fang':     { chance: 0.10 },
+  'Thunder Fang': { chance: 0.10 },
+  'Dark Pulse':   { chance: 0.20 },
+  'Twister':      { chance: 0.20 },
+  'Icicle Crash': { chance: 0.30 },
+  'Waterfall':    { chance: 0.20 },
+  'Astonish':     { chance: 0.30 },
+  'Extrasensory': { chance: 0.10 },
+  'Heart Stamp':  { chance: 0.30 },
+  'Needle Arm':   { chance: 0.30 },
+  'Bone Club':    { chance: 0.10 },
+  'Headbutt':     { chance: 0.30 },
+  'Rolling Kick': { chance: 0.30 },
+  'Stomp':        { chance: 0.30 }
+};
+
+// Contact moves — Champions/Gen 9 contact list used by Piercing Drill,
+// Unseen Fist, and future contact-triggered hooks (Rough Skin, Iron Barbs).
+// Cite: https://bulbapedia.bulbagarden.net/wiki/Contact
+// Conservative: every physical contact move present in the engine's move set.
+var CONTACT_MOVES = new Set([
+  'Fake Out','Flare Blitz','Head Smash','Extreme Speed','Wave Crash',
+  'Iron Head','Close Combat','Dire Claw','Ice Punch','Knock Off',
+  'Dragon Claw','Phantom Force','Fire Fang','Ice Fang','Thunder Fang',
+  'Aqua Jet','Foul Play','Shadow Sneak','Flip Turn','U-turn',
+  'First Impression','Trop Kick','Sucker Punch','Kowtow Cleave',
+  'Crunch','Stomping Tantrum','Liquidation','Fire Punch','Thunder Punch',
+  'Psyshield Bash','High Horsepower','Body Press','Zen Headbutt',
+  'Bite','Waterfall','Headbutt','Rolling Kick','Stomp','Needle Arm',
+  'Heart Stamp','Bone Club','Heracross','Wicked Blow','Surging Strikes',
+  'Low Kick','Throat Chop','Scale Shot','Darkest Lariat','Tackle',
+  'Beak Blast'
+]);
+
+// ============================================================
+// ABILITIES REGISTRY — T9j.8
+// Each entry declares the hooks an ability participates in. Handlers return
+// a mutation object (or undefined for no-op). The engine calls the relevant
+// hook at the canonical trigger points documented below.
+//
+// Hook signatures:
+//   onModifyMove({move, attacker, field}) -> {move?, bpMult?, typeOverride?}
+//     Fires at the top of calcDamage so type/STAB/type-chart all see the change.
+//   onProtectResolve({attacker, defender, move, moveType, isContact}) -> {damageMult}
+//     Fires when a target's Protect flag is up; default is 0 (full block). A
+//     positive damageMult lets the attacker deal dmg * mult through Protect.
+//     Piercing Drill / Unseen Fist use this shared 25% path.
+//   onDamageTaken({attacker, defender, move, moveType, damage, field, log})
+//     Fires AFTER applyDamage writes HP, iff damage > 0 AND defender still alive.
+//     Used by Spicy Spray (burn attacker).
+//   onWeatherCheck({mon, moveType, field}) -> {effectiveWeather}
+//     Fires inside calcDamage's weather branch. Mega Sol provides personal sun
+//     for the holder's Fire-typed moves even if field weather is 'none'.
+//
+// Sources cited per-ability.
+// ============================================================
+var ABILITIES = {
+  'Dragonize': {
+    // Normal moves become Dragon-type and gain 20% BP. Mirrors -ate ability
+    // family (Pixilate/Aerilate/Refrigerate) with Dragon as the target type.
+    // Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_Champions
+    onModifyMove: function(ctx) {
+      var baseType = (typeof MOVE_TYPES !== 'undefined' && MOVE_TYPES[ctx.move]) || 'Normal';
+      if (baseType === 'Normal') return { typeOverride: 'Dragon', bpMult: 1.20 };
+      return null;
+    }
+  },
+  'Piercing Drill': {
+    // Contact moves deal 25% damage through Protect (deterministic — not a proc).
+    // Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Piercing_Drill_(Ability)
+    onProtectResolve: function(ctx) {
+      if (ctx.isContact) return { damageMult: 0.25 };
+      return null;
+    }
+  },
+  'Unseen Fist': {
+    // Champions: 25% damage through Protect on contact moves (nerfed from 100%).
+    // Cite: https://www.serebii.net/pokemonchampions/updatedabilities.shtml
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Unseen_Fist_(Ability)
+    onProtectResolve: function(ctx) {
+      if (ctx.isContact) return { damageMult: 0.25 };
+      return null;
+    }
+  },
+  'Spicy Spray': {
+    // 100% burn attacker when holder takes any damage (except Fire attackers,
+    // attackers already statused, or if holder is behind a Substitute).
+    // Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Spicy_Spray_(Ability)
+    onDamageTaken: function(ctx) {
+      var attacker = ctx.attacker, defender = ctx.defender;
+      if (!attacker || !attacker.alive) return;
+      if (defender.substituteHp > 0) return;     // holder behind Sub blocks
+      if (attacker.status) return;               // already statused
+      if (attacker.types && attacker.types.indexOf('Fire') !== -1) return;
+      attacker.status = 'burn';
+      attacker.statusTurns = 0;
+      if (ctx.log) ctx.log.push(defender.name + "'s Spicy Spray burned " + attacker.name + '!');
+    }
+  },
+  'Mega Sol': {
+    // Personal sun — treats Fire moves as if sun is up when computing the
+    // weather multiplier, but does NOT set field weather. Water 0.5x penalty
+    // and Fire 1.5x bonus apply only for the holder's own move resolution.
+    // Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
+    onWeatherCheck: function(ctx) {
+      if (ctx.field.weather === 'none' || !ctx.field.weather) {
+        return { effectiveWeather: 'sun' };
+      }
+      return null;
+    }
+  }
+  // Parental Bond handled inline in executeMove (2-strike loop with BP override)
+};
+
+// T9j.8 — Ability hook dispatcher. Safe call: returns null when no ability or
+// no matching hook. Invoked from engine trigger points.
+function callAbilityHook(mon, hookName, ctx) {
+  if (!mon || !mon.ability) return null;
+  var ability = ABILITIES[mon.ability];
+  if (!ability || typeof ability[hookName] !== 'function') return null;
+  try {
+    return ability[hookName](ctx);
+  } catch (e) {
+    // Ability hooks must never crash the engine. Log and continue.
+    if (ctx && ctx.log) ctx.log.push('[ability-error] ' + mon.ability + '.' + hookName + ': ' + e.message);
+    return null;
+  }
+}
+
 // T9j.7 — Mega trigger policy enum. `var` for TDZ-safety (referenced from
 // Pokemon constructor before top-of-file const binding would be reached).
 var MEGA_TRIGGER_POLICY = {
@@ -421,16 +596,57 @@ class Pokemon {
   }
 
   // Issue #2 FIX: calcDamage now receives rng from simulateBattle scope
+  // T9j.8 (Refs #27): crit roll + bypass rules applied inline when crit lands.
+  // T9j.8 (Refs #30): Dragonize (type override + BP mult) and Mega Sol
+  //   (personal-sun effective weather) consulted via onModifyMove / onWeatherCheck.
   calcDamage(move, target, field, partner, rng) {
-    const moveType = MOVE_TYPES[move] || 'Normal';
+    // --- T9j.8 (Refs #30) Dragonize onModifyMove: Normal -> Dragon + 20% BP ---
+    let _typeOverride = null;
+    let _bpMult = 1;
+    const _modRes = callAbilityHook(this, 'onModifyMove', { move: move, attacker: this, field: field });
+    if (_modRes) {
+      if (_modRes.typeOverride) _typeOverride = _modRes.typeOverride;
+      if (_modRes.bpMult) _bpMult = _modRes.bpMult;
+    }
+    const moveType = _typeOverride || (MOVE_TYPES[move] || 'Normal');
     const isPhysical = ['Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel','Fire','Water','Grass','Ice','Electric','Dragon','Dark','Fairy'].includes(moveType)
       && ['Fake Out','Flare Blitz','Head Smash','Power Gem','Earthquake','Dragon Claw','Rock Slide',
           'Wave Crash','Iron Head','Flash Cannon','Close Combat','Dire Claw','High Horsepower',
           'Ice Punch','Dragon Darts','Phantom Force','Knock Off','Rock Slide','Extreme Speed',
           'Ice Punch','Foul Play','Throat Chop','Fire Fang','Shadow Sneak','Aqua Jet'].includes(move);
 
-    const atk = isPhysical ? this.getStat('atk', field) : this.getStat('spa', field);
-    const def = isPhysical ? target.getStat('def', field) : target.getStat('spd', field);
+    // --- T9j.8 (Refs #27) Crit roll ---
+    // Stage ladder: base 0, +1 HIGH_CRIT, +3 ALWAYS_CRIT. Force-crit via field._ctx.forceCrit (tests).
+    let _critStage = 0;
+    if (HIGH_CRIT_MOVES.has(move)) _critStage += 1;
+    if (ALWAYS_CRIT_MOVES.has(move)) _critStage += 3;
+    const _critProb = CRIT_STAGES[Math.min(_critStage, CRIT_STAGES.length - 1)];
+    const _forceCrit = !!(field && field._ctx && field._ctx.forceCrit);
+    const _forceNoCrit = !!(field && field._ctx && field._ctx.forceNoCrit);
+    const _isCrit = _forceCrit || (!_forceNoCrit && rng() < _critProb);
+    if (_isCrit && field && field._ctx) field._ctx.lastWasCrit = true;
+
+    // Atk / Def with crit bypass.
+    //   Crit: attacker ignores negative Atk/SpA stages (takes 0 instead).
+    //         defender ignores positive Def/SpD stages (takes 0 instead).
+    //         Burn still halves physical Atk (Gen 6+).
+    let atk, def;
+    if (_isCrit) {
+      const aStatKey = isPhysical ? 'atk' : 'spa';
+      const dStatKey = isPhysical ? 'def' : 'spd';
+      const aBoost = this.statBoosts[aStatKey] || 0;
+      const dBoost = target.statBoosts[dStatKey] || 0;
+      const _aSaved = aBoost, _dSaved = dBoost;
+      if (aBoost < 0) this.statBoosts[aStatKey] = 0;
+      if (dBoost > 0) target.statBoosts[dStatKey] = 0;
+      atk = isPhysical ? this.getStat('atk', field) : this.getStat('spa', field);
+      def = isPhysical ? target.getStat('def', field) : target.getStat('spd', field);
+      this.statBoosts[aStatKey] = _aSaved;
+      target.statBoosts[dStatKey] = _dSaved;
+    } else {
+      atk = isPhysical ? this.getStat('atk', field) : this.getStat('spa', field);
+      def = isPhysical ? target.getStat('def', field) : target.getStat('spd', field);
+    }
 
     // Base power
     // Issue #T3: Champions move data updates — 9 BPs added from Game8 move list.
@@ -456,6 +672,14 @@ class Pokemon {
       'Infernal Parade':65,'Bone Rush':30
     };
     let bp = BP_MAP[move] || 60;
+    // T9j.8 Dragonize BP multiplier applied after base lookup so spread / screens
+    // all see the boosted value.
+    if (_bpMult !== 1) bp = Math.floor(bp * _bpMult);
+    // T9j.8 Parental Bond child strike: field._ctx.bpMult forces second-hit BP
+    // multiplier (0.25). Cleared by executeAction after the second call.
+    if (field && field._ctx && field._ctx.bpMult && field._ctx.bpMult !== 1) {
+      bp = Math.max(1, Math.floor(bp * field._ctx.bpMult));
+    }
 
     // Weather Ball doubles in active weather
     if (move === 'Weather Ball' && field.weather !== 'none') bp = 100;
@@ -518,10 +742,14 @@ class Pokemon {
     const spreadMod = (field && field._ctx && field._ctx.isSpread) ? 0.75 : 1;
 
     // Weather bonus
+    // T9j.8 (Refs #30) Mega Sol: personal sun when field weather is 'none'.
+    let _effWeather = field.weather;
+    const _wxRes = callAbilityHook(this, 'onWeatherCheck', { mon: this, moveType: moveType, field: field });
+    if (_wxRes && _wxRes.effectiveWeather) _effWeather = _wxRes.effectiveWeather;
     let weatherMod = 1;
-    if (field.weather === 'sun')  { if (moveType === 'Fire') weatherMod = 1.5; if (moveType === 'Water') weatherMod = 0.5; }
-    if (field.weather === 'rain') { if (moveType === 'Water') weatherMod = 1.5; if (moveType === 'Fire') weatherMod = 0.5; }
-    if (field.weather === 'sand') { if (moveType === 'Rock') weatherMod = 1.5; }
+    if (_effWeather === 'sun')  { if (moveType === 'Fire') weatherMod = 1.5; if (moveType === 'Water') weatherMod = 0.5; }
+    if (_effWeather === 'rain') { if (moveType === 'Water') weatherMod = 1.5; if (moveType === 'Fire') weatherMod = 0.5; }
+    if (_effWeather === 'sand') { if (moveType === 'Rock') weatherMod = 1.5; }
 
     // Terrain bonus
     let terrainMod = 1;
@@ -533,12 +761,12 @@ class Pokemon {
     // T9j.3 Screens modifier — exact Gen 9 fractions.
     // Singles: 2048/4096 = 0.5. Doubles: 2732/4096 ≈ 0.6670.
     // Aurora Veil: applies to BOTH physical and special (does not stack w/ R/LS).
-    // Crits ignore screens — deferred to T9j.8 crit pass.
+    // T9j.8 (Refs #27) Crits bypass screens entirely — screenMod forced to 1 on crit.
     const _fmt = (field && field._format) || 'doubles';
     const _screenBase = (_fmt === 'doubles') ? (2732 / 4096) : (2048 / 4096);
     let screenMod = 1;
     const _tSide = target.side;
-    if (_tSide) {
+    if (_tSide && !_isCrit) {
       if (_tSide.auroraVeil) {
         screenMod = _screenBase;
       } else if (isPhysical && _tSide.reflect) {
@@ -560,7 +788,9 @@ class Pokemon {
 
     // Base damage formula (Gen 9)
     const raw = Math.floor(Math.floor(Math.floor(2 * this.level / 5 + 2) * bp * atk / def) / 50) + 2;
-    const dmg = Math.floor(raw * stab * typeEff * spreadMod * weatherMod * terrainMod * screenMod * hhMod * loMod);
+    // T9j.8 (Refs #27) Crit multiplier 1.5x (Gen 6+).
+    const critMod = _isCrit ? 1.5 : 1;
+    const dmg = Math.floor(raw * stab * typeEff * spreadMod * weatherMod * terrainMod * screenMod * hhMod * loMod * critMod);
 
     // Random roll 85–100%
     const roll = 0.85 + rng() * 0.15;
@@ -647,7 +877,9 @@ class Field {
       fainted:0
     };
     // T9j.2 (#26) — spread context sidecar. Set per-hit by executeMove, read by calcDamage.
-    this._ctx = { isSpread:false };
+    // T9j.8 (Refs #27/#30): lastWasCrit (for log/test assertion), bpMult
+    // (Parental Bond 2nd hit), forceCrit/forceNoCrit (test harness overrides).
+    this._ctx = { isSpread:false, lastWasCrit:false, bpMult:1, forceCrit:false, forceNoCrit:false };
     // T9j.7 — One Mega per team per match flags. Once set, no further Megas
     // fire for that side for the remainder of the battle.
     this.playerMegaUsed = false;
@@ -1085,7 +1317,13 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return;
     }
 
-    // Skip if target protected
+    // Skip if target protected.
+    // T9j.8 (Refs #30): Piercing Drill / Unseen Fist piercing paths are resolved
+    // inside executeMove (per-target loop). Utility branches reaching THIS block
+    // (U-turn / Flip Turn / Dragon Darts below) fall through to those specific
+    // handlers, which all delegate to applyDamage directly — and currently treat
+    // Protect as full block. Keeping default full-block here preserves parity
+    // with pre-T9j.8 behavior for those narrow paths.
     if (target && target.protected) {
       log.push(`${attacker.name} used ${move}! But ${target.name} was protected!`);
       return;
@@ -1124,7 +1362,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (move === 'U-turn' || move === 'Flip Turn') {
       if (target && target.alive) {
         const dmg = attacker.calcDamage(move, target, field, null, rng);
-        applyDamage(attacker, move, target, dmg, field, log);
+        applyDamage(attacker, move, target, dmg, field, log, rng);
         log.push(`${attacker.name} pivoted out!`);
       }
       return;
@@ -1138,7 +1376,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         const t = targets[d % targets.length];
         if (t) {
           const dmg = attacker.calcDamage(move, t, field, null, rng);
-          applyDamage(attacker, move, t, dmg, field, log);
+          applyDamage(attacker, move, t, dmg, field, log, rng);
         }
       }
       return;
@@ -1147,7 +1385,25 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // T9j.2 (Issue #26) — per-target damage via executeMove wrapper.
     // Handles spread, Wide Guard, Follow Me/Rage Powder redirection,
     // per-target type eff, and format-aware 0.75× mod.
+    // T9j.8 (Refs #30) Parental Bond: Kangaskhan-Mega single-target damaging
+    // moves strike twice. Second strike fires at 1/4 BP via field._ctx.bpMult.
+    // Spread moves (all-adjacent, all-foes) do NOT get the second strike per
+    // mainline behavior (Bulbapedia Parental Bond). Status, multi-hit moves
+    // (Dragon Darts / Bone Rush), and fainted attackers also skip the 2nd hit.
+    const _isParentalBond = (attacker.ability === 'Parental Bond');
+    const _tCat = (typeof getMoveTarget === 'function') ? getMoveTarget(move) : 'normal';
+    const _isSingleTargetDamage = (_tCat === 'normal' || _tCat === 'adjacent-foe');
+    const _skipSecond = new Set(['Dragon Darts','Bone Rush','U-turn','Flip Turn','Fake Out']);
+    const _pbEligible = _isParentalBond && _isSingleTargetDamage && !_skipSecond.has(move);
     executeMove(attacker, move, target, allies, enemies, field, log, rng);
+    if (_pbEligible && attacker.alive && target && target.alive) {
+      // Second strike at 1/4 BP per Champions nerf (was 1/2 in mainline).
+      // Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+      field._ctx.bpMult = 0.25;
+      executeMove(attacker, move, target, allies, enemies, field, log, rng);
+      field._ctx.bpMult = 1;
+      log.push(`${attacker.name} struck again with Parental Bond!`);
+    }
   }
 
   // ============================================================
@@ -1260,16 +1516,43 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
     for (const t of ordered) {
       if (!t.alive) continue;
+      // T9j.8 (Refs #30) Protect resolution: Piercing Drill / Unseen Fist deal
+      // 25% damage through Protect on contact moves. Default path is full block.
+      let _protectMult = 0;
       if (t.protected) {
-        log.push(`${t.name} protected itself!`);
-        continue;
+        const _isContact = CONTACT_MOVES.has(move);
+        const _protRes = callAbilityHook(attacker, 'onProtectResolve', {
+          attacker: attacker, defender: t, move: move,
+          moveType: (MOVE_TYPES[move] || 'Normal'), isContact: _isContact, log: log
+        });
+        if (_protRes && _protRes.damageMult > 0) {
+          _protectMult = _protRes.damageMult;
+          log.push(`${t.name} protected itself, but ${attacker.ability} pierced through!`);
+        } else {
+          log.push(`${t.name} protected itself!`);
+          continue;
+        }
       }
       // Set spread context for calcDamage
       field._ctx.isSpread = applySpreadMod;
-      const dmg = attacker.calcDamage(move, t, field, null, rng);
+      field._ctx.lastWasCrit = false;
+      let dmg = attacker.calcDamage(move, t, field, null, rng);
+      const _wasCrit = !!field._ctx.lastWasCrit;
       field._ctx.isSpread = false;
+      field._ctx.lastWasCrit = false;
+      if (_protectMult > 0 && dmg > 0) dmg = Math.max(1, Math.floor(dmg * _protectMult));
       if (dmg > 0) {
-        applyDamage(attacker, move, t, dmg, field, log);
+        if (_wasCrit) log.push(`A critical hit!`);
+        applyDamage(attacker, move, t, dmg, field, log, rng);
+        // T9j.8 (Refs #19) Flinch roll: after damage applied, target alive,
+        // target hasn't acted yet. Fang moves roll flinch + status independently.
+        if (t.alive) {
+          const _flinch = FLINCH_MOVES[move];
+          if (_flinch && !t.hasActed && rng() < _flinch.chance) {
+            t._flinched = true;
+            log.push(`${t.name} flinched and couldn't move!`);
+          }
+        }
       } else {
         log.push(`${move} had no effect on ${t.name}!`);
       }
@@ -1277,7 +1560,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     }
   }
 
-  function applyDamage(attacker, move, target, dmg, field, log) {
+  function applyDamage(attacker, move, target, dmg, field, log, rng) {
     if (dmg <= 0) return;
     let finalDmg = dmg;
     // Substitute absorb
@@ -1321,6 +1604,15 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // Multiscale: deactivate after first hit
     target.multiscaleActive = false;
     if (target.hp === 0) { target.alive = false; log.push(`${target.name} fainted!`); }
+    // T9j.8 (Refs #30) onDamageTaken hook: Spicy Spray burns attacker.
+    // Fires only if target still alive AND damage > 0.
+    if (target.alive && finalDmg > 0) {
+      callAbilityHook(target, 'onDamageTaken', {
+        attacker: attacker, defender: target, move: move,
+        moveType: (MOVE_TYPES[move] || 'Normal'),
+        damage: finalDmg, field: field, log: log
+      });
+    }
   }
 
   // ============================================================
@@ -1340,6 +1632,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       m.hasActed = false;
       m.protected = false;
       m.helpingHand = false;
+      // T9j.8 (Refs #19) Flinch flag resets at top of turn so last-turn flinch
+      // cannot bleed into this turn's action.
+      m._flinched = false;
     }
 
     // Check win condition
@@ -1441,10 +1736,23 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         log.push(`${action.attacker.name} is fully paralysed and can't move!`);
         continue;
       }
+      // T9j.8 (Refs #19) Flinch consumption: _flinched was set in a prior
+      // action's applyDamage hook this turn. Pre-act gate eats the flag and
+      // skips the action. Cleared on use; clearing of stale values happens in
+      // the per-turn reset loop (m._flinched = false).
+      if (action.attacker._flinched) {
+        log.push(`${action.attacker.name} flinched and couldn't move!`);
+        action.attacker._flinched = false;
+        action.attacker.hasActed = true;
+        continue;
+      }
       executeAction(action.attacker, action.move, action.target,
         action.side === 'player' ? playerActive : oppActive,
         action.side === 'player' ? oppActive : playerActive,
         field, log, rng);
+      // T9j.8 (Refs #19) Mark as acted so later-in-queue flinch rolls against
+      // this mon have no effect (can't flinch a mon that already moved).
+      action.attacker.hasActed = true;
     }
 
     // Sand damage
