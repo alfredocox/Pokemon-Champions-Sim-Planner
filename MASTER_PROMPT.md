@@ -367,7 +367,7 @@ The nightly harness (`tests/nightly_bring_harness.js`) is an end-to-end wiring c
 
 ## ACTIVE TICKET — (none — ready for next)
 
-T9j.12 shipped and issue #74 is CLOSED. Pick the next ticket from the OPEN ISSUES section.
+T9j.13 shipped and issue #42 is CLOSED. Pick the next ticket from the OPEN ISSUES section.
 
 ---
 
@@ -408,6 +408,15 @@ T9j.12 shipped and issue #74 is CLOSED. Pick the next ticket from the OPEN ISSUE
 - Empirical proof (N=200 TR Counter vs Mega Altaria doubles): different 4-of-6 subset moves win rate 64.5pp (CIs disjoint), lead swap 4pp within noise
 - Added `tests/nightly_bring_harness.js` (N=500 across 5 matchups, FAIL/CEIL/WEAK/PASS verdicts, Wilson CI)
 - Cites: Bulbapedia Team Preview, Bulbapedia Lead Pokemon, MDN HTML Drag and Drop API, VGCGuide team preview, Nugget Bridge team preview article, Wilson CI
+
+### T9j.13 — Champions format-mismatch guard + cofagrigus/aurora_veil SP rescale
+- Closed #42
+- Tests: `t9j13_tests.js` 47/47 (total regression: 238/238)
+- Root cause: `cofagrigus_tr` and `aurora_veil_froslass` declared `format: "champions"` but had SV-scale EVs (252/252/4 totaling 508). Engine applied Champions HP formula `Base + SP + 75` to SP=252, producing HP ~Base+327 — deterministic 100% WR against every opponent in the 5070-battle audit.
+- Fix A (engine defense): `engine.js` Pokemon constructor now runs `_spreadFitsChampions(evs)` guard (max<=32 AND total<=66); on mismatch falls back to SV formula and sets `this.formatMismatch = true` for observability.
+- Fix B (data correction): `data.js` rescaled both teams to valid SP spreads (66 total, 32 per stat cap) preserving intent (TR bulk for cofagrigus, speed + offense for aurora_veil).
+- Audit post-fix: cofagrigus_tr 27% WR, aurora_veil_froslass 43% WR. 0 JS errors across 5070 battles.
+- Cites: Bulbapedia Stat Point, Game8 Champions Stat Points, Pokeos Champions Stats, Bulbapedia Effort Values
 
 ---
 
@@ -507,6 +516,7 @@ When you ask the AI to make changes:
 | April 24, 2026 | **T9j.10 shipped** (`04eef39`) — Team Preview bring-N-of-6 picker, drag+tap UI, Random 4/6 opponent mode, series-level lock, localStorage persistence, closed #16 |
 | April 24, 2026 | **T9j.11 shipped** (`21d78b3`) — custom teams bulk import/export + filter chips + persistence verification, closed #73 |
 | April 24, 2026 | **T9j.12 shipped** (`ea5ef0f` + `7184740`) — simulator tab bring pickers, shared state with Teams tab, empirical lead-impact proof, closed #74 |
+| April 24, 2026 | **T9j.13 shipped** — Champions format-mismatch guard + cofagrigus/aurora_veil SP rescale, 238/238 tests, audit clean, closed #42 |
 | April 24, 2026 | **Nightly bring harness added** — ceiling-aware N=500 regression across 5 matchups, Wilson CI, PASS/WEAK/CEIL/FAIL verdicts |
 | April 24, 2026 | **Master prompt v6** — T9j.8-12 wiring, 191/191 test baseline, nightly harness line, next-ticket selection reset |
 
@@ -515,14 +525,14 @@ When you ask the AI to make changes:
 ## LAST KNOWN GOOD STATE
 
 - **Branch:** `fix/champions-sp-and-legality`
-- **Last pushed commit:** `7184740` (T9j.12 lead validation artifact)
-- **Bundle size:** 467,339 bytes (after T9j.12 rebuild)
+- **Last pushed commit:** (T9j.13 — format-mismatch guard + SP rescale)
+- **Bundle size:** 468,780 bytes (after T9j.13 rebuild)
 - **Engine:** Non-deterministic confirmed (`Math.random()` damage roll); crits and flinch rolls via RNG
 - **Trick Room:** 5-turn countdown, speed inversion, toggle cancel
 - **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
 - **Move data:** MOVE_CATEGORY (104), MOVE_BP (110+) — Serebii-sourced
 - **Syntax:** `data.js` ✓  `engine.js` ✓  `ui.js` ✓  `var COVERAGE_CHECKS` preserved
-- **Tests:** 191/191 + 5070-battle audit, 0 JS errors; nightly harness PASS at N=500
+- **Tests:** 238/238 + 5070-battle audit, 0 JS errors; nightly harness PASS at N=500; cofagrigus_tr 27% WR / aurora_veil_froslass 43% WR post-fix
 - **Tested on:** Chrome 124 macOS / Chrome Android
 - **Live URL:** htmlpreview bundle link and GitHub Pages both confirmed working
 

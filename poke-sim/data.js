@@ -1758,10 +1758,10 @@ const TEAMS = {
         "ability": "Mummy",
         "nature": "Quiet",
         "evs": {
-          "hp": 252,
+          "hp": 32,
           "atk": 0,
-          "def": 4,
-          "spa": 252,
+          "def": 2,
+          "spa": 32,
           "spd": 0,
           "spe": 0
         },
@@ -1779,10 +1779,10 @@ const TEAMS = {
         "ability": "Hospitality",
         "nature": "Quiet",
         "evs": {
-          "hp": 252,
+          "hp": 32,
           "atk": 0,
-          "def": 4,
-          "spa": 252,
+          "def": 2,
+          "spa": 32,
           "spd": 0,
           "spe": 0
         },
@@ -1800,11 +1800,11 @@ const TEAMS = {
         "ability": "Magic Bounce",
         "nature": "Quiet",
         "evs": {
-          "hp": 252,
+          "hp": 32,
           "atk": 0,
           "def": 0,
-          "spa": 252,
-          "spd": 4,
+          "spa": 32,
+          "spd": 2,
           "spe": 0
         },
         "moves": [
@@ -1821,11 +1821,11 @@ const TEAMS = {
         "ability": "Levitate",
         "nature": "Sassy",
         "evs": {
-          "hp": 252,
+          "hp": 32,
           "atk": 0,
-          "def": 128,
+          "def": 18,
           "spa": 0,
-          "spd": 128,
+          "spd": 16,
           "spe": 0
         },
         "moves": [
@@ -1842,11 +1842,11 @@ const TEAMS = {
         "ability": "Pressure",
         "nature": "Relaxed",
         "evs": {
-          "hp": 252,
+          "hp": 32,
           "atk": 0,
-          "def": 128,
+          "def": 18,
           "spa": 0,
-          "spd": 128,
+          "spd": 16,
           "spe": 0
         },
         "moves": [
@@ -1873,10 +1873,10 @@ const TEAMS = {
           "spe": 0
         },
         "evs": {
-          "hp": 252,
+          "hp": 32,
           "atk": 0,
-          "def": 4,
-          "spa": 252,
+          "def": 2,
+          "spa": 32,
           "spd": 0,
           "spe": 0
         },
@@ -2543,12 +2543,12 @@ const TEAMS = {
         "ability": "Snow Warning",
         "nature": "Timid",
         "evs": {
-          "hp": 4,
+          "hp": 2,
           "atk": 0,
           "def": 0,
-          "spa": 252,
+          "spa": 32,
           "spd": 0,
-          "spe": 252
+          "spe": 32
         },
         "moves": [
           "Aurora Veil",
@@ -2564,12 +2564,12 @@ const TEAMS = {
         "ability": "Multiscale",
         "nature": "Adamant",
         "evs": {
-          "hp": 4,
-          "atk": 252,
+          "hp": 2,
+          "atk": 32,
           "def": 0,
           "spa": 0,
           "spd": 0,
-          "spe": 252
+          "spe": 32
         },
         "moves": [
           "Extreme Speed",
@@ -2585,12 +2585,12 @@ const TEAMS = {
         "ability": "Supreme Overlord",
         "nature": "Adamant",
         "evs": {
-          "hp": 4,
-          "atk": 252,
+          "hp": 2,
+          "atk": 32,
           "def": 0,
           "spa": 0,
           "spd": 0,
-          "spe": 252
+          "spe": 32
         },
         "moves": [
           "Kowtow Cleave",
@@ -2606,12 +2606,12 @@ const TEAMS = {
         "ability": "Competitive",
         "nature": "Modest",
         "evs": {
-          "hp": 4,
+          "hp": 2,
           "atk": 0,
           "def": 0,
-          "spa": 252,
+          "spa": 32,
           "spd": 0,
-          "spe": 252
+          "spe": 32
         },
         "moves": [
           "Scald",
@@ -2627,11 +2627,11 @@ const TEAMS = {
         "ability": "Intimidate",
         "nature": "Careful",
         "evs": {
-          "hp": 252,
-          "atk": 4,
+          "hp": 32,
+          "atk": 2,
           "def": 0,
           "spa": 0,
-          "spd": 252,
+          "spd": 32,
           "spe": 0
         },
         "moves": [
@@ -2648,12 +2648,12 @@ const TEAMS = {
         "ability": "Rough Skin",
         "nature": "Jolly",
         "evs": {
-          "hp": 4,
-          "atk": 252,
+          "hp": 2,
+          "atk": 32,
           "def": 0,
           "spa": 0,
           "spd": 0,
-          "spe": 252
+          "spe": 32
         },
         "moves": [
           "Earthquake",

@@ -388,7 +388,24 @@ class Pokemon {
     //   - HP = Base + SP + 75 ; Other = floor((Base + SP + 20) * Alignment)
     // Source: https://bulbapedia.bulbagarden.net/wiki/Stat_point
     // Format resolution order: explicit teamFormat > auto-detect from spread shape > 'sv'.
-    this.statFormat = teamFormat || data.format || this._detectStatFormat(this.evs);
+    //
+    // T9j.13 (Refs #42) — Format-mismatch guard.
+    // If the team is declared 'champions' but the spread is SV-scale (total > 66
+    // OR any stat > 32), fall back to SV-scale to prevent god-tier stats from the
+    // Champions HP formula (Base + SP + 75) being applied to a 252 SP value.
+    // This was the root cause of Cofagrigus / Aurora Veil teams hitting 100% WR
+    // in the 5070-battle audit (#42). Non-breaking for legitimate Champions
+    // teams because they already satisfy the cap; only misdeclared teams shift.
+    //   Cite: https://bulbapedia.bulbagarden.net/wiki/Stat_point
+    //   Cite: https://game8.co/games/Pokemon-Champions/archives/538683
+    var _declaredFmt = teamFormat || data.format || null;
+    if (_declaredFmt === 'champions' && !Pokemon._spreadFitsChampions(this.evs)) {
+      this.statFormat = 'sv';
+      this.formatMismatch = true;
+    } else {
+      this.statFormat = _declaredFmt || this._detectStatFormat(this.evs);
+      this.formatMismatch = false;
+    }
 
     // T9j.7 — Mega form resolution.
     // If this is a -Mega name and we have a CHAMPIONS_MEGAS entry AND the
@@ -479,6 +496,18 @@ class Pokemon {
     if (total === 0) return 'sv'; // empty spread → SV default
     if (max <= 32 && total <= 66) return 'champions';
     return 'sv';
+  }
+
+  // T9j.13 (Refs #42) — static shape check. Returns true iff the spread
+  // satisfies the Champions SP caps (per-stat ≤32, total ≤66).
+  //   Cite: https://bulbapedia.bulbagarden.net/wiki/Stat_point
+  //   Cite: https://pokeos.com/p/champions/stats
+  static _spreadFitsChampions(evs) {
+    const vals = Object.values(evs || {});
+    if (vals.length === 0) return true; // empty spread is trivially valid
+    const total = vals.reduce((a, b) => a + b, 0);
+    const max = Math.max(...vals);
+    return max <= 32 && total <= 66;
   }
 
   // Issue #4 FIX: _stat() is HP-only. Removed broken nature logic that

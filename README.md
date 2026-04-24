@@ -88,13 +88,14 @@ node tests/t9j9_tests.js       # 24/24 — MOVE_CATEGORY / MOVE_BP
 node tests/t9j10_tests.js      # 16/16 — bring N-of-6 picker state
 node tests/t9j11_tests.js      # 16/16 — custom teams bulk I/O + filter chips
 node tests/t9j12_tests.js      # 11/11 — simulator bring picker
+node tests/t9j13_tests.js      # 47/47 — format-mismatch guard + SP rescale
 node tests/audit.js            # 5070 battles, 0 errors
 
 # Nightly (not in fast loop)
 N=500 node tests/nightly_bring_harness.js   # end-to-end bring picker wiring check
 ```
 
-Green baseline: **191/191** unit tests + 5070-battle audit with 0 JS errors.
+Green baseline: **238/238** unit tests + 5070-battle audit with 0 JS errors.
 
 ---
 
