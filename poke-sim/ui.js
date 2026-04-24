@@ -197,6 +197,71 @@ document.getElementById('opponent-select').addEventListener('change', function()
 });
 
 // ============================================================
+// Issue #T6: Ladder Mode gate
+// Ladder Mode ON (default): only teams whose format==='champions'
+// AND legality_status==='legal' appear in opponent-select; Run All
+// iterates only those teams. OFF: all teams visible.
+// Reads T5 schema fields: team.format, team.legality_status.
+// ============================================================
+var LADDER_MODE = true;
+
+function isLadderLegal(teamKey) {
+  var t = (typeof TEAMS !== 'undefined') && TEAMS[teamKey];
+  if (!t) return false;
+  return t.format === 'champions' && t.legality_status === 'legal';
+}
+
+function applyLadderGate() {
+  var sel = document.getElementById('opponent-select');
+  if (!sel) return;
+  var anyVisible = false;
+  var firstVisibleValue = null;
+  for (var i = 0; i < sel.options.length; i++) {
+    var opt = sel.options[i];
+    var key = opt.value;
+    var team = (typeof TEAMS !== 'undefined') && TEAMS[key];
+    var legal = isLadderLegal(key);
+    // Reset any prior mutation
+    opt.hidden = false;
+    opt.disabled = false;
+    opt.textContent = opt.textContent.replace(/\s*[\u2705\u26A0\u274C].*$/,'').trim();
+    // Annotate with status glyph for clarity even when shown
+    if (team) {
+      var glyph = legal ? '\u2705' : (team.legality_status === 'illegal' ? '\u274C' : '\u26A0');
+      opt.textContent = opt.textContent + '  ' + glyph + ' ' +
+        (legal ? 'Legal' : (team.legality_status === 'illegal' ? 'Illegal' : (team.format || '?').toUpperCase()));
+    }
+    if (LADDER_MODE && team && !legal) {
+      opt.hidden = true;
+      opt.disabled = true;
+    } else {
+      anyVisible = true;
+      if (firstVisibleValue === null) firstVisibleValue = key;
+    }
+  }
+  // If current selection was just hidden, switch to first visible
+  if (LADDER_MODE && sel.selectedOptions[0] && sel.selectedOptions[0].hidden && firstVisibleValue) {
+    sel.value = firstVisibleValue;
+    sel.dispatchEvent(new Event('change'));
+  }
+  // If zero visible (pathological), force Ladder Mode off
+  if (!anyVisible && LADDER_MODE) {
+    LADDER_MODE = false;
+    var cb = document.getElementById('ladder-mode-toggle');
+    if (cb) cb.checked = false;
+    applyLadderGate();
+  }
+}
+
+document.getElementById('ladder-mode-toggle')?.addEventListener('change', function() {
+  LADDER_MODE = !!this.checked;
+  applyLadderGate();
+});
+
+// Initial gate on load
+applyLadderGate();
+
+// ============================================================
 // TEAMS TAB
 // ============================================================
 function renderTeamsGrid() {
@@ -215,6 +280,13 @@ function renderTeamsGrid() {
         </div>
         <div class="tfcard-badges">
           <span class="badge ${isPlayer?'badge-blue':'badge-red'}">${team.label||key}</span>
+          ${(function(){ /* Issue #T6: legality badge */
+            var st = team.legality_status; var fmt = team.format;
+            if (st === 'legal' && fmt === 'champions') return '<span class="badge-legal">\u2705 LEGAL</span>';
+            if (st === 'illegal') return '<span class="badge-illegal">\u274C ILLEGAL</span>';
+            if (fmt === 'sv') return '<span class="badge-warn">\u26A0 SV FORMAT</span>';
+            return '<span class="badge-warn">\u26A0 UNVERIFIED</span>';
+          })()}
           <button class="export-card-btn" data-team="${key}">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Export
@@ -782,8 +854,15 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
 }
 
 // runAllMatchupsUI — UI wrapper; distinct from engine.js runAllMatchups
+// Issue #T6: when LADDER_MODE is ON, iterate only ladder-legal opponents.
 async function runAllMatchupsUI(numSeries, bo, onProgress, onDone) {
-  const opps = Object.keys(TEAMS).filter(k=>k!=='player');
+  const opps = Object.keys(TEAMS).filter(k => {
+    if (k === 'player') return false;
+    if (typeof LADDER_MODE !== 'undefined' && LADDER_MODE && typeof isLadderLegal === 'function') {
+      return isLadderLegal(k);
+    }
+    return true;
+  });
   let done=0;
   for (const opp of opps) {
     const res = await runBoSeries(numSeries,'player',opp,bo,(cur,tot,w,l)=>{
