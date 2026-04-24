@@ -427,6 +427,20 @@ Last updated: 2026-04
 
 **Booster Energy (Paradox):** `CHAMPIONS-UNKNOWN` — irrelevant; no Paradox Pokémon in current roster.
 
+### 8.4 Engine Implementation Notes (T9j.6)
+
+**Leftovers (#29):** End-of-turn hook in `simulateBattle()` turn loop, after status residuals and weather chip, before `field.tick()`. Heals `floor(maxHp/16)` (min 1), only when `mon.alive && mon.hp < mon.maxHp`. Cited: [Game8 Champions Items](https://game8.co/games/Pokemon-Champions/archives/593868), [Bulbapedia Leftovers](https://bulbapedia.bulbagarden.net/wiki/Leftovers).
+
+**Focus Sash (#8):** Snapshot `wasFullHp = (target.hp === target.maxHp)` **before** HP mutation in `applyDamage()`. After mutation, if `hp === 0 && item === 'Focus Sash' && !itemConsumed && wasFullHp`, set `hp = 1` and `itemConsumed = true`. Activates only from full HP; does not trigger a second time. Cited: [Bulbapedia Focus Sash](https://bulbapedia.bulbagarden.net/wiki/Focus_Sash).
+
+**Choice Scarf lock (#18):** Three-point flow — (a) Pokemon constructor initializes `this.choiceLock = null`; (b) `executeAction()` sets `attacker.choiceLock = move` on first use if `item === 'Choice Scarf' && !choiceLock && move not in {Trick, Switcheroo, Struggle}`; (c) `selectMove()` short-circuits to `{move: choiceLock, target}` when lock is set and move is still legal; (d) `replaceOnField()` clears `choiceLock = null` on switch in. Band/Specs logic removed entirely (absent from Champions). Cited: [Bulbapedia Choice Scarf](https://bulbapedia.bulbagarden.net/wiki/Choice_Scarf), [IGN Champions Changes](https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained).
+
+**Stat-stage reset on switch (#29 cross-effect):** `replaceOnField()` now assigns a fresh `statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 }` object on switch in. Prevents Intimidate/stat drops from leaking across KO+replacement.
+
+**Removed placeholders (#11, #43 WONTFIX):** Choice Band ×1.5 Atk, Choice Specs ×1.5 SpA, Assault Vest ×1.5 SpD (all in `getStat()`), Life Orb ×1.3 damage + 1/10 recoil (in `calcDamage()` and `applyDamage()`), and Light Clay 5→8 turn extension were not present or have been stripped. All five items are `CHAMPIONS-CONFIRMED absent`. Cited: [Game8](https://game8.co/games/Pokemon-Champions/archives/593868), [IGN](https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained), [games.gg](https://games.gg/news/pokemon-champions-items-list-meta/).
+
+**Validation:** `/tmp/items_tests.js` — 14/14 PASS. Regression: status 27/27, mega 27/27, coverage 9/9, audit 5070 battles with 0 JS errors.
+
 ---
 
 ## 9. DAMAGE FORMULA

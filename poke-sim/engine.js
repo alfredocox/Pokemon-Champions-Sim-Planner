@@ -267,6 +267,9 @@ class Pokemon {
     this.toxicCounter = 0;
     this.frozenTurns  = 0;
     this.sleepTurns   = 0;
+    // T9j.6 (#18) — Choice Scarf move lock. Set to move name after first use,
+    // cleared on switch in. Champions only has Choice Scarf (Band/Specs absent).
+    this.choiceLock   = null;
     this.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
     this.alive = true;
     this.hasActed = false;
@@ -391,12 +394,14 @@ class Pokemon {
     // Intimidate already applied to statBoosts.atk
     // Eviolite for Dusclops
     if ((stat === 'def' || stat === 'spd') && this.item === 'Eviolite') val *= 1.5;
-    // Issue #9 FIX: Choice item stat multipliers
+    // T9j.6 (#18) — Choice Scarf +50% Spe (confirmed in Champions). Band/Specs
+    // absent from Champions launch (IGN Changes, games.gg); kept here as no-op
+    // safe: if user imports a legacy set with Band/Specs, they simply have no
+    // effect (matches in-game reality until items are added).
     if (stat === 'spe' && this.item === 'Choice Scarf') val *= 1.5;
-    if (stat === 'atk' && this.item === 'Choice Band')  val *= 1.5;
-    if (stat === 'spa' && this.item === 'Choice Specs')  val *= 1.5;
-    // Issue #11: Assault Vest — 1.5x Sp. Def
-    if (stat === 'spd' && this.item === 'Assault Vest') val *= 1.5;
+    // (Choice Band / Choice Specs multipliers removed — #11 WONTFIX pattern.)
+    // T9j.6 (#11 WONTFIX) — Assault Vest absent from Champions launch item pool
+    // (Game8 Champions item list; IGN Champions Changes). No effect applied.
     // Trick Room inverts speed (handled in turn order)
     return Math.floor(val);
   }
@@ -546,8 +551,9 @@ class Pokemon {
     // Helping Hand boost
     const hhMod = (this.helpingHand) ? 1.5 : 1;
 
-    // Life Orb
-    const loMod = (this.item === 'Life Orb') ? 1.3 : 1;
+    // T9j.6 (#11 WONTFIX) — Life Orb absent from Champions launch (games.gg,
+    // IGN Champions Changes, Game8 item list). No multiplier.
+    const loMod = 1;
 
     // Choice Specs/Band handled in getStat
     // Burn handled in getStat
@@ -820,6 +826,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   // Scores moves by expected damage or utility value.
   // ============================================================
   function selectMove(attacker, allies, enemies, field) {
+    // T9j.6 (#18) — Choice Scarf lock enforcement. If holder already used a move
+    // and still has it legal, must use same move. Cite: Bulbapedia Choice Scarf.
+    if (attacker.item === 'Choice Scarf' && attacker.choiceLock &&
+        attacker.moves.includes(attacker.choiceLock)) {
+      const liveEnemies = enemies.filter(e => e.alive);
+      const target = liveEnemies[0] || allies.find(a => a !== attacker && a.alive) || null;
+      return { move: attacker.choiceLock, target };
+    }
     const STATUS_MOVES = new Set(['Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder',
       'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail',
       // T9j.3 Screens setters
@@ -897,6 +911,13 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   function executeAction(attacker, move, target, allies, enemies, field, log, rng) {
     if (!attacker.alive) return;
     if (!move) return;
+
+    // T9j.6 (#18) — Choice Scarf lock SET on first move used. Exempt utility
+    // moves that break/transfer the lock per Bulbapedia (Trick, Switcheroo).
+    if (attacker.item === 'Choice Scarf' && !attacker.choiceLock &&
+        move !== 'Trick' && move !== 'Switcheroo' && move !== 'Struggle') {
+      attacker.choiceLock = move;
+    }
 
     // T9j.2 (#31) — if side uses ANY non-Wide-Guard move this turn, reset chain.
     if (move !== 'Wide Guard') {
@@ -1263,8 +1284,19 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       else log.push(`${attacker.name} used ${move}! (Substitute absorbed ${finalDmg} dmg)`);
       return;
     }
+    // T9j.6 (#8) — Focus Sash: snapshot full-HP state BEFORE damage mutation.
+    // Cite: Bulbapedia Focus Sash.
+    const wasFullHp = (target.hp === target.maxHp);
     target.hp = Math.max(0, target.hp - finalDmg);
+    // T9j.6 (#8) — Focus Sash survives a KO from full HP; consumed.
+    let sashSaved = false;
+    if (target.hp === 0 && target.item === 'Focus Sash' && !target.itemConsumed && wasFullHp) {
+      target.hp = 1;
+      target.itemConsumed = true;
+      sashSaved = true;
+    }
     log.push(`${attacker.name} used ${move}! → ${target.name} [${finalDmg} dmg, ${target.hp}/${target.maxHp} HP]`);
+    if (sashSaved) log.push(`${target.name} hung on with its Focus Sash!`);
     // T9j.4 (#41) — Fire-move thaw on hit. Any damaging Fire move thaws target.
     // Cite: Bulbapedia Freeze.
     if (target.status === 'frozen' && finalDmg > 0 && target.hp > 0 &&
@@ -1279,12 +1311,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       attacker.hp = Math.max(0, attacker.hp - recoil);
       log.push(`${attacker.name} was hurt by recoil! [${recoil} dmg]`);
     }
-    // Life Orb recoil
-    if (attacker.item === 'Life Orb') {
-      const loRecoil = Math.floor(attacker.maxHp * 0.1);
-      attacker.hp = Math.max(0, attacker.hp - loRecoil);
-      if (attacker.hp <= 0) attacker.alive = false;
-    }
+    // T9j.6 (#11 WONTFIX) — Life Orb recoil removed; item absent from Champions.
     // Berry check after damage
     const berryMsg = target.applyItem('damage', field);
     if (berryMsg) log.push(berryMsg);
@@ -1459,6 +1486,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     }
     // Note: Snow intentionally has no chip damage (Champions Gen-IX). Hail is absent.
 
+    // T9j.6 (#29) — Leftovers: heal 1/16 maxHp end of turn. Only while below max HP.
+    // Cite: Game8 Champions item list; Bulbapedia Leftovers.
+    for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.item === 'Leftovers' && m.hp < m.maxHp)) {
+      const heal = Math.max(1, Math.floor(mon.maxHp / 16));
+      mon.hp = Math.min(mon.maxHp, mon.hp + heal);
+      log.push(`${mon.name} restored HP with Leftovers! [+${heal}]`);
+    }
+
     // Field upkeep
     field.tick(log);
 
@@ -1481,6 +1516,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           replacement.toxicCounter = 0;
           replacement.frozenTurns  = 0;
           replacement.sleepTurns   = 0;
+          // T9j.6 (#29) — stat stages must not leak across switches. Entry at all-zero.
+          replacement.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
+          // T9j.6 (#18) — Choice Scarf lock clears on switch in.
+          replacement.choiceLock = null;
           activeArr[idx] = replacement;
           log.push(`${replacement.name} was sent out!`);
           applyEntryAbility(replacement, side, field, log);
