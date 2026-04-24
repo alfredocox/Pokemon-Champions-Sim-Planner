@@ -5,6 +5,36 @@
 // ============================================================
 
 // ============================================================
+// SEEDED PRNG — Issue #2 FIX
+// Mulberry32: fast, deterministic, browser-safe.
+// All battle randomness goes through rng() — never Math.random().
+// Seed is a 4-number array [a,b,c,d] passed via opts.seed to
+// simulateBattle(). runSimulation() auto-generates seeds per battle
+// so each battle is independently reproducible.
+// ============================================================
+function makePRNG(seed) {
+  // seed: [a, b, c, d] — four 32-bit integers
+  let [a, b, c, d] = seed.map(n => n >>> 0);
+  return function rng() {
+    let t = b << 9;
+    let r = a * 5; r = (r << 7 | r >>> 25) * 9;
+    c ^= a; d ^= b; b ^= c; a ^= d; c ^= t;
+    d = d << 11 | d >>> 21;
+    return (r >>> 0) / 4294967296;
+  };
+}
+
+// Generate a random seed array (for external callers who don't supply one)
+function makeSeed() {
+  return [
+    Math.floor(Math.random() * 0xFFFFFFFF),
+    Math.floor(Math.random() * 0xFFFFFFFF),
+    Math.floor(Math.random() * 0xFFFFFFFF),
+    Math.floor(Math.random() * 0xFFFFFFFF),
+  ];
+}
+
+// ============================================================
 // TEAM LEGALITY VALIDATOR — Issue #5
 // Called before every simulateBattle() invocation.
 // Blocks on errors, warns on warnings.
@@ -122,7 +152,7 @@ class Pokemon {
     let val = boost >= 0 ? base * boostTable[boost] : base / boostTable[-boost];
     // Burn halves attack
     if (stat === 'atk' && this.status === 'burn') val *= 0.5;
-    // Paralysis halves speed
+    // Paralysis halves speed (Gen 9 — no action skip, speed only)
     if (stat === 'spe' && this.status === 'paralysis') val *= 0.5;
     // Sand Rush doubles speed in sand
     if (stat === 'spe' && this.ability === 'Sand Rush' && field.weather === 'sand') val *= 2;
@@ -147,7 +177,8 @@ class Pokemon {
     return spe;
   }
 
-  calcDamage(move, target, field, partner) {
+  // Issue #2 FIX: calcDamage now receives rng from simulateBattle scope
+  calcDamage(move, target, field, partner, rng) {
     const moveType = MOVE_TYPES[move] || 'Normal';
     const isPhysical = ['Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel','Fire','Water','Grass','Ice','Electric','Dragon','Dark','Fairy'].includes(moveType)
       && ['Fake Out','Flare Blitz','Head Smash','Power Gem','Earthquake','Dragon Claw','Rock Slide',
@@ -170,11 +201,11 @@ class Pokemon {
       'Rain Dance':0,'Thunder Wave':0,'Foul Play':95,'Flash Cannon':80,'Dragon Pulse':85,
       'Electro Shot':130,'Weather Ball':50,'U-turn':70,'Helping Hand':0,'Shed Tail':0,
       'Iron Head':80,'Scorching Sands':70,'Dark Pulse':80,'Psychic Noise':75,'Draco Meteor':130,
-      'Close Combat':120,'Dire Claw':60,'Rock Slide':75,'Ice Punch':75,'High Horsepower':95,
+      'Close Combat':120,'Dire Claw':60,'Ice Punch':75,'High Horsepower':95,
       'Dragon Darts':50,'Phantom Force':90,'Solar Beam':120,'Dazzling Gleam':80,'Air Slash':75,
       'Energy Ball':90,'Sludge Bomb':90,'Sleep Powder':0,'Earth Power':90,'Throat Chop':80,
       'Ally Switch':0,'Lunar Dance':0,'Psychic':90,'Shadow Sneak':40,'Psyshock':80,
-      'Mystical Fire':75,'Moon Blast':95,
+      'Mystical Fire':75,
     };
 
     let bp = BP_MAP[move] || 60;
@@ -232,8 +263,8 @@ class Pokemon {
     // Base damage formula
     const baseDmg = Math.floor((Math.floor((2 * 50 / 5 + 2) * bp * atk / def) / 50) + 2);
 
-    // Random roll [0.85, 1.0]
-    const roll = 0.85 + Math.random() * 0.15;
+    // Issue #2 FIX: use seeded rng() instead of Math.random()
+    const roll = 0.85 + rng() * 0.15;
 
     const total = Math.floor(baseDmg * stab * eff * spreadMult * multiscale * lifeOrbMult * roll);
     return Math.max(1, total);
@@ -300,7 +331,8 @@ class Pokemon {
     return true;
   }
 
-  endOfTurn(field) {
+  // Issue #2 FIX: endOfTurn now receives rng from simulateBattle scope
+  endOfTurn(field, rng) {
     const msgs = [];
     if (!this.alive) return msgs;
     if (this.status === 'burn') {
@@ -317,7 +349,8 @@ class Pokemon {
     }
     if (this.status === 'sleep') {
       this.statusTurns++;
-      if (this.statusTurns >= 2 + Math.floor(Math.random()*2)) { this.status = null; msgs.push(`${this.name} woke up`); }
+      // Issue #2 FIX: use seeded rng() instead of Math.random()
+      if (this.statusTurns >= 2 + Math.floor(rng() * 2)) { this.status = null; msgs.push(`${this.name} woke up`); }
     }
     // Leftovers
     if (this.item === 'Leftovers' && !this.itemConsumed) {
@@ -419,6 +452,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     };
   }
 
+  // Issue #2 FIX: initialise seeded PRNG for this battle.
+  // Caller may supply opts.seed = [a,b,c,d]; otherwise auto-generate.
+  const seed = opts.seed || makeSeed();
+  const rng = makePRNG(seed);
+
   const field = new Field();
   const log = [];
 
@@ -515,31 +553,32 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       }
     }
 
+    // Issue #2 FIX: all AI probability rolls use seeded rng()
     // Protect
-    if (mon.moves.includes('Protect') && mon.hp < mon.maxHp * 0.4 && Math.random() < 0.35) {
+    if (mon.moves.includes('Protect') && mon.hp < mon.maxHp * 0.4 && rng() < 0.35) {
       return { move: 'Protect', target: mon, priority: 4 };
     }
 
     // Trick Room (opponent AI)
-    if (!isPlayer && mon.moves.includes('Trick Room') && !field.trickRoom && alive_allies.length > 0 && Math.random() < 0.85) {
+    if (!isPlayer && mon.moves.includes('Trick Room') && !field.trickRoom && alive_allies.length > 0 && rng() < 0.85) {
       return { move: 'Trick Room', target: null, priority: -7 };
     }
 
     // Tailwind / weather setup
-    if (mon.moves.includes('Tailwind') && !field.tailwind[isPlayer?'player':'opponent'] && Math.random() < 0.7) {
+    if (mon.moves.includes('Tailwind') && !field.tailwind[isPlayer?'player':'opponent'] && rng() < 0.7) {
       return { move: 'Tailwind', target: null, priority: 0 };
     }
     if (mon.moves.includes('Sunny Day') && field.weather !== 'sun' && !['Drizzle','Sand Stream'].includes(alive_allies[0]?.ability)) {
-      if (Math.random() < 0.6) return { move: 'Sunny Day', target: null, priority: 0 };
+      if (rng() < 0.6) return { move: 'Sunny Day', target: null, priority: 0 };
     }
-    if (mon.moves.includes('Rain Dance') && field.weather !== 'rain' && Math.random() < 0.6) {
+    if (mon.moves.includes('Rain Dance') && field.weather !== 'rain' && rng() < 0.6) {
       return { move: 'Rain Dance', target: null, priority: 0 };
     }
 
     // Rage Powder
     if (mon.moves.includes('Rage Powder') && alive_allies.length > 0) {
       const needsProtection = alive_allies.find(a => a.hp < a.maxHp * 0.6);
-      if (needsProtection && Math.random() < 0.6) {
+      if (needsProtection && rng() < 0.6) {
         return { move: 'Rage Powder', target: mon, priority: 0 };
       }
     }
@@ -558,7 +597,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
            'Helping Hand','Ally Switch','Lunar Dance','Fake Out','Thunder Wave','Sleep Powder',
            'Will-O-Wisp'].includes(move)) continue;
       for (const t of alive_opps) {
-        const dmg = mon.calcDamage(move, t, field, null);
+        // Issue #2 FIX: pass rng to calcDamage for move-selection look-ahead
+        const dmg = mon.calcDamage(move, t, field, null, rng);
         if (dmg > bestDmg) { bestDmg = dmg; bestMove = move; bestTarget = t; }
       }
     }
@@ -576,11 +616,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (!mon || !mon.alive || !decision) return;
     const { move, target } = decision;
 
-    // Paralysis skip (25% chance)
-    if (mon.status === 'paralysis' && Math.random() < 0.25) {
-      logLines.push(`  ${mon.name} is fully paralyzed!`);
-      return;
-    }
+    // Issue #17 FIX: Gen 9 paralysis does NOT skip turns — speed halving only.
+    // The 25% skip block has been removed entirely.
     // Sleep skip
     if (mon.status === 'sleep') {
       logLines.push(`  ${mon.name} is fast asleep.`);
@@ -633,7 +670,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return;
     }
     if (move === 'Sleep Powder') {
-      if (target && target.alive && Math.random() < 0.75) {
+      // Issue #2 FIX: use seeded rng()
+      if (target && target.alive && rng() < 0.75) {
         if (target.applyStatus('sleep')) logLines.push(`  ${target.name} fell asleep!`);
       }
       return;
@@ -690,7 +728,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (move === 'Fake Out') {
       if (target && target.alive) {
         target._flinched = true;
-        const dmg = mon.calcDamage(move, target, field, null);
+        // Issue #2 FIX: pass rng to calcDamage
+        const dmg = mon.calcDamage(move, target, field, null, rng);
         target.applyDamage(dmg, mon);
         logLines.push(`  ${mon.name} used Fake Out → ${target.name} flinched! (${dmg} dmg)`);
         if (!target.alive) logLines.push(`  <span class="log-ko">${target.name} fainted!</span>`);
@@ -740,7 +779,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
     for (const t of hitTargets) {
       if (!t.alive) continue;
-      let dmg = mon.calcDamage(move, t, field, null);
+      // Issue #2 FIX: pass rng to calcDamage
+      let dmg = mon.calcDamage(move, t, field, null, rng);
 
       // Screen halving
       const oppSide = side === 'player' ? 'opponent' : 'player';
@@ -853,7 +893,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
     const allActive = [...active.player.filter(Boolean), ...active.opponent.filter(Boolean)].filter(m => m.alive);
     for (const m of allActive) {
-      const eotMsgs = m.endOfTurn(field);
+      // Issue #2 FIX: pass rng to endOfTurn
+      const eotMsgs = m.endOfTurn(field, rng);
       for (const msg of eotMsgs) turnLog.push(`  ${msg}`);
     }
     field.endOfTurn();
@@ -888,6 +929,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
   return {
     result: battleResult,
+    seed,                  // Issue #2: seed returned for reproducibility auditing
     turns: field.turn,
     trTurns: trickRoomTurnsActive,
     winCondition,
@@ -906,6 +948,7 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
 
   const results = { wins:0, losses:0, draws:0, errors:0, totalTurns:0, totalTrTurns:0,
     winConditions:{}, allLogs:[], koLogs:[], turnDist:{},
+    seeds: [],          // Issue #2: store seeds for reproducibility
     // Issue #6: metadata fields for trustworthy win-rate display
     sampleSize: numBattles,
     policy: 'greedy-vs-greedy',
@@ -918,7 +961,9 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
   for (let i = 0; i < numBattles; i += BATCH) {
     const batchSize = Math.min(BATCH, numBattles - i);
     for (let j = 0; j < batchSize; j++) {
-      const battle = simulateBattle(playerTeamDef, oppTeamDef);
+      // Issue #2 FIX: generate a unique seed per battle and pass it in
+      const seed = makeSeed();
+      const battle = simulateBattle(playerTeamDef, oppTeamDef, { seed });
       if (battle.result === 'error') {
         results.errors++;
         if (results.allLogs.length < 5) results.allLogs.push({ ...battle, oppTeam: oppTeamKey });
@@ -935,6 +980,8 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
       if (results.allLogs.length < 30 || (isClutch && results.allLogs.length < 60)) {
         results.allLogs.push({ ...battle, oppTeam: oppTeamKey });
       }
+      // Issue #2: store seeds for first 100 battles so any battle can be replayed
+      if (results.seeds.length < 100) results.seeds.push(battle.seed);
     }
     if (onProgress) onProgress(i + batchSize, numBattles);
     await new Promise(r => setTimeout(r, 0));
