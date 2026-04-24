@@ -2018,6 +2018,19 @@ function generatePilotGuide(oppKey, results) {
   const teamName = oppTeam ? oppTeam.name : oppKey;
   const circleClass = winPct >= 55 ? 's-win' : winPct <= 45 ? 's-loss' : 's-even';
 
+  // T9j.15 (Refs #71) — Mega trigger card (only injected when player team holds a Mega).
+  // Sweep is computed lazily and cached; safe no-op for non-Mega teams.
+  let megaTriggerHtml = '';
+  try {
+    const playerKey = (typeof currentPlayerKey !== 'undefined') ? currentPlayerKey : 'player';
+    const format = (typeof currentFormat !== 'undefined') ? currentFormat : 'doubles';
+    const bo = (typeof currentBo !== 'undefined') ? currentBo : 1;
+    const sweep = computeMegaTriggerSweep(playerKey, oppKey, bo, format);
+    megaTriggerHtml = renderMegaTriggerCards(sweep);
+  } catch (e) {
+    console.warn('[T9j.15] Mega card render skipped:', e && e.message);
+  }
+
   const card = document.createElement('div');
   card.className = 'pilot-card';
   card.innerHTML = `
@@ -2043,9 +2056,185 @@ function generatePilotGuide(oppKey, results) {
           ${risks.map(r => `<div class="pilot-risk">⚠ Watch out for: <strong>${r}</strong></div>`).join('')}` : ''}
         <div class="pilot-section-label" style="margin-top:8px">TIPS</div>
         <div class="pilot-tips">${tips.map(t => `<div class="pilot-tip">• ${t}</div>`).join('')}</div>
+        ${megaTriggerHtml}
       </div>
     </div>`;
   el.appendChild(card);
+}
+
+// ============================================================
+// T9j.15 (Refs #71) — Best Mega Trigger Turn card
+// ============================================================
+// Consumes runMegaTriggerSweep() from engine.js (T9j.7, shipped #23).
+// Sweep output shape is { results: [ { megaSlot, curve, refinedTop3, bestTurn } ] }
+// where each curve entry is { turn: <int|'never'>, wr, n, ci95 } — refinedTop3
+// uses the same shape at higher sample counts.
+//
+// Design invariants:
+//   - Only render for matchups where the player team has at least one Mega
+//     holder (item === megaStone in CHAMPIONS_MEGAS). Non-Mega teams get no card.
+//   - Severity bands: green >=3% delta vs turn 1, amber 1-3%, gray <1%.
+//   - Cache keyed on (playerKey, oppKey, bo, format) with TTL; in-memory only.
+//   - Card doubles as PDF matchup-guide "Mega Trigger" column filler.
+
+var MEGA_TRIGGER_CACHE = {};
+var MEGA_TRIGGER_TTL_MS = 30 * 60 * 1000; // 30 min — sweeps are deterministic per seed but expensive
+
+function teamHasMega(team) {
+  if (!team || !team.members) return false;
+  if (typeof CHAMPIONS_MEGAS === 'undefined') return false;
+  return team.members.some(function(m){
+    var info = CHAMPIONS_MEGAS[m.name] || null;
+    return info && info.megaStone && m.item === info.megaStone;
+  });
+}
+
+function megaTriggerCacheKey(playerKey, oppKey, bo, format) {
+  return [playerKey, oppKey, bo || 1, format || 'doubles'].join('|');
+}
+
+function getCachedMegaSweep(playerKey, oppKey, bo, format) {
+  var k = megaTriggerCacheKey(playerKey, oppKey, bo, format);
+  var hit = MEGA_TRIGGER_CACHE[k];
+  if (!hit) return null;
+  if (Date.now() - hit.t > MEGA_TRIGGER_TTL_MS) { delete MEGA_TRIGGER_CACHE[k]; return null; }
+  return hit.sweep;
+}
+
+function setCachedMegaSweep(playerKey, oppKey, bo, format, sweep) {
+  var k = megaTriggerCacheKey(playerKey, oppKey, bo, format);
+  MEGA_TRIGGER_CACHE[k] = { t: Date.now(), sweep: sweep };
+}
+
+// Pick the best refined entry from a sweep result for a single Mega slot.
+// Returns null if the result is empty or malformed.
+function pickBestMegaRefined(slotResult) {
+  if (!slotResult || !Array.isArray(slotResult.refinedTop3) || slotResult.refinedTop3.length === 0) return null;
+  var sorted = slotResult.refinedTop3.slice().sort(function(a, b){ return b.wr - a.wr; });
+  return sorted[0];
+}
+
+// Locate the turn-1 reference WR from the coarse curve. Falls back to the
+// worst refined entry if turn 1 is missing (shouldn't happen in normal sweeps).
+function findTurn1Baseline(slotResult) {
+  if (!slotResult || !Array.isArray(slotResult.curve)) return null;
+  var t1 = slotResult.curve.filter(function(c){ return c.turn === 1; })[0];
+  if (t1) return t1;
+  // fallback — lowest-WR refined
+  if (Array.isArray(slotResult.refinedTop3) && slotResult.refinedTop3.length) {
+    return slotResult.refinedTop3.slice().sort(function(a, b){ return a.wr - b.wr; })[0];
+  }
+  return null;
+}
+
+// Classify the delta between best turn and turn-1 baseline into a severity band.
+// Returns { band: 'green'|'amber'|'gray', label: string }.
+function megaTriggerSeverity(deltaWr) {
+  var pct = deltaWr * 100;
+  if (pct >= 3)  return { band: 'green', label: 'strong lift' };
+  if (pct >= 1)  return { band: 'amber', label: 'moderate lift' };
+  return { band: 'gray', label: 'marginal' };
+}
+
+// Render a single Mega slot's card HTML. Returns '' if the slot has no
+// useful data (card is skipped upstream).
+function renderMegaTriggerCard(slotResult) {
+  var best = pickBestMegaRefined(slotResult);
+  var base = findTurn1Baseline(slotResult);
+  if (!best || !base) return '';
+
+  var deltaWr = best.wr - base.wr;
+  var sev = megaTriggerSeverity(deltaWr);
+  var bestLabel = (best.turn === 'never') ? 'Hold Mega (never trigger)' : ('Trigger Mega on Turn ' + best.turn);
+  var bestPct = Math.round(best.wr * 100);
+  var deltaPct = (deltaWr * 100);
+  var deltaSigned = (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%';
+
+  // Build full-sweep detail rows (sorted by turn then 'never' last).
+  var curveSorted = (slotResult.curve || []).slice().sort(function(a, b){
+    if (a.turn === 'never') return 1;
+    if (b.turn === 'never') return -1;
+    return a.turn - b.turn;
+  });
+  var detailRows = curveSorted.map(function(c){
+    var wrPct = Math.round(c.wr * 100);
+    var ci = Math.round(c.ci95 * 1000) / 10; // 1 decimal
+    var barW = Math.max(4, Math.min(100, wrPct));
+    return '<tr>' +
+      '<td class="mt-turn">' + (c.turn === 'never' ? 'never' : ('T' + c.turn)) + '</td>' +
+      '<td class="mt-wr">' + wrPct + '%</td>' +
+      '<td class="mt-ci">&plusmn;' + ci + '%</td>' +
+      '<td class="mt-bar-cell"><div class="mt-bar-wrap"><div class="mt-bar" style="width:' + barW + '%"></div></div></td>' +
+    '</tr>';
+  }).join('');
+
+  return '<div class="mega-trigger-card mega-trigger-' + sev.band + '" data-mega-slot="' + _escapeHtml(slotResult.megaSlot) + '">' +
+    '<div class="mega-trigger-head">' +
+      '<span class="mega-trigger-badge mega-trigger-badge-' + sev.band + '">MEGA</span>' +
+      '<strong class="mega-trigger-slot">' + _escapeHtml(slotResult.megaSlot) + '</strong>' +
+      '<span class="mega-trigger-verdict">' + bestLabel + '</span>' +
+    '</div>' +
+    '<div class="mega-trigger-body">' +
+      '<span class="mega-trigger-metric"><em>WR</em> ' + bestPct + '%</span>' +
+      '<span class="mega-trigger-metric"><em>vs T1</em> ' + deltaSigned + '</span>' +
+      '<span class="mega-trigger-metric mega-trigger-sev-' + sev.band + '">' + sev.label + '</span>' +
+    '</div>' +
+    '<details class="mega-trigger-details"><summary>Full sweep + 95% CI</summary>' +
+      '<table class="mega-trigger-table"><thead><tr><th>Turn</th><th>WR</th><th>CI&plusmn;</th><th>Distribution</th></tr></thead>' +
+      '<tbody>' + detailRows + '</tbody></table>' +
+    '</details>' +
+  '</div>';
+}
+
+// Render all Mega cards for a matchup (multi-Mega teams get multiple cards).
+// Returns '' if the sweep is empty or the team has no Mega slots.
+function renderMegaTriggerCards(sweep) {
+  if (!sweep || !Array.isArray(sweep.results) || sweep.results.length === 0) return '';
+  var cards = sweep.results.map(renderMegaTriggerCard).filter(function(s){ return s; }).join('');
+  if (!cards) return '';
+  return '<div class="mega-trigger-group">' +
+    '<div class="mega-trigger-group-label">MEGA TIMING</div>' +
+    cards +
+  '</div>';
+}
+
+// Compact single-line summary for the PDF Matchup Guide row. Returns ''
+// if no useful Mega call exists (e.g., no Mega on team or no refined data).
+function buildMegaTriggerPdfSummary(sweep) {
+  if (!sweep || !Array.isArray(sweep.results) || sweep.results.length === 0) return '';
+  var parts = sweep.results.map(function(slot){
+    var best = pickBestMegaRefined(slot);
+    var base = findTurn1Baseline(slot);
+    if (!best || !base) return '';
+    var deltaPct = (best.wr - base.wr) * 100;
+    var turnLabel = (best.turn === 'never') ? 'hold' : ('T' + best.turn);
+    var bestPct = Math.round(best.wr * 100);
+    var deltaSigned = (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%';
+    return slot.megaSlot + ' ' + turnLabel + ' (' + bestPct + '%, ' + deltaSigned + ' vs T1)';
+  }).filter(function(s){ return s; });
+  return parts.join(' | ');
+}
+
+// Compute (or fetch cached) sweep for a matchup. Returns null if the player
+// team has no Mega holder, so callers can cheaply skip rendering.
+function computeMegaTriggerSweep(playerKey, oppKey, bo, format) {
+  if (typeof TEAMS === 'undefined' || !TEAMS[playerKey] || !TEAMS[oppKey]) return null;
+  if (!teamHasMega(TEAMS[playerKey])) return null;
+  if (typeof runMegaTriggerSweep !== 'function') return null;
+
+  var cached = getCachedMegaSweep(playerKey, oppKey, bo, format);
+  if (cached) return cached;
+
+  try {
+    // Use smaller sample counts than engine default so Pilot Guide render
+    // stays within the <30s acceptance budget even on 13-matchup full runs.
+    var sweep = runMegaTriggerSweep(TEAMS[playerKey], TEAMS[oppKey], bo || 1, { coarseN: 30, refineN: 200, maxTurn: 6 });
+    setCachedMegaSweep(playerKey, oppKey, bo, format, sweep);
+    return sweep;
+  } catch (e) {
+    console.warn('[T9j.15] Mega sweep failed:', e && e.message);
+    return null;
+  }
 }
 
 // ============================================================
@@ -2402,6 +2591,14 @@ function generatePDFReport() {
   }
 
   // --- Section 5: Matchup Guide table -----------------------------------
+  // T9j.15 (Refs #71) — appends a "Mega Trigger" column when the player team
+  // holds a Mega. Column is omitted entirely for non-Mega teams to keep the
+  // Shadow Pressure layout tight.
+  var pdfPlayerKey = (typeof currentPlayerKey !== 'undefined') ? currentPlayerKey : 'player';
+  var pdfFormat    = (typeof currentFormat !== 'undefined') ? currentFormat : 'doubles';
+  var pdfBo        = (typeof currentBo !== 'undefined') ? currentBo : 1;
+  var pdfShowMegaCol = (typeof TEAMS !== 'undefined' && TEAMS[pdfPlayerKey] && teamHasMega(TEAMS[pdfPlayerKey]));
+
   var matchupRows = Object.entries(results).map(function(pair){
     var opp = pair[0], res = pair[1];
     var winPct = Math.round((res.winRate || 0) * 100);
@@ -2417,10 +2614,23 @@ function generatePDFReport() {
     var bestLead = Object.entries(leadCounts).sort(function(a,b){return b[1]-a[1];})[0];
     var bestBack = Object.entries(backCounts).sort(function(a,b){return b[1]-a[1];})[0];
     var notes = winPct + '% WR — ' + v.label;
+
+    var megaCell = '';
+    if (pdfShowMegaCol) {
+      var megaSummary = '';
+      try {
+        var sweep = getCachedMegaSweep(pdfPlayerKey, opp, pdfBo, pdfFormat) ||
+                    computeMegaTriggerSweep(pdfPlayerKey, opp, pdfBo, pdfFormat);
+        megaSummary = buildMegaTriggerPdfSummary(sweep);
+      } catch (e) { megaSummary = ''; }
+      megaCell = '<td>' + (megaSummary ? _escapeHtml(megaSummary) : '<em style="color:#888">-</em>') + '</td>';
+    }
+
     return '<tr>' +
       '<td><strong>' + _escapeHtml((TEAMS[opp] && TEAMS[opp].name) || opp) + '</strong></td>' +
       '<td>' + (bestLead ? _escapeHtml(bestLead[0]) : '<em style="color:#888">-</em>') + '</td>' +
       '<td>' + (bestBack ? _escapeHtml(bestBack[0]) : '<em style="color:#888">-</em>') + '</td>' +
+      megaCell +
       '<td><span class="' + v.cls + '">' + notes + '</span></td>' +
     '</tr>';
   }).join('');
@@ -2508,7 +2718,9 @@ function generatePDFReport() {
 
     '<div class="pdf-section">',
       '<div class="pdf-h2">MATCHUP GUIDE</div>',
-      '<table class="pdf-table"><thead><tr><th>Opponent</th><th>Lead</th><th>Backline</th><th>Notes</th></tr></thead><tbody>' + matchupRows + '</tbody></table>',
+      '<table class="pdf-table"><thead><tr><th>Opponent</th><th>Lead</th><th>Backline</th>' +
+        (pdfShowMegaCol ? '<th>Mega Trigger</th>' : '') +
+        '<th>Notes</th></tr></thead><tbody>' + matchupRows + '</tbody></table>',
     '</div>',
 
     '<div class="pdf-section">',

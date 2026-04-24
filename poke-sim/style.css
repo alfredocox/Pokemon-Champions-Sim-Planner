@@ -623,3 +623,150 @@ table{border-collapse:collapse;width:100%}
   box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.25);
 }
 .bring-pool-chip.bring-dragging { opacity: 0.5; }
+
+/* ============================================================
+   T9j.15 (Refs #71) — Best Mega Trigger card
+   ============================================================
+   Pilot Guide inline card + print-safe PDF column summary.
+   Severity bands match the three-tier coaching-notes pattern:
+     green  = delta >= 3% vs turn-1 baseline
+     amber  = 1-3% delta
+     gray   = <1% delta
+*/
+.mega-trigger-group {
+  margin-top: var(--sp4, 16px);
+  padding-top: var(--sp3, 12px);
+  border-top: 1px dashed var(--border);
+}
+.mega-trigger-group-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-m);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.mega-trigger-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-m);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.mega-trigger-green { border-left-color: #16a34a; }
+.mega-trigger-amber { border-left-color: #b45309; }
+.mega-trigger-gray  { border-left-color: #525252; }
+.mega-trigger-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.mega-trigger-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #fff;
+}
+.mega-trigger-badge-green { background: #16a34a; }
+.mega-trigger-badge-amber { background: #b45309; }
+.mega-trigger-badge-gray  { background: #525252; }
+.mega-trigger-slot {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.mega-trigger-verdict {
+  font-size: 11px;
+  color: var(--text-m);
+  margin-left: auto;
+}
+.mega-trigger-body {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text);
+}
+.mega-trigger-metric { font-family: var(--font-mono); }
+.mega-trigger-metric em {
+  color: var(--text-m);
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+  text-transform: uppercase;
+}
+.mega-trigger-sev-green { color: #16a34a; font-weight: 700; }
+.mega-trigger-sev-amber { color: #b45309; font-weight: 700; }
+.mega-trigger-sev-gray  { color: #525252; }
+.mega-trigger-details {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.mega-trigger-details summary {
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-m);
+  letter-spacing: 0.04em;
+}
+.mega-trigger-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.mega-trigger-table th,
+.mega-trigger-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.mega-trigger-table th {
+  color: var(--text-m);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.mega-trigger-table .mt-wr { font-weight: 700; }
+.mega-trigger-table .mt-ci { color: var(--text-m); }
+.mt-bar-wrap {
+  height: 6px;
+  width: 100%;
+  background: rgba(120, 120, 120, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mt-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
+  border-radius: 3px;
+}
+
+/* Print: keep severity color bar, drop shadows/details for compact page */
+@media print {
+  .mega-trigger-card {
+    border: 1px solid #000 !important;
+    border-left: 3px solid #000 !important;
+    background: #fff !important;
+    padding: 6px 8px !important;
+    page-break-inside: avoid;
+  }
+  .mega-trigger-green { border-left-color: #15803d !important; }
+  .mega-trigger-amber { border-left-color: #92400e !important; }
+  .mega-trigger-gray  { border-left-color: #404040 !important; }
+  .mega-trigger-badge-green { background: #15803d !important; }
+  .mega-trigger-badge-amber { background: #92400e !important; }
+  .mega-trigger-badge-gray  { background: #404040 !important; }
+  .mega-trigger-details[open] summary { display: none; }
+  .mega-trigger-details > summary { display: none; }
+  .mega-trigger-table th,
+  .mega-trigger-table td { border-bottom: 1px solid #999 !important; }
+  .mt-bar { background: #000 !important; }
+}

@@ -17,6 +17,7 @@ node tests/t9j11_tests.js      # T9j.11 — custom teams bulk I/O + filter (#73)
 node tests/t9j12_tests.js      # T9j.12 — simulator bring picker (#74) — 11 cases
 node tests/t9j13_tests.js      # T9j.13 — format mismatch guard + SP rescale (#42) — 47 cases
 node tests/t9j14_tests.js      # T9j.14 — Shadow Pressure PDF + coaching notes (#75) — 25 cases
+node tests/t9j15_tests.js      # T9j.15 — Best Mega Trigger Turn card (#71) — 22 cases
 node tests/audit.js            # 5070-battle audit across all 13 teams — 0 JS errors floor
 
 # Nightly (not in fast loop — ~5-25s depending on N)
@@ -38,7 +39,8 @@ N=500 node tests/nightly_bring_harness.js    # end-to-end bring picker wiring ch
 | t9j12 | 11/11 | Simulator bring picker + shared Teams/Sim state |
 | t9j13 | 47/47 | Format-mismatch guard + SP rescale (cofagrigus_tr, aurora_veil_froslass) |
 | t9j14 | 25/25 | Shadow Pressure PDF master sheet + coaching notes + pluggable COACHING_RULES |
-| **Total** | **263/263** | |
+| t9j15 | 22/22 | Best Mega Trigger Turn card — Pilot Guide + PDF column, severity bands, sweep cache |
+| **Total** | **285/285** | |
 | audit | 0 JS errors | 5070 battles across 13 teams |
 
 ## Conventions

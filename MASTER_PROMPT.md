@@ -367,7 +367,7 @@ The nightly harness (`tests/nightly_bring_harness.js`) is an end-to-end wiring c
 
 ## ACTIVE TICKET — (none — ready for next)
 
-T9j.14 shipped and issue #75 is CLOSED. Pick the next ticket from the OPEN ISSUES section.
+T9j.15 shipped and issue #71 is CLOSED. Pick the next ticket from the OPEN ISSUES section.
 
 ---
 
@@ -408,6 +408,19 @@ T9j.14 shipped and issue #75 is CLOSED. Pick the next ticket from the OPEN ISSUE
 - Empirical proof (N=200 TR Counter vs Mega Altaria doubles): different 4-of-6 subset moves win rate 64.5pp (CIs disjoint), lead swap 4pp within noise
 - Added `tests/nightly_bring_harness.js` (N=500 across 5 matchups, FAIL/CEIL/WEAK/PASS verdicts, Wilson CI)
 - Cites: Bulbapedia Team Preview, Bulbapedia Lead Pokemon, MDN HTML Drag and Drop API, VGCGuide team preview, Nugget Bridge team preview article, Wilson CI
+
+### T9j.15 — Best Mega Trigger Turn card (Pilot Guide + PDF column)
+- Closed #71
+- Tests: `t9j15_tests.js` 22/22 (total regression: 285/285)
+- Consumes `runMegaTriggerSweep()` from T9j.7 (engine.js, shipped #23); no engine changes
+- Added helpers in ui.js: `teamHasMega()`, `megaTriggerCacheKey()`, `getCachedMegaSweep()` / `setCachedMegaSweep()`, `pickBestMegaRefined()`, `findTurn1Baseline()`, `megaTriggerSeverity()`, `renderMegaTriggerCard()`, `renderMegaTriggerCards()`, `buildMegaTriggerPdfSummary()`, `computeMegaTriggerSweep()`
+- Pilot Guide card injected only when player team holds a Mega (detected by `CHAMPIONS_MEGAS[name].megaStone === member.item`); non-Mega teams get no card
+- Severity bands: green (≥ +3% delta vs turn 1), amber (+1–3%), gray (<1%); mirrored in CSS (`.mega-trigger-{green,amber,gray}`) with print-safe overrides
+- Expandable detail `<details>` block shows full sweep table with Wilson 95% CI bars (`ci95` from engine)
+- In-memory cache keyed `(playerKey, oppKey, bo, format)` with 30-min TTL; same sweep reused by PDF summary
+- PDF Matchup Guide table appends "Mega Trigger" column when player team holds a Mega (summary format: `Slot T{n} ({wr}%, +{delta}% vs T1)`)
+- Lazy sweep config tuned for <30s acceptance budget: coarseN=30, refineN=200, maxTurn=6 (vs engine defaults coarseN=50, refineN=500, maxTurn=10)
+- Cites: engine.js T9j.7 commit 63963ad, Wilson 95% CI, Bulbapedia CHAMPIONS_MEGAS registry
 
 ### T9j.14 — Shadow Pressure PDF master sheet + coaching notes
 - Closed #75
@@ -530,6 +543,7 @@ When you ask the AI to make changes:
 | April 24, 2026 | **T9j.12 shipped** (`ea5ef0f` + `7184740`) — simulator tab bring pickers, shared state with Teams tab, empirical lead-impact proof, closed #74 |
 | April 24, 2026 | **T9j.13 shipped** — Champions format-mismatch guard + cofagrigus/aurora_veil SP rescale, 238/238 tests, audit clean, closed #42 |
 | April 24, 2026 | **T9j.14 shipped** — Shadow Pressure PDF master sheet + coaching notes + pluggable COACHING_RULES, 263/263 tests, closed #75 |
+| April 24, 2026 | **T9j.15 shipped** — Best Mega Trigger Turn card + PDF column, 285/285 tests, closed #71 |
 | April 24, 2026 | **Nightly bring harness added** — ceiling-aware N=500 regression across 5 matchups, Wilson CI, PASS/WEAK/CEIL/FAIL verdicts |
 | April 24, 2026 | **Master prompt v6** — T9j.8-12 wiring, 191/191 test baseline, nightly harness line, next-ticket selection reset |
 
@@ -538,8 +552,8 @@ When you ask the AI to make changes:
 ## LAST KNOWN GOOD STATE
 
 - **Branch:** `fix/champions-sp-and-legality`
-- **Last pushed commit:** (T9j.14 — Shadow Pressure PDF master sheet + coaching)
-- **Bundle size:** 492,095 bytes (after T9j.14 rebuild)
+- **Last pushed commit:** (T9j.15 — Best Mega Trigger Turn card)
+- **Bundle size:** 506,132 bytes (after T9j.15 rebuild)
 - **Engine:** Non-deterministic confirmed (`Math.random()` damage roll); crits and flinch rolls via RNG
 - **Trick Room:** 5-turn countdown, speed inversion, toggle cancel
 - **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
