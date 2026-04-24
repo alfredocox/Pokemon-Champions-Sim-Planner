@@ -88,6 +88,12 @@ const BASE_STATS = {
   Aegislash:       { hp:60, atk:50, def:150, spa:50, spd:150, spe:60, types:['Steel','Ghost'] },
   Vanilluxe:       { hp:71, atk:95, def:85, spa:110, spd:95, spe:79, types:['Ice'] },
 
+  // T9j.7: base-form stats for Mega base species referenced by loaded teams.
+  // Sources: Bulbapedia, RotomLabs Champions dex.
+  Altaria:         { hp:75, atk:70, def:90, spa:70, spd:105, spe:80, types:['Dragon','Flying'] },
+  Drampa:          { hp:78, atk:60, def:85, spa:135, spd:91, spe:36, types:['Normal','Dragon'] },
+  Houndoom:        { hp:75, atk:90, def:50, spa:110, spd:80, spe:95, types:['Dark','Fire'] },
+
 };
 
 
@@ -4101,8 +4107,78 @@ var CHAMPIONS_UPDATED_ABILITIES = {
                      sources:['https://game8.co/games/Pokemon-Champions/archives/590403'] }
 };
 
+// T9j.7: Base-form ability lookup. Stored team ability is post-Mega (e.g.
+// Altaria-Mega has ability:'Pixilate') but the mon enters battle in base form
+// until the Mega Stone trigger fires, so we need to restore the base ability.
+// Sources: Bulbapedia, RotomLabs, Game8 per-species pages.
+// NOTE: `var` declaration is deliberate (TDZ-safe; referenced during init).
+var CHAMPIONS_BASE_ABILITIES = {
+  // Priority fill: base species used by the 13 loaded tournament teams.
+  'Altaria':     'Natural Cure',
+  'Charizard':   'Blaze',
+  'Dragonite':   'Multiscale',
+  'Drampa':      'Sap Sipper',
+  'Floette (Eternal Flower)': 'Flower Veil',
+  'Froslass':    'Snow Cloak',
+  'Gengar':      'Cursed Body',
+  'Golurk':      'Iron Fist',
+  'Houndoom':    'Flash Fire',
+  'Lopunny':     'Cute Charm',
+  'Meganium':    'Overgrow',
+  'Tyranitar':   'Sand Stream',
+  // Backfill for other CHAMPIONS_MEGAS entries (as referenced by future teams).
+  'Venusaur':    'Overgrow',
+  'Blastoise':   'Torrent',
+  'Beedrill':    'Swarm',
+  'Pidgeot':     'Keen Eye',
+  'Clefable':    'Magic Guard',
+  'Alakazam':    'Magic Guard',
+  'Victreebel':  'Chlorophyll',
+  'Slowbro':     'Oblivious',
+  'Kangaskhan':  'Early Bird',
+  'Starmie':     'Natural Cure',
+  'Pinsir':      'Hyper Cutter',
+  'Gyarados':    'Intimidate',
+  'Aerodactyl':  'Rock Head',
+  'Ampharos':    'Static',
+  'Steelix':     'Rock Head',
+  'Scizor':      'Technician',
+  'Heracross':   'Swarm',
+  'Skarmory':    'Keen Eye',
+  'Gardevoir':   'Trace',
+  'Sableye':     'Keen Eye',
+  'Aggron':      'Rock Head',
+  'Medicham':    'Pure Power',
+  'Manectric':   'Lightning Rod',
+  'Sharpedo':    'Rough Skin',
+  'Camerupt':    'Magma Armor',
+  'Banette':     'Cursed Body',
+  'Chimecho':    'Levitate',
+  'Absol':       'Pressure',
+  'Glalie':      'Inner Focus',
+  'Garchomp':    'Sand Veil',
+  'Lucario':     'Steadfast',
+  'Abomasnow':   'Snow Warning',
+  'Gallade':     'Steadfast',
+  'Emboar':      'Blaze',
+  'Excadrill':   'Sand Rush',
+  'Audino':      'Regenerator',
+  'Chandelure':  'Flame Body',
+  'Chesnaught':  'Bulletproof',
+  'Delphox':     'Blaze',
+  'Greninja':    'Torrent',
+  'Meowstic-M':  'Keen Eye',
+  'Meowstic-F':  'Keen Eye',
+  'Hawlucha':    'Limber',
+  'Crabominable':'Hyper Cutter',
+  'Scovillain':  'Chlorophyll',
+  'Glimmora':    'Toxic Debris',
+  'Feraligatr':  'Torrent'
+};
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports.CHAMPIONS_MEGAS = CHAMPIONS_MEGAS;
   module.exports.CHAMPIONS_NEW_ABILITIES = CHAMPIONS_NEW_ABILITIES;
   module.exports.CHAMPIONS_UPDATED_ABILITIES = CHAMPIONS_UPDATED_ABILITIES;
+  module.exports.CHAMPIONS_BASE_ABILITIES = CHAMPIONS_BASE_ABILITIES;
 }

@@ -502,13 +502,47 @@ base → Targets(0.75 if spread) → ParentalBond(0.25 on hit 2) → Weather
 - **Sources:** [Nintendo Life](https://www.nintendolife.com/news/2026/03/pokemon-vgc-competitions-officially-transition-to-pokemon-champions), [games.gg Champions Battle Mechanics](https://games.gg/pokemon-champions/guides/pokmon-champions-battle-mechanics-and-vp-system-guide/)
 
 ### 10.2 Mega Evolution
-- **Legal in Champions:** **YES** — Mega Evolution is the primary gimmick at launch, Regulation Set M-A. `CHAMPIONS-CONFIRMED`
-- **One Mega per battle:** Only **one** Mega Evolution per battle, even if multiple Pokémon hold Mega Stones. `CHAMPIONS-CONFIRMED`
-- **Activation:** Player selects Mega Evolution by pressing R before choosing a move. Takes effect that turn — Mega stats apply before the Pokémon acts in turn order. `CHAMPIONS-CONFIRMED`
-- **Persists through switching:** Once Mega Evolved, the Pokémon stays Mega Evolved even if switched out. `CHAMPIONS-CONFIRMED`
-- **Mega Stone is held item:** Mega Stone occupies the held item slot; Pokémon cannot hold another item. `CHAMPIONS-CONFIRMED`
-- **Confirmed Mega Stones at launch (59 Mega forms):** See §10.4 below.
-- **Sources:** [ComicBook.com](https://comicbook.com/gaming/feature/pokemon-battle-gimmicks-in-pokemon-champions-explained/), [Operation Sports](https://www.operationsports.com/how-to-use-and-get-all-mega-stones-in-pokemon-champions/)
+
+**Format:** Reg M-A allows Mega Evolution; one Mega per trainer per match. `CHAMPIONS-CONFIRMED`
+Source: [Victory Road Regulations](https://victoryroad.pro/champions-regulations/).
+
+**Prerequisites:** Trainer must equip the Omni Ring accessory. The Pokémon must hold its species-specific Mega Stone. `CHAMPIONS-CONFIRMED`
+Source: [Game8 Mega list](https://game8.co/games/Pokemon-Champions/archives/592472).
+
+**Trigger:** Player-initiated during move selection via the Mega Evolution button. Modeled in engine as an automatic turn-start phase between switching and move execution. Simultaneous Mega (both sides on same turn) resolves by speed with random tiebreak — documented Champions behavior is "random" per [Game8 Known Bugs](https://game8.co/games/Pokemon-Champions/archives/593898); speed+RNG is a deterministic spec choice for sim reproducibility.
+
+**Form swap on activation:**
+- Stats swap to `CHAMPIONS_MEGAS[megaName].megaBaseStats`; HP% preserved.
+- Types swap to `CHAMPIONS_MEGAS[megaName].types`.
+- Ability swaps to `CHAMPIONS_MEGAS[megaName].ability`. Stat boosts, status, items, PP, turn counters, and side-state do NOT reset.
+
+**Persistence:** Once evolved, form persists for the remainder of the battle including across switches. Does NOT revert on faint. Source: [Bulbapedia Mega Evolution](https://bulbapedia.bulbagarden.net/wiki/Mega_Evolution).
+
+**Mega Stone is held item:** Mega Stone occupies the held item slot; Pokémon cannot hold another item. `CHAMPIONS-CONFIRMED`
+
+**Strategic timing:** Timing matters — some team archetypes explicitly delay Mega by one or more turns for weather or setup optimization. Source: [Game8 Sun Team guide](https://game8.co/games/Pokemon-Champions/archives/594157).
+
+**AI timing (sim default):** `MEGA_TRIGGER_POLICY.FIRST_ELIGIBLE` — AI Megas on first turn the mon is active and the team has no prior Mega. Sweep results override this.
+
+**Engine implementation (T9j.7, `Refs #23`):**
+- `CHAMPIONS_BASE_ABILITIES` map (data.js) restores base ability at team-build time.
+- `Pokemon.megaForm` stores the deferred Mega payload; constructor rewrites `name` to base species only when `item === megaStone`.
+- `Pokemon.prototype.megaEvolve(log)` performs the form swap preserving HP%.
+- `simulateBattle` runs a `tryMegaPhase(activeArr, sideFlagKey)` at start of every turn, after win-condition check, before action queue.
+- `field.playerMegaUsed` / `field.oppMegaUsed` enforce one-per-team.
+
+**Confirmed Mega Stones at launch (59 Mega forms):** See §10.4 below.
+
+### 10.2.1 Trigger Sweep (sim-specific methodology)
+
+The engine exports `runMegaTriggerSweep(teamA, teamB, bo, opts)` which computes the WR-by-trigger-turn curve for every Mega-capable mon on teamA vs teamB. Methodology:
+
+- **Pass 1 (coarse):** For each Mega holder, iterate trigger turns 1..`maxTurn` and a `'never'` baseline, running `coarseN=50` battles per cell.
+- **Pass 2 (refine):** Top 3 trigger turns by coarse WR are rerun at `refineN=500` battles each.
+- **Output:** Per-Mega-slot structure `{ megaSlot, curve, refinedTop3, bestTurn }` suitable for JSON serialization. Consumed by:
+  - **M2 Pilot Guide card:** "Best Mega trigger turn" per matchup.
+  - **M3 Trend Dashboard:** Mega timing heatmap across all matchups.
+- **Determinism:** Each cell uses per-battle seeds for reproducibility. `ci95` on each cell is Wilson 95% half-width.
 
 ### 10.3 Dynamax / Z-Moves
 - **Dynamax in Champions:** **NOT legal at launch**. Strongly implied to come in future seasons. `CHAMPIONS-CONFIRMED`

@@ -176,6 +176,25 @@ function validateTeam(team, format = 'vgc') {
   return { valid: errors.length === 0, errors, warnings };
 }
 
+// T9j.7 — Mega trigger policy enum. `var` for TDZ-safety (referenced from
+// Pokemon constructor before top-of-file const binding would be reached).
+var MEGA_TRIGGER_POLICY = {
+  FIRST_ELIGIBLE: 'first_eligible',   // default — AI Megas on first legal turn
+  AT_TURN:        'at_turn',           // sweep mode — triggers on mon.megaTriggerTurn
+  NEVER:          'never'              // sweep baseline — skip Mega this battle
+};
+
+// T9j.7 — Trigger decision helper. Consulted at start of each turn by
+// simulateBattle's Mega Evolution phase.
+function shouldMegaThisTurn(mon, currentTurn) {
+  if (!mon || !mon.megaForm || mon.hasMegaEvolved || !mon.alive) return false;
+  var p = mon.megaPolicy || MEGA_TRIGGER_POLICY.FIRST_ELIGIBLE;
+  if (p === MEGA_TRIGGER_POLICY.NEVER) return false;
+  if (p === MEGA_TRIGGER_POLICY.FIRST_ELIGIBLE) return true;
+  if (p === MEGA_TRIGGER_POLICY.AT_TURN) return currentTurn >= (mon.megaTriggerTurn || 1);
+  return false;
+}
+
 class Pokemon {
   constructor(data, teamStyle, teamFormat) {
     this.name = data.name;
@@ -195,10 +214,41 @@ class Pokemon {
     // Source: https://bulbapedia.bulbagarden.net/wiki/Stat_point
     // Format resolution order: explicit teamFormat > auto-detect from spread shape > 'sv'.
     this.statFormat = teamFormat || data.format || this._detectStatFormat(this.evs);
-    const _baseStats = BASE_STATS[data.name] || { hp:80,atk:80,def:80,spa:80,spd:80,spe:80, types:['Normal'] };
+
+    // T9j.7 — Mega form resolution.
+    // If this is a -Mega name and we have a CHAMPIONS_MEGAS entry AND the
+    // correct Mega Stone is held, enter battle in BASE form. Store Mega form
+    // for later trigger during simulateBattle. Backward-compat: no stone held
+    // means legacy behavior (name unchanged, Mega stats from turn 1).
+    const _megaInfo = (typeof CHAMPIONS_MEGAS !== 'undefined' && CHAMPIONS_MEGAS[data.name]) || null;
+    if (_megaInfo && _megaInfo.baseSpecies && data.item === _megaInfo.megaStone) {
+      this.megaForm = {
+        megaName:    data.name,
+        megaStats:   _megaInfo.megaBaseStats,
+        megaTypes:   _megaInfo.types,
+        megaAbility: _megaInfo.ability,
+        stone:       _megaInfo.megaStone
+      };
+      this.displayName = data.name;                 // keep Mega name for UI
+      this.name        = _megaInfo.baseSpecies;     // engine reads base stats
+      this.ability     = (typeof CHAMPIONS_BASE_ABILITIES !== 'undefined'
+                         && CHAMPIONS_BASE_ABILITIES[_megaInfo.baseSpecies])
+                         || this.ability;
+      this.hasMegaEvolved = false;
+    } else {
+      this.megaForm       = null;
+      this.hasMegaEvolved = false;
+      this.displayName    = data.name;
+    }
+    // Default Mega trigger policy (overridden by sweep driver).
+    this.megaPolicy      = (typeof MEGA_TRIGGER_POLICY !== 'undefined'
+                           ? MEGA_TRIGGER_POLICY.FIRST_ELIGIBLE : 'first_eligible');
+    this.megaTriggerTurn = 1;
+
+    const _baseStats = BASE_STATS[this.name] || { hp:80,atk:80,def:80,spa:80,spd:80,spe:80, types:['Normal'] };
     // Use POKEMON_TYPES_DB for more accurate type coverage on imported Pokémon
-    const _types = (typeof POKEMON_TYPES_DB !== 'undefined' && POKEMON_TYPES_DB[data.name])
-      ? POKEMON_TYPES_DB[data.name]
+    const _types = (typeof POKEMON_TYPES_DB !== 'undefined' && POKEMON_TYPES_DB[this.name])
+      ? POKEMON_TYPES_DB[this.name]
       : _baseStats.types;
     this._base = Object.assign({}, _baseStats, { types: _types });
     this.types = [...this._base.types];
@@ -269,6 +319,31 @@ class Pokemon {
     this.baseSpa = this._statRaw(b.spa, e.spa||0, 'spa');
     this.baseSpd = this._statRaw(b.spd, e.spd||0, 'spd');
     this.baseSpe = this._statRaw(b.spe, e.spe||0, 'spe');
+  }
+
+  // T9j.7 — Perform Mega Evolution at start of turn.
+  // Swaps stats, types, ability. Preserves HP%, stat boosts, status, item,
+  // side-state, turn counters, PP. Idempotent — returns false if already
+  // evolved or not Mega-capable.
+  megaEvolve(log) {
+    if (!this.megaForm || this.hasMegaEvolved) return false;
+    const m = this.megaForm;
+    const hpFrac = (this.maxHp > 0) ? (this.hp / this.maxHp) : 1;
+    // Swap base stats + types
+    this._base = Object.assign({}, m.megaStats, { types: m.megaTypes.slice() });
+    this.types = m.megaTypes.slice();
+    this.name = m.megaName;
+    this.displayName = m.megaName;
+    this.ability = m.megaAbility;
+    // Recalculate derived stats
+    this._calcStats();
+    this.hp = Math.max(1, Math.round(this.maxHp * hpFrac));
+    // Re-evaluate derived flags that depend on ability/types.
+    this.multiscaleActive = (this.ability === 'Multiscale') && this.hp === this.maxHp;
+    this.flying = this.types.includes('Flying') || this.ability === 'Levitate';
+    this.hasMegaEvolved = true;
+    if (log) log.push(`${m.megaName} Mega Evolved!`);
+    return true;
   }
 
   _statRaw(base, ev, stat) {
@@ -536,6 +611,10 @@ class Field {
     };
     // T9j.2 (#26) — spread context sidecar. Set per-hit by executeMove, read by calcDamage.
     this._ctx = { isSpread:false };
+    // T9j.7 — One Mega per team per match flags. Once set, no further Megas
+    // fire for that side for the remainder of the battle.
+    this.playerMegaUsed = false;
+    this.oppMegaUsed    = false;
     // T9j.3 (#39) — timer state. Standard VGC: 7 min team, 45s turn. Batch sim
     // uses 15s/turn deterministic proxy → ~28-turn cap. Draw tiebreaker cascade:
     // Pokemon alive > total HP > true draw.
@@ -648,6 +727,20 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
   const playerPokemon = buildTeam(playerTeam);
   const oppPokemon    = buildTeam(oppTeam);
+
+  // T9j.7 — apply Mega trigger policy override from sweep driver.
+  // When runMegaTriggerSweep() calls simulateBattle with _megaPolicyOverride,
+  // we stamp every Mega-capable mon on the target side with the requested
+  // policy and trigger turn. Only affects mons with megaForm set.
+  if (opts._megaPolicyOverride) {
+    const ov = opts._megaPolicyOverride;
+    const targets = (ov.side === 'opp') ? oppPokemon : playerPokemon;
+    for (const m of targets) {
+      if (!m.megaForm) continue;
+      m.megaPolicy      = ov.policy || m.megaPolicy;
+      m.megaTriggerTurn = (typeof ov.triggerTurn === 'number') ? ov.triggerTurn : m.megaTriggerTurn;
+    }
+  }
 
   // Active battlers (doubles: 2 per side)
   let playerActive = [playerPokemon[0], playerPokemon[1]].filter(Boolean);
@@ -1171,6 +1264,33 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (pAlive === 0 || oAlive === 0) break;
 
     // --------------------------------------------------------
+    // T9j.7 — MEGA EVOLUTION PHASE
+    // Champions rule: one Mega per team per match, persists through switch
+    // and even after faint. Triggers at start of turn, after switches, before
+    // moves. Simultaneous Megas resolve by speed with RNG tiebreak (documented
+    // Champions behavior is 'random' per Game8 Known Bugs; speed+RNG is a
+    // deterministic spec choice for sim reproducibility).
+    // Source: https://game8.co/games/Pokemon-Champions/archives/592472
+    //         https://bulbapedia.bulbagarden.net/wiki/Priority
+    // --------------------------------------------------------
+    function tryMegaPhase(activeArr, sideFlagKey) {
+      if (field[sideFlagKey]) return;
+      const candidates = activeArr.filter(m => shouldMegaThisTurn(m, turn));
+      if (candidates.length === 0) return;
+      candidates.sort((a, b) => {
+        const sA = a.getEffSpeed(field);
+        const sB = b.getEffSpeed(field);
+        if (sA !== sB) return sB - sA;
+        return rng() < 0.5 ? -1 : 1;
+      });
+      // One per team: only the first (fastest / coin-flip) evolves.
+      candidates[0].megaEvolve(log);
+      field[sideFlagKey] = true;
+    }
+    tryMegaPhase(playerActive, 'playerMegaUsed');
+    tryMegaPhase(oppActive,    'oppMegaUsed');
+
+    // --------------------------------------------------------
     // BUILD ACTION QUEUE
     // --------------------------------------------------------
     const actions = [];
@@ -1536,5 +1656,105 @@ function buildAnalysisPayload(rawResult, ctx = {}) {
     avg_turns:            rawResult.avgTurns    || 0,
     avg_tr_turns:         rawResult.avgTrTurns  || 0,
     raw_logs_sample:      (rawResult.allLogs    || []).slice(0, 5)
+  };
+}
+
+// ============================================================
+// T9j.7 — MEGA TRIGGER SWEEP
+// Explores the full WR-by-trigger-turn curve for every Mega on teamA
+// against teamB. Progressive refinement: coarse pass (50 battles per cell)
+// identifies promising turns, then top 3 re-run at 500 battles each.
+// Output consumed by M2 Pilot Guide card and M3 Trend Dashboard heatmap.
+// ============================================================
+
+/**
+ * Run one cell of the sweep: force teamA's Mega-capable mons to use the
+ * supplied policy, run nBattles, and return {wr, n, wins, losses, ci95}.
+ */
+function runMegaSweepCell(teamA, teamB, bo, policy, triggerTurn, nBattles) {
+  let wins = 0, losses = 0, draws = 0;
+  for (let i = 0; i < nBattles; i++) {
+    // Deep copy team data so we can override Mega policy without mutating
+    // the caller's team state across cells.
+    const teamACopy = JSON.parse(JSON.stringify(teamA));
+    const teamBCopy = JSON.parse(JSON.stringify(teamB));
+    const res = simulateBattle(teamACopy, teamBCopy, {
+      bo: bo || 1,
+      _megaPolicyOverride: {
+        side: 'player',
+        policy: policy,
+        triggerTurn: triggerTurn
+      }
+    });
+    if (res && res.winner === 'player') wins++;
+    else if (res && res.winner === 'opp') losses++;
+    else draws++;
+  }
+  const n  = wins + losses + draws;
+  const wr = n > 0 ? wins / n : 0;
+  // 95% Wilson CI half-width (approx)
+  const z = 1.96;
+  const ci95 = n > 0 ? z * Math.sqrt(wr * (1 - wr) / n) : 0;
+  return { wr: wr, n: n, wins: wins, losses: losses, draws: draws, ci95: ci95 };
+}
+
+/**
+ * Progressive sweep across every legal trigger turn 1..MAX_TURN plus a
+ * 'never' baseline, per Mega-capable member on teamA.
+ * Returns { matchup, results: [ { megaSlot, curve, refinedTop3, bestTurn } ] }
+ */
+function runMegaTriggerSweep(teamA, teamB, bo, opts) {
+  opts = opts || {};
+  const MAX_TURN   = opts.maxTurn  || 10;
+  const COARSE_N   = opts.coarseN  ||  50;
+  const REFINE_N   = opts.refineN  || 500;
+  const teamAName  = teamA.name || teamA.key || 'teamA';
+  const teamBName  = teamB.name || teamB.key || 'teamB';
+
+  // Identify Mega-capable slots by inspecting team member items/names.
+  // We need a peek without burning a full simulation, so construct Pokemon
+  // objects once.
+  const peek = new Field ? null : null; // no-op; using constructor directly
+  const megaSlots = (teamA.members || []).filter(function(mem) {
+    const mInfo = (typeof CHAMPIONS_MEGAS !== 'undefined' && CHAMPIONS_MEGAS[mem.name]) || null;
+    return mInfo && mInfo.baseSpecies && mem.item === mInfo.megaStone;
+  });
+
+  const results = [];
+  for (const slot of megaSlots) {
+    const curve = [];
+    // Pass 1: every legal turn
+    for (let t = 1; t <= MAX_TURN; t++) {
+      const cell = runMegaSweepCell(teamA, teamB, bo, 'at_turn', t, COARSE_N);
+      curve.push({ turn: t, wr: cell.wr, n: cell.n, ci95: cell.ci95 });
+    }
+    // Pass 1: 'never' baseline
+    const neverCell = runMegaSweepCell(teamA, teamB, bo, 'never', null, COARSE_N);
+    curve.push({ turn: 'never', wr: neverCell.wr, n: neverCell.n, ci95: neverCell.ci95 });
+
+    // Pass 2: refine top 3 by coarse WR
+    const top3 = curve.slice().sort((a, b) => b.wr - a.wr).slice(0, 3);
+    const refined = top3.map(function(cell) {
+      const policy = cell.turn === 'never' ? 'never' : 'at_turn';
+      const refinedCell = runMegaSweepCell(teamA, teamB, bo, policy, cell.turn, REFINE_N);
+      return { turn: cell.turn, wr: refinedCell.wr, n: refinedCell.n, ci95: refinedCell.ci95 };
+    });
+    const bestTurn = refined.slice().sort((a, b) => b.wr - a.wr)[0].turn;
+
+    results.push({
+      megaSlot:     slot.name,
+      curve:        curve,
+      refinedTop3:  refined,
+      bestTurn:     bestTurn
+    });
+  }
+
+  return {
+    matchup: teamAName + '_vs_' + teamBName,
+    teamA:   teamAName,
+    teamB:   teamBName,
+    bo:      bo || 1,
+    config:  { maxTurn: MAX_TURN, coarseN: COARSE_N, refineN: REFINE_N },
+    results: results
   };
 }
