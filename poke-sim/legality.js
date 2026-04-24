@@ -46,6 +46,36 @@ var FAKEMON_BLOCKLIST = new Set([
   // empty; add only truly fabricated forms here
 ]);
 
+// Items confirmed ABSENT from Champions launch item pool. Reg M-A teams
+// may not carry these. Source:
+//   https://game8.co/games/Pokemon-Champions/archives/588871
+//   https://games.gg/news/pokemon-champions-items-list-meta/
+//   https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained
+var CHAMPIONS_BANNED_ITEMS = new Set([
+  'Life Orb','Choice Band','Choice Specs','Assault Vest','Rocky Helmet',
+  'Heavy-Duty Boots','Black Sludge','Eviolite','Light Clay',
+  'Heat Rock','Damp Rock','Smooth Rock','Icy Rock','Terrain Extender',
+  'Toxic Orb','Flame Orb'
+]);
+
+// Mega Stone -> required base species. Built from CHAMPIONS_MEGAS at load.
+// Enables "wrong species holding stone" validation.
+var CHAMPIONS_STONE_TO_SPECIES = {};
+(function buildStoneIndex(){
+  if (typeof CHAMPIONS_MEGAS === 'undefined') return;
+  for (var k in CHAMPIONS_MEGAS) {
+    var m = CHAMPIONS_MEGAS[k];
+    if (m && m.megaStone) CHAMPIONS_STONE_TO_SPECIES[m.megaStone] = m.baseSpecies;
+  }
+})();
+
+// HOME-transfer-only Megas. Legal in Reg M-A but not obtainable in
+// Champions alone. Warn, do not block.
+var CHAMPIONS_HOME_TRANSFER_MEGAS = new Set([
+  'Chesnaught-Mega','Delphox-Mega','Greninja-Mega',
+  'Floette-Mega','Floette-Mega-EF'
+]);
+
 // Strip form suffixes to compare against base-species ban list.
 // Keeps regional forms (Alola/Galar/Hisui/Paldea) legal where the base is legal,
 // but banned sub-legendary forms (e.g. Urshifu-Rapid-Strike) still match their base.
@@ -81,6 +111,37 @@ function validateChampionsLegality(team) {
         message: name + ': banned in Reg M-A (Legendary/Mythical/Restricted/Paradox)'
       });
     }
+
+    // Item legality checks
+    var item = mon && mon.item ? mon.item : '';
+    if (item && CHAMPIONS_BANNED_ITEMS.has(item)) {
+      violations.push({
+        severity: 'error',
+        code: 'ITEM_ABSENT',
+        message: name + ': item "' + item + '" is not in Champions Reg M-A item pool'
+      });
+    }
+
+    // Mega stone must match holder species
+    if (item && CHAMPIONS_STONE_TO_SPECIES[item]) {
+      var required = CHAMPIONS_STONE_TO_SPECIES[item];
+      if (base !== required) {
+        violations.push({
+          severity: 'error',
+          code: 'MEGA_STONE_MISMATCH',
+          message: name + ': cannot hold ' + item + ' (only ' + required + ' can)'
+        });
+      }
+    }
+
+    // HOME-transfer-only Megas: warn
+    if (CHAMPIONS_HOME_TRANSFER_MEGAS.has(name)) {
+      violations.push({
+        severity: 'warn',
+        code: 'HOME_TRANSFER',
+        message: name + ': legal in Reg M-A but requires HOME transfer to obtain'
+      });
+    }
   }
   return { violations: violations };
 }
@@ -90,6 +151,9 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CHAMPIONS_BANNED_POKEMON: CHAMPIONS_BANNED_POKEMON,
     FAKEMON_BLOCKLIST: FAKEMON_BLOCKLIST,
+    CHAMPIONS_BANNED_ITEMS: CHAMPIONS_BANNED_ITEMS,
+    CHAMPIONS_STONE_TO_SPECIES: CHAMPIONS_STONE_TO_SPECIES,
+    CHAMPIONS_HOME_TRANSFER_MEGAS: CHAMPIONS_HOME_TRANSFER_MEGAS,
     validateChampionsLegality: validateChampionsLegality
   };
 }
