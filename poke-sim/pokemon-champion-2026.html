@@ -951,7 +951,10 @@ const BASE_STATS = {
   Sableye:        { hp:50, atk:75, def:75, spa:65, spd:65, spe:50, types:['Dark','Ghost'] },
   Sinistcha:      { hp:71, atk:60, def:106, spa:121, spd:80, spe:70, types:['Grass','Ghost'] },
   // Mega Dragonite team
-  'Dragonite-Mega': { hp:91, atk:175, def:95, spa:100, spd:100, spe:80, types:['Dragon','Flying'] },
+  // T9j.3b: corrected to Champions canonical 91/124/115/145/125/100 (BST 700).
+  // Prior values (91/175/95/100/100/80) were an SV port and produced inflated
+  // physical damage. Sources: Game8, RotomLabs Champions, Serebii Champions Pokedex.
+  'Dragonite-Mega': { hp:91, atk:124, def:115, spa:145, spd:125, spe:100, types:['Dragon','Flying'] },
   'Basculegion':  { hp:120, atk:112, def:65, spa:80, spd:75, spe:78, types:['Water','Ghost'] },
   Liepard:        { hp:64, atk:88, def:50, spa:88, spd:50, spe:106, types:['Dark'] },
   Archaludon:     { hp:90, atk:105, def:130, spa:125, spd:65, spe:85, types:['Steel','Dragon'] },
@@ -961,7 +964,9 @@ const BASE_STATS = {
   'Houndoom-Mega': { hp:75, atk:90, def:90, spa:140, spd:90, spe:115, types:['Dark','Fire'] },
   Torkoal:        { hp:70, atk:85, def:140, spa:85, spd:70, spe:20, types:['Fire'] },
   Farigiraf:      { hp:120, atk:90, def:70, spa:90, spd:90, spe:60, types:['Normal','Psychic'] },
-  'Drampa-Mega':  { hp:89, atk:90, def:85, spa:145, spd:100, spe:60, types:['Normal','Dragon'] },
+  // T9j.3b: corrected to Champions canonical 78/85/110/160/116/36 (BST 585).
+  // Sources: Game8, RotomLabs Champions, Bulbapedia.
+  'Drampa-Mega':  { hp:78, atk:85, def:110, spa:160, spd:116, spe:36, types:['Normal','Dragon'] },
   // Rin Sand
   Sneasler:       { hp:80, atk:130, def:60, spa:40, spd:80, spe:120, types:['Fighting','Poison'] },
   Tyranitar:      { hp:100, atk:134, def:110, spa:95, spd:100, spe:61, types:['Rock','Dark'] },
@@ -982,7 +987,9 @@ const BASE_STATS = {
   'Charizard-Mega-Y': { hp:78, atk:104, def:78, spa:159, spd:115, spe:100, types:['Fire','Flying'] },
   'Charizard-Mega-X': { hp:78, atk:130, def:111, spa:130, spd:85, spe:100, types:['Fire','Dragon'] },
   'Tyranitar-Mega': { hp:100, atk:164, def:150, spa:95, spd:120, spe:71, types:['Rock','Dark'] },
-  'Froslass-Mega': { hp:70, atk:80, def:70, spa:105, spd:95, spe:125, types:['Ice','Ghost'] },
+  // T9j.3b: corrected to Champions canonical 70/80/70/140/100/120 (BST 580).
+  // Sources: Game8, OP.GG Champions, RotomLabs.
+  'Froslass-Mega': { hp:70, atk:80, def:70, spa:140, spd:100, spe:120, types:['Ice','Ghost'] },
   Milotic:         { hp:95, atk:60, def:79, spa:100, spd:125, spe:81, types:['Water'] },
   Kingambit:       { hp:100, atk:135, def:120, spa:60, spd:85, spe:50, types:['Dark','Steel'] },
   Amoonguss:       { hp:114, atk:85, def:70, spa:85, spd:80, spe:30, types:['Grass','Poison'] },
@@ -6932,6 +6939,8 @@ async function deleteCustomTeam(key) {
   if (typeof renderTeamsGrid === 'function') renderTeamsGrid();
   if (TEAMS[currentPlayerKey]) renderRoster('player-roster', TEAMS[currentPlayerKey].members);
   if (oppSel && TEAMS[oppSel.value]) renderRoster('opp-roster', TEAMS[oppSel.value].members);
+  // T9j.3b: coverage must refresh after team removal / fallback.
+  if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
 }
 
 function rebuildTeamSelects() {
@@ -6973,6 +6982,8 @@ document.getElementById('player-select').addEventListener('change', function() {
     document.getElementById('player-team-name').textContent = team.name;
     renderRoster('player-roster', team.members);
     if (typeof applyLadderGate === 'function') applyLadderGate();
+    // T9j.3b: recompute coverage on active-team change (no cache, always fresh).
+    if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
   }
 });
 
@@ -7443,6 +7454,8 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
     if (slot === currentPlayerKey) {
       renderRoster('player-roster', TEAMS[currentPlayerKey].members);
       renderEditorRoster();
+      // T9j.3b: imported team replacing active slot must refresh coverage.
+      if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
     }
     const oppSel = document.getElementById('opponent-select');
     if (oppSel && oppSel.value === slot) renderRoster('opp-roster', TEAMS[slot].members);
@@ -8177,20 +8190,105 @@ function renderSpeedTiersForGrid() {
 // PART 5B: ROLE COVERAGE CHECKER
 // FIX: Must use var (not const/let) — referenced during init before declaration
 // ============================================================
+// ---- T9j.3b: Champions-legal move/ability lists for coverage detection ----
+// All lists kept as `var` for the same TDZ-safe init pattern COVERAGE_CHECKS uses.
+var PRIORITY_MOVES = [
+  'Fake Out','Extreme Speed','Aqua Jet','Shadow Sneak','Sucker Punch',
+  'Bullet Punch','Ice Shard','Vacuum Wave','Mach Punch','Grassy Glide',
+  'Quick Attack','Accelerock','First Impression'
+];
+// Sticky Web counted per user direction 2026-04-24: hazard that reduces switch-in speed.
+var SPEED_LOWER_MOVES = [
+  'Electroweb','Icy Wind','Bulldoze','Low Sweep','Rock Tomb','Scary Face',
+  'Glaciate','String Shot','Mud Shot','Drum Beating','Sticky Web','Cotton Spore'
+];
+var SPEED_BOOST_MOVES = [
+  'Dragon Dance','Agility','Rock Polish','Flame Charge','Shift Gear',
+  'Trailblaze','Quiver Dance','Victory Dance','Autotomize','Rapid Spin'
+];
+// Own-team only (user direction 2026-04-24: opposing TR is matchup-time, not coverage).
+var SPEED_FIELD_MOVES = ['Tailwind','Trick Room'];
+var SPEED_PRIORITY_MANIP = ['Feint','After You','Quash','Ally Switch'];
+// Intimidate excluded (indirect per user direction).
+var SPEED_ABILITIES = [
+  'Chlorophyll','Swift Swim','Sand Rush','Slush Rush','Unburden',
+  'Surge Surfer','Wind Rider','Quick Feet','Steam Engine','Motor Drive'
+];
+var WEATHER_ABILITIES = ['Drought','Drizzle','Sand Stream','Snow Warning'];
+var WEATHER_MOVES = ['Sunny Day','Rain Dance','Snowscape','Hail','Sandstorm'];
+var REDIRECTION_MOVES = ['Follow Me','Rage Powder','Spotlight'];
+var TR_PRESSURE_MOVES = ['Trick Room','Taunt','Imprison','Fake Out'];
+
+function _anyMove(members, list) {
+  return members.some(m => m && m.moves && list.some(x => m.moves.includes(x)));
+}
+function _anyAbility(members, list) {
+  return members.some(m => m && m.ability && list.includes(m.ability));
+}
+function _memberHasSpeedControl(m) {
+  if (!m) return false;
+  if (m.moves && SPEED_LOWER_MOVES.some(x => m.moves.includes(x))) return true;
+  if (m.moves && SPEED_BOOST_MOVES.some(x => m.moves.includes(x))) return true;
+  if (m.moves && SPEED_FIELD_MOVES.some(x => m.moves.includes(x))) return true;
+  if (m.moves && SPEED_PRIORITY_MANIP.some(x => m.moves.includes(x))) return true;
+  if (m.ability && SPEED_ABILITIES.includes(m.ability)) return true;
+  return false;
+}
+
+// Structured coverage object. No caching; always recomputed from current TEAMS state.
+// Returns null if the requested team does not exist.
+function computeCoverage(teamKey) {
+  var key = teamKey || (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player');
+  var team = (typeof TEAMS !== 'undefined') ? TEAMS[key] : null;
+  if (!team || !team.members) return null;
+  var members = team.members;
+  var speed_lowering = _anyMove(members, SPEED_LOWER_MOVES);
+  var speed_boosting = _anyMove(members, SPEED_BOOST_MOVES);
+  var field_effects  = _anyMove(members, SPEED_FIELD_MOVES);
+  var ability_speed  = _anyAbility(members, SPEED_ABILITIES);
+  var priority_speed = _anyMove(members, SPEED_PRIORITY_MANIP);
+  return {
+    fake_out:       _anyMove(members, ['Fake Out']),
+    trick_room:     _anyMove(members, TR_PRESSURE_MOVES),
+    redirection:    _anyMove(members, REDIRECTION_MOVES),
+    priority:       _anyMove(members, PRIORITY_MOVES),
+    weather_setter: _anyAbility(members, WEATHER_ABILITIES) || _anyMove(members, WEATHER_MOVES),
+    speed_control: {
+      speed_lowering: speed_lowering,
+      speed_boosting: speed_boosting,
+      field_effects:  field_effects,
+      abilities:      ability_speed,
+      priority_speed: priority_speed,
+      any: (speed_lowering || speed_boosting || field_effects || ability_speed || priority_speed)
+    }
+  };
+}
+// Expose for tests and any external module consumers.
+if (typeof globalThis !== 'undefined') {
+  globalThis.computeCoverage = computeCoverage;
+}
+
+// COVERAGE_CHECKS drives the checkmark UI row. Kept as `var` (see file-header note).
+// "Trick Room Counter" renamed to "Trick Room" per user direction 2026-04-24.
 var COVERAGE_CHECKS = [
-  { label: 'Fake Out', check: m => m.moves && m.moves.includes('Fake Out') },
-  { label: 'Trick Room Counter', check: m => m.moves && (m.moves.includes('Taunt') || m.moves.includes('Imprison') || m.moves.includes('Tailwind') || m.moves.includes('Icy Wind')) },
-  { label: 'Redirection', check: m => m.moves && (m.moves.includes('Follow Me') || m.moves.includes('Rage Powder')) },
-  { label: 'Priority', check: m => m.moves && (m.moves.includes('Extreme Speed') || m.moves.includes('Fake Out') || m.moves.includes('Aqua Jet') || m.moves.includes('Sucker Punch')) },
-  { label: 'Weather Setter', check: m => m.ability && (m.ability === 'Drought' || m.ability === 'Drizzle' || m.ability === 'Sand Stream' || m.ability === 'Snow Warning') }
+  { label: 'Fake Out',       check: (m) => m && m.moves && m.moves.includes('Fake Out') },
+  { label: 'Trick Room',     check: (m) => m && m.moves && TR_PRESSURE_MOVES.some(x => m.moves.includes(x)) },
+  { label: 'Redirection',    check: (m) => m && m.moves && REDIRECTION_MOVES.some(x => m.moves.includes(x)) },
+  { label: 'Priority',       check: (m) => m && m.moves && PRIORITY_MOVES.some(x => m.moves.includes(x)) },
+  { label: 'Weather Setter', check: (m) => (m && m.ability && WEATHER_ABILITIES.includes(m.ability))
+                                         || (m && m.moves && WEATHER_MOVES.some(x => m.moves.includes(x))) },
+  { label: 'Speed Control',  check: (m) => _memberHasSpeedControl(m) }
 ];
 
 function renderCoverageWidget() {
-  const el = document.getElementById('coverage-items');
+  var el = document.getElementById('coverage-items');
   if (!el) return;
-  const members = TEAMS.player.members;
+  var key = (typeof currentPlayerKey === 'string' && TEAMS[currentPlayerKey])
+            ? currentPlayerKey
+            : (TEAMS.player ? 'player' : Object.keys(TEAMS)[0]);
+  var members = (TEAMS[key] && TEAMS[key].members) || [];
   el.innerHTML = COVERAGE_CHECKS.map(chk => {
-    const covered = members.some(chk.check);
+    var covered = members.some(m => chk.check(m));
     return `<div class="coverage-item ${covered ? 'coverage-ok' : 'coverage-miss'}">
       <span>${covered ? '✓' : '✗'}</span>
       <span>${chk.label}</span>

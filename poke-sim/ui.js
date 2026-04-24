@@ -359,6 +359,8 @@ async function deleteCustomTeam(key) {
   if (typeof renderTeamsGrid === 'function') renderTeamsGrid();
   if (TEAMS[currentPlayerKey]) renderRoster('player-roster', TEAMS[currentPlayerKey].members);
   if (oppSel && TEAMS[oppSel.value]) renderRoster('opp-roster', TEAMS[oppSel.value].members);
+  // T9j.3b: coverage must refresh after team removal / fallback.
+  if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
 }
 
 function rebuildTeamSelects() {
@@ -400,6 +402,8 @@ document.getElementById('player-select').addEventListener('change', function() {
     document.getElementById('player-team-name').textContent = team.name;
     renderRoster('player-roster', team.members);
     if (typeof applyLadderGate === 'function') applyLadderGate();
+    // T9j.3b: recompute coverage on active-team change (no cache, always fresh).
+    if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
   }
 });
 
@@ -870,6 +874,8 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
     if (slot === currentPlayerKey) {
       renderRoster('player-roster', TEAMS[currentPlayerKey].members);
       renderEditorRoster();
+      // T9j.3b: imported team replacing active slot must refresh coverage.
+      if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
     }
     const oppSel = document.getElementById('opponent-select');
     if (oppSel && oppSel.value === slot) renderRoster('opp-roster', TEAMS[slot].members);
@@ -1604,20 +1610,105 @@ function renderSpeedTiersForGrid() {
 // PART 5B: ROLE COVERAGE CHECKER
 // FIX: Must use var (not const/let) — referenced during init before declaration
 // ============================================================
+// ---- T9j.3b: Champions-legal move/ability lists for coverage detection ----
+// All lists kept as `var` for the same TDZ-safe init pattern COVERAGE_CHECKS uses.
+var PRIORITY_MOVES = [
+  'Fake Out','Extreme Speed','Aqua Jet','Shadow Sneak','Sucker Punch',
+  'Bullet Punch','Ice Shard','Vacuum Wave','Mach Punch','Grassy Glide',
+  'Quick Attack','Accelerock','First Impression'
+];
+// Sticky Web counted per user direction 2026-04-24: hazard that reduces switch-in speed.
+var SPEED_LOWER_MOVES = [
+  'Electroweb','Icy Wind','Bulldoze','Low Sweep','Rock Tomb','Scary Face',
+  'Glaciate','String Shot','Mud Shot','Drum Beating','Sticky Web','Cotton Spore'
+];
+var SPEED_BOOST_MOVES = [
+  'Dragon Dance','Agility','Rock Polish','Flame Charge','Shift Gear',
+  'Trailblaze','Quiver Dance','Victory Dance','Autotomize','Rapid Spin'
+];
+// Own-team only (user direction 2026-04-24: opposing TR is matchup-time, not coverage).
+var SPEED_FIELD_MOVES = ['Tailwind','Trick Room'];
+var SPEED_PRIORITY_MANIP = ['Feint','After You','Quash','Ally Switch'];
+// Intimidate excluded (indirect per user direction).
+var SPEED_ABILITIES = [
+  'Chlorophyll','Swift Swim','Sand Rush','Slush Rush','Unburden',
+  'Surge Surfer','Wind Rider','Quick Feet','Steam Engine','Motor Drive'
+];
+var WEATHER_ABILITIES = ['Drought','Drizzle','Sand Stream','Snow Warning'];
+var WEATHER_MOVES = ['Sunny Day','Rain Dance','Snowscape','Hail','Sandstorm'];
+var REDIRECTION_MOVES = ['Follow Me','Rage Powder','Spotlight'];
+var TR_PRESSURE_MOVES = ['Trick Room','Taunt','Imprison','Fake Out'];
+
+function _anyMove(members, list) {
+  return members.some(m => m && m.moves && list.some(x => m.moves.includes(x)));
+}
+function _anyAbility(members, list) {
+  return members.some(m => m && m.ability && list.includes(m.ability));
+}
+function _memberHasSpeedControl(m) {
+  if (!m) return false;
+  if (m.moves && SPEED_LOWER_MOVES.some(x => m.moves.includes(x))) return true;
+  if (m.moves && SPEED_BOOST_MOVES.some(x => m.moves.includes(x))) return true;
+  if (m.moves && SPEED_FIELD_MOVES.some(x => m.moves.includes(x))) return true;
+  if (m.moves && SPEED_PRIORITY_MANIP.some(x => m.moves.includes(x))) return true;
+  if (m.ability && SPEED_ABILITIES.includes(m.ability)) return true;
+  return false;
+}
+
+// Structured coverage object. No caching; always recomputed from current TEAMS state.
+// Returns null if the requested team does not exist.
+function computeCoverage(teamKey) {
+  var key = teamKey || (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player');
+  var team = (typeof TEAMS !== 'undefined') ? TEAMS[key] : null;
+  if (!team || !team.members) return null;
+  var members = team.members;
+  var speed_lowering = _anyMove(members, SPEED_LOWER_MOVES);
+  var speed_boosting = _anyMove(members, SPEED_BOOST_MOVES);
+  var field_effects  = _anyMove(members, SPEED_FIELD_MOVES);
+  var ability_speed  = _anyAbility(members, SPEED_ABILITIES);
+  var priority_speed = _anyMove(members, SPEED_PRIORITY_MANIP);
+  return {
+    fake_out:       _anyMove(members, ['Fake Out']),
+    trick_room:     _anyMove(members, TR_PRESSURE_MOVES),
+    redirection:    _anyMove(members, REDIRECTION_MOVES),
+    priority:       _anyMove(members, PRIORITY_MOVES),
+    weather_setter: _anyAbility(members, WEATHER_ABILITIES) || _anyMove(members, WEATHER_MOVES),
+    speed_control: {
+      speed_lowering: speed_lowering,
+      speed_boosting: speed_boosting,
+      field_effects:  field_effects,
+      abilities:      ability_speed,
+      priority_speed: priority_speed,
+      any: (speed_lowering || speed_boosting || field_effects || ability_speed || priority_speed)
+    }
+  };
+}
+// Expose for tests and any external module consumers.
+if (typeof globalThis !== 'undefined') {
+  globalThis.computeCoverage = computeCoverage;
+}
+
+// COVERAGE_CHECKS drives the checkmark UI row. Kept as `var` (see file-header note).
+// "Trick Room Counter" renamed to "Trick Room" per user direction 2026-04-24.
 var COVERAGE_CHECKS = [
-  { label: 'Fake Out', check: m => m.moves && m.moves.includes('Fake Out') },
-  { label: 'Trick Room Counter', check: m => m.moves && (m.moves.includes('Taunt') || m.moves.includes('Imprison') || m.moves.includes('Tailwind') || m.moves.includes('Icy Wind')) },
-  { label: 'Redirection', check: m => m.moves && (m.moves.includes('Follow Me') || m.moves.includes('Rage Powder')) },
-  { label: 'Priority', check: m => m.moves && (m.moves.includes('Extreme Speed') || m.moves.includes('Fake Out') || m.moves.includes('Aqua Jet') || m.moves.includes('Sucker Punch')) },
-  { label: 'Weather Setter', check: m => m.ability && (m.ability === 'Drought' || m.ability === 'Drizzle' || m.ability === 'Sand Stream' || m.ability === 'Snow Warning') }
+  { label: 'Fake Out',       check: (m) => m && m.moves && m.moves.includes('Fake Out') },
+  { label: 'Trick Room',     check: (m) => m && m.moves && TR_PRESSURE_MOVES.some(x => m.moves.includes(x)) },
+  { label: 'Redirection',    check: (m) => m && m.moves && REDIRECTION_MOVES.some(x => m.moves.includes(x)) },
+  { label: 'Priority',       check: (m) => m && m.moves && PRIORITY_MOVES.some(x => m.moves.includes(x)) },
+  { label: 'Weather Setter', check: (m) => (m && m.ability && WEATHER_ABILITIES.includes(m.ability))
+                                         || (m && m.moves && WEATHER_MOVES.some(x => m.moves.includes(x))) },
+  { label: 'Speed Control',  check: (m) => _memberHasSpeedControl(m) }
 ];
 
 function renderCoverageWidget() {
-  const el = document.getElementById('coverage-items');
+  var el = document.getElementById('coverage-items');
   if (!el) return;
-  const members = TEAMS.player.members;
+  var key = (typeof currentPlayerKey === 'string' && TEAMS[currentPlayerKey])
+            ? currentPlayerKey
+            : (TEAMS.player ? 'player' : Object.keys(TEAMS)[0]);
+  var members = (TEAMS[key] && TEAMS[key].members) || [];
   el.innerHTML = COVERAGE_CHECKS.map(chk => {
-    const covered = members.some(chk.check);
+    var covered = members.some(m => chk.check(m));
     return `<div class="coverage-item ${covered ? 'coverage-ok' : 'coverage-miss'}">
       <span>${covered ? '✓' : '✗'}</span>
       <span>${chk.label}</span>

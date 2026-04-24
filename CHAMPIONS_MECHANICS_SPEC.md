@@ -774,6 +774,41 @@ Items to flag for testing before engine commit:
 
 ---
 
+## 17B. TEAM COVERAGE DETECTION (added 2026-04-24, T9j.3b)
+
+**Purpose:** The UI "Team Coverage" widget flags whether the current player team has representation across six strategic categories. The list below is the binding spec; `ui.js::computeCoverage(teamKey?)` is the implementation and must stay in sync.
+
+**Categories (six rows in the UI):**
+
+1. **Fake Out** — any member with `Fake Out` in moves.
+2. **Trick Room** — renamed from "Trick Room Counter". Flagged if any member has one of the TR pressure moves: `Trick Room`, `Taunt`, `Imprison`, `Fake Out`. Per user direction 2026-04-24, Trick Room is counted as own-team speed control only (opposing TR is a matchup-time concern, not a coverage gap).
+3. **Redirection** — any member with `Follow Me`, `Rage Powder`, or `Spotlight`.
+4. **Priority** — any member with a Champions-legal priority move: `Fake Out`, `Extreme Speed`, `Aqua Jet`, `Shadow Sneak`, `Sucker Punch`, `Bullet Punch`, `Ice Shard`, `Vacuum Wave`, `Mach Punch`, `Grassy Glide`, `Quick Attack`, `Accelerock`, `First Impression`.
+5. **Weather Setter** — any member with a weather ability (`Drought`, `Drizzle`, `Sand Stream`, `Snow Warning`) OR a weather-setting move (`Sunny Day`, `Rain Dance`, `Snowscape`, `Hail`, `Sandstorm`).
+6. **Speed Control** — logical OR across five sub-flags exposed on `computeCoverage().speed_control`:
+   - `speed_lowering` (moves): `Electroweb`, `Icy Wind`, `Bulldoze`, `Low Sweep`, `Rock Tomb`, `Scary Face`, `Glaciate`, `String Shot`, `Mud Shot`, `Drum Beating`, **`Sticky Web`**, `Cotton Spore`. Sticky Web is included per user direction 2026-04-24 as a hazard that reduces switch-in speed.
+   - `speed_boosting` (moves): `Dragon Dance`, `Agility`, `Rock Polish`, `Flame Charge`, `Shift Gear`, `Trailblaze`, `Quiver Dance`, `Victory Dance`, `Autotomize`, `Rapid Spin`.
+   - `field_effects` (moves): `Tailwind`, `Trick Room` **(own-team only)**.
+   - `abilities`: `Chlorophyll`, `Swift Swim`, `Sand Rush`, `Slush Rush`, `Unburden`, `Surge Surfer`, `Wind Rider`, `Quick Feet`, `Steam Engine`, `Motor Drive`. **`Intimidate` is intentionally excluded** (indirect and already covered by existing mechanic).
+   - `priority_speed` (moves): `Feint`, `After You`, `Quash`, `Ally Switch`.
+   - `speed_control.any` is true when any of the five sub-flags is true.
+
+**Freshness contract:** `computeCoverage()` never caches; it always reads live `TEAMS[key].members`. `renderCoverageWidget()` must be invoked after any of: player-select change, team removal that reassigns `currentPlayerKey`, import success into the active slot, or set editor save. These four call sites are present in `ui.js` as of T9j.3b.
+
+**TDZ-safe init pattern:** The lists (`SPEED_LOWER_MOVES`, `SPEED_BOOST_MOVES`, `SPEED_FIELD_MOVES`, `SPEED_PRIORITY_MANIP`, `SPEED_ABILITIES`, `WEATHER_ABILITIES`, `WEATHER_MOVES`, `REDIRECTION_MOVES`, `TR_PRESSURE_MOVES`, `PRIORITY_MOVES`) and the row table `COVERAGE_CHECKS` are declared with `var`, not `const`/`let`, because they are referenced during init before their declaration line is reached. Do not change this.
+
+**Public export:** `globalThis.computeCoverage = computeCoverage` is set for test harnesses. Unit tests live at `/tmp/coverage_tests.js` and cover empty team, ability-only, mixed moves, multi-weather, own-team TR, Sticky Web, no-cache freshness, Intimidate exclusion, and post-mutation recompute (9/9 passing at T9j.3b).
+
+**Deferred to T9j.7 (Mega Evolution):** Mega base stats currently static in `BASE_STATS` (e.g. `Dragonite-Mega`). Per user direction 2026-04-24, Mega forms are not always active at send-out; stats should switch only when the Mega Stone is triggered. This architecture work is tracked as Issue T9j.7 and is out of scope for T9j.3b. Static stats were corrected against canonical Champions data:
+
+| Species | T9j.3b value | Source |
+|---|---|---|
+| Dragonite-Mega | 91 / 124 / 115 / 145 / 125 / 100 (BST 700) | [Game8](https://game8.co/games/Pokemon-Champions/archives/592442), [RotomLabs](https://rotomlabs.net/dex/champions/dragonite/mega) |
+| Drampa-Mega | 78 / 85 / 110 / 160 / 116 / 36 (BST 585) | [Game8](https://game8.co/games/Pokemon-Champions/archives/592423), [RotomLabs](https://rotomlabs.net/dex/champions/drampa/mega) |
+| Froslass-Mega | 70 / 80 / 70 / 140 / 100 / 120 (BST 580) | [Game8](https://game8.co/games/Pokemon-Champions/archives/592410), [OP.GG](https://op.gg/pokemon-champions/pokedex/mega-froslass) |
+
+---
+
 ## 17A. DAMAGE ORACLE RECONCILIATION POLICY (added 2026-04-24)
 
 **Policy:** Smogon's Champions damage calculator, once available (tracked in Issue #35), is treated as the AUTHORITATIVE oracle for golden damage tests (DAMAGE-###) EXCEPT where this spec (§1-§16) documents a Champions-specific primary-source override. Divergences are enumerated below as `ORACLE-DIVERGENCE-N` with citations. The engine follows this spec, not the calc, when a divergence is flagged.

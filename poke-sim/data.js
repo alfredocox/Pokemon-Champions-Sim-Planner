@@ -23,7 +23,10 @@ const BASE_STATS = {
   Sableye:        { hp:50, atk:75, def:75, spa:65, spd:65, spe:50, types:['Dark','Ghost'] },
   Sinistcha:      { hp:71, atk:60, def:106, spa:121, spd:80, spe:70, types:['Grass','Ghost'] },
   // Mega Dragonite team
-  'Dragonite-Mega': { hp:91, atk:175, def:95, spa:100, spd:100, spe:80, types:['Dragon','Flying'] },
+  // T9j.3b: corrected to Champions canonical 91/124/115/145/125/100 (BST 700).
+  // Prior values (91/175/95/100/100/80) were an SV port and produced inflated
+  // physical damage. Sources: Game8, RotomLabs Champions, Serebii Champions Pokedex.
+  'Dragonite-Mega': { hp:91, atk:124, def:115, spa:145, spd:125, spe:100, types:['Dragon','Flying'] },
   'Basculegion':  { hp:120, atk:112, def:65, spa:80, spd:75, spe:78, types:['Water','Ghost'] },
   Liepard:        { hp:64, atk:88, def:50, spa:88, spd:50, spe:106, types:['Dark'] },
   Archaludon:     { hp:90, atk:105, def:130, spa:125, spd:65, spe:85, types:['Steel','Dragon'] },
@@ -33,7 +36,9 @@ const BASE_STATS = {
   'Houndoom-Mega': { hp:75, atk:90, def:90, spa:140, spd:90, spe:115, types:['Dark','Fire'] },
   Torkoal:        { hp:70, atk:85, def:140, spa:85, spd:70, spe:20, types:['Fire'] },
   Farigiraf:      { hp:120, atk:90, def:70, spa:90, spd:90, spe:60, types:['Normal','Psychic'] },
-  'Drampa-Mega':  { hp:89, atk:90, def:85, spa:145, spd:100, spe:60, types:['Normal','Dragon'] },
+  // T9j.3b: corrected to Champions canonical 78/85/110/160/116/36 (BST 585).
+  // Sources: Game8, RotomLabs Champions, Bulbapedia.
+  'Drampa-Mega':  { hp:78, atk:85, def:110, spa:160, spd:116, spe:36, types:['Normal','Dragon'] },
   // Rin Sand
   Sneasler:       { hp:80, atk:130, def:60, spa:40, spd:80, spe:120, types:['Fighting','Poison'] },
   Tyranitar:      { hp:100, atk:134, def:110, spa:95, spd:100, spe:61, types:['Rock','Dark'] },
@@ -54,7 +59,9 @@ const BASE_STATS = {
   'Charizard-Mega-Y': { hp:78, atk:104, def:78, spa:159, spd:115, spe:100, types:['Fire','Flying'] },
   'Charizard-Mega-X': { hp:78, atk:130, def:111, spa:130, spd:85, spe:100, types:['Fire','Dragon'] },
   'Tyranitar-Mega': { hp:100, atk:164, def:150, spa:95, spd:120, spe:71, types:['Rock','Dark'] },
-  'Froslass-Mega': { hp:70, atk:80, def:70, spa:105, spd:95, spe:125, types:['Ice','Ghost'] },
+  // T9j.3b: corrected to Champions canonical 70/80/70/140/100/120 (BST 580).
+  // Sources: Game8, OP.GG Champions, RotomLabs.
+  'Froslass-Mega': { hp:70, atk:80, def:70, spa:140, spd:100, spe:120, types:['Ice','Ghost'] },
   Milotic:         { hp:95, atk:60, def:79, spa:100, spd:125, spe:81, types:['Water'] },
   Kingambit:       { hp:100, atk:135, def:120, spa:60, spd:85, spe:50, types:['Dark','Steel'] },
   Amoonguss:       { hp:114, atk:85, def:70, spa:85, spd:80, spe:30, types:['Grass','Poison'] },
