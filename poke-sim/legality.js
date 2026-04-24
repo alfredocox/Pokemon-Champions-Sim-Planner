@@ -73,7 +73,7 @@ var CHAMPIONS_STONE_TO_SPECIES = {};
 // Champions alone. Warn, do not block.
 var CHAMPIONS_HOME_TRANSFER_MEGAS = new Set([
   'Chesnaught-Mega','Delphox-Mega','Greninja-Mega',
-  'Floette-Mega','Floette-Mega-EF'
+  'Floette-Mega','Floette-Mega-EF','Floette (Eternal Flower)-Mega'
 ]);
 
 // Strip form suffixes to compare against base-species ban list.

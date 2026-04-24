@@ -61,7 +61,26 @@ const BASE_STATS = {
   Gholdengo:       { hp:87, atk:60, def:95, spa:133, spd:91, spe:84, types:['Steel','Ghost'] },
   'Ursaluna-Bloodmoon': { hp:113, atk:70, def:85, spa:135, spd:95, spe:55, types:['Ground','Normal'] },
   Maushold:        { hp:74, atk:75, def:70, spa:65, spd:75, spe:111, types:['Normal'] },
-  Dragonite:       { hp:91, atk:134, def:95, spa:100, spd:100, spe:80, types:['Dragon','Flying'] },
+  Dragonite:       { hp:91, atk:134, def:95, spa:100, spd:100, spe:80, types:['Dragon','Flying'] },  // T9e: species used by preloaded tournament teams (14-20)
+  Talonflame:      { hp:78, atk:81, def:71, spa:74, spd:69, spe:126, types:['Fire','Flying'] },
+  Gengar:          { hp:60, atk:65, def:60, spa:130, spd:75, spe:110, types:['Ghost','Poison'] },
+  Golurk:          { hp:89, atk:124, def:80, spa:55, spd:80, spe:55, types:['Ground','Ghost'] },
+  'Golurk-Mega':   { hp:89, atk:159, def:105, spa:70, spd:105, spe:55, types:['Ground','Ghost'] },
+  'Kommo-o':       { hp:75, atk:110, def:125, spa:100, spd:105, spe:85, types:['Dragon','Fighting'] },
+  Aerodactyl:      { hp:80, atk:105, def:65, spa:60, spd:75, spe:130, types:['Rock','Flying'] },
+  'Floette (Eternal Flower)': { hp:74, atk:65, def:67, spa:125, spd:128, spe:92, types:['Fairy'] },
+  'Floette (Eternal Flower)-Mega': { hp:74, atk:85, def:87, spa:155, spd:148, spe:102, types:['Fairy'] },
+  'Rotom-Heat':    { hp:50, atk:65, def:107, spa:105, spd:107, spe:86, types:['Electric','Fire'] },
+  Froslass:        { hp:70, atk:80, def:70, spa:80, spd:70, spe:110, types:['Ice','Ghost'] },
+  Clefable:        { hp:95, atk:70, def:73, spa:95, spd:90, spe:60, types:['Fairy'] },
+  'Gengar-Mega':   { hp:60, atk:65, def:80, spa:170, spd:95, spe:130, types:['Ghost','Poison'] },
+  'Aerodactyl-Mega': { hp:80, atk:135, def:85, spa:70, spd:95, spe:150, types:['Rock','Flying'] },
+  'Meganium-Mega': { hp:80, atk:92, def:115, spa:143, spd:115, spe:80, types:['Grass','Fairy'] },
+  Lopunny:         { hp:65, atk:76, def:84, spa:54, spd:96, spe:105, types:['Normal'] },
+  'Lopunny-Mega':  { hp:65, atk:136, def:94, spa:54, spd:96, spe:135, types:['Normal','Fighting'] },
+  Aegislash:       { hp:60, atk:50, def:150, spa:50, spd:150, spe:60, types:['Steel','Ghost'] },
+  Vanilluxe:       { hp:71, atk:95, def:85, spa:110, spd:95, spe:79, types:['Ice'] },
+
 };
 
 
@@ -2934,7 +2953,855 @@ const TEAMS = {
         "tera": null
       }
     ]
+  },
+  "perish_trap_gengar": {
+    "name": "Perish Trap — Mega Gengar",
+    "label": "PERISH TRAP",
+    "style": "perish_trap",
+    "description": "Mega Gengar Shadow Tag + Perish Song trap core. Sinistcha Rage Powder redirection stalls opponents through perish countdown. Francesco Rasini Champions Arena Top 12.",
+    "champion_pack_id": "perish_trap_gengar_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://www.vrpastes.com/s8hEJH9u",
+      "player": "Francesco Rasini",
+      "event": "The Champions Arena (Rank #12)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "Francesco Rasini",
+      "url": "https://www.vrpastes.com/s8hEJH9u",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Gengar legal in Reg M-A via Gengarite. Shadow Tag + Perish Song legal. Source: Pikalytics + VR Pastes.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Gengar-Mega",
+        "item": "Gengarite",
+        "ability": "Shadow Tag",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Shadow Ball", "Sludge Bomb", "Perish Song", "Protect"],
+        "tera": "Ghost",
+        "role": "Mega Trapper"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Black Glasses",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Kowtow Cleave", "Sucker Punch", "Low Kick", "Protect"],
+        "tera": "Dark",
+        "role": "Late-Game Sweeper"
+      },
+      {
+        "name": "Sinistcha",
+        "item": "Sitrus Berry",
+        "ability": "Hospitality",
+        "nature": "Relaxed",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 4, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
+        "moves": ["Matcha Gotcha", "Trick Room", "Rage Powder", "Protect"],
+        "tera": "Dark",
+        "role": "Redirection Support"
+      },
+      {
+        "name": "Incineroar",
+        "item": "Chople Berry",
+        "ability": "Intimidate",
+        "nature": "Careful",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 4, "def": 0, "spa": 0, "spd": 252, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Flare Blitz", "Protect", "Parting Shot", "Fake Out"],
+        "tera": "Ghost",
+        "role": "Pivot / Fake Out"
+      },
+      {
+        "name": "Kommo-o",
+        "item": "Leftovers",
+        "ability": "Overcoat",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Clanging Scales", "Aura Sphere", "Clangorous Soul", "Protect"],
+        "tera": "Fairy",
+        "role": "Late Cleaner"
+      },
+      {
+        "name": "Aerodactyl",
+        "item": "Focus Sash",
+        "ability": "Unnerve",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Tailwind", "Dual Wingbeat", "Rock Slide", "Protect"],
+        "tera": "Flying",
+        "role": "Speed Control"
+      }
+    ]
+  },
+  "rain_offense": {
+    "name": "Rain Offense — Mega Meganium",
+    "label": "RAIN",
+    "style": "rain_offense",
+    "description": "Pelipper Drizzle + Basculegion Adaptability Wave Crash + Archaludon Electro Shot rain core. Mega Meganium (Mega Sol) secondary. leoscerni LIGA DA COMUNIDADE #2 Rank #3.",
+    "champion_pack_id": "rain_offense_meganium_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://play.limitlesstcg.com/tournament/69d18b350e548b5c2fbe3486/player/leoscerni/teamlist",
+      "player": "leoscerni",
+      "event": "LIGA DA COMUNIDADE #2 (Rank #3)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "leoscerni",
+      "url": "https://play.limitlesstcg.com/tournament/69d18b350e548b5c2fbe3486/player/leoscerni/teamlist",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Meganium (new Champions Mega, Meganiumite) legal in Reg M-A. All other species standard. Source: Pikalytics Top Teams.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Meganium-Mega",
+        "item": "Meganiumite",
+        "ability": "Mega Sol",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Solar Beam", "Weather Ball", "Dazzling Gleam", "Protect"],
+        "tera": "Fairy",
+        "role": "Mega Attacker"
+      },
+      {
+        "name": "Sableye",
+        "item": "Lum Berry",
+        "ability": "Prankster",
+        "nature": "Calm",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Foul Play", "Rain Dance", "Light Screen", "Encore"],
+        "tera": "Normal",
+        "role": "Prankster Support"
+      },
+      {
+        "name": "Archaludon",
+        "item": "Sitrus Berry",
+        "ability": "Stamina",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Electro Shot", "Draco Meteor", "Flash Cannon", "Protect"],
+        "tera": "Fairy",
+        "role": "Rain SpA"
+      },
+      {
+        "name": "Basculegion",
+        "item": "Choice Scarf",
+        "ability": "Adaptability",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Wave Crash", "Flip Turn", "Aqua Jet", "Last Respects"],
+        "tera": "Ghost",
+        "role": "Scarf Sweeper"
+      },
+      {
+        "name": "Pelipper",
+        "item": "Focus Sash",
+        "ability": "Drizzle",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Weather Ball", "Hurricane", "Tailwind", "Protect"],
+        "tera": "Ghost",
+        "role": "Weather Setter"
+      },
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
+        "tera": "Stellar",
+        "role": "Unburden Sweeper"
+      }
+    ]
+  },
+  "trick_room_golurk": {
+    "name": "Trick Room — Mega Golurk",
+    "label": "TRICK ROOM",
+    "style": "trick_room",
+    "description": "Farigiraf Armor Tail + Trick Room setter, Mega Golurk Iron Fist Headlong Rush sweeper, Torkoal Eruption cleanup. pokefey Torneo Salida Rank #2.",
+    "champion_pack_id": "trick_room_golurk_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://play.limitlesstcg.com/tournament/69d3c3270e548b5c2fbe4826/player/pokefey/teamlist",
+      "player": "pokefey",
+      "event": "Torneo Salida Pokemon Champions (Rank #2)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "pokefey",
+      "url": "https://play.limitlesstcg.com/tournament/69d3c3270e548b5c2fbe4826/player/pokefey/teamlist",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Golurk legal in Reg M-A via Golurkite. Unseen Fist ability is updated in Champions (25% Protect bypass). Source: Pikalytics Top Teams.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Incineroar",
+        "item": "Shuca Berry",
+        "ability": "Intimidate",
+        "nature": "Careful",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 4, "def": 0, "spa": 0, "spd": 252, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Flare Blitz", "Throat Chop", "Parting Shot", "Fake Out"],
+        "tera": "Fire",
+        "role": "Pivot"
+      },
+      {
+        "name": "Farigiraf",
+        "item": "Sitrus Berry",
+        "ability": "Armor Tail",
+        "nature": "Relaxed",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
+        "moves": ["Hyper Voice", "Psychic", "Helping Hand", "Trick Room"],
+        "tera": "Normal",
+        "role": "TR Setter"
+      },
+      {
+        "name": "Golurk-Mega",
+        "item": "Golurkite",
+        "ability": "Iron Fist",
+        "nature": "Brave",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
+        "moves": ["Protect", "Headlong Rush", "Poltergeist", "Ice Punch"],
+        "tera": "Ground",
+        "role": "Mega TR Sweeper"
+      },
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Dire Claw", "Fake Out", "Coaching"],
+        "tera": "Fighting",
+        "role": "Unburden"
+      },
+      {
+        "name": "Torkoal",
+        "item": "Charcoal",
+        "ability": "Drought",
+        "nature": "Quiet",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
+        "moves": ["Protect", "Heat Wave", "Eruption", "Weather Ball"],
+        "tera": "Fire",
+        "role": "TR Attacker"
+      },
+      {
+        "name": "Venusaur",
+        "item": "Focus Sash",
+        "ability": "Chlorophyll",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Protect", "Leaf Storm", "Sludge Bomb", "Sleep Powder"],
+        "tera": "Grass",
+        "role": "Sun Abuser / Sash"
+      }
+    ]
+  },
+  "sun_offense_charizard": {
+    "name": "Sun Offense — Mega Charizard Y",
+    "label": "SUN",
+    "style": "sun_offense",
+    "description": "Mega Charizard Y Drought + Torkoal Eruption + Hatterene/Farigiraf Trick Room hybrid. Jiang Jin-Hao Champions Arena Top 5.",
+    "champion_pack_id": "sun_offense_charizard_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://www.vrpastes.com/y1F6tzNe",
+      "player": "Jiang Jin-Hao",
+      "event": "The Champions Arena (Rank #5)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "Jiang Jin-Hao",
+      "url": "https://www.vrpastes.com/y1F6tzNe",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Charizard Y legal in Reg M-A. Standard sun core + TR fallback. Source: Pikalytics + VR Pastes.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Incineroar",
+        "item": "White Herb",
+        "ability": "Intimidate",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 4, "def": 0, "spa": 0, "spd": 252, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Flare Blitz", "Darkest Lariat", "Close Combat", "Fake Out"],
+        "tera": "Fire",
+        "role": "Pivot"
+      },
+      {
+        "name": "Hatterene",
+        "item": "Fairy Feather",
+        "ability": "Magic Bounce",
+        "nature": "Relaxed",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
+        "moves": ["Psychic", "Trick Room", "Dazzling Gleam", "Protect"],
+        "tera": "Psychic",
+        "role": "TR Setter"
+      },
+      {
+        "name": "Farigiraf",
+        "item": "Sitrus Berry",
+        "ability": "Armor Tail",
+        "nature": "Relaxed",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
+        "moves": ["Hyper Voice", "Trick Room", "Psychic", "Protect"],
+        "tera": "Normal",
+        "role": "TR Setter 2"
+      },
+      {
+        "name": "Torkoal",
+        "item": "Charcoal",
+        "ability": "Drought",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Eruption", "Weather Ball", "Earth Power", "Protect"],
+        "tera": "Fire",
+        "role": "Sun Setter"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Black Glasses",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Kowtow Cleave", "Sucker Punch", "Iron Head", "Swords Dance"],
+        "tera": "Dark",
+        "role": "Sweeper"
+      },
+      {
+        "name": "Charizard-Mega-Y",
+        "item": "Charizardite Y",
+        "ability": "Solar Power",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Heat Wave", "Overheat", "Solar Beam", "Protect"],
+        "tera": "Fire",
+        "role": "Mega Attacker"
+      }
+    ]
+  },
+  "z2r_feitosa_mega_floette": {
+    "name": "Z2R Feitosa — Mega Floette Balance",
+    "label": "CHAMPIONS CUP",
+    "style": "balance_mega",
+    "description": "Mega Floette Fairy Aura Light of Ruin + Talonflame Gale Wings Tailwind + Basculegion/Kingambit dual wincon. Z2R Feitosa LIGA DA COMUNIDADE #2 Rank #2 15-0-0.",
+    "champion_pack_id": "z2r_feitosa_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://play.limitlesstcg.com/tournament/69d18b350e548b5c2fbe3486/player/pedrohenriq/teamlist",
+      "player": "Z2R Feitosa",
+      "event": "LIGA DA COMUNIDADE #2 (Rank #2, 15-0-0)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "Z2R Feitosa",
+      "url": "https://play.limitlesstcg.com/tournament/69d18b350e548b5c2fbe3486/player/pedrohenriq/teamlist",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Floette (Eternal Flower) requires HOME transfer — flagged by legality module. Floettite new Champions Mega. Source: Pikalytics Top Teams.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Talonflame",
+        "item": "Sharp Beak",
+        "ability": "Gale Wings",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Protect", "Dual Wingbeat", "Flare Blitz", "Tailwind"],
+        "tera": "Flying",
+        "role": "Priority Tailwind"
+      },
+      {
+        "name": "Garchomp",
+        "item": "Roseli Berry",
+        "ability": "Rough Skin",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Protect", "Rock Slide", "Earthquake", "Dragon Claw"],
+        "tera": "Steel",
+        "role": "Physical Attacker"
+      },
+      {
+        "name": "Basculegion",
+        "item": "Sitrus Berry",
+        "ability": "Adaptability",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Protect", "Liquidation", "Last Respects", "Aqua Jet"],
+        "tera": "Water",
+        "role": "Revenge Killer"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Black Glasses",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Protect", "Sucker Punch", "Iron Head", "Kowtow Cleave"],
+        "tera": "Dark",
+        "role": "Late-Game Cleaner"
+      },
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Protect", "Close Combat", "Gunk Shot", "Fake Out"],
+        "tera": "Fighting",
+        "role": "Fast Attacker"
+      },
+      {
+        "name": "Floette (Eternal Flower)-Mega",
+        "item": "Floettite",
+        "ability": "Fairy Aura",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Protect", "Light of Ruin", "Dazzling Gleam", "Moonblast"],
+        "tera": "Fairy",
+        "role": "Mega Special Wall-Breaker"
+      }
+    ]
+  },
+  "benny_v_mega_froslass": {
+    "name": "Benny V — Mega Froslass Wide League",
+    "label": "WIDE LEAGUE",
+    "style": "snow_mega",
+    "description": "Mega Froslass Snow Cloak Blizzard + Basculegion Choice Scarf Last Respects + Kingambit closer. Benny V Wide League SNR #84 Rank #2 13-1-0.",
+    "champion_pack_id": "benny_v_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://play.limitlesstcg.com/tournament/69d7114dc734cfa1af2b581d/player/ginger78/teamlist",
+      "player": "Benny V",
+      "event": "Wide League SNR #84 (Rank #2, 13-1-0)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "Benny V",
+      "url": "https://play.limitlesstcg.com/tournament/69d7114dc734cfa1af2b581d/player/ginger78/teamlist",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Froslass legal in Reg M-A via Froslassite. Standard Scarf + priority core. Source: Pikalytics Top Teams.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Basculegion",
+        "item": "Choice Scarf",
+        "ability": "Adaptability",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Wave Crash", "Last Respects", "Icy Wind", "Flip Turn"],
+        "tera": "Water",
+        "role": "Scarf Sweeper"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Black Glasses",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Kowtow Cleave", "Sucker Punch", "Swords Dance", "Protect"],
+        "tera": "Dark",
+        "role": "Late-Game Cleaner"
+      },
+      {
+        "name": "Rotom-Heat",
+        "item": "Leftovers",
+        "ability": "Levitate",
+        "nature": "Bold",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Thunderbolt", "Overheat", "Will-O-Wisp", "Protect"],
+        "tera": "Water",
+        "role": "Burn Support"
+      },
+      {
+        "name": "Froslass-Mega",
+        "item": "Froslassite",
+        "ability": "Snow Cloak",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Blizzard", "Shadow Ball", "Taunt", "Protect"],
+        "tera": "Ghost",
+        "role": "Mega Snow Attacker"
+      },
+      {
+        "name": "Sneasler",
+        "item": "Focus Sash",
+        "ability": "Poison Touch",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
+        "tera": "Fighting",
+        "role": "Fake Out + Sash"
+      },
+      {
+        "name": "Clefable",
+        "item": "Sitrus Berry",
+        "ability": "Unaware",
+        "nature": "Calm",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Moonblast", "Follow Me", "Helping Hand", "Protect"],
+        "tera": "Fairy",
+        "role": "Redirection"
+      }
+    ]
+  },
+  "lukasjoel1_sand_gengar": {
+    "name": "lukasjoel1 — Sand + Mega Gengar ZGG",
+    "label": "ZGG CUP",
+    "style": "sand_trap",
+    "description": "Tyranitar Sand Stream + Garchomp Sand Veil + Mega Gengar Shadow Tag trap core. lukasjoel1 ZGG #1 $200 Rank #2 13-2-0.",
+    "champion_pack_id": "lukasjoel1_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://play.limitlesstcg.com/tournament/69c44a46d478313a15a329c7/player/lukasjoel1/teamlist",
+      "player": "lukasjoel1",
+      "event": "ZGG #1 Pokemon Champions VGC $200 (Rank #2, 13-2-0)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "lukasjoel1",
+      "url": "https://play.limitlesstcg.com/tournament/69c44a46d478313a15a329c7/player/lukasjoel1/teamlist",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Gengar legal in Reg M-A via Gengarite. Shadow Tag + sand core. Source: Pikalytics Top Teams.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Garchomp",
+        "item": "Bright Powder",
+        "ability": "Sand Veil",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Earthquake", "Dragon Claw", "Rock Slide", "Protect"],
+        "tera": "Ground",
+        "role": "Sand Attacker"
+      },
+      {
+        "name": "Tyranitar",
+        "item": "Shuca Berry",
+        "ability": "Sand Stream",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Rock Slide", "Low Kick", "Ice Punch", "Protect"],
+        "tera": "Rock",
+        "role": "Sand Setter"
+      },
+      {
+        "name": "Gengar-Mega",
+        "item": "Gengarite",
+        "ability": "Shadow Tag",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Shadow Ball", "Sludge Wave", "Focus Blast", "Protect"],
+        "tera": "Ghost",
+        "role": "Mega Trapper"
+      },
+      {
+        "name": "Whimsicott",
+        "item": "Mental Herb",
+        "ability": "Prankster",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Moonblast", "Protect", "Tailwind", "Fake Tears"],
+        "tera": "Grass",
+        "role": "Prankster Support"
+      },
+      {
+        "name": "Rotom-Wash",
+        "item": "Leftovers",
+        "ability": "Levitate",
+        "nature": "Bold",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Hydro Pump", "Volt Switch", "Will-O-Wisp", "Protect"],
+        "tera": "Water",
+        "role": "Burn Pivot"
+      },
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
+        "tera": "Fighting",
+        "role": "Unburden Sweeper"
+      }
+    ]
+  },
+  "hiroto_imai_snow": {
+    "name": "Hiroto Imai — Snow + Mega Lopunny",
+    "label": "CHAMPIONS CUP",
+    "style": "snow_offense",
+    "description": "Vanilluxe Snow Warning + Choice Scarf Blizzard spam, Mega Lopunny Fake Out disruption, Aegislash Stance Change. Hiroto Imai Champions Arena Rank #75.",
+    "champion_pack_id": "hiroto_imai_snow_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://vrpastes.com/htQ0opai",
+      "player": "Hiroto Imai",
+      "event": "The Champions Arena (Rank #75, 9-3)"
+    },
+    "provenance": {
+      "roster_source": "pikalytics_top_teams",
+      "spread_source": "archetype_default",
+      "author": "Hiroto Imai",
+      "url": "https://vrpastes.com/htQ0opai",
+      "status": "roster-verified-spreads-inferred"
+    },
+    "legality_status": "unverified",
+    "legality_notes": "Mega Lopunny legal in Reg M-A via Lopunnite. Vanilluxe Snow Warning standard. Source: Pikalytics + VR Pastes.",
+    "assumption_register": [
+      "Roster (species/items/abilities/moves) verified from open team list.",
+      "EVs, natures, and Tera types not disclosed by source; archetype-default spreads applied.",
+      "Mega activation consumes team's once-per-match Mega slot."
+    ],
+    "members": [
+      {
+        "name": "Lopunny-Mega",
+        "item": "Lopunnite",
+        "ability": "Limber",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Fake Out", "Encore", "Protect"],
+        "tera": "Normal",
+        "role": "Mega Fake Out"
+      },
+      {
+        "name": "Aegislash",
+        "item": "Spell Tag",
+        "ability": "Stance Change",
+        "nature": "Brave",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
+        "moves": ["Poltergeist", "Close Combat", "Shadow Sneak", "King's Shield"],
+        "tera": "Ghost",
+        "role": "Stance Attacker"
+      },
+      {
+        "name": "Vanilluxe",
+        "item": "Choice Scarf",
+        "ability": "Snow Warning",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Blizzard", "Icy Wind", "Freeze-Dry", "Ice Shard"],
+        "tera": "Ice",
+        "role": "Snow Setter / Scarf"
+      },
+      {
+        "name": "Garchomp",
+        "item": "White Herb",
+        "ability": "Rough Skin",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Dragon Claw", "Earthquake", "Rock Slide", "Protect"],
+        "tera": "Ground",
+        "role": "Physical Attacker"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Chople Berry",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Kowtow Cleave", "Sucker Punch", "Low Kick", "Protect"],
+        "tera": "Dark",
+        "role": "Late-Game Cleaner"
+      },
+      {
+        "name": "Basculegion",
+        "item": "Sitrus Berry",
+        "ability": "Adaptability",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "ev_source": "archetype_default",
+        "moves": ["Wave Crash", "Last Respects", "Aqua Jet", "Protect"],
+        "tera": "Water",
+        "role": "Revenge Killer"
+      }
+    ]
   }
+
 };
 // Move type map for damage calc
 const MOVE_TYPES = {
