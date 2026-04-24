@@ -28,11 +28,14 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // ---- Format Toggle (Doubles / Singles) ----
 let currentFormat = 'doubles';
+// T9j.2 — expose for engine.js runSimulation (which can't see ui.js lexical scope).
+if (typeof window !== 'undefined') window.currentFormat = currentFormat;
 document.querySelectorAll('.fmt-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentFormat = btn.dataset.fmt;
+    if (typeof window !== 'undefined') window.currentFormat = currentFormat;
     const indicator = document.getElementById('fmt-indicator');
     if (currentFormat === 'doubles') {
       indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/></svg> DOUBLES · 4v4 · Spread moves active`;
@@ -1151,7 +1154,7 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
       let seriesTurns=0, seriesTrTurns=0;
 
       while (seriesW<gamesNeeded && seriesL<gamesNeeded && gamesPlayed<bo) {
-        const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey]);
+        const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey], { format: currentFormat });
         if (battle.result==='win') seriesW++;
         else if (battle.result==='loss') seriesL++;
         else { seriesW+=0.5; seriesL+=0.5; }

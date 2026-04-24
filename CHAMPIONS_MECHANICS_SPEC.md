@@ -774,6 +774,24 @@ Items to flag for testing before engine commit:
 
 ---
 
+## 17A. DAMAGE ORACLE RECONCILIATION POLICY (added 2026-04-24)
+
+**Policy:** Smogon's Champions damage calculator, once available (tracked in Issue #35), is treated as the AUTHORITATIVE oracle for golden damage tests (DAMAGE-###) EXCEPT where this spec (§1-§16) documents a Champions-specific primary-source override. Divergences are enumerated below as `ORACLE-DIVERGENCE-N` with citations. The engine follows this spec, not the calc, when a divergence is flagged.
+
+**Quarterly reconciliation:** Re-run the full golden pack against the latest public Smogon Champions calc. For any new or resolved divergence, update this section and (if appropriate) adjust the spec. Any divergence whose Champions primary source turns out to be wrong is downgraded to match Smogon and removed from the override list.
+
+**Known divergences at filing (pre-calc release):**
+
+| ID | Scope | Champions (this spec) | Expected Smogon initial | Source |
+|---|---|---|---|---|
+| ORACLE-DIVERGENCE-1 | Damage random roll | 86–100 (15 rolls) | 85–100 (SV inheritance, 16 rolls) | [Bulbapedia Champions](https://bulbapedia.bulbagarden.net/) (§1 `MECH-ROLL-WINDOW`, open question #17) |
+| ORACLE-DIVERGENCE-2 | Freeze-Dry secondary | Cannot inflict Freeze status | 10% Freeze chance on Water targets | Verified V2 report (§14 Notable Move Changes) |
+| ORACLE-DIVERGENCE-3 | Rage Powder priority | +2 | +3 (Gen 8/9 SV value) | [Serebii Rage Powder Champions](https://www.serebii.net/attackdex-champions/ragepowder.shtml) (§4 priority table) |
+
+Further divergences must be added here with (a) ID, (b) scope, (c) Champions value, (d) Smogon value, (e) primary-source citation. Golden tests that exercise a divergence must mark `oracle: 'spec-override'` so the diff reporter ignores that mismatch.
+
+---
+
 ## 18. SOURCES BIBLIOGRAPHY
 
 1. [Serebii — Pokémon Champions Main Page](https://www.serebii.net/pokemonchampions/)

@@ -4773,6 +4773,109 @@ const MOVE_TYPES = {
 };
 
 
+// ============================================================
+// MOVE_TARGETS — Champions 2026 move target categories (T9j.2, Issue #33)
+// ============================================================
+// Categories:
+//   'normal'             single target, redirectable by Follow Me/Rage Powder
+//   'adjacent-foe'       same as 'normal' in this engine (no distance model)
+//   'all-adjacent'       SPREAD — hits both foes + ally (doubles), foe only (singles)
+//   'all-adjacent-foes'  SPREAD — hits both foes (doubles), foe only (singles)
+//   'all-foes'           SPREAD — hits all living foes regardless of adjacency
+//   'all-allies'         non-damaging boost/heal to allies
+//   'self'               user only / sets side or field flag
+//   'random-foe'         one random living foe, NOT redirectable
+// Sources: Serebii Champions attackdex + Game8 Champions move pages
+const MOVE_TARGETS = {
+  // ---- All-adjacent (includes ally in doubles) ----
+  'Earthquake':'all-adjacent', 'Magnitude':'all-adjacent', 'Surf':'all-adjacent',
+  'Discharge':'all-adjacent', 'Lava Plume':'all-adjacent', 'Explosion':'all-adjacent',
+  'Self-Destruct':'all-adjacent', 'Sludge Wave':'all-adjacent',
+  'Parabolic Charge':'all-adjacent', 'Bulldoze':'all-adjacent',
+
+  // ---- All-adjacent-foes ----
+  'Rock Slide':'all-adjacent-foes', 'Heat Wave':'all-adjacent-foes',
+  'Blizzard':'all-adjacent-foes', 'Muddy Water':'all-adjacent-foes',
+  'Dazzling Gleam':'all-adjacent-foes', 'Hyper Voice':'all-adjacent-foes',
+  'Eruption':'all-adjacent-foes', 'Water Spout':'all-adjacent-foes',
+  'Snarl':'all-adjacent-foes', 'Icy Wind':'all-adjacent-foes',
+  'Make It Rain':'all-adjacent-foes', 'Glacial Lance':'all-adjacent-foes',
+  'Burning Jealousy':'all-adjacent-foes', 'Sparkling Aria':'all-adjacent-foes',
+  'Clanging Scales':'all-adjacent-foes', 'Origin Pulse':'all-adjacent-foes',
+  'Precipice Blades':'all-adjacent-foes', 'Diamond Storm':'all-adjacent-foes',
+  'Matcha Gotcha':'all-adjacent-foes', 'Breaking Swipe':'all-adjacent-foes',
+
+  // ---- All-foes (non-adjacent) ----
+  'Perish Song':'all-foes', 'Haze':'all-foes',
+
+  // ---- All-allies ----
+  'Helping Hand':'all-allies', 'Life Dew':'all-allies',
+
+  // ---- Self / flag-setters ----
+  'Protect':'self', 'Detect':'self', 'Wide Guard':'self', 'Quick Guard':'self',
+  "King's Shield":'self', 'Spiky Shield':'self', 'Baneful Bunker':'self',
+  'Swords Dance':'self', 'Dragon Dance':'self', 'Nasty Plot':'self',
+  'Calm Mind':'self', 'Bulk Up':'self', 'Coil':'self',
+  'Roost':'self', 'Recover':'self', 'Shore Up':'self', 'Shed Tail':'self',
+  'Substitute':'self', 'Rest':'self',
+  'Follow Me':'self', 'Rage Powder':'self',
+  'Tailwind':'self', 'Trick Room':'self',
+  'Sunny Day':'self', 'Rain Dance':'self', 'Sandstorm':'self', 'Snowscape':'self',
+  'Light Screen':'self', 'Reflect':'self', 'Aurora Veil':'self',
+  'Imprison':'self', 'Ally Switch':'self', 'Lunar Dance':'self',
+
+  // ---- Random-foe (NOT redirectable) ----
+  'Outrage':'random-foe', 'Uproar':'random-foe',
+  'Petal Dance':'random-foe', 'Thrash':'random-foe',
+
+  // ---- Normal (single target, redirectable) ----
+  'Thunderbolt':'normal', 'Flamethrower':'normal', 'Ice Beam':'normal',
+  'Thunder':'normal', 'Hurricane':'normal', 'Moonblast':'normal',
+  'Shadow Ball':'normal', 'Psychic':'normal', 'Psyshock':'normal',
+  'Psychic Noise':'normal', 'Draco Meteor':'normal', 'Dragon Pulse':'normal',
+  'Dragon Claw':'normal', 'Dragon Darts':'normal',
+  'Close Combat':'normal', 'Focus Blast':'normal', 'Vacuum Wave':'normal',
+  'Mystical Fire':'normal', 'Fire Fang':'normal', 'Fire Punch':'normal',
+  'Flare Blitz':'normal', 'Overheat':'normal', 'Ice Punch':'normal',
+  'Hydro Pump':'normal', 'Scald':'normal', 'Liquidation':'normal',
+  'Wave Crash':'normal', 'Aqua Jet':'normal', 'Flip Turn':'normal',
+  'U-turn':'normal', 'Knock Off':'normal', 'Foul Play':'normal',
+  'Dark Pulse':'normal', 'Crunch':'normal', 'Kowtow Cleave':'normal',
+  'Sucker Punch':'normal', 'Throat Chop':'normal', 'Darkest Lariat':'normal',
+  'Low Kick':'normal', 'High Horsepower':'normal', 'Stomping Tantrum':'normal',
+  'Earth Power':'normal', 'Scorching Sands':'normal',
+  'Power Gem':'normal', 'Head Smash':'normal',
+  'Iron Head':'normal', 'Flash Cannon':'normal', 'Electro Shot':'normal',
+  'Weather Ball':'normal', 'Solar Beam':'normal', 'Energy Ball':'normal',
+  'Sludge Bomb':'normal', 'Dire Claw':'normal', 'Scale Shot':'normal',
+  'Blood Moon':'normal', 'Extreme Speed':'normal', 'Shadow Sneak':'normal',
+  'Phantom Force':'normal', 'Last Respects':'normal', 'Air Slash':'normal',
+  'Fake Out':'normal', 'Super Fang':'normal', 'Feint':'normal',
+  'Parting Shot':'normal', 'Will-O-Wisp':'normal', 'Thunder Wave':'normal',
+  'Taunt':'normal', 'Sleep Powder':'normal', 'Spore':'normal', 'Hypnosis':'normal',
+  'Encore':'normal', 'Clear Smog':'normal', 'Rock Tomb':'normal',
+  'Heal Pulse':'normal', 'Coaching':'normal',
+  'Expanding Force':'normal',  // dynamic → 'all-adjacent-foes' under Psychic Terrain (Issue #36)
+  'Tera Blast':'normal',       // normally single-target; type changes with Tera (Issue #7)
+};
+
+// Helpers (T9j.2, Issue #33)
+function getMoveTarget(moveName) {
+  const t = MOVE_TARGETS[moveName];
+  if (!t) {
+    if (typeof console !== 'undefined') {
+      console.warn(`[MOVE_TARGETS] unknown move "${moveName}", defaulting to 'normal'`);
+    }
+    return 'normal';
+  }
+  return t;
+}
+function isSpreadMove(moveName) {
+  const t = getMoveTarget(moveName);
+  return t === 'all-adjacent' || t === 'all-adjacent-foes' || t === 'all-foes';
+}
+
+
 // Type effectiveness chart
 const TYPE_CHART = {
   Normal:   { Ghost:0, Rock:0.5, Steel:0.5 },
@@ -5347,11 +5450,11 @@ class Pokemon {
     const attackerTypes = (this.teraActivated && this.tera) ? [this.tera] : this.types;
     const stab = attackerTypes.includes(moveType) ? 1.5 : 1;
 
-    // Doubles spread nerf
-    const isSpread = (move === 'Earthquake' || move === 'Rock Slide' ||
-                      move === 'Heat Wave' || move === 'Hyper Voice' ||
-                      move === 'Dazzling Gleam' || move === 'Eruption');
-    const spreadMod = isSpread ? 0.75 : 1;
+    // T9j.2 (Issue #26) — spread 0.75× applied by executeMove when >1 valid
+    // target AND format is doubles. Pulled from field._ctx.isSpread so we have
+    // access to runtime target-count and format state (set by executeMove,
+    // cleared after each per-target calcDamage call).
+    const spreadMod = (field && field._ctx && field._ctx.isSpread) ? 0.75 : 1;
 
     // Weather bonus
     let weatherMod = 1;
@@ -5428,11 +5531,24 @@ class Field {
     this.trickRoomTurns = 0;
     this.terrain      = 'none';
     this.terrainTurns = 0;
-    this.playerSide   = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false };
-    this.oppSide      = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false };
+    this.playerSide   = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false,
+      // T9j.2 (#31/#32) — Wide Guard turn flag + chain counter, redirect target
+      wideGuard:false, wideGuardChain:0, redirectTo:null, redirectType:null };
+    this.oppSide      = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false,
+      wideGuard:false, wideGuardChain:0, redirectTo:null, redirectType:null };
+    // T9j.2 (#26) — spread context sidecar. Set per-hit by executeMove, read by calcDamage.
+    this._ctx = { isSpread:false };
   }
 
   tick(logs) {
+    // T9j.2 — clear per-turn Wide Guard + redirect flags at end of turn.
+    // Chain counter only resets on non-WG move use (handled in executeAction).
+    this.playerSide.wideGuard = false;
+    this.oppSide.wideGuard    = false;
+    this.playerSide.redirectTo = null;
+    this.oppSide.redirectTo    = null;
+    this.playerSide.redirectType = null;
+    this.oppSide.redirectType    = null;
     // Weather countdown
     if (this.weather !== 'none' && this.weatherTurns > 0) {
       this.weatherTurns--;
@@ -5599,16 +5715,24 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (!attacker.alive) return;
     if (!move) return;
 
+    // T9j.2 (#31) — if side uses ANY non-Wide-Guard move this turn, reset chain.
+    if (move !== 'Wide Guard') {
+      const wgSide = (allies === playerActive) ? field.playerSide : field.oppSide;
+      if (wgSide && wgSide.wideGuardChain > 0) wgSide.wideGuardChain = 0;
+    }
+
     const moveType = MOVE_TYPES[move] || 'Normal';
     const PROTECT_MOVES = new Set(['Protect','Wide Guard','Quick Guard']);
     const STATUS_MOVES  = new Set(['Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder',
-      'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail']);
+      'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail',
+      // T9j.2 additions — side-state setters
+      'Wide Guard','Follow Me','Quick Guard']);
 
     // Attacker must be alive
     if (!attacker.alive) return;
 
-    // Handle Protect
-    if (PROTECT_MOVES.has(move)) {
+    // Handle Protect (self only — Wide Guard/Quick Guard handled in status branch below)
+    if (move === 'Protect' || move === 'Detect') {
       attacker.protected = true;
       log.push(`${attacker.name} used ${move}!`);
       return;
@@ -5633,6 +5757,40 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         side.tailwind = true;
         side.tailwindTurns = 4;
         log.push(`${attacker.name}'s Tailwind is blowing!`);
+      }
+      // T9j.2 (#31) — Wide Guard with 1/3 consecutive-use diminishing returns.
+      if (move === 'Wide Guard') {
+        const side = (allies === playerActive) ? field.playerSide : field.oppSide;
+        const chainChance = (side.wideGuardChain === 0) ? 1.0 : Math.pow(1/3, side.wideGuardChain);
+        if (rng() < chainChance) {
+          side.wideGuard = true;
+          side.wideGuardChain++;
+          log.push(`${attacker.name} protected its team with Wide Guard!`);
+        } else {
+          side.wideGuardChain = 0;
+          log.push(`${attacker.name}'s Wide Guard failed!`);
+        }
+        return;
+      }
+      if (move === 'Quick Guard') {
+        attacker.protected = true;  // minimal: treat as self-protect for now (Refs: separate priority-only QG ticket)
+        log.push(`${attacker.name} used Quick Guard!`);
+        return;
+      }
+      // T9j.2 (#32) — Follow Me / Rage Powder set side redirect flag.
+      if (move === 'Follow Me') {
+        const side = (allies === playerActive) ? field.playerSide : field.oppSide;
+        side.redirectTo = attacker;
+        side.redirectType = 'followMe';
+        log.push(`${attacker.name} became the center of attention!`);
+        return;
+      }
+      if (move === 'Rage Powder') {
+        const side = (allies === playerActive) ? field.playerSide : field.oppSide;
+        side.redirectTo = attacker;
+        side.redirectType = 'ragePowder';
+        log.push(`${attacker.name} became the center of attention!`);
+        return;
       }
       if (move === 'Sunny Day') { field.weather = 'sun'; field.weatherTurns = 5; log.push('The sunlight turned harsh!'); }
       if (move === 'Rain Dance') { field.weather = 'rain'; field.weatherTurns = 5; log.push('It started to rain!'); }
@@ -5734,13 +5892,137 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return;
     }
 
-    // Regular damage
-    if (!target || !target.alive) {
+    // T9j.2 (Issue #26) — per-target damage via executeMove wrapper.
+    // Handles spread, Wide Guard, Follow Me/Rage Powder redirection,
+    // per-target type eff, and format-aware 0.75× mod.
+    executeMove(attacker, move, target, allies, enemies, field, log, rng);
+  }
+
+  // ============================================================
+  // T9j.2 — executeMove: per-target damage resolution
+  // Refs #26 (spread), #31 (Wide Guard), #32 (Follow Me/Rage Powder),
+  //      #33 (MOVE_TARGETS registry)
+  // ============================================================
+  function executeMove(attacker, move, intendedTarget, allies, enemies, field, log, rng) {
+    const format = (opts && opts.format) || 'doubles';
+    const isDoubles = (format !== 'singles');
+    const targetCat = (typeof getMoveTarget === 'function')
+      ? getMoveTarget(move)
+      : 'normal';
+
+    const liveEnemies = enemies.filter(e => e.alive);
+    const liveAllies  = allies.filter(a => a !== attacker && a.alive);
+
+    // Resolve valid targets by category.
+    let targets = [];
+    switch (targetCat) {
+      case 'all-adjacent':
+        targets = isDoubles ? [...liveEnemies, ...liveAllies] : liveEnemies.slice(0, 1);
+        break;
+      case 'all-adjacent-foes':
+        targets = isDoubles ? liveEnemies : liveEnemies.slice(0, 1);
+        break;
+      case 'all-foes':
+        targets = liveEnemies;
+        break;
+      case 'random-foe':
+        if (liveEnemies.length > 0) {
+          targets = [liveEnemies[Math.floor(rng() * liveEnemies.length)]];
+        }
+        break;
+      case 'all-allies':
+      case 'self':
+        targets = intendedTarget ? [intendedTarget] : [attacker];
+        break;
+      case 'normal':
+      case 'adjacent-foe':
+      default: {
+        let t = intendedTarget;
+        // T9j.2 (#32) — redirection: single-target moves to a side with redirectTo
+        if (t && t.side) {
+          const rTo = t.side.redirectTo;
+          const rType = t.side.redirectType;
+          if (rTo && rTo.alive && rTo !== attacker) {
+            let bypass = false;
+            if (rType === 'ragePowder') {
+              if (attacker.types.includes('Grass')) bypass = true;
+              if (attacker.ability === 'Overcoat') bypass = true;
+              if (attacker.item === 'Safety Goggles') bypass = true;
+            }
+            if (!bypass) {
+              log.push(`${attacker.name}'s attack was drawn to ${rTo.name}!`);
+              t = rTo;
+            }
+          }
+        }
+        targets = (t && t.alive) ? [t] : [];
+        break;
+      }
+    }
+
+    if (targets.length === 0) {
       log.push(`${attacker.name} used ${move}! (no valid target)`);
       return;
     }
-    const dmg = attacker.calcDamage(move, target, field, null, rng);
-    applyDamage(attacker, move, target, dmg, field, log);
+
+    const isSpread =
+      targetCat === 'all-adjacent' ||
+      targetCat === 'all-adjacent-foes' ||
+      targetCat === 'all-foes';
+
+    // T9j.2 (#31) — Wide Guard filter on damaging spread moves.
+    // Haze / Perish Song are non-damaging 'all-foes' status; spec says WG does NOT
+    // block them. They're routed through the status-move branch above and never
+    // reach executeMove, so no additional gate needed.
+    if (isSpread) {
+      targets = targets.filter(t => {
+        if (t === attacker) return true;
+        if (t.side && t.side.wideGuard) {
+          log.push(`Wide Guard blocked ${move} on ${t.name}!`);
+          return false;
+        }
+        return true;
+      });
+      if (targets.length === 0) return;
+    }
+
+    const applySpreadMod = isSpread && isDoubles && targets.length > 1;
+
+    // Miss check — single roll for whole move (VGC spread behavior)
+    const ACC_MAP = { 'Focus Blast':0.70, 'Hydro Pump':0.80, 'Blizzard':0.70,
+                      'Thunder':0.70, 'Hurricane':0.70, 'Sleep Powder':0.75,
+                      'Will-O-Wisp':0.85, 'High Horsepower':0.95, 'Dire Claw':1.0,
+                      'Rock Slide':0.90, 'Heat Wave':0.90 };
+    const acc = ACC_MAP[move] || 1.0;
+    if (rng() > acc) {
+      log.push(`${attacker.name} used ${move}! It missed!`);
+      return;
+    }
+
+    log.push(`${attacker.name} used ${move}!`);
+
+    // Speed order so faints register correctly mid-spread
+    const ordered = [...targets].sort((a, b) =>
+      (b.getEffSpeed ? b.getEffSpeed(field) : 0) - (a.getEffSpeed ? a.getEffSpeed(field) : 0)
+    );
+
+    for (const t of ordered) {
+      if (!t.alive) continue;
+      if (t.protected) {
+        log.push(`${t.name} protected itself!`);
+        continue;
+      }
+      // Set spread context for calcDamage
+      field._ctx.isSpread = applySpreadMod;
+      const dmg = attacker.calcDamage(move, t, field, null, rng);
+      field._ctx.isSpread = false;
+      if (dmg > 0) {
+        applyDamage(attacker, move, t, dmg, field, log);
+      } else {
+        log.push(`${move} had no effect on ${t.name}!`);
+      }
+      if (!attacker.alive) break;
+    }
   }
 
   function applyDamage(attacker, move, target, dmg, field, log) {
@@ -5925,9 +6207,15 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 // PRIORITY LOOKUP
 // ============================================================
 function getPriority(move) {
+  // T9j.2 — Champions 2026 priority table (Refs CHAMPIONS_MECHANICS_SPEC §4).
+  // Rage Powder and Follow Me are +2 in Champions (ORACLE-DIVERGENCE-3 vs SV +3).
   const P = {
-    'Fake Out':3, 'Extreme Speed':2, 'Aqua Jet':1, 'Shadow Sneak':1, 'Helping Hand':5,
-    'Protect':4, 'Wide Guard':3, 'Quick Guard':3,
+    'Fake Out':3, 'Extreme Speed':2, 'Aqua Jet':1, 'Shadow Sneak':1,
+    'Sucker Punch':1, 'Vacuum Wave':1, 'Quick Attack':1,
+    'Helping Hand':5,
+    'Protect':4, 'Detect':4,
+    'Wide Guard':3, 'Quick Guard':3,
+    'Follow Me':2, 'Rage Powder':2,
     'Trick Room':-7, 'Roost':0
   };
   return P[move] || 0;
@@ -5958,7 +6246,9 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
     for (let j = 0; j < batchSize; j++) {
       // Issue #2 FIX: generate a unique seed per battle and pass it in
       const seed = makeSeed();
-      const battle = simulateBattle(playerTeamDef, oppTeamDef, { seed });
+      // T9j.2 — thread format through from ui.js (currentFormat) via window.
+      const fmt = (typeof window !== 'undefined' && window.currentFormat) || 'doubles';
+      const battle = simulateBattle(playerTeamDef, oppTeamDef, { seed, format: fmt });
       if (battle.result === 'error') {
         results.errors++;
         if (results.allLogs.length < 5) results.allLogs.push({ ...battle, oppTeam: oppTeamKey });
@@ -6129,11 +6419,14 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // ---- Format Toggle (Doubles / Singles) ----
 let currentFormat = 'doubles';
+// T9j.2 — expose for engine.js runSimulation (which can't see ui.js lexical scope).
+if (typeof window !== 'undefined') window.currentFormat = currentFormat;
 document.querySelectorAll('.fmt-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentFormat = btn.dataset.fmt;
+    if (typeof window !== 'undefined') window.currentFormat = currentFormat;
     const indicator = document.getElementById('fmt-indicator');
     if (currentFormat === 'doubles') {
       indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/></svg> DOUBLES · 4v4 · Spread moves active`;
@@ -7252,7 +7545,7 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
       let seriesTurns=0, seriesTrTurns=0;
 
       while (seriesW<gamesNeeded && seriesL<gamesNeeded && gamesPlayed<bo) {
-        const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey]);
+        const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey], { format: currentFormat });
         if (battle.result==='win') seriesW++;
         else if (battle.result==='loss') seriesL++;
         else { seriesW+=0.5; seriesL+=0.5; }

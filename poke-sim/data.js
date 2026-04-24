@@ -3847,6 +3847,109 @@ const MOVE_TYPES = {
 };
 
 
+// ============================================================
+// MOVE_TARGETS — Champions 2026 move target categories (T9j.2, Issue #33)
+// ============================================================
+// Categories:
+//   'normal'             single target, redirectable by Follow Me/Rage Powder
+//   'adjacent-foe'       same as 'normal' in this engine (no distance model)
+//   'all-adjacent'       SPREAD — hits both foes + ally (doubles), foe only (singles)
+//   'all-adjacent-foes'  SPREAD — hits both foes (doubles), foe only (singles)
+//   'all-foes'           SPREAD — hits all living foes regardless of adjacency
+//   'all-allies'         non-damaging boost/heal to allies
+//   'self'               user only / sets side or field flag
+//   'random-foe'         one random living foe, NOT redirectable
+// Sources: Serebii Champions attackdex + Game8 Champions move pages
+const MOVE_TARGETS = {
+  // ---- All-adjacent (includes ally in doubles) ----
+  'Earthquake':'all-adjacent', 'Magnitude':'all-adjacent', 'Surf':'all-adjacent',
+  'Discharge':'all-adjacent', 'Lava Plume':'all-adjacent', 'Explosion':'all-adjacent',
+  'Self-Destruct':'all-adjacent', 'Sludge Wave':'all-adjacent',
+  'Parabolic Charge':'all-adjacent', 'Bulldoze':'all-adjacent',
+
+  // ---- All-adjacent-foes ----
+  'Rock Slide':'all-adjacent-foes', 'Heat Wave':'all-adjacent-foes',
+  'Blizzard':'all-adjacent-foes', 'Muddy Water':'all-adjacent-foes',
+  'Dazzling Gleam':'all-adjacent-foes', 'Hyper Voice':'all-adjacent-foes',
+  'Eruption':'all-adjacent-foes', 'Water Spout':'all-adjacent-foes',
+  'Snarl':'all-adjacent-foes', 'Icy Wind':'all-adjacent-foes',
+  'Make It Rain':'all-adjacent-foes', 'Glacial Lance':'all-adjacent-foes',
+  'Burning Jealousy':'all-adjacent-foes', 'Sparkling Aria':'all-adjacent-foes',
+  'Clanging Scales':'all-adjacent-foes', 'Origin Pulse':'all-adjacent-foes',
+  'Precipice Blades':'all-adjacent-foes', 'Diamond Storm':'all-adjacent-foes',
+  'Matcha Gotcha':'all-adjacent-foes', 'Breaking Swipe':'all-adjacent-foes',
+
+  // ---- All-foes (non-adjacent) ----
+  'Perish Song':'all-foes', 'Haze':'all-foes',
+
+  // ---- All-allies ----
+  'Helping Hand':'all-allies', 'Life Dew':'all-allies',
+
+  // ---- Self / flag-setters ----
+  'Protect':'self', 'Detect':'self', 'Wide Guard':'self', 'Quick Guard':'self',
+  "King's Shield":'self', 'Spiky Shield':'self', 'Baneful Bunker':'self',
+  'Swords Dance':'self', 'Dragon Dance':'self', 'Nasty Plot':'self',
+  'Calm Mind':'self', 'Bulk Up':'self', 'Coil':'self',
+  'Roost':'self', 'Recover':'self', 'Shore Up':'self', 'Shed Tail':'self',
+  'Substitute':'self', 'Rest':'self',
+  'Follow Me':'self', 'Rage Powder':'self',
+  'Tailwind':'self', 'Trick Room':'self',
+  'Sunny Day':'self', 'Rain Dance':'self', 'Sandstorm':'self', 'Snowscape':'self',
+  'Light Screen':'self', 'Reflect':'self', 'Aurora Veil':'self',
+  'Imprison':'self', 'Ally Switch':'self', 'Lunar Dance':'self',
+
+  // ---- Random-foe (NOT redirectable) ----
+  'Outrage':'random-foe', 'Uproar':'random-foe',
+  'Petal Dance':'random-foe', 'Thrash':'random-foe',
+
+  // ---- Normal (single target, redirectable) ----
+  'Thunderbolt':'normal', 'Flamethrower':'normal', 'Ice Beam':'normal',
+  'Thunder':'normal', 'Hurricane':'normal', 'Moonblast':'normal',
+  'Shadow Ball':'normal', 'Psychic':'normal', 'Psyshock':'normal',
+  'Psychic Noise':'normal', 'Draco Meteor':'normal', 'Dragon Pulse':'normal',
+  'Dragon Claw':'normal', 'Dragon Darts':'normal',
+  'Close Combat':'normal', 'Focus Blast':'normal', 'Vacuum Wave':'normal',
+  'Mystical Fire':'normal', 'Fire Fang':'normal', 'Fire Punch':'normal',
+  'Flare Blitz':'normal', 'Overheat':'normal', 'Ice Punch':'normal',
+  'Hydro Pump':'normal', 'Scald':'normal', 'Liquidation':'normal',
+  'Wave Crash':'normal', 'Aqua Jet':'normal', 'Flip Turn':'normal',
+  'U-turn':'normal', 'Knock Off':'normal', 'Foul Play':'normal',
+  'Dark Pulse':'normal', 'Crunch':'normal', 'Kowtow Cleave':'normal',
+  'Sucker Punch':'normal', 'Throat Chop':'normal', 'Darkest Lariat':'normal',
+  'Low Kick':'normal', 'High Horsepower':'normal', 'Stomping Tantrum':'normal',
+  'Earth Power':'normal', 'Scorching Sands':'normal',
+  'Power Gem':'normal', 'Head Smash':'normal',
+  'Iron Head':'normal', 'Flash Cannon':'normal', 'Electro Shot':'normal',
+  'Weather Ball':'normal', 'Solar Beam':'normal', 'Energy Ball':'normal',
+  'Sludge Bomb':'normal', 'Dire Claw':'normal', 'Scale Shot':'normal',
+  'Blood Moon':'normal', 'Extreme Speed':'normal', 'Shadow Sneak':'normal',
+  'Phantom Force':'normal', 'Last Respects':'normal', 'Air Slash':'normal',
+  'Fake Out':'normal', 'Super Fang':'normal', 'Feint':'normal',
+  'Parting Shot':'normal', 'Will-O-Wisp':'normal', 'Thunder Wave':'normal',
+  'Taunt':'normal', 'Sleep Powder':'normal', 'Spore':'normal', 'Hypnosis':'normal',
+  'Encore':'normal', 'Clear Smog':'normal', 'Rock Tomb':'normal',
+  'Heal Pulse':'normal', 'Coaching':'normal',
+  'Expanding Force':'normal',  // dynamic → 'all-adjacent-foes' under Psychic Terrain (Issue #36)
+  'Tera Blast':'normal',       // normally single-target; type changes with Tera (Issue #7)
+};
+
+// Helpers (T9j.2, Issue #33)
+function getMoveTarget(moveName) {
+  const t = MOVE_TARGETS[moveName];
+  if (!t) {
+    if (typeof console !== 'undefined') {
+      console.warn(`[MOVE_TARGETS] unknown move "${moveName}", defaulting to 'normal'`);
+    }
+    return 'normal';
+  }
+  return t;
+}
+function isSpreadMove(moveName) {
+  const t = getMoveTarget(moveName);
+  return t === 'all-adjacent' || t === 'all-adjacent-foes' || t === 'all-foes';
+}
+
+
 // Type effectiveness chart
 const TYPE_CHART = {
   Normal:   { Ghost:0, Rock:0.5, Steel:0.5 },
