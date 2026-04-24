@@ -99,6 +99,59 @@ Pokemon-Champions-Sim-Planner/
 
 ---
 
+## GITHUB SYNC — TEAMS WRITE-BACK
+
+Added April 23, 2026. Allows the app to persist in-memory `TEAMS` edits back to `poke-sim/data.js` on GitHub without leaving the browser.
+
+### Where to enter your PAT
+Sources tab → scroll to **GitHub Sync** section → paste your GitHub Personal Access Token into the password field.
+- Token is stored **in-session memory only** — never persisted, never sent anywhere except the GitHub Contents API.
+- Required PAT scope: `repo` (classic) or `contents: write` (fine-grained).
+
+### What triggers a sync
+| User action | Commit message written |
+|---|---|
+| Set Editor → Save Changes | `chore: update TEAMS (Set Editor)` |
+| Import Team → confirm import | `chore: update TEAMS (Import Team)` |
+
+If no token is entered, both actions still work normally — TEAMS updates in memory only, and the status label shows "no token entered (local-only change)".
+
+### How it works (ui.js)
+Three helper functions added just above `// ROSTER RENDERING`:
+
+```javascript
+// Fetches and caches the current SHA of poke-sim/data.js (required by GitHub PUT API)
+async function fetchDataJsSha()
+
+// Serializes in-memory TEAMS to a 'const TEAMS = {...};' JS string
+function serializeTeamsBlock()
+
+// GET data.js → regex-replace TEAMS block → PUT back → update status label
+async function saveTeamsToGitHub(reason)
+```
+
+`saveTeamsToGitHub()` is called at the tail of:
+- `saveEdits()` — after all Set Editor fields are written to `TEAMS`
+- `do-import-btn` click handler — after the imported members are committed to `TEAMS[slot]`
+
+### Regex used for surgical replacement
+```javascript
+/const TEAMS\s*=\s*\{[\s\S]*?\};\s*/m
+```
+This replaces **only** the `const TEAMS = { ... };` block in `data.js`, leaving all other variables (`BASE_STATS`, `POKEMON_TYPES_DB`, etc.) untouched.
+
+### Status label feedback (Sources tab)
+| Label text | Meaning |
+|---|---|
+| Token is only stored in this session and used when saving. | Default — no action yet |
+| GitHub: ready (SHA cached) | First fetch succeeded, SHA is cached |
+| GitHub: TEAMS saved ✓ | PUT succeeded — data.js updated on GitHub |
+| GitHub: no token entered (local-only change) | Save triggered but no PAT present |
+| GitHub: auth or network error | SHA fetch failed — check token scope |
+| GitHub: save failed (see console) | PUT failed — see browser devtools console |
+
+---
+
 ## 13 LOADED TEAMS
 
 | Key | Team Description |
@@ -232,6 +285,7 @@ deploy_website(
 
 ## FEATURES — COMPLETE
 
+- [x] **GitHub Sync** — TEAMS write-back to `data.js` via GitHub Contents API (PAT entered in Sources tab; triggers on Save Changes and Import Team)
 - [x] Bo1/Bo3/Bo5/Bo10 Monte Carlo simulation (non-deterministic, Math.random() roll)
 - [x] Singles/Doubles toggle (spread move nerf applied in doubles)
 - [x] Pokepaste URL + raw Showdown text import/export
@@ -304,12 +358,13 @@ When you ask the AI to make changes:
 | April 23, 2026 | Master prompt v1 + runbook + README pushed to GitHub |
 | April 23, 2026 | Master prompt v2 — full engine read, verified architecture |
 | April 23, 2026 | **Master prompt v3** — htmlpreview URL failure documented, LIVE APP section added, P1 issue logged, change log updated |
+| April 23, 2026 | **Master prompt v4** — GitHub Sync (TEAMS write-back) implemented and documented: Sources tab PAT input, `saveTeamsToGitHub()` helper, hooked into saveEdits() and import handler, bundle rebuilt |
 
 ---
 
 ## LAST KNOWN GOOD STATE
 
-- **Bundle:** `pokemon-champion-2026-FINAL.html` ~280 KB
+- **Bundle:** `pokemon-champion-2026-FINAL.html` ~237 KB (rebuilt April 23, 2026 with GitHub Sync)
 - **Engine:** Non-deterministic confirmed (`Math.random()` damage roll in `engine.js`)
 - **Trick Room:** Correctly modeled — 5-turn countdown, speed inversion, toggle cancel
 - **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
