@@ -964,7 +964,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         side.tailwindTurns = 4;
         log.push(`${attacker.name}'s Tailwind is blowing!`);
       }
-      // T9j.3 Screens setters. Duration 5 turns (Light Clay → 8 pending T9j.6 item pass).
+      // T9j.3 Screens setters. Duration fixed at 5 turns. Light Clay absent
+      // from Champions (games.gg, Game8); T9j.6 closed #43 as WONTFIX — no
+      // 5→8 extension applies.
+      //    Cite: https://games.gg/news/pokemon-champions-items-list-meta/
       if (move === 'Light Screen') {
         const side = (allies === playerActive) ? field.playerSide : field.oppSide;
         side.lightScreen = true;
