@@ -2669,7 +2669,8 @@ const MOVE_TYPES = {
   'Air Slash':'Flying', 'Energy Ball':'Grass', 'Sludge Bomb':'Poison',
   'Sleep Powder':'Grass', 'Earth Power':'Ground',
   'Throat Chop':'Dark',
-  'Ally Switch':'Psychic', 'Shadow Ball':'Ghost', 'Moon Blast':'Fairy',
+  // Issue #T3: removed duplicate 'Moon Blast' key — canonical name is 'Moonblast' (above).
+  'Ally Switch':'Psychic', 'Shadow Ball':'Ghost',
   'Lunar Dance':'Psychic', 'Psychic':'Psychic', 'Shadow Sneak':'Ghost',
   'Psyshock':'Psychic', 'Mystical Fire':'Fire',
   // New meta team moves

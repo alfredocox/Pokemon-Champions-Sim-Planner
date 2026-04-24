@@ -272,6 +272,9 @@ class Pokemon {
     const def = isPhysical ? target.getStat('def', field) : target.getStat('spd', field);
 
     // Base power
+    // Issue #T3: Champions move data updates — 9 BPs added from Game8 move list.
+    // Moonblast SpA-drop rate (30% -> 10% in Champions) is a display-text change
+    // only, since secondary effects are not implemented in this engine.
     const BP_MAP = {
       'Fake Out':40,'Flare Blitz':120,'Parting Shot':0,'Knock Off':65,'Power Gem':80,
       'Head Smash':150,'Extreme Speed':80,'Will-O-Wisp':0,'Earthquake':100,'Dragon Claw':80,
@@ -285,7 +288,11 @@ class Pokemon {
       'Iron Head':80,'Scorching Sands':70,'Dark Pulse':80,'Psychic Noise':75,'Draco Meteor':130,
       'Close Combat':120,'Dire Claw':60,'Ice Punch':75,'High Horsepower':95,
       'Dragon Darts':50,'Phantom Force':90,'Solar Beam':120,'Dazzling Gleam':80,'Air Slash':75,
-      'Energy Ball':90,'Sludge Bomb':90,'Sleep Powder':0
+      'Energy Ball':90,'Sludge Bomb':90,'Sleep Powder':0,
+      // Issue #T3: Champions-specific additions
+      'Night Daze':90,'Spirit Shackle':90,'Trop Kick':85,'Psyshield Bash':90,
+      'Beak Blast':120,'Mountain Gale':120,'First Impression':100,
+      'Infernal Parade':65,'Bone Rush':30
     };
     let bp = BP_MAP[move] || 60;
 
