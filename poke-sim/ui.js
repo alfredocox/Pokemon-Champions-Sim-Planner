@@ -2049,92 +2049,503 @@ function generatePilotGuide(oppKey, results) {
 }
 
 // ============================================================
-// PART 3: PDF REPORT BUILDER
+// PART 3: PDF REPORT BUILDER — T9j.14 (Refs #75) Shadow Pressure master sheet + coaching
 // ============================================================
+// Source design: user-supplied Shadow_Pressure_vFINAL_PLUS.pdf master sheet.
+// Structure: title banner, team overview, core game plan, role breakdown,
+// lead system, matchup guide, turn flow, rules to win, Bo3 adaptation,
+// final verdict, coaching notes.
+//
+// All analytics are derived from window.lastSimResults + currentPlayerKey.
+// COACHING_RULES below is a pluggable registry — add entries to extend
+// advice without touching the renderer.
 document.getElementById('pdf-report-btn')?.addEventListener('click', generatePDFReport);
 
-function generatePDFReport() {
-  const container = document.getElementById('pdf-report-container');
-  if (!container) return;
+// --- Move/ability taxonomies used by role inference and coaching ---------
+var PDF_FAKE_OUT = ['Fake Out'];
+var PDF_TAILWIND = ['Tailwind'];
+var PDF_TRICK_ROOM = ['Trick Room'];
+var PDF_REDIRECT = ['Follow Me', 'Rage Powder'];
+var PDF_SCREENS = ['Reflect', 'Light Screen', 'Aurora Veil'];
+var PDF_PRIORITY = ['Sucker Punch', 'Extreme Speed', 'Bullet Punch', 'Aqua Jet', 'Ice Shard', 'Mach Punch', 'Vacuum Wave', 'Shadow Sneak', 'Quick Attack', 'Accelerock', 'First Impression'];
+var PDF_SPREAD = ['Earthquake', 'Rock Slide', 'Heat Wave', 'Hyper Voice', 'Blizzard', 'Surf', 'Muddy Water', 'Make It Rain', 'Dazzling Gleam', 'Discharge', 'Snarl', 'Icy Wind', 'Electroweb', 'Earth Power'];
+var PDF_DISRUPT = ['Taunt', 'Encore', 'Haze', 'Clear Smog', 'Destiny Bond', 'Perish Song', 'Disable'];
+var PDF_WEATHER_MOVES = ['Rain Dance', 'Sunny Day', 'Sandstorm', 'Hail', 'Snowscape', 'Chilly Reception'];
+var PDF_WEATHER_ABILITIES = ['Drought', 'Drizzle', 'Sand Stream', 'Snow Warning', 'Orichalcum Pulse', 'Hadron Engine'];
+var PDF_TRAP_ABILITIES = ['Shadow Tag', 'Arena Trap', 'Magnet Pull'];
 
-  const results = window.lastSimResults || {};
-  const date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-  const bo = currentBo;
-  const fmt = currentFormat === 'doubles' ? 'Doubles' : 'Singles';
+function _pdfHasAny(mon, list) {
+  return !!(mon && mon.moves && list.some(function(x){ return mon.moves.indexOf(x) >= 0; }));
+}
 
-  const summaryRows = Object.entries(results).map(([opp, res]) => {
-    const winPct = Math.round(res.winRate * 100);
-    let verdict, verdictCls;
-    if (winPct >= 65) { verdict = 'Favorable'; verdictCls = 'pdf-verdict-favorable'; }
-    else if (winPct >= 45) { verdict = 'Even'; verdictCls = 'pdf-verdict-even'; }
-    else if (winPct >= 30) { verdict = 'Risky'; verdictCls = 'pdf-verdict-risky'; }
-    else { verdict = 'Avoid'; verdictCls = 'pdf-verdict-avoid'; }
-    return `<tr>
-      <td>${TEAMS[opp]?.name || opp}</td>
-      <td><span class="${verdictCls}">${winPct}%</span></td>
-      <td>${res.wins}</td><td>${res.losses}</td>
-      <td><span class="${verdictCls}">${verdict}</span></td>
-    </tr>`;
-  }).join('');
+// Infer a single-word role label per member based on moves + ability + item.
+function inferRole(mon) {
+  if (!mon) return '-';
+  var ab = mon.ability || '';
+  var item = mon.item || '';
+  if (PDF_TRAP_ABILITIES.indexOf(ab) >= 0) return 'Control / Trapper';
+  if (_pdfHasAny(mon, PDF_FAKE_OUT) && /Incineroar|Rillaboom|Meowscarada/i.test(mon.name)) return 'Lead / Pivot';
+  if (_pdfHasAny(mon, PDF_FAKE_OUT)) return 'Pivot';
+  if (_pdfHasAny(mon, PDF_TAILWIND) || _pdfHasAny(mon, PDF_TRICK_ROOM)) return 'Speed Control';
+  if (_pdfHasAny(mon, PDF_SCREENS)) return 'Support / Screens';
+  if (_pdfHasAny(mon, PDF_REDIRECT)) return 'Redirector';
+  if (_pdfHasAny(mon, PDF_PRIORITY) && /Kingambit|Scizor|Dragonite|Lucario/i.test(mon.name)) return 'Cleaner';
+  if (_pdfHasAny(mon, PDF_DISRUPT)) return 'Disruptor';
+  if (_pdfHasAny(mon, PDF_SPREAD)) return 'Wallbreaker';
+  if (_pdfHasAny(mon, PDF_WEATHER_MOVES) || PDF_WEATHER_ABILITIES.indexOf(ab) >= 0) return 'Weather Setter';
+  if (/Scarf/.test(item)) return 'Revenge Killer';
+  return 'Attacker';
+}
 
-  const detailSections = Object.entries(results).map(([opp, res]) => {
-    const total = res.wins + res.losses + res.draws;
-    const winPct = Math.round(res.winRate * 100);
-    let verdict, verdictCls;
-    if (winPct >= 65) { verdict = 'Favorable'; verdictCls = 'pdf-verdict-favorable'; }
-    else if (winPct >= 45) { verdict = 'Even'; verdictCls = 'pdf-verdict-even'; }
-    else if (winPct >= 30) { verdict = 'Risky'; verdictCls = 'pdf-verdict-risky'; }
-    else { verdict = 'Avoid'; verdictCls = 'pdf-verdict-avoid'; }
+function inferWinFunction(mon) {
+  if (!mon) return '-';
+  if (_pdfHasAny(mon, PDF_FAKE_OUT)) return 'Fake Out + tempo';
+  if (_pdfHasAny(mon, PDF_TAILWIND)) return 'Tailwind / speed flip';
+  if (_pdfHasAny(mon, PDF_TRICK_ROOM)) return 'Trick Room setter';
+  if (_pdfHasAny(mon, PDF_SCREENS)) return 'Screens / bulk support';
+  if (_pdfHasAny(mon, PDF_REDIRECT)) return 'Redirect damage off allies';
+  if (_pdfHasAny(mon, PDF_PRIORITY)) return 'Priority cleaner';
+  if (_pdfHasAny(mon, PDF_DISRUPT)) return 'Disrupt + force mistakes';
+  if (_pdfHasAny(mon, PDF_SPREAD)) return 'Spread damage / chip board';
+  if (PDF_TRAP_ABILITIES.indexOf(mon.ability || '') >= 0) return 'Trap + remove key threats';
+  if (PDF_WEATHER_ABILITIES.indexOf(mon.ability || '') >= 0) return 'Weather engine';
+  return 'Damage output';
+}
 
-    const wcEntries = Object.entries(res.winConditions || {}).sort((a,b) => b[1]-a[1]).slice(0,3);
-    const wcText = wcEntries.map(([c,n]) => `${c} (${Math.round(n/total*100)}%)`).join(', ');
+// Classify a team's overall playstyle from member mix.
+function inferPlaystyle(members) {
+  if (!Array.isArray(members) || !members.length) return 'Balanced';
+  var hasTW = members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND); });
+  var hasTR = members.some(function(m){ return _pdfHasAny(m, PDF_TRICK_ROOM); });
+  var hasTrap = members.some(function(m){ return PDF_TRAP_ABILITIES.indexOf(m.ability||'') >= 0; });
+  var hasFO = members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+  var weather = members.find(function(m){ return PDF_WEATHER_ABILITIES.indexOf(m.ability||'') >= 0; });
+  if (weather) return (weather.ability || 'Weather') + ' Offense';
+  if (hasTR && !hasTW) return 'Trick Room Offense';
+  if (hasTrap) return 'Aggressive Control';
+  if (hasTW && hasFO) return 'Balanced Offense';
+  if (hasTW) return 'Hyper Offense';
+  return 'Balanced';
+}
 
-    // T9j.10 (Refs #16) — PDF guide reads structured leads too.
-    const leadCounts = {};
-    const winLogs = (res.allLogs || []).filter(g => g.result === 'win');
-    for (const game of winLogs) {
-      const names = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : [];
-      for (const n of names) leadCounts[n] = (leadCounts[n]||0)+1;
-    }
-    const leads = Object.entries(leadCounts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
+// Aggregate top-2 leads across all matchups, partitioned by profile.
+function buildLeadSystem(results, playerMembers) {
+  var safeLeads = {}, speedLeads = {}, pressureLeads = {}, punishLeads = {};
+  Object.entries(results).forEach(function(pair){
+    var res = pair[1];
+    (res.allLogs || []).filter(function(g){ return g.result === 'win'; }).forEach(function(game){
+      var names = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : [];
+      if (names.length !== 2) return;
+      var pair2 = names.slice().sort().join(' + ');
+      var leadMons = names.map(function(n){ return (playerMembers || []).find(function(m){ return m.name === n; }); }).filter(Boolean);
+      var hasFO = leadMons.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+      var hasSpeed = leadMons.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM); });
+      var hasTrap = leadMons.some(function(m){ return PDF_TRAP_ABILITIES.indexOf(m.ability||'') >= 0; });
+      var hasPrio = leadMons.some(function(m){ return _pdfHasAny(m, PDF_PRIORITY); });
+      if (hasFO) safeLeads[pair2] = (safeLeads[pair2]||0)+1;
+      if (hasSpeed) speedLeads[pair2] = (speedLeads[pair2]||0)+1;
+      if (hasTrap) pressureLeads[pair2] = (pressureLeads[pair2]||0)+1;
+      if (hasPrio) punishLeads[pair2] = (punishLeads[pair2]||0)+1;
+    });
+  });
+  function top(obj) {
+    var entries = Object.entries(obj).sort(function(a,b){ return b[1]-a[1]; });
+    return entries.length ? entries[0][0] : null;
+  }
+  return {
+    safe: top(safeLeads),
+    speed: top(speedLeads),
+    pressure: top(pressureLeads),
+    punish: top(punishLeads)
+  };
+}
 
-    const lossSeries = (res.allLogs || []).filter(g => g.result === 'loss');
-    const riskCounts = {};
-    for (const game of lossSeries) {
-      const kos = (game.log || []).filter(l => l.includes('fainted'));
-      for (const ko of kos) {
-        for (const m of (TEAMS[opp]?.members || [])) {
-          if (ko.includes(m.name)) riskCounts[m.name] = (riskCounts[m.name]||0)+1;
+// Analyze loss trends across all matchups.
+function analyzeLossTrends(results, playerMembers) {
+  var totalLosses = 0;
+  var firstKoTurns = [];
+  var playerKoCounts = {};
+  var oppFinisherCounts = {};
+  var trSetInLoss = 0, twSetInLoss = 0;
+  var playerNames = (playerMembers || []).map(function(m){ return m.name; });
+  Object.entries(results).forEach(function(pair){
+    var res = pair[1];
+    (res.allLogs || []).filter(function(g){ return g.result === 'loss'; }).forEach(function(game){
+      totalLosses++;
+      if (game.trTurns && game.trTurns > 0) trSetInLoss++;
+      if (game.twTurnsOpp && game.twTurnsOpp > 0) twSetInLoss++;
+      var log = game.log || [];
+      var firstSeen = null;
+      for (var i = 0; i < log.length; i++) {
+        var line = log[i];
+        if (typeof line !== 'string') continue;
+        if (line.indexOf('fainted') < 0) continue;
+        for (var j = 0; j < playerNames.length; j++) {
+          if (line.indexOf(playerNames[j]) >= 0) {
+            playerKoCounts[playerNames[j]] = (playerKoCounts[playerNames[j]]||0)+1;
+            if (firstSeen === null) {
+              firstSeen = i;
+              // best-effort turn approximation: count [TURN ...] markers before this line
+              var t = 1;
+              for (var k = 0; k < i; k++) { if (typeof log[k]==='string' && log[k].indexOf('[TURN') >= 0) t++; }
+              firstKoTurns.push(t);
+            }
+            break;
+          }
         }
       }
-    }
-    const riskThreshold = Math.max(1, lossSeries.length * 0.4);
-    const risks = Object.entries(riskCounts).filter(([,c])=>c>=riskThreshold).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
+      var oppMembers = (TEAMS[game.oppKey] && TEAMS[game.oppKey].members) || [];
+      var lastKoLine = null;
+      for (var a = log.length - 1; a >= 0; a--) {
+        var ln = log[a];
+        if (typeof ln === 'string' && ln.indexOf('fainted') >= 0 && playerNames.some(function(n){ return ln.indexOf(n) >= 0; })) {
+          lastKoLine = a; break;
+        }
+      }
+      if (lastKoLine !== null) {
+        for (var b = lastKoLine; b >= Math.max(0, lastKoLine-4); b--) {
+          var prev = log[b];
+          if (typeof prev !== 'string') continue;
+          for (var c = 0; c < oppMembers.length; c++) {
+            if (prev.indexOf(oppMembers[c].name) >= 0 && prev.indexOf('used') >= 0) {
+              oppFinisherCounts[oppMembers[c].name] = (oppFinisherCounts[oppMembers[c].name]||0)+1;
+              b = -1; break;
+            }
+          }
+        }
+      }
+    });
+  });
+  var avgFirstKo = firstKoTurns.length ? (firstKoTurns.reduce(function(s,x){return s+x;},0)/firstKoTurns.length) : 0;
+  var topPlayerLost = Object.entries(playerKoCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,2).map(function(e){return e[0];});
+  var topFinisher = Object.entries(oppFinisherCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,2).map(function(e){return e[0];});
+  return {
+    totalLosses: totalLosses,
+    avgFirstKoTurn: +avgFirstKo.toFixed(1),
+    mostLostMons: topPlayerLost,
+    topOppFinishers: topFinisher,
+    trPctInLosses: totalLosses ? Math.round(trSetInLoss/totalLosses*100) : 0,
+    twPctInLosses: totalLosses ? Math.round(twSetInLoss/totalLosses*100) : 0
+  };
+}
 
-    return `<div class="pdf-section">
-      <div class="pdf-matchup-header">vs ${TEAMS[opp]?.name || opp}</div>
-      <div class="pdf-win-rate">${winPct}%</div>
-      <div style="margin-bottom:6px"><span class="${verdictCls}">${verdict}</span> · ${total} series · ${res.wins}W / ${res.losses}L</div>
-      ${wcText ? `<div style="font-size:12px;margin-bottom:4px"><strong>Win Conditions:</strong> ${wcText}</div>` : ''}
-      ${leads.length ? `<div style="font-size:12px;margin-bottom:4px"><strong>Recommended Leads:</strong> ${leads.join(' + ')}</div>` : ''}
-      ${risks.length ? `<div style="font-size:12px"><strong>Key Risks:</strong> ${risks.join(', ')}</div>` : ''}
-    </div>`;
+// Find dead moves: moves never referenced in any win log across all matchups.
+function findDeadMoves(results, members) {
+  var used = {};
+  Object.entries(results).forEach(function(pair){
+    (pair[1].allLogs || []).filter(function(g){ return g.result === 'win'; }).forEach(function(game){
+      (game.log || []).forEach(function(line){
+        if (typeof line !== 'string') return;
+        (members || []).forEach(function(m){
+          if (line.indexOf(m.name) < 0) return;
+          (m.moves || []).forEach(function(mv){
+            if (line.indexOf(mv) >= 0) { used[m.name+'|'+mv] = (used[m.name+'|'+mv]||0)+1; }
+          });
+        });
+      });
+    });
+  });
+  var dead = [];
+  (members || []).forEach(function(m){
+    (m.moves || []).forEach(function(mv){
+      if (!used[m.name+'|'+mv]) dead.push({ pokemon: m.name, move: mv });
+    });
+  });
+  return dead;
+}
+
+// Coverage gaps — reuse COVERAGE_CHECKS.
+function findCoverageGaps(members) {
+  if (typeof COVERAGE_CHECKS === 'undefined') return [];
+  return COVERAGE_CHECKS.filter(function(chk){ return !(members||[]).some(function(m){ return chk.check(m); }); }).map(function(c){ return c.label; });
+}
+
+// ------------- COACHING_RULES pluggable registry ------------------------
+// Each rule:
+//   when(ctx) — returns bool  (ctx: { playstyle, members, results, trends, gaps, deadMoves, overallWR })
+//   say(ctx)  — returns string advice
+//   severity  — 'critical' | 'suggested' | 'optional'
+//   priority  — number (higher = sort first within same severity)
+// Add new rules by pushing to COACHING_RULES before generatePDFReport runs.
+var COACHING_RULES = [
+  {
+    id: 'no-speed-control',
+    severity: 'critical', priority: 100,
+    when: function(c){ return c.gaps.indexOf('Speed Control') >= 0; },
+    say: function(){ return 'No Speed Control present. Add Tailwind, Trick Room, Icy Wind, or a Choice Scarf revenge killer — teams without speed control routinely get outsped in Doubles.'; }
+  },
+  {
+    id: 'no-fake-out',
+    severity: 'suggested', priority: 90,
+    when: function(c){ return c.gaps.indexOf('Fake Out') >= 0; },
+    say: function(){ return 'No Fake Out user. Consider Incineroar, Rillaboom, or Meowscarada to lock in Turn 1 tempo.'; }
+  },
+  {
+    id: 'no-priority',
+    severity: 'suggested', priority: 80,
+    when: function(c){ return c.gaps.indexOf('Priority') >= 0; },
+    say: function(){ return 'No priority move. Endgame cleaning is harder when opponents scarf or set Tailwind. A Sucker Punch or Extreme Speed line is a high-value patch.'; }
+  },
+  {
+    id: 'tr-bleed',
+    severity: 'critical', priority: 95,
+    when: function(c){ return c.trends.trPctInLosses >= 40; },
+    say: function(c){ return 'Trick Room was up in ' + c.trends.trPctInLosses + '% of your losses. Add Taunt or a fast TR spoiler (Whimsicott, Indeedee). Removing TR pressure turns most of those losses into wins.'; }
+  },
+  {
+    id: 'tw-bleed',
+    severity: 'suggested', priority: 85,
+    when: function(c){ return c.trends.twPctInLosses >= 40; },
+    say: function(c){ return 'Opponent Tailwind up in ' + c.trends.twPctInLosses + '% of losses. Your own speed control is getting out-paced — consider Haze or a faster setter.'; }
+  },
+  {
+    id: 'early-losses',
+    severity: 'critical', priority: 90,
+    when: function(c){ return c.trends.avgFirstKoTurn && c.trends.avgFirstKoTurn <= 2.5; },
+    say: function(c){ return 'You lose your first mon on avg turn ' + c.trends.avgFirstKoTurn + '. Lead pair is getting blown up — switch to a Safe lead (Fake Out + Redirector or Screens) or stop leading your most fragile breaker.'; }
+  },
+  {
+    id: 'most-lost',
+    severity: 'suggested', priority: 70,
+    when: function(c){ return c.trends.mostLostMons && c.trends.mostLostMons.length; },
+    say: function(c){ return c.trends.mostLostMons[0] + ' faints most often in losses. Bulk investment, Assault Vest, or Sitrus Berry would increase your ceiling here.'; }
+  },
+  {
+    id: 'opp-finisher',
+    severity: 'optional', priority: 60,
+    when: function(c){ return c.trends.topOppFinishers && c.trends.topOppFinishers.length; },
+    say: function(c){ return 'Top finisher across your losses: ' + c.trends.topOppFinishers.join(', ') + '. Plan a dedicated remove line (KO math, scout move, or switch-in) for this threat.'; }
+  },
+  {
+    id: 'dead-moves',
+    severity: 'optional', priority: 50,
+    when: function(c){ return c.deadMoves && c.deadMoves.length > 0; },
+    say: function(c){
+      var sample = c.deadMoves.slice(0,3).map(function(d){ return d.pokemon+'\u2019s '+d.move; }).join(', ');
+      return 'Moves never used in a win: ' + sample + (c.deadMoves.length > 3 ? ' (+' + (c.deadMoves.length-3) + ' more)' : '') + '. Consider swapping to coverage or utility that the sim actually clicks.';
+    }
+  },
+  {
+    id: 'overall-avoid',
+    severity: 'critical', priority: 99,
+    when: function(c){ return c.overallWR < 0.40; },
+    say: function(c){ return 'Overall win rate ' + Math.round(c.overallWR*100) + '%. Team needs structural rework — pick one matchup above 45% and reverse-engineer why it worked.'; }
+  }
+];
+
+function evaluateCoachingRules(ctx) {
+  return COACHING_RULES
+    .filter(function(r){ try { return !!r.when(ctx); } catch(e){ return false; } })
+    .map(function(r){ return { id: r.id, severity: r.severity, priority: r.priority, text: r.say(ctx) }; })
+    .sort(function(a,b){
+      var sevOrder = { critical: 0, suggested: 1, optional: 2 };
+      if (sevOrder[a.severity] !== sevOrder[b.severity]) return sevOrder[a.severity] - sevOrder[b.severity];
+      return b.priority - a.priority;
+    });
+}
+
+function _verdictFor(winPct) {
+  if (winPct >= 65) return { label: 'Favorable', cls: 'pdf-verdict-favorable' };
+  if (winPct >= 45) return { label: 'Even',      cls: 'pdf-verdict-even' };
+  if (winPct >= 30) return { label: 'Risky',     cls: 'pdf-verdict-risky' };
+  return                     { label: 'Avoid',    cls: 'pdf-verdict-avoid' };
+}
+
+function _escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+
+function generatePDFReport() {
+  var container = document.getElementById('pdf-report-container');
+  if (!container) return;
+
+  var results = window.lastSimResults || {};
+  var date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  var bo = (typeof currentBo !== 'undefined') ? currentBo : 3;
+  var fmtLabel = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 'Singles (Bring 6, Pick 3)' : 'Doubles (Bring 6, Pick 4)';
+  var playerKey = (typeof currentPlayerKey !== 'undefined' && TEAMS[currentPlayerKey]) ? currentPlayerKey : 'player';
+  var playerTeam = TEAMS[playerKey] || { name: playerKey, members: [] };
+  var playerMembers = playerTeam.members || [];
+  var teamTitle = (playerTeam.name || playerKey).toUpperCase() + ' — MASTER SHEET';
+  var playstyle = inferPlaystyle(playerMembers);
+
+  // --- Section 1: Team Overview ------------------------------------------
+  var overviewRows = playerMembers.map(function(m, i){
+    return '<tr>' +
+      '<td>' + (i+1) + '</td>' +
+      '<td><strong>' + _escapeHtml(m.name) + '</strong></td>' +
+      '<td>' + _escapeHtml(inferRole(m)) + '</td>' +
+      '<td>' + _escapeHtml(inferWinFunction(m)) + '</td>' +
+    '</tr>';
   }).join('');
 
-  container.innerHTML = `
-    <div class="pdf-title">Pokémon Champion 2026 — Match Report</div>
-    <div class="pdf-subtitle">${date} · ${fmt} · Bo${bo} series</div>
-    <div class="pdf-section">
-      <strong style="font-size:14px">Summary</strong>
-      <table class="pdf-table" style="margin-top:8px">
-        <thead><tr><th>Opponent</th><th>Win Rate</th><th>Wins</th><th>Losses</th><th>Verdict</th></tr></thead>
-        <tbody>${summaryRows}</tbody>
-      </table>
-    </div>
-    ${detailSections}
-    <div style="font-size:11px;color:#888;margin-top:20px;border-top:1px solid #ccc;padding-top:8px">
-      Generated by Pokémon Champion 2026 Simulator
-    </div>`;
+  // --- Section 2: Core Game Plan ----------------------------------------
+  var allWinConds = {};
+  Object.values(results).forEach(function(res){
+    Object.entries(res.winConditions || {}).forEach(function(wc){ allWinConds[wc[0]] = (allWinConds[wc[0]]||0) + wc[1]; });
+  });
+  var topWC = Object.entries(allWinConds).sort(function(a,b){ return b[1]-a[1]; }).slice(0,2).map(function(e){ return e[0]; });
+  var planPrimary = topWC[0] ? ('Primary: ' + topWC[0] + ' — shown most often in winning series.') : 'Primary: Win Turn 1 (tempo) → force Protects → KO Turn 2-3 → clean lategame.';
+  var planSecondary = topWC[1] ? ('Secondary: ' + topWC[1] + ' — fallback win condition when primary line is answered.') : 'Secondary: Apply pressure + chip board until a clean win condition opens.';
+
+  // --- Section 3: Role Breakdown ----------------------------------------
+  var roleCards = playerMembers.map(function(m){
+    return '<div class="pdf-role-card"><strong>' + _escapeHtml(m.name) + ':</strong> ' + _escapeHtml(inferRole(m)) + ' — ' + _escapeHtml(inferWinFunction(m)) + '.</div>';
+  }).join('');
+
+  // --- Section 4: Lead System -------------------------------------------
+  var leads = buildLeadSystem(results, playerMembers);
+  function _leadRow(label, pair){
+    return '<div class="pdf-lead-row"><strong>' + label + ':</strong> ' + (pair ? _escapeHtml(pair) : '<em style="color:#888">no qualifying wins yet</em>') + '</div>';
+  }
+
+  // --- Section 5: Matchup Guide table -----------------------------------
+  var matchupRows = Object.entries(results).map(function(pair){
+    var opp = pair[0], res = pair[1];
+    var winPct = Math.round((res.winRate || 0) * 100);
+    var v = _verdictFor(winPct);
+    var leadCounts = {}, backCounts = {};
+    (res.allLogs || []).filter(function(g){ return g.result === 'win'; }).forEach(function(game){
+      var picked = (game.bring && Array.isArray(game.bring.player)) ? game.bring.player : (game.leads && Array.isArray(game.leads.player) ? game.leads.player : []);
+      var ld = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : picked.slice(0,2);
+      var back = picked.filter(function(n){ return ld.indexOf(n) < 0; });
+      if (ld.length === 2) { var k = ld.slice().sort().join(' + '); leadCounts[k] = (leadCounts[k]||0)+1; }
+      if (back.length) { var kb = back.slice().sort().join(' + '); backCounts[kb] = (backCounts[kb]||0)+1; }
+    });
+    var bestLead = Object.entries(leadCounts).sort(function(a,b){return b[1]-a[1];})[0];
+    var bestBack = Object.entries(backCounts).sort(function(a,b){return b[1]-a[1];})[0];
+    var notes = winPct + '% WR — ' + v.label;
+    return '<tr>' +
+      '<td><strong>' + _escapeHtml((TEAMS[opp] && TEAMS[opp].name) || opp) + '</strong></td>' +
+      '<td>' + (bestLead ? _escapeHtml(bestLead[0]) : '<em style="color:#888">-</em>') + '</td>' +
+      '<td>' + (bestBack ? _escapeHtml(bestBack[0]) : '<em style="color:#888">-</em>') + '</td>' +
+      '<td><span class="' + v.cls + '">' + notes + '</span></td>' +
+    '</tr>';
+  }).join('');
+
+  // --- Sections 6+: templated blocks -----------------------------------
+  var turnFlow = [
+    'Turn 1: Fake Out / Tailwind / trap line — establish tempo.',
+    'Turn 2: Force Protect or take a KO into the opened target.',
+    'Turn 3: Gain position advantage; preserve your cleaner.',
+    'Endgame: Clean with priority / trap the last mon.'
+  ];
+
+  var overallSeries = 0, overallWins = 0;
+  Object.values(results).forEach(function(r){ overallSeries += (r.wins + r.losses + r.draws); overallWins += r.wins; });
+  var overallWR = overallSeries ? (overallWins / overallSeries) : 0;
+  var overallPct = Math.round(overallWR * 100);
+  var overallV = _verdictFor(overallPct);
+
+  // --- Coaching analysis ------------------------------------------------
+  var trends = analyzeLossTrends(results, playerMembers);
+  var deadMoves = findDeadMoves(results, playerMembers);
+  var gaps = findCoverageGaps(playerMembers);
+  var notesList = evaluateCoachingRules({
+    playstyle: playstyle, members: playerMembers, results: results,
+    trends: trends, gaps: gaps, deadMoves: deadMoves, overallWR: overallWR
+  });
+
+  var coachingHtml = notesList.length
+    ? notesList.map(function(n){
+        return '<div class="pdf-coach-item pdf-coach-' + n.severity + '">' +
+          '<span class="pdf-coach-badge pdf-coach-badge-' + n.severity + '">' + n.severity.toUpperCase() + '</span> ' +
+          _escapeHtml(n.text) + '</div>';
+      }).join('')
+    : '<div class="pdf-coach-item pdf-coach-optional">No coaching flags triggered — team composition and simulation trends look clean.</div>';
+
+  var lossTrendHtml = trends.totalLosses
+    ? '<ul class="pdf-trend-list">' +
+        '<li>Total losses sampled: <strong>' + trends.totalLosses + '</strong></li>' +
+        '<li>Average first-KO turn: <strong>' + trends.avgFirstKoTurn + '</strong></li>' +
+        (trends.mostLostMons.length ? '<li>Most lost in losses: <strong>' + _escapeHtml(trends.mostLostMons.join(', ')) + '</strong></li>' : '') +
+        (trends.topOppFinishers.length ? '<li>Top opponent finishers: <strong>' + _escapeHtml(trends.topOppFinishers.join(', ')) + '</strong></li>' : '') +
+        '<li>Trick Room up in losses: <strong>' + trends.trPctInLosses + '%</strong></li>' +
+        '<li>Opponent Tailwind up in losses: <strong>' + trends.twPctInLosses + '%</strong></li>' +
+      '</ul>'
+    : '<div style="color:#666">No losses recorded in this simulation.</div>';
+
+  var deadMovesHtml = deadMoves.length
+    ? '<table class="pdf-table"><thead><tr><th>Pokémon</th><th>Dead Move</th><th>Rationale</th></tr></thead><tbody>' +
+        deadMoves.slice(0, 12).map(function(d){
+          return '<tr><td>' + _escapeHtml(d.pokemon) + '</td><td>' + _escapeHtml(d.move) + '</td><td>Never appeared in a winning battle log — candidate for swap.</td></tr>';
+        }).join('') +
+      '</tbody></table>'
+    : '<div style="color:#666">All moves were used in at least one win — no dead-move swaps suggested.</div>';
+
+  // --- Render -----------------------------------------------------------
+  container.innerHTML = [
+    '<div class="pdf-banner">',
+      '<div class="pdf-title">' + _escapeHtml(teamTitle) + '</div>',
+      '<div class="pdf-subtitle">Format: ' + _escapeHtml(fmtLabel) + '  |  Playstyle: ' + _escapeHtml(playstyle) + ' (Bo' + bo + ')  |  ' + _escapeHtml(date) + '</div>',
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">TEAM OVERVIEW</div>',
+      '<table class="pdf-table"><thead><tr><th>Slot</th><th>Pokémon</th><th>Role</th><th>Win Function</th></tr></thead><tbody>' + overviewRows + '</tbody></table>',
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">CORE GAME PLAN</div>',
+      '<p class="pdf-p">' + _escapeHtml(planPrimary) + '</p>',
+      '<p class="pdf-p">' + _escapeHtml(planSecondary) + '</p>',
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">ROLE BREAKDOWN</div>',
+      roleCards,
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">LEAD SYSTEM</div>',
+      _leadRow('Safe',     leads.safe),
+      _leadRow('Speed',    leads.speed),
+      _leadRow('Pressure', leads.pressure),
+      _leadRow('Punish',   leads.punish),
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">MATCHUP GUIDE</div>',
+      '<table class="pdf-table"><thead><tr><th>Opponent</th><th>Lead</th><th>Backline</th><th>Notes</th></tr></thead><tbody>' + matchupRows + '</tbody></table>',
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">TURN FLOW</div>',
+      turnFlow.map(function(t){ return '<p class="pdf-p">' + _escapeHtml(t) + '</p>'; }).join(''),
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">RULES TO WIN</div>',
+      '<p class="pdf-p">Do not over-commit your cleaner Turn 1. Do not delay speed control past Turn 2. Do not spam spread moves when allies are exposed. Always force action Turn 1. Aim for a KO by Turn 3.</p>',
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">BO3 ADAPTATION</div>',
+      '<p class="pdf-p">Game 1: Safe lead, gather information.</p>',
+      '<p class="pdf-p">Game 2: Adjust to opponent adaptation.</p>',
+      '<p class="pdf-p">Game 3: Force your best-performing win condition from the Matchup Guide.</p>',
+    '</div>',
+
+    '<div class="pdf-section">',
+      '<div class="pdf-h2">FINAL VERDICT</div>',
+      '<p class="pdf-p">Overall simulated win rate: <span class="' + overallV.cls + '"><strong>' + overallPct + '% — ' + overallV.label + '</strong></span> across ' + overallSeries + ' series.</p>',
+    '</div>',
+
+    '<div class="pdf-section pdf-coach-section">',
+      '<div class="pdf-h2">COACHING NOTES</div>',
+      '<div class="pdf-h3">Why You Lost — Trends</div>',
+      lossTrendHtml,
+      '<div class="pdf-h3">Suggested Move Changes</div>',
+      deadMovesHtml,
+      (gaps.length ? '<div class="pdf-h3">Coverage Gaps</div><p class="pdf-p">Missing: <strong>' + _escapeHtml(gaps.join(', ')) + '</strong></p>' : ''),
+      '<div class="pdf-h3">Strategy Flags</div>',
+      coachingHtml,
+    '</div>',
+
+    '<div class="pdf-footer">Generated by Pokémon Champion 2026 Simulator — ' + _escapeHtml(date) + '</div>'
+  ].join('');
 
   window.print();
 }
