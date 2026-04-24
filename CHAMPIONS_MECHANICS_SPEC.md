@@ -60,10 +60,21 @@ Last updated: 2026-04
 - **Sources:** [IGN Champions Changes](https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained)
 
 ### 1.7 Confusion
-- **Self-hit rate:** `CHAMPIONS-UNKNOWN` — Gen 9 SV changed confusion self-hit rate to **33%** (from 50% in older gens). No Champions-specific deviation found; assume 33%.
-- **Damage formula:** Self-hit uses: Typeless physical, 40 base power, uses attacker's own Attack vs Defense `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
-- **Misty Terrain immunity:** Grounded Pokémon immune to confusion under Misty Terrain `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
-- **Duration:** 2–5 turns (random at application) `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
+**Champions:** Inherited from SV. `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
+- **Duration:** 2–5 turns (random at application)
+- **Self-hit rate:** 33% per attempt; self-hit is typeless physical 40 BP, no STAB, no crit (uses attacker's own Atk vs Def)
+- **Misty Terrain immunity:** Grounded Pokémon immune to confusion under Misty Terrain
+
+### 1.8 Other Residual / Damage-over-Time Effects (V2 additions)
+
+| Effect | End-of-turn damage | Notes | Confidence |
+|---|---|---|---|
+| Curse (Ghost-type Curse on target) | **1/4 max HP** | Non-volatile; persists through switch | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
+| Bound / Trapped (Bind, Wrap, Fire Spin, Whirlpool, Infestation, Sand Tomb, Magma Storm, Clamp, Thunder Cage, Snap Trap) | **1/8 max HP** | 4–5 turns; 7 turns with Grip Claw (if available); user can't switch | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
+| Leech Seed | **1/16 max HP** drained, restored to seeder | Grass types immune | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
+| Salt Cure | **1/16 max HP** (1/8 on Water or Steel) | Already in §14 | `CHAMPIONS-CONFIRMED` |
+
+**Engine requirement (T9j.4):** residual handler must tick all of these after major status damage on end-of-turn phase, in a defined order: major status → Leech Seed → Curse → Bound → Salt Cure → Item heal (Leftovers, Shell Bell trigger, etc.).
 
 ---
 
@@ -246,7 +257,7 @@ Last updated: 2026-04
 | Reflect | Halves Physical damage taken by user's side | 5 turns | 8 turns | Same |
 | Aurora Veil | Halves both Physical and Special; requires Snow to be active to set | 5 turns | 8 turns | Same |
 
-**Doubles damage reduction:** In Doubles, screens reduce incoming damage to **2/3** (not 1/2) when more than one Pokémon is on the receiving side. In 1v1 situations within Doubles (when only one target remains on the side), it reduces to 1/2 as in Singles. `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
+**Doubles damage reduction:** In Doubles, screens reduce incoming damage to **2732/4096 (≈0.6670, ~2/3)** when more than one Pokémon is on the receiving side. In 1v1 situations within Doubles (when only one target remains on the side), it reduces to **2048/4096 (0.5, 1/2)** as in Singles. Use the exact fractions for integer-math golden tests. `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
 
 **Crit interaction:** Critical hits bypass screens entirely. `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
 
@@ -392,6 +403,19 @@ Last updated: 2026-04
 
 ## 9. DAMAGE FORMULA
 
+### 9.0 Type Chart Display Labels (Champions-specific)
+
+| Multiplier | Label displayed |
+|---|---|
+| 0× | Has no effect |
+| 0.25× | **Mostly Ineffective** (new label; dual-type resist stack) |
+| 0.5× | Not very effective |
+| 1× | (regular) |
+| 2× | Super Effective |
+| 4× | **Extremely Effective** (new label; dual-type weakness stack) |
+
+Underlying 18-type chart is unchanged from SV; only the two extreme labels are Champions-specific. `CHAMPIONS-CONFIRMED`
+
 ### 9.1 Core Formula
 The damage formula is **Gen 5+ standard** (Gen 9 SV inherits this unchanged):
 
@@ -410,12 +434,26 @@ Where:
 `CHAMPIONS-LIKELY-INHERITED-FROM-SV` — no Champions-specific deviation found.
 
 ### 9.2 Modifier Chain (applied multiplicatively)
+
+**Canonical final-modifier pipeline order** (apply in this sequence, with integer rounding after each step per Gen 5+ rules):
+
+```
+base → Targets(0.75 if spread) → ParentalBond(0.25 on hit 2) → Weather
+     → Crit(1.5) → RandomRoll(86..100) → STAB(1.5 or 2.0 Adaptability)
+     → TypeEff(0/0.25/0.5/1/2/4) → Burn(0.5 physical)
+     → FinalMods(screens, Life Orb*, Friend Guard, Expert Belt, resist berries, etc.)
+     → ProtectBypass(per-ability pct, e.g., 0.25 for Unseen Fist / Piercing Drill)
+     → max(1, dmg) unless type immune → dmg % 65536 overflow cap
+```
+`CHAMPIONS-CONFIRMED` per second-source verification. *Life Orb absent at launch; listed for completeness.
+
 | Modifier | Value | Notes | Confidence |
 |----------|-------|-------|------------|
 | Targets (Spread) | **0.75×** in Doubles when hitting multiple targets | Single target = 1.0× | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
 | Weather | ×1.5 (boost) or ×0.5 (penalty) | See §2 | `CHAMPIONS-CONFIRMED` |
 | Critical hit | **×1.5** | Crits also ignore: burn Atk drop, stat-lowering effects on attacker, stat-raising on defender, screens | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
-| Random roll | **85–100%** | Each integer from 85 to 100, uniform distribution (16 outcomes) | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
+| Random roll | **86–100%** | Each integer from 86 to 100, uniform distribution (**15 outcomes**) — Champions narrowed from SV's 85–100 per [Bulbapedia Champions mechanics](https://bulbapedia.bulbagarden.net/). **Empirical verification pending** (`MECH-ROLL-WINDOW`) | `CHAMPIONS-CONFIRMED` (second-source, pending replay verify) |
+| Friend Guard (ally) | **×0.75** | Applies at final-mod stage when ally has ability; Doubles only | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
 | STAB | **×1.5** | Normal STAB | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
 | Type effectiveness | ×2, ×0.5, ×0 | Multiplicative for dual types | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
 | Burn | ×0.5 to Physical moves (burned attacker) | Unless Guts | `CHAMPIONS-LIKELY-INHERITED-FROM-SV` |
@@ -581,7 +619,11 @@ Where:
 - Can only be used on the Pokémon's **first turn on the field**. `CHAMPIONS-LIKELY-INHERITED-FROM-SV`
 - In Champions: **can no longer be selected after it has been used** (even if it would fail). This prevents using it to bait Sucker Punch, and effectively leaves the Pokémon with 3 usable moves for the rest of its time on field. `CHAMPIONS-CONFIRMED`
 
-### 11.5 Protect and Variants (PP Change)
+### 11.5 Protect and Variants (PP Change + Diminishing Returns)
+
+**Success rate on consecutive use:** Each successful Protect in a row reduces the next Protect's success chance to **1/3 of the previous chance**. First use = 100%, second = 33.3%, third = 11.1%, fourth = 3.7%, etc. Non-Protect move resets the counter. `CHAMPIONS-CONFIRMED` (V2 verification)
+
+**PP change:**
 - All protection moves (Protect, Detect, King's Shield, Spiky Shield, Baneful Bunker, Obstruct, Silk Trap) now have **PP = 8** (halved from 16 in SV). `CHAMPIONS-CONFIRMED`
 
 ### 11.6 Timer / Draw Rule
@@ -654,6 +696,8 @@ Key moves changed from SV (partial list — most relevant to engine):
 | **Growth** | Normal-type | **Grass-type** | `CHAMPIONS-CONFIRMED` |
 | **Knock Off** | Item removal doesn't activate if user faints first | Item removal **activates even if user faints** | `CHAMPIONS-CONFIRMED` |
 | **Make It Rain** | 100% accuracy | **95% accuracy** | `CHAMPIONS-CONFIRMED` |
+| **Freeze-Dry** | 20% freeze chance + hits Water super-effective | Super-effective on Water **retained**; **freeze chance removed** (cannot inflict Freeze) | `CHAMPIONS-CONFIRMED` (V2 verification) |
+| **Hard Press** | Variable BP (target HP%) | **1–100 BP** scaled by target HP% (same mechanic, confirm scaling) | `CHAMPIONS-CONFIRMED` (V2 verification) |
 
 ---
 
@@ -721,6 +765,12 @@ Items to flag for testing before engine commit:
 14. **Moody:** No relevant Pokémon in roster. Flag when roster expands.
 15. **Sand Force exact multiplier:** Stated as ×1.3 in Gen 9 SV. No Champions deviation found. Confirm.
 16. **Weakness Policy:** Community posts suggest absent at launch; verify.
+17. **`MECH-ROLL-WINDOW` — damage random roll 86–100 vs 85–100:** Bulbapedia current Champions page says 86–100 (15 rolls); SV uses 85–100 (16 rolls). Adopted 86–100 for now. Requires replay-capture verification before golden test freeze.
+18. **Spicy Spray (Mega Scovillain) effect text:** ability name confirmed; full effect text has no primary indexed source. Do not code behavior yet.
+19. **Magic Bounce current behavior in Champions:** one Game8 abilities page describes it differently from historical Gen 6–9 behavior. Possible data-entry bug or Champions-specific rewrite; verify in-game.
+20. **Mega Sol scope:** does it affect only move-side sunlight logic (Solar Beam, Weather Ball, Growth) or also passive ability/item interactions (Harvest, Solar Power, Chlorophyll)? Unresolved.
+21. **Switch persistence of Sleep/Freeze counters:** modern-core inherited assumption; no explicit Champions confirmation.
+22. **Piercing Drill / Unseen Fist vs punish-on-Protect moves:** when 25% damage goes through, do King's Shield / Baneful Bunker / Spiky Shield / Jaw Lock / etc. still apply their punish effect? Needs direct test matrix.
 
 ---
 
@@ -765,3 +815,4 @@ Items to flag for testing before engine commit:
 37. [YouTube — HOW TO USE SPEED CONTROL IN CHAMPIONS](https://www.youtube.com/watch?v=NT899be3c7Q)
 38. [PokeTooling — VGC Damage Formula Reference](https://poketooling.com/info/articles/pokemon-vgc/vgc-battle-mechanics/dealing-damage)
 39. [FRVR — Complete Champions Roster List](https://frvr.com/blog/pokemon-champions-roster-list/)
+40. V2 second-source verification report (user-supplied 2026-04-24) — Bulbapedia damage/mechanics, Game8 type-chart labels, move balance changes, residual status catalog, final-modifier pipeline order. See `CHAMPIONS_SPEC_DELTAS.md` for delta analysis.
