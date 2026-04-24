@@ -35,9 +35,17 @@ function makeSeed() {
 }
 
 // ============================================================
-// TEAM LEGALITY VALIDATOR — Issue #5
+// TEAM LEGALITY VALIDATOR — Issue #5 + #T2
 // Called before every simulateBattle() invocation.
 // Blocks on errors, warns on warnings.
+//
+// #T2 updates:
+//   - Dual-format stat caps: Champions SP (<=32/stat, <=66 total)
+//     vs SV EV (<=252/stat, <=510 total). Detects per team.
+//   - Species Clause and Item Clause upgraded from warning -> ERROR
+//     (VGC/Champions rules: both are hard bans, not soft recommendations).
+//   - Optional Champions legality layer (ban list, fakemon) wired in
+//     via validateChampionsLegality() if legality.js is loaded.
 // ============================================================
 function validateTeam(team, format = 'vgc') {
   const errors = [];
@@ -46,15 +54,38 @@ function validateTeam(team, format = 'vgc') {
     errors.push('Team has no members.');
     return { valid: false, errors, warnings };
   }
+
+  // Determine stat-point format per team. Priority:
+  //   team.format === 'champions' -> SP caps
+  //   team.format === 'sv'        -> SV caps
+  //   otherwise                   -> auto-detect by spread shape
+  function detectFormat(mon) {
+    if (team.format === 'champions' || mon.format === 'champions') return 'champions';
+    if (team.format === 'sv' || mon.format === 'sv') return 'sv';
+    const vals = Object.values(mon.evs || {});
+    if (vals.length === 0) return 'sv';
+    const total = vals.reduce((a, b) => a + b, 0);
+    const max = Math.max(...vals);
+    if (total > 0 && max <= 32 && total <= 66) return 'champions';
+    return 'sv';
+  }
+
   for (const mon of team.members) {
     const name = mon.name || 'Unknown';
-    // EV total cap
-    const totalEVs = Object.values(mon.evs || {}).reduce((a, b) => a + b, 0);
-    if (totalEVs > 510) errors.push(`${name}: EVs exceed 510 (got ${totalEVs})`);
-    // Individual EV cap
+    const fmt = detectFormat(mon);
+    const caps = fmt === 'champions'
+      ? { perStat: 32, total: 66, label: 'SP' }
+      : { perStat: 252, total: 510, label: 'EV' };
+
+    // Total cap
+    const totalPoints = Object.values(mon.evs || {}).reduce((a, b) => a + b, 0);
+    if (totalPoints > caps.total) {
+      errors.push(`${name}: ${caps.label}s exceed ${caps.total} (got ${totalPoints}) [${fmt} format]`);
+    }
+    // Individual cap
     for (const [stat, val] of Object.entries(mon.evs || {})) {
-      if (val > 252) errors.push(`${name}: ${stat} EV exceeds 252 (got ${val})`);
-      if (val < 0)   errors.push(`${name}: ${stat} EV is negative (got ${val})`);
+      if (val > caps.perStat) errors.push(`${name}: ${stat} ${caps.label} exceeds ${caps.perStat} (got ${val}) [${fmt} format]`);
+      if (val < 0)            errors.push(`${name}: ${stat} ${caps.label} is negative (got ${val})`);
     }
     // Move count
     if (!mon.moves || mon.moves.length === 0) errors.push(`${name}: no moves defined`);
@@ -65,14 +96,30 @@ function validateTeam(team, format = 'vgc') {
       if (lvl !== 50) warnings.push(`${name}: level should be 50 for VGC (got ${lvl})`);
     }
   }
-  // Duplicate species
+
+  // #T2: Species Clause is a hard ban in VGC/Champions, not a warning.
+  // Same National Dex # (and regional forms share dex #s) not allowed twice.
   const names = team.members.map(m => m.name);
   const dupes = names.filter((n, i) => names.indexOf(n) !== i);
-  if (dupes.length > 0) warnings.push(`Duplicate species: ${[...new Set(dupes)].join(', ')}`);
-  // Duplicate items
+  if (dupes.length > 0) errors.push(`Species Clause violation: duplicate Pokemon: ${[...new Set(dupes)].join(', ')}`);
+
+  // #T2: Item Clause is also a hard ban ("no two Pokemon may hold the same item").
   const items = team.members.map(m => m.item).filter(Boolean);
   const dupeItems = items.filter((it, i) => items.indexOf(it) !== i);
-  if (dupeItems.length > 0) warnings.push(`Duplicate items: ${[...new Set(dupeItems)].join(', ')}`);
+  if (dupeItems.length > 0) errors.push(`Item Clause violation: duplicate items: ${[...new Set(dupeItems)].join(', ')}`);
+
+  // #T2: Optional Champions-specific legality (ban list + fakemon) — only
+  // runs if legality.js has been loaded and team is declared Champions format.
+  if ((team.format === 'champions' || format === 'champions')
+      && typeof validateChampionsLegality === 'function') {
+    const champ = validateChampionsLegality(team);
+    if (champ && Array.isArray(champ.violations)) {
+      for (const v of champ.violations) {
+        if (v.severity === 'error') errors.push(v.message);
+        else                        warnings.push(v.message);
+      }
+    }
+  }
 
   return { valid: errors.length === 0, errors, warnings };
 }
