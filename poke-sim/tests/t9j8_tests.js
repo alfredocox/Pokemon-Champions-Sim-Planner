@@ -298,14 +298,20 @@ T('25. Dragonize boosts damage in-engine (Normal move deals Dragon damage)', () 
 // ============================================================
 console.log('\nPiercing Drill / Unseen Fist (Protect bypass):');
 
-T('26. Piercing Drill onProtectResolve returns 0.25 mult on contact', () => {
+// T9j.17 (Refs #101) -- Piercing Drill rewritten to a flat 25% miss chance
+// on every move. The prior contact-bypass-Protect interpretation was removed,
+// so the onProtectResolve hook no longer exists on Piercing Drill. Tests 26
+// and 27 below were updated from "bypass" assertions to "hookless" assertions.
+//   Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+T('26. Piercing Drill ABILITIES entry has NO onProtectResolve hook (T9j.17 rewrite)', () => {
   const mon = mk('Excadrill', { ability:'Piercing Drill' });
   const res = callAbilityHook(mon, 'onProtectResolve', { attacker:mon, defender:mk('Garchomp'), move:'Iron Head', moveType:'Steel', isContact:true });
-  truthy(res);
-  eq(res.damageMult, 0.25);
+  // After T9j.17 rewrite, Piercing Drill is hookless on protect resolve.
+  // The 25% miss roll lives in executeMove (covered by tests/t9j17_tests.js).
+  falsy(res, 'Piercing Drill should no longer pierce Protect');
 });
 
-T('27. Piercing Drill does NOT bypass on non-contact moves', () => {
+T('27. Piercing Drill is hookless on non-contact moves too (T9j.17 rewrite)', () => {
   const mon = mk('Excadrill', { ability:'Piercing Drill' });
   const res = callAbilityHook(mon, 'onProtectResolve', { attacker:mon, defender:mk('Garchomp'), move:'Earth Power', moveType:'Ground', isContact:false });
   falsy(res);

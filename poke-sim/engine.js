@@ -17,26 +17,37 @@
 //   Alignment = 0.9 (lowered) | 1.0 (neutral) | 1.1 (raised)
 //   All IVs fixed at 31.
 //
-// Status nerfs (PENDING engine work, filed as GitHub issues):
+// Status nerfs (IMPLEMENTED — see canInflictStatus + getStat + end-of-turn):
 //   Paralysis full-para: 12.5%  (was 25%). Speed -50% unchanged.
 //   Sleep:  max 3 turns  (T1 cant act, T2 33% wake, T3 guaranteed).
 //   Freeze: 25% thaw/turn, guaranteed thaw T3. Sun thaws.
+//   Frostbite (T9j.17): 1/16 chip, SpA halved, no action skip.
+//     Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+//   Toxic ramp: N/16 escalating, capped at N=15.
 //
-// Doubles (PENDING):
+// Doubles:
 //   Spread modifier 0.75x; spread MUST hit all valid targets.
-//   Fake Out: locked after first turn in battle.
+//   Fake Out (T9j.17 hard-gate): cannot be selected past first turn out;
+//     resets on switch-in. Encore->Struggle handled in executeAction.
 //   Protect PP halved 16 -> 8.
 //
 // Ability nerfs (flags in data.js::CHAMPIONS_UPDATED_ABILITIES):
 //   Unseen Fist:   25% damage through Protect (was 100%).
-//   Parental Bond: child hit 1/4 power (was 1/2).
+//   Parental Bond: child hit 1/4 power (was 1/2). T9j.8 inline 2-strike loop.
 //   Protean:       fires once per entry (was every move).
 //
 // New abilities (data.js::CHAMPIONS_NEW_ABILITIES):
-//   Piercing Drill (Mega Excadrill): contact @ 25% through Protect.
+//   Piercing Drill (Mega Excadrill): 25% miss chance on every move (T9j.17).
+//     Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
 //   Dragonize (Mega Feraligatr):     Normal -> Dragon, +20% BP.
 //   Mega Sol (Mega Meganium):        personal sun, no weather set.
 //   Spicy Spray (Mega Scovillain):   burn attacker on any damage taken.
+//
+// T9j.17 move/item additions:
+//   Expanding Force x Psychic Terrain: grounded user spreads to all foes
+//     and gains 1.5x BP. Cite: https://bulbapedia.bulbagarden.net/wiki/Expanding_Force_(move)
+//   Terrain Seeds (Grassy/Electric +1 Def, Psychic/Misty +1 SpD): consume
+//     on switch-in to matching terrain. Cite: https://bulbapedia.bulbagarden.net/wiki/Grassy_Seed
 //
 // Items NOT in Champions (enforced in legality.js::CHAMPIONS_BANNED_ITEMS):
 //   Life Orb, Choice Band/Specs, Assault Vest, Rocky Helmet, HDB,
@@ -288,13 +299,14 @@ var ABILITIES = {
     }
   },
   'Piercing Drill': {
-    // Contact moves deal 25% damage through Protect (deterministic — not a proc).
+    // T9j.17 (Refs #101) -- Champions Piercing Drill: 25% miss chance on every move.
+    // The previous T9j.8 implementation (25% Protect bypass on contact) was
+    // incorrect for Champions Reg M-A. Rewritten per user-confirmed spec.
+    // The 25% miss roll fires inside executeMove right after the standard
+    // accuracy check; this entry is intentionally hookless (no onProtectResolve)
+    // so Mega Excadrill obeys default full-block Protect rules.
     // Cite: https://www.serebii.net/pokemonchampions/newabilities.shtml
     // Cite: https://bulbapedia.bulbagarden.net/wiki/Piercing_Drill_(Ability)
-    onProtectResolve: function(ctx) {
-      if (ctx.isContact) return { damageMult: 0.25 };
-      return null;
-    }
   },
   'Unseen Fist': {
     // Champions: 25% damage through Protect on contact moves (nerfed from 100%).
@@ -335,6 +347,51 @@ var ABILITIES = {
   }
   // Parental Bond handled inline in executeMove (2-strike loop with BP override)
 };
+
+// ============================================================
+// T9j.17 (Refs #44) -- TERRAIN SEEDS
+// One-shot consumable items that boost the holder by +1 to a defensive stat
+// when present in matching terrain at switch-in. Standard mainline behavior
+// per Bulbapedia. Champions inherits this verbatim (no nerfs).
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Grassy_Seed
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Electric_Seed
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Psychic_Seed
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Misty_Seed
+// In-engine, the trigger fires inside applyEntryAbility when the holder
+// switches into a matching terrain. Trigger on terrain-set (e.g. a partner
+// uses Grassy Terrain mid-match) is wired in via the same helper called
+// from terrain-setting hooks; until terrain-setting moves are added to the
+// engine, only the switch-in path activates in real battles. Tests cover
+// both paths via direct helper invocation.
+// ============================================================
+var TERRAIN_SEEDS = {
+  'Grassy Seed':  { terrain: 'grassy',   stat: 'def', stages: 1 },
+  'Electric Seed':{ terrain: 'electric', stat: 'def', stages: 1 },
+  'Psychic Seed': { terrain: 'psychic',  stat: 'spd', stages: 1 },
+  'Misty Seed':   { terrain: 'misty',    stat: 'spd', stages: 1 },
+};
+
+// T9j.17 helper -- triggered from applyEntryAbility (switch-in) and from any
+// future terrain-set hook. Returns true iff the seed activated. Boosts cap
+// at +6, item is consumed (sets itemConsumed flag for Unburden).
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Grassy_Seed (mechanics box)
+function tryTerrainSeed(mon, field, log) {
+  if (!mon || !mon.alive) return false;
+  if (mon.itemConsumed) return false;
+  var seed = TERRAIN_SEEDS[mon.item];
+  if (!seed) return false;
+  if (!field || field.terrain !== seed.terrain) return false;
+  // Ungrounded mons (Flying / Levitate) do NOT receive terrain effects, so
+  // their seed should not consume either. Cite: Bulbapedia Terrain.
+  if (mon.flying) return false;
+  if (!mon.statBoosts) mon.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
+  var prev = mon.statBoosts[seed.stat] || 0;
+  mon.statBoosts[seed.stat] = Math.min(6, prev + seed.stages);
+  mon.itemConsumed = true;
+  var prettyStat = (seed.stat === 'def') ? 'Defense' : 'Special Defense';
+  if (log) log.push(mon.name + "'s " + mon.item + ' raised its ' + prettyStat + '!');
+  return true;
+}
 
 // T9j.8 — Ability hook dispatcher. Safe call: returns null when no ability or
 // no matching hook. Invoked from engine trigger points.
@@ -459,6 +516,10 @@ class Pokemon {
     this.toxicCounter = 0;
     this.frozenTurns  = 0;
     this.sleepTurns   = 0;
+    // T9j.17 (Refs #101) -- Fake Out hard-gate flag. Initialized false so first
+    // turn out is the only legal use. Reset on every switch-in (replaceOnField).
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out_(move)
+    this._fakeDone    = false;
     // T9j.6 (#18) — Choice Scarf move lock. Set to move name after first use,
     // cleared on switch in. Champions only has Choice Scarf (Band/Specs absent).
     this.choiceLock   = null;
@@ -589,6 +650,9 @@ class Pokemon {
     let val = boost >= 0 ? base * boostTable[boost] : base / boostTable[-boost];
     // Burn halves attack
     if (stat === 'atk' && this.status === 'burn') val *= 0.5;
+    // T9j.17 (Refs #101) -- Frostbite halves Special Attack (mirrors burn -> Atk).
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+    if (stat === 'spa' && this.status === 'frostbite') val *= 0.5;
     // Paralysis halves speed (Gen 9 — no action skip, speed only)
     if (stat === 'spe' && this.status === 'paralysis') val *= 0.5;
     // Sand Rush doubles speed in sand
@@ -901,6 +965,12 @@ function canInflictStatus(mon, status, field) {
   if (status === 'frozen'    && field && field.weather === 'sun') return false;
   if (status === 'sleep'     && mon.ability === 'Sweet Veil')   return false;
   if (status === 'frozen'    && mon.ability === 'Magma Armor')  return false;
+  // T9j.17 (Refs #101) -- Frostbite gates. Ice types and Magma Armor block,
+  // mirroring Champions' Freeze immunity rules. Sun thaws/prevents same as freeze.
+  // Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+  if (status === 'frostbite' && types.includes('Ice')) return false;
+  if (status === 'frostbite' && mon.ability === 'Magma Armor') return false;
+  if (status === 'frostbite' && field && field.weather === 'sun') return false;
   return true;
 }
 
@@ -1143,6 +1213,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const ally = playerActive.find(a => a !== mon && a.alive);
       if (ally) { ally.hp = Math.min(ally.maxHp, ally.hp + Math.floor(ally.maxHp * 0.25)); log.push(`${mon.name}'s Hospitality restored ${ally.name}'s HP!`); }
     }
+    // T9j.17 (Refs #44) -- Terrain Seed switch-in trigger.
+    // Grassy/Electric/Misty/Psychic Seed give +1 Def or +1 SpD when the
+    // matching terrain is already active as the holder switches in. Item is
+    // consumed in the process. Helper handles ungrounded skip + match logic.
+    if (typeof tryTerrainSeed === 'function') tryTerrainSeed(mon, field, log);
   }
 
   for (const m of playerActive) applyEntryAbility(m, 'player', field, log);
@@ -1202,7 +1277,13 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
       // Priority move logic
       if (PRIORITY_MOVES.has(move)) {
-        if (move === 'Fake Out' && !attacker._fakeDone) {
+        // T9j.17 (Refs #101) -- Fake Out hard-gate: skip selection entirely past
+        // first turn out. Previously it fell through to the damage-scoring loop
+        // below, which let the AI "select" Fake Out turn 2+ as a 40-BP attack.
+        // Champions rule: Fake Out is only legal on the user's first turn out.
+        // Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out_(move)
+        if (move === 'Fake Out') {
+          if (attacker._fakeDone) continue; // illegal selection -- skip entirely
           const target = liveEnemies[0];
           if (target) {
             const dmg = attacker.calcDamage(move, target, field, null, rng);
@@ -1412,25 +1493,52 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       return;
     }
 
+    // T9j.17 (Refs #101) -- Fake Out hard-gate enforced inside executeAction.
+    // selectMove already filters Fake Out past turn 1, so this branch is a
+    // safety net for forced-move paths (Encore lock, imported test moves).
+    // Champions rule: if a Pokemon is forced into Fake Out past its first turn
+    // out, the move fails and the user Struggles instead (mirrors Encore -> Struggle
+    // when no legal move remains). Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Encore_(move)
+    //
+    // PLACEMENT: this block lives ABOVE the Protect check so that even when
+    // a legal Fake Out is blocked by Protect, the _fakeDone flag is still set --
+    // i.e. the user has spent its one Fake Out window for this stay on the field.
+    if (move === 'Fake Out') {
+      if (attacker._fakeDone) {
+        log.push(`${attacker.name} tried Fake Out -- but it failed! (only on first turn out)`);
+        // Encore -> Struggle path: deal 1/4 max HP fixed damage to a live
+        // enemy and recoil 1/4 max HP. Standard Struggle resolution.
+        // Cite: https://bulbapedia.bulbagarden.net/wiki/Struggle
+        const _struggleTgt = (target && target.alive) ? target : enemies.find(e => e.alive);
+        if (_struggleTgt && _struggleTgt.alive) {
+          const _stDmg = Math.max(1, Math.floor(_struggleTgt.maxHp * 0.25));
+          applyDamage(attacker, 'Struggle', _struggleTgt, _stDmg, field, log, rng);
+        }
+        const _stRecoil = Math.max(1, Math.floor(attacker.maxHp * 0.25));
+        attacker.hp = Math.max(0, attacker.hp - _stRecoil);
+        log.push(`${attacker.name} is hit by Struggle recoil! [${_stRecoil} dmg]`);
+        if (attacker.hp === 0) {
+          attacker.alive = false;
+          log.push(`${attacker.name} fainted from Struggle recoil!`);
+        }
+        return;
+      }
+      // Mark the Fake Out window consumed BEFORE the Protect check so that a
+      // Protect-blocked Fake Out still counts as the user's one attempt.
+      attacker._fakeDone = true;
+    }
+
     // Skip if target protected.
     // T9j.8 (Refs #30): Piercing Drill / Unseen Fist piercing paths are resolved
     // inside executeMove (per-target loop). Utility branches reaching THIS block
     // (U-turn / Flip Turn / Dragon Darts below) fall through to those specific
-    // handlers, which all delegate to applyDamage directly — and currently treat
+    // handlers, which all delegate to applyDamage directly -- and currently treat
     // Protect as full block. Keeping default full-block here preserves parity
     // with pre-T9j.8 behavior for those narrow paths.
     if (target && target.protected) {
       log.push(`${attacker.name} used ${move}! But ${target.name} was protected!`);
       return;
-    }
-
-    // Fake Out: only first turn
-    if (move === 'Fake Out') {
-      if (attacker._fakeDone) {
-        // Fall through to damage
-      } else {
-        attacker._fakeDone = true;
-      }
     }
 
     // Miss chance for low-accuracy moves
@@ -1509,9 +1617,24 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   function executeMove(attacker, move, intendedTarget, allies, enemies, field, log, rng) {
     const format = (opts && opts.format) || 'doubles';
     const isDoubles = (format !== 'singles');
-    const targetCat = (typeof getMoveTarget === 'function')
+    let targetCat = (typeof getMoveTarget === 'function')
       ? getMoveTarget(move)
       : 'normal';
+
+    // T9j.17 (Refs #36) -- Expanding Force x Psychic Terrain dynamic target.
+    // When the user is grounded AND Psychic Terrain is active, Expanding Force
+    // becomes a spread move hitting all adjacent foes and gets a 1.5x BP boost.
+    // Ungrounded users (Flying-type or Levitate) keep the default single-target.
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Expanding_Force_(move)
+    // Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+    const _prevBpMult = (field._ctx && field._ctx.bpMult) || 1;
+    let _bpMultPushed = false;
+    if (move === 'Expanding Force' && field.terrain === 'psychic' && !attacker.flying) {
+      targetCat = 'all-adjacent-foes';
+      field._ctx.bpMult = _prevBpMult * 1.5;
+      _bpMultPushed = true;
+      log.push(`${attacker.name}'s Expanding Force surged through the Psychic Terrain!`);
+    }
 
     const liveEnemies = enemies.filter(e => e.alive);
     const liveAllies  = allies.filter(a => a !== attacker && a.alive);
@@ -1599,6 +1722,18 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     const acc = ACC_MAP[move] || 1.0;
     if (rng() > acc) {
       log.push(`${attacker.name} used ${move}! It missed!`);
+      if (_bpMultPushed) field._ctx.bpMult = _prevBpMult;
+      return;
+    }
+
+    // T9j.17 (Refs #101) -- Piercing Drill 25% miss chance on every move.
+    // Replaces the prior contact-bypass-Protect interpretation. The roll fires
+    // here (after the move is selected and the standard ACC_MAP roll passes)
+    // so it stacks correctly with low-accuracy moves.
+    // Cite: https://game8.co/games/Pokemon-Champions/archives/590403
+    if (attacker.ability === 'Piercing Drill' && rng() < 0.25) {
+      log.push(`${attacker.name} used ${move}! But Piercing Drill missed!`);
+      if (_bpMultPushed) field._ctx.bpMult = _prevBpMult;
       return;
     }
 
@@ -1653,6 +1788,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       }
       if (!attacker.alive) break;
     }
+    // Restore the prior bpMult so we don't leak the 1.5x onto a Parental Bond
+    // second strike or any subsequent move.
+    if (_bpMultPushed) field._ctx.bpMult = _prevBpMult;
   }
 
   function applyDamage(attacker, move, target, dmg, field, log, rng) {
@@ -1871,6 +2009,17 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
     }
 
+    // T9j.17 (Refs #101) -- Frostbite residual (1/16 max HP). Mirrors burn chip.
+    // Frostbite is the SpA-side analogue of burn introduced in Gen IX/Champions:
+    // halves SpA (handled in getStat) and chips 1/16 maxHp end-of-turn.
+    // Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
+    for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'frostbite')) {
+      const frostDmg = Math.max(1, Math.floor(mon.maxHp / 16));
+      mon.hp = Math.max(0, mon.hp - frostDmg);
+      log.push(`${mon.name} is hurt by frostbite! [${frostDmg} dmg]`);
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+    }
+
     // T9j.4 (#41) — Poison residual (1/8 max HP). Cite: Bulbapedia Status; Spec §1.6.
     for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'poison')) {
       const poisonDmg = Math.max(1, Math.floor(mon.maxHp / 8));
@@ -1922,6 +2071,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           replacement.toxicCounter = 0;
           replacement.frozenTurns  = 0;
           replacement.sleepTurns   = 0;
+          // T9j.17 (Refs #101) -- Fake Out window resets on switch out/in.
+          // Each fresh stay on the field grants exactly one legal Fake Out turn.
+          // Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out
+          replacement._fakeDone    = false;
           // T9j.6 (#29) — stat stages must not leak across switches. Entry at all-zero.
           replacement.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
           // T9j.6 (#18) — Choice Scarf lock clears on switch in.
