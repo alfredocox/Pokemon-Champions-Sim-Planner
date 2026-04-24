@@ -87,11 +87,15 @@
     <div class="team-card player-card">
       <div class="card-header">
         <span class="badge badge-blue">YOUR TEAM</span>
-        <h2 class="card-title">TR Counter Squad</h2>
+        <h2 class="card-title" id="player-team-name">TR Counter Squad</h2>
         <button class="card-action-btn" id="export-player-btn" title="Export to Showdown format">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Export
         </button>
+      </div>
+      <div class="control-block" style="margin:8px 0">
+        <label class="control-label">Your Team</label>
+        <select class="select-input" id="player-select"></select>
       </div>
       <div class="roster" id="player-roster"></div>
     </div>
@@ -103,6 +107,12 @@
         <div class="coverage-widget-title">Team Coverage</div>
         <div id="coverage-items"></div>
       </div>
+
+      <!-- T9d: Swap teams -->
+      <button class="btn-secondary" id="swap-teams-btn" style="margin:4px 0" title="Swap your team with opponent">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Swap Teams
+      </button>
 
       <!-- Issue #T6: Ladder Mode toggle -->
       <div class="control-block">

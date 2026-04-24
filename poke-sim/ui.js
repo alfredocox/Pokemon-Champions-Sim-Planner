@@ -183,9 +183,55 @@ function renderRoster(containerId, members) {
   }
 }
 
+// ============================================================
+// T9d: Dynamic player/opponent team selectors + Swap button
+// currentPlayerKey tracks the active player team (user-selectable).
+// rebuildTeamSelects() re-populates both dropdowns from TEAMS so that
+// imported/custom teams appear in BOTH sides.
+// ============================================================
+var currentPlayerKey = 'player';
+
+function rebuildTeamSelects() {
+  var playerSel = document.getElementById('player-select');
+  var oppSel = document.getElementById('opponent-select');
+  if (!playerSel || !oppSel) return;
+  var prevPlayer = playerSel.value || currentPlayerKey;
+  var prevOpp = oppSel.value || 'mega_altaria';
+  playerSel.innerHTML = '';
+  // Rebuild opponent while preserving order (existing option text has
+  // ladder-gate glyph mutations; start fresh from TEAMS)
+  oppSel.innerHTML = '';
+  for (var key in TEAMS) {
+    var t = TEAMS[key];
+    if (!t || !t.name) continue;
+    var o1 = document.createElement('option');
+    o1.value = key; o1.textContent = t.name;
+    playerSel.appendChild(o1);
+    var o2 = document.createElement('option');
+    o2.value = key; o2.textContent = t.name;
+    oppSel.appendChild(o2);
+  }
+  if (TEAMS[prevPlayer]) playerSel.value = prevPlayer;
+  if (TEAMS[prevOpp]) oppSel.value = prevOpp;
+  currentPlayerKey = playerSel.value;
+  if (typeof applyLadderGate === 'function') applyLadderGate();
+}
+
 // ---- Initial renders ----
 renderRoster('player-roster', TEAMS.player.members);
 renderRoster('opp-roster', TEAMS.mega_altaria.members);
+rebuildTeamSelects();
+
+// ---- Player select ----
+document.getElementById('player-select').addEventListener('change', function() {
+  var team = TEAMS[this.value];
+  if (team) {
+    currentPlayerKey = this.value;
+    document.getElementById('player-team-name').textContent = team.name;
+    renderRoster('player-roster', team.members);
+    if (typeof applyLadderGate === 'function') applyLadderGate();
+  }
+});
 
 // ---- Opponent select ----
 document.getElementById('opponent-select').addEventListener('change', function() {
@@ -194,6 +240,18 @@ document.getElementById('opponent-select').addEventListener('change', function()
     document.getElementById('opp-team-name').textContent = team.name;
     renderRoster('opp-roster', team.members);
   }
+});
+
+// ---- T9d: Swap Teams button ----
+document.getElementById('swap-teams-btn')?.addEventListener('click', function() {
+  var pSel = document.getElementById('player-select');
+  var oSel = document.getElementById('opponent-select');
+  if (!pSel || !oSel) return;
+  var tmp = pSel.value;
+  pSel.value = oSel.value;
+  oSel.value = tmp;
+  pSel.dispatchEvent(new Event('change'));
+  oSel.dispatchEvent(new Event('change'));
 });
 
 // ============================================================
@@ -211,9 +269,9 @@ function isLadderLegal(teamKey) {
   return t.format === 'champions' && t.legality_status === 'legal';
 }
 
-function applyLadderGate() {
-  var sel = document.getElementById('opponent-select');
-  if (!sel) return;
+function _gateOneSelect(selId) {
+  var sel = document.getElementById(selId);
+  if (!sel) return { anyVisible:false, firstVisibleValue:null };
   var anyVisible = false;
   var firstVisibleValue = null;
   for (var i = 0; i < sel.options.length; i++) {
@@ -221,11 +279,9 @@ function applyLadderGate() {
     var key = opt.value;
     var team = (typeof TEAMS !== 'undefined') && TEAMS[key];
     var legal = isLadderLegal(key);
-    // Reset any prior mutation
     opt.hidden = false;
     opt.disabled = false;
     opt.textContent = opt.textContent.replace(/\s*[\u2705\u26A0\u274C].*$/,'').trim();
-    // Annotate with status glyph for clarity even when shown
     if (team) {
       var glyph = legal ? '\u2705' : (team.legality_status === 'illegal' ? '\u274C' : '\u26A0');
       opt.textContent = opt.textContent + '  ' + glyph + ' ' +
@@ -239,12 +295,17 @@ function applyLadderGate() {
       if (firstVisibleValue === null) firstVisibleValue = key;
     }
   }
-  // If current selection was just hidden, switch to first visible
   if (LADDER_MODE && sel.selectedOptions[0] && sel.selectedOptions[0].hidden && firstVisibleValue) {
     sel.value = firstVisibleValue;
     sel.dispatchEvent(new Event('change'));
   }
-  // If zero visible (pathological), force Ladder Mode off
+  return { anyVisible: anyVisible, firstVisibleValue: firstVisibleValue };
+}
+
+function applyLadderGate() {
+  var pg = _gateOneSelect('player-select');
+  var og = _gateOneSelect('opponent-select');
+  var anyVisible = pg.anyVisible || og.anyVisible;
   if (!anyVisible && LADDER_MODE) {
     LADDER_MODE = false;
     var cb = document.getElementById('ladder-mode-toggle');
@@ -365,7 +426,7 @@ function openEditorForm(idx) {
     </div>
     <p style="font-size:10px;color:var(--text-m);margin-top:6px">Changes apply to all future simulations immediately.</p>`;
   document.getElementById('save-edits').addEventListener('click', saveEdits);
-  document.getElementById('export-this-mon').addEventListener('click', () => openExportModal('player'));
+  document.getElementById('export-this-mon').addEventListener('click', () => openExportModal(currentPlayerKey));
 }
 
 function saveEdits() {
@@ -389,8 +450,8 @@ function saveEdits() {
 
 renderEditorRoster();
 
-document.getElementById('export-team-editor')?.addEventListener('click', ()=>openExportModal('player'));
-document.getElementById('import-team-editor')?.addEventListener('click', ()=>{ openImportModal(); document.getElementById('import-slot').value='player'; });
+document.getElementById('export-team-editor')?.addEventListener('click', ()=>openExportModal(currentPlayerKey));
+document.getElementById('import-team-editor')?.addEventListener('click', ()=>{ openImportModal(); var imp=document.getElementById('import-slot'); if(imp) imp.value=currentPlayerKey; });
 
 // ============================================================
 // EXPORT MODAL
@@ -421,7 +482,7 @@ document.getElementById('copy-export-btn')?.addEventListener('click', function()
     try { document.execCommand('copy'); showCopied(); } catch(e) {}
   }
 });
-document.getElementById('export-player-btn')?.addEventListener('click', ()=>openExportModal('player'));
+document.getElementById('export-player-btn')?.addEventListener('click', ()=>openExportModal(currentPlayerKey));
 document.getElementById('export-opp-btn')?.addEventListener('click', ()=>{ const oppKey = document.getElementById('opponent-select').value; openExportModal(oppKey); });
 
 // ============================================================
@@ -517,13 +578,9 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
     };
     targetSlot = newKey;
     teamName = guessedName;
-    const oppSel = document.getElementById('opponent-select');
-    if (oppSel) {
-      const opt = document.createElement('option');
-      opt.value = newKey;
-      opt.textContent = guessedName;
-      oppSel.appendChild(opt);
-    }
+    // T9d: rebuild both player + opponent dropdowns so the new team is
+    // pickable from either side.
+    if (typeof rebuildTeamSelects === 'function') rebuildTeamSelects();
     const importSlot = document.getElementById('import-slot');
     if (importSlot) {
       const opt = document.createElement('option');
@@ -537,8 +594,8 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
     TEAMS[slot].members = members;
     targetSlot = slot;
     teamName = TEAMS[slot].name;
-    if (slot === 'player') {
-      renderRoster('player-roster', TEAMS.player.members);
+    if (slot === currentPlayerKey) {
+      renderRoster('player-roster', TEAMS[currentPlayerKey].members);
       renderEditorRoster();
     }
     const oppSel = document.getElementById('opponent-select');
@@ -857,7 +914,7 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
 // Issue #T6: when LADDER_MODE is ON, iterate only ladder-legal opponents.
 async function runAllMatchupsUI(numSeries, bo, onProgress, onDone) {
   const opps = Object.keys(TEAMS).filter(k => {
-    if (k === 'player') return false;
+    if (k === currentPlayerKey) return false;
     if (typeof LADDER_MODE !== 'undefined' && LADDER_MODE && typeof isLadderLegal === 'function') {
       return isLadderLegal(k);
     }
@@ -865,7 +922,7 @@ async function runAllMatchupsUI(numSeries, bo, onProgress, onDone) {
   });
   let done=0;
   for (const opp of opps) {
-    const res = await runBoSeries(numSeries,'player',opp,bo,(cur,tot,w,l)=>{
+    const res = await runBoSeries(numSeries,currentPlayerKey,opp,bo,(cur,tot,w,l)=>{
       if (onProgress) onProgress(done*numSeries+cur, opps.length*numSeries, w, l);
     });
     done++;
@@ -902,7 +959,7 @@ document.getElementById('run-sim-btn')?.addEventListener('click', async function
   const matBadge=document.getElementById('matrix-badge');
   if(matBadge) matBadge.textContent=`${currentFormat==='doubles'?'Doubles':'Singles'} · Bo${bo} · ${n} series`;
 
-  const res = await runBoSeries(n,'player',oppKey,bo,(cur,tot,w,l)=>{
+  const res = await runBoSeries(n,currentPlayerKey,oppKey,bo,(cur,tot,w,l)=>{
     setProgress(Math.round(cur/tot*100),`Running… ${cur} / ${tot}`,w,l);
   });
 
