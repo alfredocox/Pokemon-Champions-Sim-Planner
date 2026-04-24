@@ -217,6 +217,17 @@ class Pokemon {
     this.hospitality = (this.ability === 'Hospitality');
     // Multiscale: halves first hit if full HP
     this.multiscaleActive = (this.ability === 'Multiscale');
+    // T9j.1 (Issue #25) — side-state plumbing.
+    // this.side is assigned by simulateBattle once the mon is placed on a side.
+    // Points to the field's side object ({tailwind, tailwindTurns, reflect,
+    // lightScreen, auroraVeil, fainted}). Reads of target.side.X in calcDamage
+    // (screens, Last Respects ramp) rely on this.
+    this.side = null;
+    // T9j.1 — grounded check for terrain immunity and Ground-type immunity.
+    // Mon is 'flying' (ungrounded) if Flying type OR Levitate ability.
+    // Iron Ball, Gravity, Thousand Arrows, Roost mid-turn can override this —
+    // not modeled yet (tracked separately).
+    this.flying = this.types.includes('Flying') || this.ability === 'Levitate';
   }
 
   // Issue #T1: Auto-detect SP vs SV spreads.
@@ -307,7 +318,15 @@ class Pokemon {
 
   getEffSpeed(field) {
     let spe = this.getStat('spe', field);
-    if (field.trickRoom) spe = 10000 - spe; // lower is faster under TR
+    // T9j.1 (Issue #28) — Tailwind doubles effective speed for the side that set it.
+    // Champions: Tailwind lasts 4 turns (turns active + 3 more) per Game8 page;
+    // counter handled in Field.endTurn().
+    if (this.side && this.side.tailwind) spe *= 2;
+    // Weather speed abilities consolidated here so they compound correctly with Tailwind.
+    if (this.ability === 'Swift Swim'   && field.weather === 'rain') spe *= 2;
+    if (this.ability === 'Chlorophyll'  && field.weather === 'sun')  spe *= 2;
+    if (this.ability === 'Slush Rush'   && field.weather === 'snow') spe *= 2;
+    if (field.trickRoom) spe = 10000 - spe; // lower is faster under TR (applied last)
     return spe;
   }
 
@@ -542,6 +561,15 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   let oppActive    = [oppPokemon[0],    oppPokemon[1]   ].filter(Boolean);
   let playerBench  = playerPokemon.slice(2);
   let oppBench     = oppPokemon.slice(2);
+
+  // T9j.1 (Issue #25) — wire every Pokemon to its side object so that
+  // screens, Tailwind speed, and Last Respects fainted count all work.
+  for (const m of playerPokemon) m.side = field.playerSide;
+  for (const m of oppPokemon)    m.side = field.oppSide;
+  // Expose fainted count on side objects so calcDamage's Last Respects
+  // lookup (target.side.fainted) reads real state.
+  field.playerSide.fainted = 0;
+  field.oppSide.fainted    = 0;
 
   // Track fainted counts per side for Last Respects
   const sideFainted = { player: 0, opp: 0 };
@@ -921,6 +949,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const fainted = activeArr.filter(m => !m.alive);
       for (const mon of fainted) {
         sideFainted[side]++;
+        // T9j.1 — keep side.fainted on the field in sync so calcDamage's
+        // Last Respects lookup (target.side.fainted) uses the real count.
+        (side === 'player' ? field.playerSide : field.oppSide).fainted = sideFainted[side];
         const idx = activeArr.indexOf(mon);
         const replacement = bench.find(b => b.alive);
         if (replacement) {

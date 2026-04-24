@@ -911,7 +911,7 @@ table{border-collapse:collapse;width:100%}
 <div id="pdf-report-container"></div>
 
 
-
+<script src="legality.js"></script>
 
 
 <script>
@@ -4924,167 +4924,6 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 
-// legality.js - Pokemon Champions Reg M-A legality checks (Issue #T4)
-// Loaded before engine.js. Exposes globals:
-//   CHAMPIONS_BANNED_POKEMON  - ban list (Legendary/Mythical/Restricted/Paradox/sub-legends)
-//   FAKEMON_BLOCKLIST         - known fabricated/non-existent forms
-//   validateChampionsLegality(team) -> { violations: [{severity, code, message}] }
-//
-// Sources:
-//   https://www.serebii.net/pokemonchampions/rankedbattle/regulationm-a.shtml
-//   https://victoryroad.pro/champions-regulations/
-
-var CHAMPIONS_BANNED_POKEMON = new Set([
-  // Paradox (Past)
-  'Great Tusk','Scream Tail','Brute Bonnet','Flutter Mane','Slither Wing',
-  'Sandy Shocks','Roaring Moon','Walking Wake','Gouging Fire','Raging Bolt',
-  // Paradox (Future)
-  'Iron Treads','Iron Bundle','Iron Hands','Iron Jugulis','Iron Moth',
-  'Iron Thorns','Iron Valiant','Iron Leaves','Iron Boulder','Iron Crown',
-  // Mythical
-  'Mew','Celebi','Jirachi','Deoxys','Phione','Manaphy','Darkrai','Shaymin',
-  'Arceus','Victini','Keldeo','Meloetta','Genesect','Diancie','Hoopa',
-  'Volcanion','Magearna','Marshadow','Zeraora','Meltan','Melmetal','Zarude',
-  // Restricted / Box Legendaries
-  'Mewtwo','Lugia','Ho-Oh','Kyogre','Groudon','Rayquaza','Dialga','Palkia',
-  'Giratina','Reshiram','Zekrom','Kyurem','Xerneas','Yveltal','Zygarde',
-  'Cosmog','Cosmoem','Solgaleo','Lunala','Necrozma','Zacian','Zamazenta',
-  'Eternatus','Calyrex','Koraidon','Miraidon','Terapagos',
-  // Sub-Legendary (non-Paradox)
-  'Articuno','Zapdos','Moltres','Raikou','Entei','Suicune','Regirock','Regice',
-  'Registeel','Latias','Latios','Uxie','Mesprit','Azelf','Heatran','Regigigas',
-  'Cresselia','Cobalion','Terrakion','Virizion','Tornadus','Thundurus','Landorus',
-  'Tapu Koko','Tapu Lele','Tapu Bulu','Tapu Fini','Nihilego','Buzzwole','Pheromosa',
-  'Xurkitree','Celesteela','Kartana','Guzzlord','Poipole','Naganadel','Stakataka',
-  'Blacephalon','Kubfu','Urshifu','Regieleki','Regidrago','Glastrier','Spectrier',
-  'Enamorus','Wo-Chien','Chien-Pao','Ting-Lu','Chi-Yu','Ogerpon','Okidogi',
-  'Munkidori','Fezandipiti','Pecharunt'
-]);
-
-// Reserved for actually-fabricated forms. Previously contained
-// Dragonite-Mega / Drampa-Mega / Meganium-Mega / Froslass-Mega,
-// which are REAL new Champions-introduced Mega Evolutions
-// (Dragoninite, Drampanite, Meganiumite, Froslassite — all Shop: 2000 VP).
-// Retracted in T9a after source verification:
-//   - Game8 Items List: https://game8.co/games/Pokemon-Champions/archives/588871
-//   - Victory Road Reg M-A: https://victoryroad.pro/champions-regulations/
-var FAKEMON_BLOCKLIST = new Set([
-  // empty; add only truly fabricated forms here
-]);
-
-// Items confirmed ABSENT from Champions launch item pool. Reg M-A teams
-// may not carry these. Source:
-//   https://game8.co/games/Pokemon-Champions/archives/588871
-//   https://games.gg/news/pokemon-champions-items-list-meta/
-//   https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained
-var CHAMPIONS_BANNED_ITEMS = new Set([
-  'Life Orb','Choice Band','Choice Specs','Assault Vest','Rocky Helmet',
-  'Heavy-Duty Boots','Black Sludge','Eviolite','Light Clay',
-  'Heat Rock','Damp Rock','Smooth Rock','Icy Rock','Terrain Extender',
-  'Toxic Orb','Flame Orb'
-]);
-
-// Mega Stone -> required base species. Built from CHAMPIONS_MEGAS at load.
-// Enables "wrong species holding stone" validation.
-var CHAMPIONS_STONE_TO_SPECIES = {};
-(function buildStoneIndex(){
-  if (typeof CHAMPIONS_MEGAS === 'undefined') return;
-  for (var k in CHAMPIONS_MEGAS) {
-    var m = CHAMPIONS_MEGAS[k];
-    if (m && m.megaStone) CHAMPIONS_STONE_TO_SPECIES[m.megaStone] = m.baseSpecies;
-  }
-})();
-
-// HOME-transfer-only Megas. Legal in Reg M-A but not obtainable in
-// Champions alone. Warn, do not block.
-var CHAMPIONS_HOME_TRANSFER_MEGAS = new Set([
-  'Chesnaught-Mega','Delphox-Mega','Greninja-Mega',
-  'Floette-Mega','Floette-Mega-EF','Floette (Eternal Flower)-Mega'
-]);
-
-// Strip form suffixes to compare against base-species ban list.
-// Keeps regional forms (Alola/Galar/Hisui/Paldea) legal where the base is legal,
-// but banned sub-legendary forms (e.g. Urshifu-Rapid-Strike) still match their base.
-function _stripForm(name) {
-  return name.replace(
-    /-(Mega(?:-[XY])?|Alola|Galar|Hisui|Paldea(?:-[A-Za-z]+)?|Therian|Incarnate|White|Black|Origin|Crowned|Ice|Shadow|Dusk-Mane|Dawn-Wings|Ultra|Rapid-Strike|Single-Strike|Ice-Rider|Shadow-Rider|Wellspring|Hearthflame|Cornerstone|Teal)$/i,
-    ''
-  );
-}
-
-function validateChampionsLegality(team) {
-  var violations = [];
-  if (!team || !Array.isArray(team.members)) return { violations: violations };
-
-  for (var i = 0; i < team.members.length; i++) {
-    var mon = team.members[i];
-    var name = mon && mon.name ? mon.name : '';
-
-    if (FAKEMON_BLOCKLIST.has(name)) {
-      violations.push({
-        severity: 'error',
-        code: 'FAKEMON',
-        message: name + ': not a real Pokemon form (fakemon blocked)'
-      });
-      continue;
-    }
-
-    var base = _stripForm(name);
-    if (CHAMPIONS_BANNED_POKEMON.has(name) || CHAMPIONS_BANNED_POKEMON.has(base)) {
-      violations.push({
-        severity: 'error',
-        code: 'BANNED',
-        message: name + ': banned in Reg M-A (Legendary/Mythical/Restricted/Paradox)'
-      });
-    }
-
-    // Item legality checks
-    var item = mon && mon.item ? mon.item : '';
-    if (item && CHAMPIONS_BANNED_ITEMS.has(item)) {
-      violations.push({
-        severity: 'error',
-        code: 'ITEM_ABSENT',
-        message: name + ': item "' + item + '" is not in Champions Reg M-A item pool'
-      });
-    }
-
-    // Mega stone must match holder species
-    if (item && CHAMPIONS_STONE_TO_SPECIES[item]) {
-      var required = CHAMPIONS_STONE_TO_SPECIES[item];
-      if (base !== required) {
-        violations.push({
-          severity: 'error',
-          code: 'MEGA_STONE_MISMATCH',
-          message: name + ': cannot hold ' + item + ' (only ' + required + ' can)'
-        });
-      }
-    }
-
-    // HOME-transfer-only Megas: warn
-    if (CHAMPIONS_HOME_TRANSFER_MEGAS.has(name)) {
-      violations.push({
-        severity: 'warn',
-        code: 'HOME_TRANSFER',
-        message: name + ': legal in Reg M-A but requires HOME transfer to obtain'
-      });
-    }
-  }
-  return { violations: violations };
-}
-
-// CommonJS export for Node tests; harmless in browser.
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    CHAMPIONS_BANNED_POKEMON: CHAMPIONS_BANNED_POKEMON,
-    FAKEMON_BLOCKLIST: FAKEMON_BLOCKLIST,
-    CHAMPIONS_BANNED_ITEMS: CHAMPIONS_BANNED_ITEMS,
-    CHAMPIONS_STONE_TO_SPECIES: CHAMPIONS_STONE_TO_SPECIES,
-    CHAMPIONS_HOME_TRANSFER_MEGAS: CHAMPIONS_HOME_TRANSFER_MEGAS,
-    validateChampionsLegality: validateChampionsLegality
-  };
-}
-
-
 // ============================================================
 // BATTLE ENGINE — VGC Doubles Simulator
 // Simulates VGC-style 4v4 doubles with priority, speed tiers,
@@ -5304,6 +5143,17 @@ class Pokemon {
     this.hospitality = (this.ability === 'Hospitality');
     // Multiscale: halves first hit if full HP
     this.multiscaleActive = (this.ability === 'Multiscale');
+    // T9j.1 (Issue #25) — side-state plumbing.
+    // this.side is assigned by simulateBattle once the mon is placed on a side.
+    // Points to the field's side object ({tailwind, tailwindTurns, reflect,
+    // lightScreen, auroraVeil, fainted}). Reads of target.side.X in calcDamage
+    // (screens, Last Respects ramp) rely on this.
+    this.side = null;
+    // T9j.1 — grounded check for terrain immunity and Ground-type immunity.
+    // Mon is 'flying' (ungrounded) if Flying type OR Levitate ability.
+    // Iron Ball, Gravity, Thousand Arrows, Roost mid-turn can override this —
+    // not modeled yet (tracked separately).
+    this.flying = this.types.includes('Flying') || this.ability === 'Levitate';
   }
 
   // Issue #T1: Auto-detect SP vs SV spreads.
@@ -5394,7 +5244,15 @@ class Pokemon {
 
   getEffSpeed(field) {
     let spe = this.getStat('spe', field);
-    if (field.trickRoom) spe = 10000 - spe; // lower is faster under TR
+    // T9j.1 (Issue #28) — Tailwind doubles effective speed for the side that set it.
+    // Champions: Tailwind lasts 4 turns (turns active + 3 more) per Game8 page;
+    // counter handled in Field.endTurn().
+    if (this.side && this.side.tailwind) spe *= 2;
+    // Weather speed abilities consolidated here so they compound correctly with Tailwind.
+    if (this.ability === 'Swift Swim'   && field.weather === 'rain') spe *= 2;
+    if (this.ability === 'Chlorophyll'  && field.weather === 'sun')  spe *= 2;
+    if (this.ability === 'Slush Rush'   && field.weather === 'snow') spe *= 2;
+    if (field.trickRoom) spe = 10000 - spe; // lower is faster under TR (applied last)
     return spe;
   }
 
@@ -5629,6 +5487,15 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   let oppActive    = [oppPokemon[0],    oppPokemon[1]   ].filter(Boolean);
   let playerBench  = playerPokemon.slice(2);
   let oppBench     = oppPokemon.slice(2);
+
+  // T9j.1 (Issue #25) — wire every Pokemon to its side object so that
+  // screens, Tailwind speed, and Last Respects fainted count all work.
+  for (const m of playerPokemon) m.side = field.playerSide;
+  for (const m of oppPokemon)    m.side = field.oppSide;
+  // Expose fainted count on side objects so calcDamage's Last Respects
+  // lookup (target.side.fainted) reads real state.
+  field.playerSide.fainted = 0;
+  field.oppSide.fainted    = 0;
 
   // Track fainted counts per side for Last Respects
   const sideFainted = { player: 0, opp: 0 };
@@ -6008,6 +5875,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const fainted = activeArr.filter(m => !m.alive);
       for (const mon of fainted) {
         sideFainted[side]++;
+        // T9j.1 — keep side.fainted on the field in sync so calcDamage's
+        // Last Respects lookup (target.side.fainted) uses the real count.
+        (side === 'player' ? field.playerSide : field.oppSide).fainted = sideFainted[side];
         const idx = activeArr.indexOf(mon);
         const replacement = bench.find(b => b.alive);
         if (replacement) {
