@@ -394,3 +394,13 @@ table{border-collapse:collapse;width:100%}
 .badge-legal   { background:#16a34a20; color:#4ade80; border:1px solid #16a34a60; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.3px; }
 .badge-warn    { background:#d9770620; color:#fbbf24; border:1px solid #d9770660; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.3px; }
 .badge-illegal { background:#dc262620; color:#f87171; border:1px solid #dc262660; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.3px; }
+
+/* T9g: Delete button for custom (user-imported) teams */
+.delete-card-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 10px; font-weight: 600;
+  background: rgba(220, 38, 38, 0.12); color: #fca5a5;
+  border: 1px solid rgba(220, 38, 38, 0.35); border-radius: 4px;
+  cursor: pointer; margin-left: 6px;
+}
+.delete-card-btn:hover { background: rgba(220, 38, 38, 0.25); }

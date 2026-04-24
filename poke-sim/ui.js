@@ -239,6 +239,36 @@ function saveCustomTeamsToStorage() {
 // Load persisted custom teams BEFORE first rebuildTeamSelects() call
 loadCustomTeamsFromStorage();
 
+// ============================================================
+// T9g: Delete custom teams (gated by team.source === 'custom')
+// ============================================================
+function deleteCustomTeam(key) {
+  var team = TEAMS[key];
+  if (!team) return;
+  if (team.source !== 'custom') {
+    console.warn('[T9g] Refusing to delete preloaded team:', key);
+    return;
+  }
+  if (!window.confirm('Delete "' + team.name + '"?\n\nThis cannot be undone.')) return;
+
+  delete TEAMS[key];
+  if (typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
+
+  // Fallback selections if deleted team was selected
+  if (currentPlayerKey === key) {
+    currentPlayerKey = TEAMS.player ? 'player' : Object.keys(TEAMS)[0];
+  }
+  var oppSel = document.getElementById('opponent-select');
+  if (oppSel && oppSel.value === key) {
+    oppSel.value = TEAMS.mega_altaria ? 'mega_altaria' : Object.keys(TEAMS)[0];
+  }
+
+  if (typeof rebuildTeamSelects === 'function') rebuildTeamSelects();
+  if (typeof renderTeamsGrid === 'function') renderTeamsGrid();
+  if (TEAMS[currentPlayerKey]) renderRoster('player-roster', TEAMS[currentPlayerKey].members);
+  if (oppSel && TEAMS[oppSel.value]) renderRoster('opp-roster', TEAMS[oppSel.value].members);
+}
+
 function rebuildTeamSelects() {
   var playerSel = document.getElementById('player-select');
   var oppSel = document.getElementById('opponent-select');
@@ -400,6 +430,7 @@ function renderTeamsGrid() {
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Export
           </button>
+          ${team.source === 'custom' ? `<button class="delete-card-btn" data-team="${key}" title="Delete this custom team"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete</button>` : ''}
         </div>
       </div>
       ${team.members.map(m => {
@@ -418,6 +449,10 @@ function renderTeamsGrid() {
   // Export buttons
   grid.querySelectorAll('.export-card-btn').forEach(btn => {
     btn.addEventListener('click', () => openExportModal(btn.dataset.team));
+  });
+  // T9g: delete button wiring (only rendered for custom teams)
+  grid.querySelectorAll('.delete-card-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteCustomTeam(btn.dataset.team));
   });
   // Speed tier sections appended by renderSpeedTiersForGrid() after TEAMS data
 }
