@@ -1,0 +1,49 @@
+name: Mechanic correction
+description: The simulator disagrees with an established Pokemon Champions mechanic.
+title: "[mechanic] "
+labels: ["mechanic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Mechanic accuracy is the top priority for this project. Please cite a primary source.
+  - type: textarea
+    id: current
+    attributes:
+      label: What the sim does today
+      description: Describe the current behavior with a concrete example (team, move, result).
+    validations:
+      required: true
+  - type: textarea
+    id: correct
+    attributes:
+      label: What should happen (per primary source)
+      description: Explain the correct behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Primary source citations
+      description: Link to Game8, Bulbapedia, RotomLabs, Serebii, Victory Road, or an official patch note. Multiple sources preferred.
+      placeholder: |
+        - https://game8.co/games/Pokemon-Champions/archives/...
+        - https://bulbapedia.bulbagarden.net/wiki/...
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Low (cosmetic / flavor)
+        - Medium (alters minor outcomes)
+        - High (flips matchup win rates)
+        - Critical (crashes sim or produces invalid state)
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction scenario
+      description: Which team, move, and conditions reliably surface the discrepancy?

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Pokemon Champions Game8 Hub
+    url: https://game8.co/games/Pokemon-Champions
+    about: Primary source for mechanics, move lists, and team strategies.
+  - name: Victory Road Regulations
+    url: https://victoryroad.pro/champions-regulations/
+    about: Current Reg M-A legality and banlist reference.
+  - name: RotomLabs Champions Dex
+    url: https://rotomlabs.net/dex/champions
+    about: Base stats, abilities, and learnsets for Champions format.

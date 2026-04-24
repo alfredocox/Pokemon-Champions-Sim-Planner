@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in the sim is wrong, crashing, or behaving unexpectedly.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please include enough detail that the bug can be reproduced.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly. What did you expect vs. what actually occurred?
+      placeholder: "Mega Dragonite came in with 395 HP instead of 334 in base form..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Which team, which opponent, which format (Bo1/Bo3/Bo5/Bo10), which buttons clicked?
+      placeholder: |
+        1. Load team `mega_dragonite` as player
+        2. Load `kingambit_sneasler` as opponent
+        3. Click Run Single (Bo1, Doubles)
+        4. Observe replay log line 3
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened? Cite a primary source if this is a mechanic question.
+      placeholder: "Per Game8 Mega rules (link), Dragonite should enter as base form..."
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser / environment
+      placeholder: "Chrome 133 on macOS 15.4, or iOS Safari 18, or installed PWA"
+  - type: input
+    id: commit
+    attributes:
+      label: Commit SHA or build date
+      description: Found in the footer of the app, or git log.
+      placeholder: "85d5a3c"
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors (optional)
+      description: Paste any red errors from the browser console.
+      render: shell
