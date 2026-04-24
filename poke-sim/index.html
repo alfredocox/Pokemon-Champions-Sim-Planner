@@ -87,13 +87,20 @@
     <div class="team-card player-card">
       <div class="card-header">
         <span class="badge badge-blue">YOUR TEAM</span>
-        <h2 class="card-title">TR Counter Squad</h2>
+        <h2 class="card-title" id="player-team-name">TR Counter Squad</h2>
         <button class="card-action-btn" id="export-player-btn" title="Export to Showdown format">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Export
         </button>
       </div>
+      <div class="control-block" style="margin:8px 0">
+        <label class="control-label">Your Team</label>
+        <select class="select-input" id="player-select"></select>
+      </div>
       <div class="roster" id="player-roster"></div>
+      <!-- T9j.12 (Refs #74) inline bring picker, shared state with Teams tab.
+           Populated by renderSimBringPicker('player-bring-picker', currentPlayerKey). -->
+      <div class="sim-bring-picker" id="player-bring-picker"></div>
     </div>
 
     <div class="sim-controls">
@@ -102,6 +109,26 @@
       <div class="coverage-widget" id="coverage-widget">
         <div class="coverage-widget-title">Team Coverage</div>
         <div id="coverage-items"></div>
+      </div>
+
+      <!-- T9d: Swap teams -->
+      <button class="btn-secondary" id="swap-teams-btn" style="margin:4px 0" title="Swap your team with opponent">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Swap Teams
+      </button>
+
+      <!-- Issue #T6: Ladder Mode toggle -->
+      <div class="control-block">
+        <label class="control-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <!-- T9h: default unchecked so all 22 preloaded + custom teams are swap-pickable -->
+          <input type="checkbox" id="ladder-mode-toggle"
+            style="width:16px;height:16px;cursor:pointer"/>
+          <span>Ladder Mode
+            <span style="color:var(--text-m);font-weight:400;font-size:11px">
+              (only Reg M-A legal opponents)
+            </span>
+          </span>
+        </label>
       </div>
 
       <div class="control-block">
@@ -183,6 +210,8 @@
         </button>
       </div>
       <div class="roster" id="opp-roster"></div>
+      <!-- T9j.12 (Refs #74) inline bring picker, shared state with Teams tab. -->
+      <div class="sim-bring-picker" id="opp-bring-picker"></div>
     </div>
   </div>
 
@@ -204,6 +233,8 @@
           <div class="stat-row"><span class="stat-name">Draws</span><span class="stat-val muted" id="stat-draws">0</span></div>
           <div class="stat-row"><span class="stat-name">Games/Series</span><span class="stat-val" id="stat-turns">0</span></div>
           <div class="stat-row"><span class="stat-name">Avg TR Turns</span><span class="stat-val" id="stat-tr-turns">0</span></div>
+          <div class="stat-row"><span class="stat-name">Avg Tailwind Turns</span><span class="stat-val" id="stat-tw-turns">0</span></div>
+          <div class="stat-row"><span class="stat-name">Timer Draws</span><span class="stat-val muted" id="stat-timer-draws">0</span></div>
           <div class="stat-row"><span class="stat-name">Mode</span><span class="stat-val primary" id="stat-format">—</span></div>
         </div>
       </div>
@@ -249,7 +280,25 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Import New Team
     </button>
+    <!-- T9j.11 (Refs #73) bulk file import accepting .json (round-trip schema)
+         and .txt (multi-team pokepaste split on === name === or double blank). -->
+    <button class="btn-secondary" id="bulk-import-btn" title="Import a file with one or many teams (.json from this app, or .txt pokepaste)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import File
+    </button>
+    <input type="file" id="bulk-import-file" accept=".json,.txt,application/json,text/plain" style="display:none"/>
+    <button class="btn-secondary" id="bulk-export-json-btn" title="Download all custom teams as a JSON file (round-trip)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export All Custom (JSON)
+    </button>
+    <button class="btn-secondary" id="bulk-export-showdown-btn" title="Download all custom teams as a Showdown multi-team .txt">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export as Showdown
+    </button>
   </div>
+  <!-- T9j.11 persistence verification banner + filter chips -->
+  <div class="teams-persistence-banner" id="teams-persistence-banner" style="display:none"></div>
+  <div class="teams-filter-row" id="teams-filter-row"></div>
   <div class="teams-grid" id="teams-grid"></div>
 </section>
 
@@ -357,6 +406,23 @@
   </div>
 </section>
 
+<!-- ===== T9h: CONFIRM MODAL (window.confirm is blocked in sandboxed iframes) ===== -->
+<div class="modal-overlay" id="confirm-modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="confirm-title">Confirm</h2>
+      <button class="modal-close" id="confirm-close" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="modal-hint" id="confirm-body" style="margin-top:8px;white-space:pre-wrap"></p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="confirm-ok" style="background:var(--red,#d94545)">Confirm</button>
+      <button class="btn-secondary" id="confirm-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== IMPORT MODAL ===== -->
 <div class="modal-overlay" id="import-modal" style="display:none" role="dialog" aria-modal="true">
   <div class="modal-box">
@@ -441,6 +507,7 @@
 <div id="pdf-report-container"></div>
 
 <script src="data.js"></script>
+<script src="legality.js"></script>
 <script src="engine.js"></script>
 <script src="ui.js"></script>
 <script>

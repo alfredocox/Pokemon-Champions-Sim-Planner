@@ -202,6 +202,35 @@ table{border-collapse:collapse;width:100%}
 .export-card-btn{font-size:9px;padding:2px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-full);color:var(--text-m);cursor:pointer;transition:all var(--tr);font-family:var(--font-display);font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:3px;flex-shrink:0}
 .export-card-btn:hover{color:var(--primary);border-color:var(--primary)}
 
+/* ===== T9j.10 TEAM PREVIEW BRING PICKER (Refs #16) =====
+   Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+   Doubles: 4 slots (LEAD 1-2, BENCH 3-4). Singles: 3 slots. Hybrid drag+tap. */
+.bring-mode-row{display:flex;align-items:center;gap:var(--sp2);margin:var(--sp3) 0;flex-wrap:wrap}
+.bring-mode-label{font-size:10px;color:var(--text-m);font-family:var(--font-mono);letter-spacing:.04em;text-transform:uppercase}
+.bring-mode-btn{font-size:10px;padding:3px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-full);color:var(--text-m);cursor:pointer;transition:all var(--tr);font-family:var(--font-display);font-weight:700;letter-spacing:.04em}
+.bring-mode-btn:hover{color:var(--primary);border-color:var(--primary)}
+.bring-mode-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.bring-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp2);margin-bottom:var(--sp3)}
+@media(max-width:480px){.bring-slots{grid-template-columns:repeat(4,1fr);gap:4px}}
+.bring-slot{position:relative;background:var(--surface2);border:2px dashed var(--border);border-radius:var(--r-md);padding:6px 4px;text-align:center;min-height:72px;cursor:pointer;transition:all var(--tr);user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+.bring-slot:hover{border-color:var(--primary)}
+.bring-slot-lead{border-style:solid;border-color:var(--accent,#4a9eff)}
+.bring-slot-bench{border-style:dashed}
+.bring-slot-label{font-size:8px;font-weight:700;color:var(--text-m);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.bring-slot-lead .bring-slot-label{color:var(--accent,#4a9eff)}
+.bring-slot-sprite{width:40px;height:40px;image-rendering:pixelated;background:var(--surface);border-radius:var(--r-sm);margin:2px 0}
+.bring-slot-name{font-size:9px;font-weight:700;color:var(--text-h,#fff);line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.bring-slot-empty{font-size:20px;color:var(--border);margin-top:8px;opacity:.5}
+.bring-drop-hover{border-color:var(--primary);background:rgba(74,158,255,.08);transform:scale(1.03)}
+.bring-pool{display:flex;flex-direction:column;border-top:1px solid var(--border);padding-top:var(--sp2)}
+.bring-pool-row{display:flex;gap:var(--sp3);padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--tr);border-radius:var(--r-sm)}
+.bring-pool-row:last-child{border-bottom:none}
+.bring-pool-row:hover{background:var(--surface2)}
+.bring-pool-row.bring-out{opacity:.55}
+.bring-pool-row.bring-in{opacity:1}
+.bring-pool-row.bring-picked{background:rgba(74,158,255,.12);outline:1px solid var(--accent,#4a9eff)}
+.bring-pool-row.bring-dragging{opacity:.4}
+
 /* ===== EDITOR ===== */
 .editor-layout{display:grid;grid-template-columns:260px 1fr;gap:var(--sp5);align-items:start}
 @media(max-width:760px){.editor-layout{grid-template-columns:1fr}}
@@ -369,23 +398,375 @@ table{border-collapse:collapse;width:100%}
 .speed-name{font-weight:600}
 .speed-val{font-family:var(--font-mono);color:var(--primary);font-size:11px;font-weight:700;white-space:nowrap}
 
-/* ===== PDF PRINT STYLES ===== */
+/* ===== PDF PRINT STYLES — T9j.14 Shadow Pressure master sheet theme ===== */
 @media print {
   body > *:not(#pdf-report-container) { display: none !important; }
-  #pdf-report-container { display: block !important; font-family: Georgia, serif; padding: 20px; }
-  .pdf-section { page-break-inside: avoid; margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 16px; }
-  .pdf-title { font-size: 22px; font-weight: bold; margin-bottom: 4px; }
-  .pdf-subtitle { font-size: 13px; color: #666; margin-bottom: 20px; }
-  .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .pdf-table th { background: #f3f4f6; padding: 6px 8px; text-align: left; border: 1px solid #ddd; }
-  .pdf-table td { padding: 6px 8px; border: 1px solid #ddd; }
-  .pdf-verdict-favorable { color: #16a34a; font-weight: bold; }
-  .pdf-verdict-even { color: #d97706; font-weight: bold; }
-  .pdf-verdict-risky { color: #ea580c; font-weight: bold; }
-  .pdf-verdict-avoid { color: #dc2626; font-weight: bold; }
-  .pdf-matchup-header { font-size: 16px; font-weight: bold; margin: 12px 0 6px; }
-  .pdf-win-rate { font-size: 28px; font-weight: bold; color: #4f46e5; }
-  .pdf-cond-bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin: 3px 0; }
-  .pdf-cond-fill { height: 100%; background: #4f46e5; border-radius: 4px; }
+  #pdf-report-container {
+    display: block !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    color: #111;
+    padding: 24px 28px;
+    background: #fff;
+  }
+  .pdf-banner { border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 18px; }
+  .pdf-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.02em; text-transform: uppercase; }
+  .pdf-subtitle { font-size: 11px; color: #444; }
+  .pdf-h2 {
+    font-size: 13px; font-weight: 800; letter-spacing: 0.06em;
+    background: #000; color: #fff; padding: 6px 10px; margin: 0 0 10px;
+    text-transform: uppercase;
+  }
+  .pdf-h3 {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+    border-bottom: 1px solid #000; padding: 4px 0; margin: 14px 0 8px;
+    text-transform: uppercase;
+  }
+  .pdf-section { page-break-inside: avoid; margin-bottom: 18px; }
+  .pdf-p { font-size: 12px; line-height: 1.4; margin: 4px 0; }
+  .pdf-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 2px; }
+  .pdf-table th {
+    background: #000; color: #fff; padding: 6px 8px;
+    text-align: left; border: 1px solid #000; font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .pdf-table td { padding: 6px 8px; border: 1px solid #ccc; vertical-align: top; }
+  .pdf-table tr:nth-child(even) td { background: #f7f7f7; }
+  .pdf-role-card { font-size: 12px; line-height: 1.5; padding: 3px 0; }
+  .pdf-lead-row { font-size: 12px; padding: 3px 0; }
+  .pdf-verdict-favorable { color: #15803d; font-weight: 700; }
+  .pdf-verdict-even { color: #b45309; font-weight: 700; }
+  .pdf-verdict-risky { color: #c2410c; font-weight: 700; }
+  .pdf-verdict-avoid { color: #b91c1c; font-weight: 700; }
+  .pdf-trend-list { font-size: 12px; line-height: 1.5; padding-left: 18px; margin: 4px 0; }
+  .pdf-trend-list li { margin: 2px 0; }
+  .pdf-coach-section { page-break-before: always; }
+  .pdf-coach-item {
+    font-size: 12px; line-height: 1.45;
+    padding: 8px 10px; margin: 6px 0; border-left: 4px solid #888; background: #fafafa;
+  }
+  .pdf-coach-critical { border-left-color: #b91c1c; background: #fff1f1; }
+  .pdf-coach-suggested { border-left-color: #b45309; background: #fff8ec; }
+  .pdf-coach-optional { border-left-color: #737373; background: #f6f6f6; }
+  .pdf-coach-badge {
+    display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em;
+    padding: 1px 6px; margin-right: 6px; color: #fff; border-radius: 2px; vertical-align: 1px;
+  }
+  .pdf-coach-badge-critical { background: #b91c1c; }
+  .pdf-coach-badge-suggested { background: #b45309; }
+  .pdf-coach-badge-optional { background: #525252; }
+  .pdf-footer { font-size: 10px; color: #666; margin-top: 20px; border-top: 1px solid #000; padding-top: 6px; text-align: right; }
 }
 #pdf-report-container { display: none; }
+
+/* ===== Issue #T6: Legality badges ===== */
+.badge-legal   { background:#16a34a20; color:#4ade80; border:1px solid #16a34a60; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.3px; }
+.badge-warn    { background:#d9770620; color:#fbbf24; border:1px solid #d9770660; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.3px; }
+.badge-illegal { background:#dc262620; color:#f87171; border:1px solid #dc262660; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.3px; }
+
+/* T9g: Delete button for custom (user-imported) teams */
+.delete-card-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 10px; font-weight: 600;
+  background: rgba(220, 38, 38, 0.12); color: #fca5a5;
+  border: 1px solid rgba(220, 38, 38, 0.35); border-radius: 4px;
+  cursor: pointer; margin-left: 6px;
+}
+.delete-card-btn:hover { background: rgba(220, 38, 38, 0.25); }
+
+/* T9h: Edit button (all teams) */
+.edit-card-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 10px; font-weight: 600;
+  background: rgba(59, 130, 246, 0.12); color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 4px;
+  cursor: pointer; margin-left: 6px;
+}
+.edit-card-btn:hover { background: rgba(59, 130, 246, 0.25); }
+
+/* T9h: Reset button (preloaded teams with overrides) */
+.reset-card-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 10px; font-weight: 600;
+  background: rgba(234, 179, 8, 0.12); color: #fcd34d;
+  border: 1px solid rgba(234, 179, 8, 0.35); border-radius: 4px;
+  cursor: pointer; margin-left: 6px;
+}
+.reset-card-btn:hover { background: rgba(234, 179, 8, 0.25); }
+
+/* ============================================================
+   T9j.11 (Refs #73) Teams-tab persistence banner + filter chips
+   + bulk file buttons. Cite: MDN File API.
+   https://developer.mozilla.org/en-US/docs/Web/API/File_API
+   ============================================================ */
+.teams-persistence-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; margin: 8px 0 10px;
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.30);
+  border-radius: 6px; font-size: 12px; color: #a7f3d0;
+}
+.teams-persistence-banner.empty {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.30);
+  color: #cbd5e1;
+}
+.teams-persistence-banner.error {
+  background: rgba(220, 38, 38, 0.10);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #fca5a5;
+}
+.teams-filter-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 4px 0 12px;
+}
+.teams-filter-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; font-size: 11px; font-weight: 600;
+  background: rgba(100, 116, 139, 0.14);
+  color: #cbd5e1;
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  border-radius: 999px; cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.teams-filter-chip:hover { background: rgba(100, 116, 139, 0.24); }
+.teams-filter-chip.active {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #bfdbfe;
+}
+.teams-filter-chip .chip-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; padding: 0 5px; height: 16px;
+  font-size: 10px; font-weight: 700;
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: 999px; color: #e2e8f0;
+}
+.teams-filter-chip.active .chip-count {
+  background: rgba(37, 99, 235, 0.55); color: #eff6ff;
+}
+.teams-actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+
+/* ============================================================
+ * T9j.12 (Refs #74) Simulator-tab inline bring picker
+ * Compact sibling of the Teams-tab picker. Sits under each roster
+ * column (player / opponent) on the Simulator view so leads + bench
+ * can be overridden without switching tabs. Shares state via the
+ * T9j.10 BRING_SELECTION / BRING_MODE helpers (localStorage).
+ * Refs: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+ *       https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API
+ * ============================================================ */
+.sim-bring-picker {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  border-radius: 10px;
+}
+.sim-bring-header {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-m);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+/* Compact pool strip: single-row wrap of sprite + name chips. */
+.bring-pool-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.bring-pool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px 3px 3px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 999px;
+  cursor: grab;
+  transition: background 120ms, border-color 120ms, transform 80ms;
+  font-size: 10px;
+  font-weight: 600;
+  color: #e2e8f0;
+  user-select: none;
+}
+.bring-pool-chip:hover { background: rgba(51, 65, 85, 0.75); }
+.bring-pool-chip:active { cursor: grabbing; transform: scale(0.97); }
+.bring-pool-chip-sprite {
+  width: 28px; height: 28px; object-fit: contain;
+  image-rendering: pixelated;
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: 50%;
+}
+.bring-pool-chip-name { white-space: nowrap; }
+.bring-pool-chip-pos {
+  font-size: 9px;
+  font-weight: 700;
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.45);
+  padding: 1px 5px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.bring-pool-chip.bring-in {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #eff6ff;
+}
+.bring-pool-chip.bring-picked {
+  background: rgba(250, 204, 21, 0.22);
+  border-color: rgba(234, 179, 8, 0.7);
+  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.25);
+}
+.bring-pool-chip.bring-dragging { opacity: 0.5; }
+
+/* ============================================================
+   T9j.15 (Refs #71) — Best Mega Trigger card
+   ============================================================
+   Pilot Guide inline card + print-safe PDF column summary.
+   Severity bands match the three-tier coaching-notes pattern:
+     green  = delta >= 3% vs turn-1 baseline
+     amber  = 1-3% delta
+     gray   = <1% delta
+*/
+.mega-trigger-group {
+  margin-top: var(--sp4, 16px);
+  padding-top: var(--sp3, 12px);
+  border-top: 1px dashed var(--border);
+}
+.mega-trigger-group-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-m);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.mega-trigger-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-m);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.mega-trigger-green { border-left-color: #16a34a; }
+.mega-trigger-amber { border-left-color: #b45309; }
+.mega-trigger-gray  { border-left-color: #525252; }
+.mega-trigger-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.mega-trigger-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #fff;
+}
+.mega-trigger-badge-green { background: #16a34a; }
+.mega-trigger-badge-amber { background: #b45309; }
+.mega-trigger-badge-gray  { background: #525252; }
+.mega-trigger-slot {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.mega-trigger-verdict {
+  font-size: 11px;
+  color: var(--text-m);
+  margin-left: auto;
+}
+.mega-trigger-body {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text);
+}
+.mega-trigger-metric { font-family: var(--font-mono); }
+.mega-trigger-metric em {
+  color: var(--text-m);
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+  text-transform: uppercase;
+}
+.mega-trigger-sev-green { color: #16a34a; font-weight: 700; }
+.mega-trigger-sev-amber { color: #b45309; font-weight: 700; }
+.mega-trigger-sev-gray  { color: #525252; }
+.mega-trigger-details {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.mega-trigger-details summary {
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-m);
+  letter-spacing: 0.04em;
+}
+.mega-trigger-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.mega-trigger-table th,
+.mega-trigger-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.mega-trigger-table th {
+  color: var(--text-m);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.mega-trigger-table .mt-wr { font-weight: 700; }
+.mega-trigger-table .mt-ci { color: var(--text-m); }
+.mt-bar-wrap {
+  height: 6px;
+  width: 100%;
+  background: rgba(120, 120, 120, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mt-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
+  border-radius: 3px;
+}
+
+/* Print: keep severity color bar, drop shadows/details for compact page */
+@media print {
+  .mega-trigger-card {
+    border: 1px solid #000 !important;
+    border-left: 3px solid #000 !important;
+    background: #fff !important;
+    padding: 6px 8px !important;
+    page-break-inside: avoid;
+  }
+  .mega-trigger-green { border-left-color: #15803d !important; }
+  .mega-trigger-amber { border-left-color: #92400e !important; }
+  .mega-trigger-gray  { border-left-color: #404040 !important; }
+  .mega-trigger-badge-green { background: #15803d !important; }
+  .mega-trigger-badge-amber { background: #92400e !important; }
+  .mega-trigger-badge-gray  { background: #404040 !important; }
+  .mega-trigger-details[open] summary { display: none; }
+  .mega-trigger-details > summary { display: none; }
+  .mega-trigger-table th,
+  .mega-trigger-table td { border-bottom: 1px solid #999 !important; }
+  .mt-bar { background: #000 !important; }
+}

@@ -10,7 +10,7 @@
 
 **Repo:** [github.com/alfredocox/Pokemon-Champions-Sim-Planner](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner)
 
-**Primary artifact:** `pokemon-champion-2026-FINAL.html` (280 KB self-contained bundle)
+**Primary artifact:** `poke-sim/pokemon-champion-2026.html` (~400 KB self-contained bundle)
 
 **Tech stack:**
 - Vanilla JavaScript (ES6+)
@@ -28,7 +28,7 @@ Pokemon-Champions-Sim-Planner/
 ├── README.md                          ← Quickstart guide
 ├── DEVELOPMENT_RUNBOOK.md             ← This file
 ├── MASTER_PROMPT.md                   ← Copy-paste prompt for new AI sessions
-├── pokemon-champion-2026-FINAL.html   ← Root copy of final bundle
+├── poke-sim/pokemon-champion-2026.html   ← Self-contained bundle (rebuilt from sources)
 └── poke-sim/                          ← All source files
     ├── index.html                     ← App shell (tabs, PWA meta, script refs)
     ├── style.css                      ← Full dark theme (34 KB)
@@ -90,7 +90,7 @@ Fixes applied:
 ### Phase 6 — Live URL Investigation + Master Prompt v3 (April 23, 2026)
 **Commit:** [`8f8e7d8`](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/commit/8f8e7d81aae54726c3ea80a33ce2757f970a5132)
 
-**Problem reported:** `htmlpreview.github.io/?https://raw.githubusercontent.com/alfredocox/Pokemon-Champions-Sim-Planner/main/pokemon-champion-2026-FINAL.html` did not load the app.
+**Problem reported:** `htmlpreview.github.io/?https://raw.githubusercontent.com/alfredocox/Pokemon-Champions-Sim-Planner/main/poke-sim/pokemon-champion-2026.html` did not load the app.
 
 **Root cause:** Two compounding issues:
 1. **MIME type mismatch** — GitHub serves raw `.html` files with `Content-Type: text/plain`, not `text/html`. Browsers refuse to render HTML with the wrong MIME type.
@@ -203,9 +203,9 @@ git clone https://github.com/alfredocox/Pokemon-Champions-Sim-Planner.git
 cd Pokemon-Champions-Sim-Planner
 
 # Open in browser
-open pokemon-champion-2026-FINAL.html   # macOS
-start pokemon-champion-2026-FINAL.html  # Windows
-xdg-open pokemon-champion-2026-FINAL.html  # Linux
+open pokemon-champion-2026.html   # macOS
+start pokemon-champion-2026.html  # Windows
+xdg-open pokemon-champion-2026.html  # Linux
 ```
 
 ### Option B — Run from source files (with live reload)
@@ -240,8 +240,8 @@ html=html.replace('<link rel=\"manifest\" href=\"manifest.json\"/>','')
 html=html.replace('<link rel=\"apple-touch-icon\" href=\"icon-192.png\"/>','')
 html=html.replace('</head>','<style>\n'+css+'\n</style>\n</head>')
 html=html.replace('</body>','<script>\n'+data+'\n\n'+engine+'\n\n'+ui+'\n</script>\n</body>')
-with open('pokemon-champion-2026-FINAL.html','w') as f: f.write(html)
-print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026-FINAL.html\"):,} bytes')
+with open('pokemon-champion-2026.html','w') as f: f.write(html)
+print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
 "
 ```
 
