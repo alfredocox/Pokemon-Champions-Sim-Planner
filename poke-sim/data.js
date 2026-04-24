@@ -1710,8 +1710,8 @@ const TEAMS = {
         "url": "",
         "status": "assumed"
     },
-    "legality_status": "illegal",
-    "legality_notes": "Contains Flutter Mane (Paradox, banned). Fixed in T8.",
+    "legality_status": "legal",
+    "legality_notes": "Flutter Mane (Paradox, banned in Reg M-A) replaced with Hatterene in T8. Team now passes Champions Reg M-A validation.",
     "assumption_register": [
         "Spreads inferred from meta norms, not a pinned paste."
     ],
@@ -1822,25 +1822,35 @@ const TEAMS = {
         "role": "TR Support"
       },
       {
-        "name": "Flutter Mane",
+        "name": "Hatterene",
         "item": "Choice Specs",
-        "ability": "Protosynthesis",
-        "nature": "Modest",
+        "ability": "Magic Bounce",
+        "teraType": "Fire",
+        "nature": "Quiet",
+        "level": 50,
+        "ivs": {
+          "hp": 31,
+          "atk": 31,
+          "def": 31,
+          "spa": 31,
+          "spd": 31,
+          "spe": 0
+        },
         "evs": {
-          "hp": 0,
+          "hp": 252,
           "atk": 0,
-          "def": 0,
+          "def": 4,
           "spa": 252,
-          "spd": 4,
-          "spe": 252
+          "spd": 0,
+          "spe": 0
         },
         "moves": [
-          "Moon Blast",
-          "Shadow Ball",
-          "Mystical Fire",
-          "Psyshock"
+          "Dazzling Gleam",
+          "Psychic",
+          "Expanding Force",
+          "Mystical Fire"
         ],
-        "role": "Sweeper"
+        "role": "TR Sweeper"
       }
     ]
   },
