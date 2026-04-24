@@ -440,10 +440,23 @@ class Pokemon {
     if (field.terrain === 'psychic'  && moveType === 'Psychic'  && !target.flying) terrainMod = 1.3;
     if (field.terrain === 'misty'    && moveType === 'Dragon')                     terrainMod = 0.5;
 
-    // Screen modifiers
+    // T9j.3 Screens modifier — exact Gen 9 fractions.
+    // Singles: 2048/4096 = 0.5. Doubles: 2732/4096 ≈ 0.6670.
+    // Aurora Veil: applies to BOTH physical and special (does not stack w/ R/LS).
+    // Crits ignore screens — deferred to T9j.8 crit pass.
+    const _fmt = (field && field._format) || 'doubles';
+    const _screenBase = (_fmt === 'doubles') ? (2732 / 4096) : (2048 / 4096);
     let screenMod = 1;
-    if (isPhysical  && target.side?.reflect)    screenMod = 0.5;
-    if (!isPhysical && target.side?.lightScreen) screenMod = 0.5;
+    const _tSide = target.side;
+    if (_tSide) {
+      if (_tSide.auroraVeil) {
+        screenMod = _screenBase;
+      } else if (isPhysical && _tSide.reflect) {
+        screenMod = _screenBase;
+      } else if (!isPhysical && _tSide.lightScreen) {
+        screenMod = _screenBase;
+      }
+    }
 
     // Helping Hand boost
     const hhMod = (this.helpingHand) ? 1.5 : 1;
@@ -500,15 +513,35 @@ class Field {
     this.weatherTurns = 0;
     this.trickRoom    = false;
     this.trickRoomTurns = 0;
+    this.trickRoomActive = 0;   // T9j.3 (#37): cumulative turns TR was active
     this.terrain      = 'none';
     this.terrainTurns = 0;
-    this.playerSide   = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false,
+    // T9j.3 (#38, screens): tailwind + 3 screens w/ remaining turns AND cumulative active counters.
+    this.playerSide = {
+      tailwind:false, tailwindTurns:0, tailwindActive:0,
+      reflect:false, reflectTurns:0, reflectActive:0,
+      lightScreen:false, lightScreenTurns:0, lightScreenActive:0,
+      auroraVeil:false, auroraVeilTurns:0, auroraVeilActive:0,
       // T9j.2 (#31/#32) — Wide Guard turn flag + chain counter, redirect target
-      wideGuard:false, wideGuardChain:0, redirectTo:null, redirectType:null };
-    this.oppSide      = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false,
-      wideGuard:false, wideGuardChain:0, redirectTo:null, redirectType:null };
+      wideGuard:false, wideGuardChain:0, redirectTo:null, redirectType:null,
+      fainted:0
+    };
+    this.oppSide = {
+      tailwind:false, tailwindTurns:0, tailwindActive:0,
+      reflect:false, reflectTurns:0, reflectActive:0,
+      lightScreen:false, lightScreenTurns:0, lightScreenActive:0,
+      auroraVeil:false, auroraVeilTurns:0, auroraVeilActive:0,
+      wideGuard:false, wideGuardChain:0, redirectTo:null, redirectType:null,
+      fainted:0
+    };
     // T9j.2 (#26) — spread context sidecar. Set per-hit by executeMove, read by calcDamage.
     this._ctx = { isSpread:false };
+    // T9j.3 (#39) — timer state. Standard VGC: 7 min team, 45s turn. Batch sim
+    // uses 15s/turn deterministic proxy → ~28-turn cap. Draw tiebreaker cascade:
+    // Pokemon alive > total HP > true draw.
+    this.clockPlayer = 7 * 60 * 1000;
+    this.clockOpp    = 7 * 60 * 1000;
+    this._format     = 'doubles';  // set by simulateBattle from opts.format
   }
 
   tick(logs) {
@@ -525,8 +558,9 @@ class Field {
       this.weatherTurns--;
       if (this.weatherTurns === 0) { logs.push(`The ${this.weather} subsided.`); this.weather = 'none'; }
     }
-    // Trick Room countdown
+    // Trick Room countdown — T9j.3 (#37): increment cumulative BEFORE decrement
     if (this.trickRoom) {
+      this.trickRoomActive++;
       this.trickRoomTurns--;
       if (this.trickRoomTurns <= 0) { this.trickRoom = false; logs.push('Trick Room returned to NORMAL!'); }
     }
@@ -535,14 +569,28 @@ class Field {
       this.terrainTurns--;
       if (this.terrainTurns === 0) { this.terrain = 'none'; logs.push('The terrain returned to normal.'); }
     }
-    // Tailwind countdown
-    if (this.playerSide.tailwind) {
-      this.playerSide.tailwindTurns--;
-      if (this.playerSide.tailwindTurns <= 0) { this.playerSide.tailwind = false; logs.push("Player's Tailwind ended."); }
-    }
-    if (this.oppSide.tailwind) {
-      this.oppSide.tailwindTurns--;
-      if (this.oppSide.tailwindTurns <= 0) { this.oppSide.tailwind = false; logs.push("Opponent's Tailwind ended."); }
+    // Tailwind + Screens countdowns — T9j.3 (#38, screens): cumulative active + 5-turn countdown for both sides.
+    for (const [label, side] of [['Player', this.playerSide], ['Opponent', this.oppSide]]) {
+      if (side.tailwind) {
+        side.tailwindActive++;
+        side.tailwindTurns--;
+        if (side.tailwindTurns <= 0) { side.tailwind = false; logs.push(`${label}'s Tailwind ended.`); }
+      }
+      if (side.reflect) {
+        side.reflectActive++;
+        side.reflectTurns--;
+        if (side.reflectTurns <= 0) { side.reflect = false; logs.push(`${label}'s Reflect wore off.`); }
+      }
+      if (side.lightScreen) {
+        side.lightScreenActive++;
+        side.lightScreenTurns--;
+        if (side.lightScreenTurns <= 0) { side.lightScreen = false; logs.push(`${label}'s Light Screen wore off.`); }
+      }
+      if (side.auroraVeil) {
+        side.auroraVeilActive++;
+        side.auroraVeilTurns--;
+        if (side.auroraVeilTurns <= 0) { side.auroraVeil = false; logs.push(`${label}'s Aurora Veil wore off.`); }
+      }
     }
   }
 }
@@ -565,6 +613,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   const rng  = makePRNG(seed);
   const log  = [];
   const field = new Field();
+  // T9j.3 (#39) — stamp format on field so calcDamage can pick singles vs doubles screen fraction.
+  field._format = (opts.format === 'singles') ? 'singles' : 'doubles';
+  const DECISION_TIME_MS = 15 * 1000;  // deterministic 15s/turn proxy for timer-draw
 
   // #5 — Legality validation (non-blocking by default).
   // validateTeam detects stat-point caps (SP or EV), move count, Species/Item
@@ -584,7 +635,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   for (const w of oppLegality.warnings) log.push(`[LEGALITY] Opponent warning: ${w}`);
   if (opts.strict && (!playerLegality.valid || !oppLegality.valid)) {
     return {
-      result: 'error', turns: 0, trTurns: 0, log,
+      result: 'error', turns: 0, trTurns: 0,
+      twTurns: 0, twTurnsPlayer: 0, twTurnsOpp: 0,
+      timerExpired: false, clockPlayer: 0, clockOpp: 0, pHpSum: 0, oHpSum: 0,
+      screens: { playerReflect:0, playerLightScreen:0, playerAuroraVeil:0, oppReflect:0, oppLightScreen:0, oppAuroraVeil:0 },
+      log,
       winCondition: 'Illegal team — simulation aborted (strict mode)',
       seed, playerSurvivors: 0, oppSurvivors: 0,
       legality: { player: playerLegality, opp: oppLegality },
@@ -642,7 +697,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   // ============================================================
   function selectMove(attacker, allies, enemies, field) {
     const STATUS_MOVES = new Set(['Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder',
-      'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail']);
+      'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail',
+      // T9j.3 Screens setters
+      'Light Screen','Reflect','Aurora Veil']);
     const PRIORITY_MOVES = new Set(['Fake Out','Aqua Jet','Extreme Speed','Shadow Sneak']);
 
     let best = { move: null, target: null, score: -Infinity };
@@ -658,6 +715,12 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         let score = 0;
         if (move === 'Trick Room' && !field.trickRoom) score = 55;
         if (move === 'Tailwind'   && !field[attacker.side === 'player' ? 'playerSide' : 'oppSide']?.tailwind) score = 50;
+        // T9j.3 Screens scoring — value them when not already up.
+        const _selfSide = field[attacker.side === 'player' ? 'playerSide' : 'oppSide'];
+        if (move === 'Light Screen' && _selfSide && !_selfSide.lightScreen) score = 42;
+        if (move === 'Reflect'      && _selfSide && !_selfSide.reflect)     score = 42;
+        if (move === 'Aurora Veil' && _selfSide && !_selfSide.auroraVeil
+            && (field.weather === 'hail' || field.weather === 'snow')) score = 52;
         if (move === 'Will-O-Wisp' && liveEnemies.length) {
           const target = liveEnemies.find(e => !e.status) || liveEnemies[0];
           if (target && !target.status && target.types.every(t => t !== 'Fire')) {
@@ -722,7 +785,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     const STATUS_MOVES  = new Set(['Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder',
       'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail',
       // T9j.2 additions — side-state setters
-      'Wide Guard','Follow Me','Quick Guard']);
+      'Wide Guard','Follow Me','Quick Guard',
+      // T9j.3 Screens setters
+      'Light Screen','Reflect','Aurora Veil']);
 
     // Attacker must be alive
     if (!attacker.alive) return;
@@ -753,6 +818,34 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         side.tailwind = true;
         side.tailwindTurns = 4;
         log.push(`${attacker.name}'s Tailwind is blowing!`);
+      }
+      // T9j.3 Screens setters. Duration 5 turns (Light Clay → 8 pending T9j.6 item pass).
+      if (move === 'Light Screen') {
+        const side = (allies === playerActive) ? field.playerSide : field.oppSide;
+        side.lightScreen = true;
+        side.lightScreenTurns = 5;
+        log.push(`${attacker.name} raised a Light Screen!`);
+        return;
+      }
+      if (move === 'Reflect') {
+        const side = (allies === playerActive) ? field.playerSide : field.oppSide;
+        side.reflect = true;
+        side.reflectTurns = 5;
+        log.push(`${attacker.name} raised a Reflect!`);
+        return;
+      }
+      if (move === 'Aurora Veil') {
+        // Gated: Aurora Veil only succeeds if hail/snow active at cast time.
+        const wx = field.weather;
+        if (wx !== 'hail' && wx !== 'snow') {
+          log.push(`${attacker.name} used Aurora Veil! But it failed (no hail/snow).`);
+          return;
+        }
+        const side = (allies === playerActive) ? field.playerSide : field.oppSide;
+        side.auroraVeil = true;
+        side.auroraVeilTurns = 5;
+        log.push(`${attacker.name} activated Aurora Veil!`);
+        return;
       }
       // T9j.2 (#31) — Wide Guard with 1/3 consecutive-use diminishing returns.
       if (move === 'Wide Guard') {
@@ -1057,7 +1150,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   // MAIN BATTLE LOOP
   // ============================================================
   let turn = 0;
-  const MAX_TURNS = 25;
+  // T9j.3 (#39): raised from 25 → 30 so timer-draw (28-turn budget at 15s/turn)
+  // can actually resolve before the hard cap. Stall mirrors will now reach timer.
+  const MAX_TURNS = 30;
 
   while (turn < MAX_TURNS) {
     turn++;
@@ -1172,13 +1267,29 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     }
     replaceOnField(playerActive, playerBench, 'player', field, log);
     replaceOnField(oppActive, oppBench, 'opp', field, log);
+
+    // T9j.3 (#39) — timer-draw check. Deduct deterministic 15s/turn proxy.
+    // If either clock expires, force battle end via tiebreaker cascade.
+    field.clockPlayer -= DECISION_TIME_MS;
+    field.clockOpp    -= DECISION_TIME_MS;
+    if (field.clockPlayer <= 0 || field.clockOpp <= 0) {
+      log.push(`[TIMER] Clock expired at turn ${turn}. Resolving via tiebreaker.`);
+      break;
+    }
   }
 
   // ============================================================
   // RESULT
   // ============================================================
-  const pSurvive = playerActive.filter(m => m.alive).length + playerBench.filter(m => m.alive).length;
-  const oSurvive = oppActive.filter(m => m.alive).length + oppBench.filter(m => m.alive).length;
+  const pAliveAll = [...playerActive, ...playerBench].filter(m => m.alive);
+  const oAliveAll = [...oppActive, ...oppBench].filter(m => m.alive);
+  const pSurvive = pAliveAll.length;
+  const oSurvive = oAliveAll.length;
+  // T9j.3 (#39) tiebreaker cascade: Pokemon alive → total HP → true draw.
+  const pHpSum = pAliveAll.reduce((s, m) => s + m.hp, 0);
+  const oHpSum = oAliveAll.reduce((s, m) => s + m.hp, 0);
+  const timerExpired = (field.clockPlayer <= 0 || field.clockOpp <= 0);
+
   let result;
   let winCondition = '';
   if (pSurvive > oSurvive) {
@@ -1186,19 +1297,51 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     const ko = log.filter(l => l.includes('fainted')).length;
     const trSet = log.some(l => l.includes('Trick Room was set'));
     const twSet = log.some(l => l.includes('Tailwind is blowing'));
-    winCondition = trSet ? 'TR Win' : twSet ? 'Tailwind Win' : ko >= 4 ? 'KO Sweep' : 'Attrition Win';
+    winCondition = timerExpired ? 'Timer Win (pokemon)'
+      : (trSet ? 'TR Win' : twSet ? 'Tailwind Win' : ko >= 4 ? 'KO Sweep' : 'Attrition Win');
   } else if (oSurvive > pSurvive) {
     result = 'loss';
-    winCondition = 'Opponent Win';
+    winCondition = timerExpired ? 'Timer Loss (pokemon)' : 'Opponent Win';
   } else {
-    result = 'draw';
-    winCondition = 'Draw';
+    // Equal Pokemon count — fall to HP tiebreaker.
+    if (pHpSum > oHpSum) {
+      result = 'win';
+      winCondition = timerExpired ? 'Timer Win (HP)' : 'HP Tiebreak Win';
+    } else if (oHpSum > pHpSum) {
+      result = 'loss';
+      winCondition = timerExpired ? 'Timer Loss (HP)' : 'HP Tiebreak Loss';
+    } else {
+      result = 'draw';
+      winCondition = timerExpired ? 'Timer Draw' : 'Draw';
+    }
   }
+  if (timerExpired) log.push(`[TIMER] Resolved ${winCondition} — alive p${pSurvive}/o${oSurvive}, HP p${pHpSum}/o${oHpSum}`);
 
-  return { result, turns: turn, trTurns: field.trickRoomTurns, log, winCondition, seed,
+  return {
+    result, turns: turn,
+    // T9j.3 (#37) — cumulative active turns, replaces meaningless end-of-battle remaining counter.
+    trTurns: field.trickRoomActive,
+    // T9j.3 (#38) — Tailwind cumulative active per side and combined.
+    twTurnsPlayer: field.playerSide.tailwindActive,
+    twTurnsOpp:    field.oppSide.tailwindActive,
+    twTurns:       field.playerSide.tailwindActive + field.oppSide.tailwindActive,
+    // T9j.3 Screens cumulative active for diagnostics.
+    screens: {
+      playerReflect:     field.playerSide.reflectActive,
+      playerLightScreen: field.playerSide.lightScreenActive,
+      playerAuroraVeil:  field.playerSide.auroraVeilActive,
+      oppReflect:        field.oppSide.reflectActive,
+      oppLightScreen:    field.oppSide.lightScreenActive,
+      oppAuroraVeil:     field.oppSide.auroraVeilActive,
+    },
+    // T9j.3 (#39) timer-draw diagnostics.
+    timerExpired, clockPlayer: field.clockPlayer, clockOpp: field.clockOpp,
+    pHpSum, oHpSum,
+    log, winCondition, seed,
     playerSurvivors: pSurvive, oppSurvivors: oSurvive,
     // #5 — attach legality verdict so UI can surface warnings on team/match cards.
-    legality: { player: playerLegality, opp: oppLegality } };
+    legality: { player: playerLegality, opp: oppLegality }
+  };
 }
 
 // ============================================================
@@ -1228,6 +1371,8 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
   const oppTeamDef = TEAMS[oppTeamKey];
 
   const results = { wins:0, losses:0, draws:0, errors:0, totalTurns:0, totalTrTurns:0,
+    // T9j.3 (#38) Tailwind cumulative + (#39) timer-draw bucket.
+    totalTwTurns:0, timerDraws:0, timerWins:0, timerLosses:0,
     winConditions:{}, allLogs:[], koLogs:[], turnDist:{},
     seeds: [],          // Issue #2: store seeds for reproducibility
     // Issue #6: metadata fields for trustworthy win-rate display
@@ -1255,6 +1400,13 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
       results[battle.result === 'win' ? 'wins' : battle.result === 'loss' ? 'losses' : 'draws']++;
       results.totalTurns += battle.turns;
       results.totalTrTurns += battle.trTurns;
+      // T9j.3 (#38, #39)
+      results.totalTwTurns += (battle.twTurns || 0);
+      if (battle.timerExpired) {
+        if (battle.result === 'draw') results.timerDraws++;
+        else if (battle.result === 'win')  results.timerWins++;
+        else if (battle.result === 'loss') results.timerLosses++;
+      }
       results.turnDist[battle.turns] = (results.turnDist[battle.turns]||0) + 1;
       if (battle.winCondition) {
         results.winConditions[battle.winCondition] = (results.winConditions[battle.winCondition]||0) + 1;
@@ -1274,6 +1426,7 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
   results.winRate = validBattles > 0 ? results.wins / validBattles : 0;
   results.avgTurns = validBattles > 0 ? results.totalTurns / validBattles : 0;
   results.avgTrTurns = validBattles > 0 ? results.totalTrTurns / validBattles : 0;
+  results.avgTwTurns = validBattles > 0 ? results.totalTwTurns / validBattles : 0;  // T9j.3 (#38)
   // Issue #6: confidence tier label
   results.confidenceNote = numBattles < 20  ? 'Low confidence — run more simulations (Bo10+)' :
                            numBattles < 100 ? 'Moderate confidence' : 'High confidence';

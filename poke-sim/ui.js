@@ -954,6 +954,11 @@ function displayResults(res, oppKey) {
   document.getElementById('stat-draws').textContent = res.draws;
   document.getElementById('stat-turns').textContent = res.avgTurns.toFixed(1);
   document.getElementById('stat-tr-turns').textContent = res.avgTrTurns.toFixed(1);
+  // T9j.3 (#38, #39)
+  const twEl = document.getElementById('stat-tw-turns');
+  if (twEl) twEl.textContent = (res.avgTwTurns || 0).toFixed(1);
+  const tdEl = document.getElementById('stat-timer-draws');
+  if (tdEl) tdEl.textContent = res.timerDraws || 0;
   document.getElementById('stat-format').textContent = `${fmtLabel} ${boLabel}`;
 
   const circle = document.getElementById('win-circle');
