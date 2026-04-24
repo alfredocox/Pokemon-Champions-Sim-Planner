@@ -300,10 +300,16 @@ All suites must be GREEN before any commit. Current baseline:
 | coverage_tests.js  | 9/9    | GREEN  |
 | t9j8_tests.js      | 47/47  | GREEN  |
 | t9j9_tests.js      | 24/24  | GREEN  |
-| t9j10_tests.js     | ~16    | ADDED IN PROGRESS |
+| t9j10_tests.js     | 16/16  | GREEN  |
+| t9j11_tests.js     | 16/16  | GREEN  |
+| t9j12_tests.js     | 11/11  | GREEN  |
+| **Total**          | **191/191** | GREEN |
 | audit.js           | 5070 battles, 0 JS errors | GREEN |
+| nightly_bring_harness.js | N=500 across 5 matchups | PASS (non-ceiling) |
 
 Minimum floor = 40 cases per ticket before close (per user policy).
+
+The nightly harness (`tests/nightly_bring_harness.js`) is an end-to-end wiring check that verifies bring picker choices actually move win rates in the simulator. It runs N=500 battles across 5 fixed matchups and emits one of: PASS / WEAK / CEIL / FAIL per matchup. CEIL means win rate is already saturated (>=98% or <=2%), so bring-picker deltas are invisible by design. Do not run in the fast feedback loop; run before branch merges.
 
 ---
 
@@ -359,21 +365,9 @@ Minimum floor = 40 cases per ticket before close (per user policy).
 
 ---
 
-## ACTIVE TICKET — T9j.10 (in progress, branch `fix/champions-sp-and-legality`)
+## ACTIVE TICKET — (none — ready for next)
 
-**Title:** Add Team Preview bring-N-of-6 picker with drag-and-drop and random opponent mode
-**Closes:** #16
-**Commit message (pending):**
-```
-add team preview bring-N-of-6 picker with drag-and-drop and random opponent mode (Refs #16 T9j10)
-```
-
-**Scope:**
-- `engine.js`: `_applyBring(pokemonArr, bringNames, leadNames)` helper, `opts.playerBring`/`opponentBring` plumbing, `battleResult.leads` + `.bring` (DONE)
-- `ui.js`: `BRING_SELECTION`, `BRING_MODE` state, localStorage persistence under `poke-sim:bring:v1`, slot-layout UI (LEAD 1-2, BENCH 3-4), hybrid drag+tap controls, `Manual | Random 4/6` mode toggle (DONE in session; needs CSS)
-- `runBoSeries`: resolves per-series bring lock — manual mode uses fixed pick, random mode re-rolls each series (DONE)
-- `style.css`: `.bring-slot*`, `.bring-pool-row*`, `.bring-mode-btn*`, `.bring-dragging`, `.bring-drop-hover`, `.bring-picked` classes (PENDING)
-- `tests/t9j10_tests.js`: ~16 cases — bring reorders team, unbrought mons excluded, singles 3/3, random seed reproducibility, invalid names, result schema (PENDING)
+T9j.12 shipped and issue #74 is CLOSED. Pick the next ticket from the OPEN ISSUES section.
 
 ---
 
@@ -392,6 +386,28 @@ add team preview bring-N-of-6 picker with drag-and-drop and random opponent mode
 - `data.js` gained MOVE_CATEGORY (104 entries), MOVE_BP (110+ entries)
 - `engine.js` `isPhysical` now data-driven with warn-on-miss fallback
 - Cites: Serebii attackdex-sv
+
+### T9j.10 — Team Preview bring-N-of-6 picker (commit `04eef39`)
+- Closed #16
+- Tests: `t9j10_tests.js` 16/16
+- `engine.js` `_applyBring` helper + `opts.playerBring`/`opponentBring` plumbing + `battleResult.leads` + `.bring`
+- `ui.js` `BRING_SELECTION`, `BRING_MODE` state, localStorage persistence under `poke-sim:bring:v1`, slot-layout UI (LEAD 1-2, BENCH 3-4), drag+tap controls, `Manual | Random 4/6` mode toggle
+- `runBoSeries` resolves per-series bring lock — manual uses fixed pick, random re-rolls each series
+- Cites: Bulbapedia Team Preview, Bulbapedia Lead Pokemon
+
+### T9j.11 — Custom teams bulk import/export + filter chips (commit `21d78b3`)
+- Closed #73
+- Tests: `t9j11_tests.js` 16/16
+- Custom team bulk import/export via file, filter chips on Teams tab, localStorage persistence verified
+
+### T9j.12 — Simulator bring picker (commits `ea5ef0f` + `7184740`)
+- Closed #74
+- Tests: `t9j12_tests.js` 11/11 + `tests/t9j12_lead_validation.js` empirical proof script
+- Simulator tab now exposes bring pickers for both player and opponent under VS rosters with Manual/Random 4/6 toggle
+- Shared state with Teams tab bring picker (both read/write the same `poke-sim:bring:v1` localStorage key)
+- Empirical proof (N=200 TR Counter vs Mega Altaria doubles): different 4-of-6 subset moves win rate 64.5pp (CIs disjoint), lead swap 4pp within noise
+- Added `tests/nightly_bring_harness.js` (N=500 across 5 matchups, FAIL/CEIL/WEAK/PASS verdicts, Wilson CI)
+- Cites: Bulbapedia Team Preview, Bulbapedia Lead Pokemon, MDN HTML Drag and Drop API, VGCGuide team preview, Nugget Bridge team preview article, Wilson CI
 
 ---
 
@@ -428,8 +444,8 @@ const b64 = btoa(binary);
 
 ## OPEN ISSUES (priority order)
 
-### P0 — after T9j.10 closes #16
-- **#42** — Cofagrigus / Aurora Veil 100% WR in audit (likely legality data, not engine) — suggested T9j.11b
+### P0 — next ticket candidates
+- **#42** — Cofagrigus / Aurora Veil 100% WR in audit (likely legality data, not engine) — suggested T9j.13
 
 ### P1 — Critical
 1. **Source files incomplete vs bundle** — `index.html` and `ui.js` are missing `player-select`, Strategy tab, Swap button, and `strategy-injectable.js` reference on some branches. Bundle is source of truth; backport before rebuilding. *(Logged April 23, 2026)*
@@ -488,22 +504,25 @@ When you ask the AI to make changes:
 | April 23, 2026 | Master prompt v4 — reverted to 8a0df59, GitHub write-back moved to TODO-1, rebuild warning added |
 | April 24, 2026 | **T9j.8 shipped** (`f95fcd4`) — crits, flinch, 6 abilities, 47/47 tests, closed #27 #19 #30 |
 | April 24, 2026 | **T9j.9 shipped** (`cece441`) — MOVE_CATEGORY + MOVE_BP data-driven tables, 24/24 tests, closed #3 #24 #4 |
-| April 24, 2026 | **T9j.10 in progress** — Team Preview bring-N-of-6 picker, drag+tap UI, Random 4/6 opponent mode, series-level lock, localStorage persistence (engine DONE, UI DONE, CSS + tests PENDING) |
-| April 24, 2026 | **Master prompt v5** — T9j.8/9/10 wiring, test suite baseline, workflow rules, format table |
+| April 24, 2026 | **T9j.10 shipped** (`04eef39`) — Team Preview bring-N-of-6 picker, drag+tap UI, Random 4/6 opponent mode, series-level lock, localStorage persistence, closed #16 |
+| April 24, 2026 | **T9j.11 shipped** (`21d78b3`) — custom teams bulk import/export + filter chips + persistence verification, closed #73 |
+| April 24, 2026 | **T9j.12 shipped** (`ea5ef0f` + `7184740`) — simulator tab bring pickers, shared state with Teams tab, empirical lead-impact proof, closed #74 |
+| April 24, 2026 | **Nightly bring harness added** — ceiling-aware N=500 regression across 5 matchups, Wilson CI, PASS/WEAK/CEIL/FAIL verdicts |
+| April 24, 2026 | **Master prompt v6** — T9j.8-12 wiring, 191/191 test baseline, nightly harness line, next-ticket selection reset |
 
 ---
 
 ## LAST KNOWN GOOD STATE
 
 - **Branch:** `fix/champions-sp-and-legality`
-- **Last pushed commit:** `cece441` (T9j.9)
-- **Bundle size:** 423,548 bytes (after T9j.9 rebuild)
+- **Last pushed commit:** `7184740` (T9j.12 lead validation artifact)
+- **Bundle size:** 467,339 bytes (after T9j.12 rebuild)
 - **Engine:** Non-deterministic confirmed (`Math.random()` damage roll); crits and flinch rolls via RNG
 - **Trick Room:** 5-turn countdown, speed inversion, toggle cancel
 - **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
 - **Move data:** MOVE_CATEGORY (104), MOVE_BP (110+) — Serebii-sourced
 - **Syntax:** `data.js` ✓  `engine.js` ✓  `ui.js` ✓  `var COVERAGE_CHECKS` preserved
-- **Tests:** 148/148 + 5070-battle audit, 0 JS errors
+- **Tests:** 191/191 + 5070-battle audit, 0 JS errors; nightly harness PASS at N=500
 - **Tested on:** Chrome 124 macOS / Chrome Android
 - **Live URL:** htmlpreview bundle link and GitHub Pages both confirmed working
 
