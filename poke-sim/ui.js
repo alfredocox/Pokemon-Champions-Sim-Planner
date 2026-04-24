@@ -191,6 +191,54 @@ function renderRoster(containerId, members) {
 // ============================================================
 var currentPlayerKey = 'player';
 
+// ============================================================
+// T9f: Custom-team persistence (localStorage)
+// - Only teams with source === 'custom' are persisted
+// - Preloaded teams are protected (not written, not deletable)
+// - Schema version bumps require migration
+// ============================================================
+var CUSTOM_TEAMS_STORAGE_KEY = 'champions_sim_custom_teams_v1';
+var CUSTOM_TEAMS_SCHEMA_VERSION = 1;
+
+function loadCustomTeamsFromStorage() {
+  try {
+    var raw = localStorage.getItem(CUSTOM_TEAMS_STORAGE_KEY);
+    if (!raw) return 0;
+    var parsed = JSON.parse(raw);
+    if (!parsed || parsed.version !== CUSTOM_TEAMS_SCHEMA_VERSION) return 0;
+    var count = 0;
+    for (var key in parsed.teams) {
+      if (TEAMS[key]) continue; // never clobber preloaded
+      TEAMS[key] = parsed.teams[key];
+      TEAMS[key].source = 'custom';
+      count++;
+    }
+    return count;
+  } catch (e) {
+    console.warn('[T9f] Failed to load custom teams:', e);
+    return 0;
+  }
+}
+
+function saveCustomTeamsToStorage() {
+  try {
+    var out = { version: CUSTOM_TEAMS_SCHEMA_VERSION, saved_at: new Date().toISOString(), teams: {} };
+    for (var key in TEAMS) {
+      if (TEAMS[key] && TEAMS[key].source === 'custom') {
+        out.teams[key] = TEAMS[key];
+      }
+    }
+    localStorage.setItem(CUSTOM_TEAMS_STORAGE_KEY, JSON.stringify(out));
+    return Object.keys(out.teams).length;
+  } catch (e) {
+    console.warn('[T9f] Failed to save custom teams (quota?):', e);
+    return -1;
+  }
+}
+
+// Load persisted custom teams BEFORE first rebuildTeamSelects() call
+loadCustomTeamsFromStorage();
+
 function rebuildTeamSelects() {
   var playerSel = document.getElementById('player-select');
   var oppSel = document.getElementById('opponent-select');
@@ -574,8 +622,15 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
       label: 'CUSTOM',
       style: 'custom',
       description: 'Imported via Showdown paste',
-      members: members
+      members: members,
+      // T9f: persistence + legality flags
+      source: 'custom',
+      format: 'champions',
+      legality_status: 'unverified',
+      created_at: new Date().toISOString()
     };
+    // T9f: persist to localStorage immediately
+    if (typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
     targetSlot = newKey;
     teamName = guessedName;
     // T9d: rebuild both player + opponent dropdowns so the new team is
