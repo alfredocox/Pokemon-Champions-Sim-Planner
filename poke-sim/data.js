@@ -1082,10 +1082,11 @@ const TEAMS = {
         "url": "https://pokepast.es/dd101585183c9ed6",
         "status": "unproven"
     },
-    "legality_status": "illegal",
-    "legality_notes": "Contains Dragonite-Mega (fakemon). Quarantined in T9.",
+    "legality_status": "legal",
+    "legality_notes": "Mega Dragonite is a new Champions-introduced Mega Evolution (Dragoninite, Shop: 2000 VP). Legal in Reg M-A. Source: Game8 Items List; Victory Road Reg M-A.",
     "assumption_register": [
-        "Dragonite has no Mega Evolution in any official game."
+        "Dragonite Mega form verified via Game8 Items List and Victory Road Reg M-A docs.",
+        "Mega activation consumes team's once-per-match Mega slot."
     ],
     "members": [
       {
@@ -1239,10 +1240,12 @@ const TEAMS = {
         "url": "https://pokepast.es/4a87b07998f6c0c4",
         "status": "unproven"
     },
-    "legality_status": "illegal",
-    "legality_notes": "Contains Drampa-Mega (fakemon). Quarantined in T9.",
+    "legality_status": "legal",
+    "legality_notes": "Mega Houndoom (Houndoominite, Gen 6 classic) plus secondary Drampa with Drampanite (new Champions Mega). Both Mega Stones legal; only one can activate per match per Reg M-A rules. Item Clause satisfied: Houndoominite != Drampanite.",
     "assumption_register": [
-        "Drampa has no Mega Evolution in any official game."
+        "Team carries two Mega Stones; only one activation per match per Reg M-A rules.",
+        "Item Clause satisfied: Houndoominite and Drampanite are distinct items.",
+        "Drampa Mega form verified via Game8 Items List."
     ],
     "members": [
       {
@@ -1395,10 +1398,11 @@ const TEAMS = {
         "url": "https://pokepast.es/e97ac67f1ce79c33",
         "status": "unproven"
     },
-    "legality_status": "illegal",
-    "legality_notes": "Contains Meganium-Mega (fakemon). Quarantined in T9.",
+    "legality_status": "legal",
+    "legality_notes": "Mega Meganium is a new Champions-introduced Mega Evolution (Meganiumite, Shop: 2000 VP or Battle Pass M-1 reward). Legal in Reg M-A. Source: Game8 Items List.",
     "assumption_register": [
-        "Meganium has no Mega Evolution in any official game."
+        "Meganium Mega form verified via Game8 Items List.",
+        "Mega activation consumes team's once-per-match Mega slot."
     ],
     "members": [
       {
@@ -2494,10 +2498,11 @@ const TEAMS = {
         "url": "",
         "status": "unproven"
     },
-    "legality_status": "illegal",
-    "legality_notes": "Contains Froslass-Mega (fakemon). Quarantined in T9.",
+    "legality_status": "legal",
+    "legality_notes": "Mega Froslass is a new Champions-introduced Mega Evolution (Froslassite, Shop: 2000 VP). Legal in Reg M-A. Source: Game8 Items List.",
     "assumption_register": [
-        "Froslass has no Mega Evolution in any official game."
+        "Froslass Mega form verified via Game8 Items List.",
+        "Mega activation consumes team's once-per-match Mega slot."
     ],
     "members": [
       {

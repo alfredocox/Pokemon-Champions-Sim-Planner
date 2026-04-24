@@ -35,8 +35,15 @@ var CHAMPIONS_BANNED_POKEMON = new Set([
   'Munkidori','Fezandipiti','Pecharunt'
 ]);
 
+// Reserved for actually-fabricated forms. Previously contained
+// Dragonite-Mega / Drampa-Mega / Meganium-Mega / Froslass-Mega,
+// which are REAL new Champions-introduced Mega Evolutions
+// (Dragoninite, Drampanite, Meganiumite, Froslassite — all Shop: 2000 VP).
+// Retracted in T9a after source verification:
+//   - Game8 Items List: https://game8.co/games/Pokemon-Champions/archives/588871
+//   - Victory Road Reg M-A: https://victoryroad.pro/champions-regulations/
 var FAKEMON_BLOCKLIST = new Set([
-  'Dragonite-Mega','Drampa-Mega','Meganium-Mega','Froslass-Mega'
+  // empty; add only truly fabricated forms here
 ]);
 
 // Strip form suffixes to compare against base-species ban list.
