@@ -1,5 +1,5 @@
 // ============================================================
-// POKEMON DATA â VGC 2026 Reg M (Champions Format)
+// POKEMON DATA — VGC 2026 Reg M (Champions Format)
 // ============================================================
 
 // Type color map
@@ -66,7 +66,7 @@ const BASE_STATS = {
 
 
 // Sprite URLs (PokeAPI)
-// Comprehensive dex number map â covers 400+ VGC-relevant + common PokÃ©mon.
+// Comprehensive dex number map — covers 400+ VGC-relevant + common Pokémon.
 // For anything not listed, we fall back to PokeAPI by slugified name.
 const DEX_NUM_MAP = {
   // Gen 1
@@ -320,7 +320,7 @@ const DEX_NUM_MAP = {
   'Urshifu-Rapid-Strike':892,'Miraidon':1008,'Koraidon':1007,
 };
 
-// Comprehensive type database for ~500 PokÃ©mon (all VGC-relevant + forms)
+// Comprehensive type database for ~500 Pokémon (all VGC-relevant + forms)
 const POKEMON_TYPES_DB = {
   // Gen 1
   'Bulbasaur':['Grass','Poison'],'Ivysaur':['Grass','Poison'],'Venusaur':['Grass','Poison'],
@@ -740,1909 +740,318 @@ function getSpriteUrl(name) {
 // ============================================================
 
 const TEAMS = {
-  "player": {
-    "name": "TR Counter Squad",
-    "label": "YOUR TEAM",
-    "style": "speed",
-    "description": "Fast offensive pressure with Intimidate + Will-O-Wisp support. Built to break Trick Room before it starts.",
-    "members": [
+
+  // ---- YOUR TEAM (TR Counter) ----
+  player: {
+    name: 'TR Counter Squad',
+    label: 'YOUR TEAM',
+    style: 'speed',
+    description: 'Fast offensive pressure with Intimidate + Will-O-Wisp support. Built to break Trick Room before it starts.',
+    members: [
       {
-        "name": "Incineroar",
-        "item": "Sitrus Berry",
-        "ability": "Intimidate",
-        "nature": "Adamant",
-        "level": 50,
-        "evs": {
-          "hp": 244,
-          "atk": 68,
-          "def": 0,
-          "spa": 0,
-          "spd": 36,
-          "spe": 12
-        },
-        "moves": [
-          "Fake Out",
-          "Flare Blitz",
-          "Parting Shot",
-          "Knock Off"
-        ],
-        "role": "Support / Pivot"
+        name: 'Incineroar', item: 'Sitrus Berry', ability: 'Intimidate',
+        nature: 'Adamant', level: 50,
+        evs: { hp:244, atk:68, def:0, spa:0, spd:36, spe:12 },
+        moves: ['Fake Out', 'Flare Blitz', 'Parting Shot', 'Knock Off'],
+        role: 'Support / Pivot'
       },
       {
-        "name": "Arcanine",
-        "item": "Life Orb",
-        "ability": "Intimidate",
-        "nature": "Adamant",
-        "level": 50,
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Power Gem",
-          "Head Smash",
-          "Extreme Speed",
-          "Will-O-Wisp"
-        ],
-        "role": "TR Breaker / Speed Control"
+        name: 'Arcanine', item: 'Life Orb', ability: 'Intimidate',
+        nature: 'Adamant', level: 50,
+        evs: { hp:4, atk:252, def:0, spa:0, spd:0, spe:252 },
+        moves: ['Power Gem', 'Head Smash', 'Extreme Speed', 'Will-O-Wisp'],
+        role: 'TR Breaker / Speed Control'
       },
       {
-        "name": "Garchomp",
-        "item": "Rocky Helmet",
-        "ability": "Rough Skin",
-        "nature": "Jolly",
-        "level": 50,
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Earthquake",
-          "Dragon Claw",
-          "Rock Slide",
-          "Protect"
-        ],
-        "role": "Physical Sweeper"
+        name: 'Garchomp', item: 'Rocky Helmet', ability: 'Rough Skin',
+        nature: 'Jolly', level: 50,
+        evs: { hp:4, atk:252, def:0, spa:0, spd:0, spe:252 },
+        moves: ['Earthquake', 'Dragon Claw', 'Rock Slide', 'Protect'],
+        role: 'Physical Sweeper'
       },
       {
-        "name": "Whimsicott",
-        "item": "Focus Sash",
-        "ability": "Prankster",
-        "nature": "Timid",
-        "level": 50,
-        "evs": {
-          "hp": 4,
-          "atk": 0,
-          "def": 0,
-          "spa": 252,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Tailwind",
-          "Sunny Day",
-          "Moonblast",
-          "Protect"
-        ],
-        "role": "Speed Control"
+        name: 'Whimsicott', item: 'Focus Sash', ability: 'Prankster',
+        nature: 'Timid', level: 50,
+        evs: { hp:4, atk:0, def:0, spa:252, spd:0, spe:252 },
+        moves: ['Tailwind', 'Sunny Day', 'Moonblast', 'Protect'],
+        role: 'Speed Control'
       },
       {
-        "name": "Rotom-Wash",
-        "item": "Leftovers",
-        "ability": "Levitate",
-        "nature": "Bold",
-        "level": 50,
-        "evs": {
-          "hp": 244,
-          "atk": 0,
-          "def": 52,
-          "spa": 212,
-          "spd": 0,
-          "spe": 0
-        },
-        "moves": [
-          "Thunderbolt",
-          "Hydro Pump",
-          "Will-O-Wisp",
-          "Protect"
-        ],
-        "role": "Spread Check"
+        name: 'Rotom-Wash', item: 'Leftovers', ability: 'Levitate',
+        nature: 'Bold', level: 50,
+        evs: { hp:244, atk:0, def:52, spa:212, spd:0, spe:0 },
+        moves: ['Thunderbolt', 'Hydro Pump', 'Will-O-Wisp', 'Protect'],
+        role: 'Spread Check'
       },
       {
-        "name": "Garchomp",
-        "item": "Choice Scarf",
-        "ability": "Sand Veil",
-        "nature": "Jolly",
-        "level": 50,
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Earthquake",
-          "Dragon Claw",
-          "Rock Slide",
-          "Fire Fang"
-        ],
-        "role": "Speed Control / Scarf"
+        name: 'Garchomp', item: 'Choice Scarf', ability: 'Sand Veil',
+        nature: 'Jolly', level: 50,
+        evs: { hp:4, atk:252, def:0, spa:0, spd:0, spe:252 },
+        moves: ['Earthquake', 'Dragon Claw', 'Rock Slide', 'Fire Fang'],
+        role: 'Speed Control / Scarf'
       }
     ]
   },
-  "mega_altaria": {
-    "name": "Mega Altaria",
-    "label": "HYBRID RAINBOW",
-    "style": "weather_support",
-    "format": "gen9championsvgc2026regma",
-    "description": "Sun-rain hybrid with Trick Room threat via Sinistcha. Prankster Whimsicott provides flexible speed control.",
-    "members": [
-      {
-        "name": "Typhlosion-Hisui",
-        "item": "Choice Scarf",
-        "ability": "Frisk",
-        "nature": "Timid",
-        "evs": {
-          "hp": 2,
-          "atk": 0,
-          "def": 32,
-          "spa": 32,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Eruption",
-          "Heat Wave",
-          "Focus Blast",
-          "Shadow Ball"
-        ],
-        "role": "Scarfer"
-      },
-      {
-        "name": "Altaria-Mega",
-        "item": "Altarianite",
-        "ability": "Cloud Nine",
-        "nature": "Modest",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 0,
-          "spa": 10,
-          "spd": 17,
-          "spe": 7
-        },
-        "moves": [
-          "Protect",
-          "Roost",
-          "Flamethrower",
-          "Hyper Voice"
-        ],
-        "role": "Mega Sweeper"
-      },
-      {
-        "name": "Whimsicott",
-        "item": "Focus Sash",
-        "ability": "Prankster",
-        "nature": "Serious",
-        "evs": {
-          "hp": 1,
-          "atk": 0,
-          "def": 1,
-          "spa": 32,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Protect",
-          "Sunny Day",
-          "Tailwind",
-          "Moonblast"
-        ],
-        "role": "Speed Control"
-      },
-      {
-        "name": "Rotom-Wash",
-        "item": "Leftovers",
-        "ability": "Levitate",
-        "nature": "Modest",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 10,
-          "spa": 23,
-          "spd": 0,
-          "spe": 1
-        },
-        "moves": [
-          "Protect",
-          "Will-O-Wisp",
-          "Thunderbolt",
-          "Hydro Pump"
-        ],
-        "role": "Spread Attacker"
-      },
-      {
-        "name": "Sableye",
-        "item": "Black Glasses",
-        "ability": "Prankster",
-        "nature": "Calm",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 8,
-          "spa": 0,
-          "spd": 26,
-          "spe": 0
-        },
-        "moves": [
-          "Reflect",
-          "Light Screen",
-          "Recover",
-          "Foul Play"
-        ],
-        "role": "Screen Setter"
-      },
-      {
-        "name": "Sinistcha",
-        "item": "Sitrus Berry",
-        "ability": "Hospitality",
-        "nature": "Bold",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 30,
-          "spa": 1,
-          "spd": 1,
-          "spe": 2
-        },
-        "moves": [
-          "Trick Room",
-          "Life Dew",
-          "Rage Powder",
-          "Matcha Gotcha"
-        ],
-        "role": "TR Setter"
-      }
+
+  // ---- META TEAMS ----
+  mega_altaria: {
+    name: 'Mega Altaria',
+    label: 'HYBRID RAINBOW',
+    style: 'weather_support',
+    format: 'gen9championsvgc2026regma',
+    description: 'Sun-rain hybrid with Trick Room threat via Sinistcha. Prankster Whimsicott provides flexible speed control.',
+    members: [
+      { name:'Typhlosion-Hisui', item:'Choice Scarf', ability:'Frisk', nature:'Timid',
+        evs:{hp:2,atk:0,def:32,spa:32,spd:0,spe:32}, moves:['Eruption','Heat Wave','Focus Blast','Shadow Ball'], role:'Scarfer' },
+      { name:'Altaria-Mega', item:'Altarianite', ability:'Cloud Nine', nature:'Modest',
+        evs:{hp:32,atk:0,def:0,spa:10,spd:17,spe:7}, moves:['Protect','Roost','Flamethrower','Hyper Voice'], role:'Mega Sweeper' },
+      { name:'Whimsicott', item:'Focus Sash', ability:'Prankster', nature:'Serious',
+        evs:{hp:1,atk:0,def:1,spa:32,spd:0,spe:32}, moves:['Protect','Sunny Day','Tailwind','Moonblast'], role:'Speed Control' },
+      { name:'Rotom-Wash', item:'Leftovers', ability:'Levitate', nature:'Modest',
+        evs:{hp:32,atk:0,def:10,spa:23,spd:0,spe:1}, moves:['Protect','Will-O-Wisp','Thunderbolt','Hydro Pump'], role:'Spread Attacker' },
+      { name:'Sableye', item:'Black Glasses', ability:'Prankster', nature:'Calm',
+        evs:{hp:32,atk:0,def:8,spa:0,spd:26,spe:0}, moves:['Reflect','Light Screen','Recover','Foul Play'], role:'Screen Setter' },
+      { name:'Sinistcha', item:'Sitrus Berry', ability:'Hospitality', nature:'Bold',
+        evs:{hp:32,atk:0,def:30,spa:1,spd:1,spe:2}, moves:['Trick Room','Life Dew','Rage Powder','Matcha Gotcha'], role:'TR Setter' }
     ]
   },
-  "mega_dragonite": {
-    "name": "Mega Dragonite",
-    "label": "HYBRID RAINBOW",
-    "style": "rain",
-    "format": "gen9championsvgc2026regma",
-    "description": "Rain team with Mega Dragonite as the primary sweeper. Basculegion Adaptability + Archaludon Electro Shot under rain.",
-    "members": [
-      {
-        "name": "Dragonite-Mega",
-        "item": "Dragoninite",
-        "ability": "Multiscale",
-        "nature": "Modest",
-        "evs": {
-          "hp": 26,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 0,
-          "spe": 8
-        },
-        "moves": [
-          "Protect",
-          "Ice Beam",
-          "Thunder",
-          "Hurricane"
-        ],
-        "role": "Mega Sweeper"
-      },
-      {
-        "name": "Basculegion",
-        "item": "Choice Scarf",
-        "ability": "Adaptability",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 0,
-          "atk": 32,
-          "def": 2,
-          "spa": 0,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Wave Crash",
-          "Aqua Jet",
-          "Flip Turn",
-          "Last Respects"
-        ],
-        "role": "Scarfer"
-      },
-      {
-        "name": "Liepard",
-        "item": "Focus Sash",
-        "ability": "Prankster",
-        "nature": "Serious",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 1,
-          "spa": 0,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Fake Out",
-          "Rain Dance",
-          "Thunder Wave",
-          "Foul Play"
-        ],
-        "role": "Support"
-      },
-      {
-        "name": "Archaludon",
-        "item": "Quick Claw",
-        "ability": "Sturdy",
-        "nature": "Timid",
-        "evs": {
-          "hp": 1,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Protect",
-          "Flash Cannon",
-          "Dragon Pulse",
-          "Electro Shot"
-        ],
-        "role": "Rain Abuser"
-      },
-      {
-        "name": "Pelipper",
-        "item": "Leftovers",
-        "ability": "Drizzle",
-        "nature": "Modest",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 0,
-          "spa": 5,
-          "spd": 29,
-          "spe": 0
-        },
-        "moves": [
-          "Protect",
-          "Tailwind",
-          "U-turn",
-          "Weather Ball"
-        ],
-        "role": "Rain Setter"
-      },
-      {
-        "name": "Orthworm",
-        "item": "Sitrus Berry",
-        "ability": "Earth Eater",
-        "nature": "Careful",
-        "evs": {
-          "hp": 31,
-          "atk": 1,
-          "def": 1,
-          "spa": 0,
-          "spd": 32,
-          "spe": 1
-        },
-        "moves": [
-          "Protect",
-          "Helping Hand",
-          "Shed Tail",
-          "Iron Head"
-        ],
-        "role": "Support"
-      }
+
+  mega_dragonite: {
+    name: 'Mega Dragonite',
+    label: 'HYBRID RAINBOW',
+    style: 'rain',
+    format: 'gen9championsvgc2026regma',
+    description: 'Rain team with Mega Dragonite as the primary sweeper. Basculegion Adaptability + Archaludon Electro Shot under rain.',
+    members: [
+      { name:'Dragonite-Mega', item:'Dragoninite', ability:'Multiscale', nature:'Modest',
+        evs:{hp:26,atk:0,def:0,spa:32,spd:0,spe:8}, moves:['Protect','Ice Beam','Thunder','Hurricane'], role:'Mega Sweeper' },
+      { name:'Basculegion', item:'Choice Scarf', ability:'Adaptability', nature:'Jolly',
+        evs:{hp:0,atk:32,def:2,spa:0,spd:0,spe:32}, moves:['Wave Crash','Aqua Jet','Flip Turn','Last Respects'], role:'Scarfer' },
+      { name:'Liepard', item:'Focus Sash', ability:'Prankster', nature:'Serious',
+        evs:{hp:32,atk:0,def:1,spa:0,spd:1,spe:32}, moves:['Fake Out','Rain Dance','Thunder Wave','Foul Play'], role:'Support' },
+      { name:'Archaludon', item:'Quick Claw', ability:'Sturdy', nature:'Timid',
+        evs:{hp:1,atk:0,def:0,spa:32,spd:1,spe:32}, moves:['Protect','Flash Cannon','Dragon Pulse','Electro Shot'], role:'Rain Abuser' },
+      { name:'Pelipper', item:'Leftovers', ability:'Drizzle', nature:'Modest',
+        evs:{hp:32,atk:0,def:0,spa:5,spd:29,spe:0}, moves:['Protect','Tailwind','U-turn','Weather Ball'], role:'Rain Setter' },
+      { name:'Orthworm', item:'Sitrus Berry', ability:'Earth Eater', nature:'Careful',
+        evs:{hp:31,atk:1,def:1,spa:0,spd:32,spe:1}, moves:['Protect','Helping Hand','Shed Tail','Iron Head'], role:'Support' }
     ]
   },
-  "mega_houndoom": {
-    "name": "Mega Houndoom",
-    "label": "HYBRID RAINBOW",
-    "style": "sun_tr",
-    "format": "gen9championsvgc2026regma",
-    "description": "Sun + Trick Room hybrid. Mega Houndoom Solar Power nukes under sun. Flexible TR setters in Sinistcha, Farigiraf, Whimsicott.",
-    "members": [
-      {
-        "name": "Houndoom-Mega",
-        "item": "Houndoominite",
-        "ability": "Solar Power",
-        "nature": "Timid",
-        "evs": {
-          "hp": 1,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Protect",
-          "Scorching Sands",
-          "Dark Pulse",
-          "Heat Wave"
-        ],
-        "role": "Mega Sweeper"
-      },
-      {
-        "name": "Torkoal",
-        "item": "Charcoal",
-        "ability": "Drought",
-        "nature": "Quiet",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 1,
-          "spa": 32,
-          "spd": 1,
-          "spe": 0
-        },
-        "moves": [
-          "Protect",
-          "Helping Hand",
-          "Heat Wave",
-          "Eruption"
-        ],
-        "role": "Sun Setter"
-      },
-      {
-        "name": "Whimsicott",
-        "item": "Focus Sash",
-        "ability": "Prankster",
-        "nature": "Modest",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 1,
-          "spe": 1
-        },
-        "moves": [
-          "Trick Room",
-          "Tailwind",
-          "Sunny Day",
-          "Moonblast"
-        ],
-        "role": "TR/Speed Control"
-      },
-      {
-        "name": "Farigiraf",
-        "item": "Mental Herb",
-        "ability": "Armor Tail",
-        "nature": "Relaxed",
-        "evs": {
-          "hp": 26,
-          "atk": 0,
-          "def": 20,
-          "spa": 1,
-          "spd": 19,
-          "spe": 0
-        },
-        "moves": [
-          "Trick Room",
-          "Helping Hand",
-          "Psychic Noise",
-          "Hyper Voice"
-        ],
-        "role": "TR Setter"
-      },
-      {
-        "name": "Sinistcha",
-        "item": "Sitrus Berry",
-        "ability": "Hospitality",
-        "nature": "Bold",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 31,
-          "spa": 1,
-          "spd": 1,
-          "spe": 1
-        },
-        "moves": [
-          "Trick Room",
-          "Rage Powder",
-          "Life Dew",
-          "Matcha Gotcha"
-        ],
-        "role": "TR Setter"
-      },
-      {
-        "name": "Drampa-Mega",
-        "item": "Drampanite",
-        "ability": "Cloud Nine",
-        "nature": "Quiet",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 2,
-          "spa": 32,
-          "spd": 0,
-          "spe": 0
-        },
-        "moves": [
-          "Draco Meteor",
-          "Hyper Voice",
-          "Heat Wave",
-          "Thunderbolt"
-        ],
-        "role": "Mega Sweeper"
-      }
+
+  mega_houndoom: {
+    name: 'Mega Houndoom',
+    label: 'HYBRID RAINBOW',
+    style: 'sun_tr',
+    format: 'gen9championsvgc2026regma',
+    description: 'Sun + Trick Room hybrid. Mega Houndoom Solar Power nukes under sun. Flexible TR setters in Sinistcha, Farigiraf, Whimsicott.',
+    members: [
+      { name:'Houndoom-Mega', item:'Houndoominite', ability:'Solar Power', nature:'Timid',
+        evs:{hp:1,atk:0,def:0,spa:32,spd:1,spe:32}, moves:['Protect','Scorching Sands','Dark Pulse','Heat Wave'], role:'Mega Sweeper' },
+      { name:'Torkoal', item:'Charcoal', ability:'Drought', nature:'Quiet',
+        evs:{hp:32,atk:0,def:1,spa:32,spd:1,spe:0}, moves:['Protect','Helping Hand','Heat Wave','Eruption'], role:'Sun Setter' },
+      { name:'Whimsicott', item:'Focus Sash', ability:'Prankster', nature:'Modest',
+        evs:{hp:32,atk:0,def:0,spa:32,spd:1,spe:1}, moves:['Trick Room','Tailwind','Sunny Day','Moonblast'], role:'TR/Speed Control' },
+      { name:'Farigiraf', item:'Mental Herb', ability:'Armor Tail', nature:'Relaxed',
+        evs:{hp:26,atk:0,def:20,spa:1,spd:19,spe:0}, moves:['Trick Room','Helping Hand','Psychic Noise','Hyper Voice'], role:'TR Setter' },
+      { name:'Sinistcha', item:'Sitrus Berry', ability:'Hospitality', nature:'Bold',
+        evs:{hp:32,atk:0,def:31,spa:1,spd:1,spe:1}, moves:['Trick Room','Rage Powder','Life Dew','Matcha Gotcha'], role:'TR Setter' },
+      { name:'Drampa-Mega', item:'Drampanite', ability:'Cloud Nine', nature:'Quiet',
+        evs:{hp:32,atk:0,def:2,spa:32,spd:0,spe:0}, moves:['Draco Meteor','Hyper Voice','Heat Wave','Thunderbolt'], role:'Mega Sweeper' }
     ]
   },
-  "rin_sand": {
-    "name": "Rin Sand",
-    "label": "RIN",
-    "style": "sand",
-    "description": "Sand offense with Tyranitar + Excadrill core. Sneasler Unburden for burst speed. Dragapult for speed and spread.",
-    "members": [
-      {
-        "name": "Sneasler",
-        "item": "White Herb",
-        "ability": "Unburden",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 6,
-          "atk": 24,
-          "def": 3,
-          "spa": 0,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Close Combat",
-          "Dire Claw",
-          "Protect",
-          "Fake Out"
-        ],
-        "role": "Unburden Attacker"
-      },
-      {
-        "name": "Tyranitar",
-        "item": "Chople Berry",
-        "ability": "Sand Stream",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 32,
-          "atk": 16,
-          "def": 12,
-          "spa": 0,
-          "spd": 2,
-          "spe": 4
-        },
-        "tera": "Rock",
-        "moves": [
-          "Rock Slide",
-          "Knock Off",
-          "Protect",
-          "Ice Punch"
-        ],
-        "role": "Sand Setter"
-      },
-      {
-        "name": "Rotom-Wash",
-        "item": "Sitrus Berry",
-        "ability": "Levitate",
-        "nature": "Modest",
-        "evs": {
-          "hp": 31,
-          "atk": 0,
-          "def": 1,
-          "spa": 5,
-          "spd": 17,
-          "spe": 12
-        },
-        "tera": "Electric",
-        "moves": [
-          "Thunderbolt",
-          "Hydro Pump",
-          "Protect",
-          "Volt Switch"
-        ],
-        "role": "Pivot"
-      },
-      {
-        "name": "Excadrill",
-        "item": "Focus Sash",
-        "ability": "Sand Rush",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 0,
-          "atk": 32,
-          "def": 1,
-          "spa": 0,
-          "spd": 1,
-          "spe": 32
-        },
-        "tera": "Ground",
-        "moves": [
-          "High Horsepower",
-          "Iron Head",
-          "Protect",
-          "Earthquake"
-        ],
-        "role": "Sand Rush Sweeper"
-      },
-      {
-        "name": "Dragapult",
-        "item": "Colbur Berry",
-        "ability": "Clear Body",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 2,
-          "atk": 32,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 32
-        },
-        "tera": "Dragon",
-        "moves": [
-          "Dragon Darts",
-          "Phantom Force",
-          "Protect",
-          "Will-O-Wisp"
-        ],
-        "role": "Fast Attacker"
-      },
-      {
-        "name": "Meganium",
-        "item": "Meganiumite",
-        "ability": "Overgrow",
-        "nature": "Modest",
-        "evs": {
-          "hp": 26,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 0,
-          "spe": 8
-        },
-        "tera": "Fighting",
-        "moves": [
-          "Solar Beam",
-          "Dazzling Gleam",
-          "Protect",
-          "Weather Ball"
-        ],
-        "role": "Mega Support"
-      }
+
+  rin_sand: {
+    name: 'Rin Sand',
+    label: 'RIN',
+    style: 'sand',
+    description: 'Sand offense with Tyranitar + Excadrill core. Sneasler Unburden for burst speed. Dragapult for speed and spread.',
+    members: [
+      { name:'Sneasler', item:'White Herb', ability:'Unburden', nature:'Jolly',
+        evs:{hp:6,atk:24,def:3,spa:0,spd:1,spe:32}, moves:['Close Combat','Dire Claw','Protect','Fake Out'], role:'Unburden Attacker' },
+      { name:'Tyranitar', item:'Chople Berry', ability:'Sand Stream', nature:'Adamant',
+        evs:{hp:32,atk:16,def:12,spa:0,spd:2,spe:4}, tera:'Rock', moves:['Rock Slide','Knock Off','Protect','Ice Punch'], role:'Sand Setter' },
+      { name:'Rotom-Wash', item:'Sitrus Berry', ability:'Levitate', nature:'Modest',
+        evs:{hp:31,atk:0,def:1,spa:5,spd:17,spe:12}, tera:'Electric', moves:['Thunderbolt','Hydro Pump','Protect','Volt Switch'], role:'Pivot' },
+      { name:'Excadrill', item:'Focus Sash', ability:'Sand Rush', nature:'Jolly',
+        evs:{hp:0,atk:32,def:1,spa:0,spd:1,spe:32}, tera:'Ground', moves:['High Horsepower','Iron Head','Protect','Earthquake'], role:'Sand Rush Sweeper' },
+      { name:'Dragapult', item:'Colbur Berry', ability:'Clear Body', nature:'Jolly',
+        evs:{hp:2,atk:32,def:0,spa:0,spd:0,spe:32}, tera:'Dragon', moves:['Dragon Darts','Phantom Force','Protect','Will-O-Wisp'], role:'Fast Attacker' },
+      { name:'Meganium', item:'Meganiumite', ability:'Overgrow', nature:'Modest',
+        evs:{hp:26,atk:0,def:0,spa:32,spd:0,spe:8}, tera:'Fighting', moves:['Solar Beam','Dazzling Gleam','Protect','Weather Ball'], role:'Mega Support' }
     ]
   },
-  "suica_sun": {
-    "name": "Suica Sun",
-    "label": "SUICA",
-    "style": "sun",
-    "description": "Charizard Y sun offense. Sneasler + Basculegion revenge killers. Incineroar provides Intimidate support.",
-    "members": [
-      {
-        "name": "Charizard",
-        "item": "Charizardite Y",
-        "ability": "Blaze",
-        "nature": "Modest",
-        "evs": {
-          "hp": 6,
-          "atk": 0,
-          "def": 16,
-          "spa": 31,
-          "spd": 0,
-          "spe": 13
-        },
-        "moves": [
-          "Heat Wave",
-          "Air Slash",
-          "Weather Ball",
-          "Protect"
-        ],
-        "role": "Mega Sweeper"
-      },
-      {
-        "name": "Sneasler",
-        "item": "White Herb",
-        "ability": "Unburden",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 0,
-          "atk": 32,
-          "def": 2,
-          "spa": 0,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Close Combat",
-          "Dire Claw",
-          "Rock Slide",
-          "Protect"
-        ],
-        "role": "Physical Sweeper"
-      },
-      {
-        "name": "Basculegion",
-        "item": "Choice Scarf",
-        "ability": "Adaptability",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 0,
-          "atk": 32,
-          "def": 2,
-          "spa": 0,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Wave Crash",
-          "Last Respects",
-          "Aqua Jet",
-          "Flip Turn"
-        ],
-        "role": "Scarfer"
-      },
-      {
-        "name": "Garchomp",
-        "item": "Haban Berry",
-        "ability": "Rough Skin",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 24,
-          "atk": 20,
-          "def": 0,
-          "spa": 0,
-          "spd": 1,
-          "spe": 21
-        },
-        "moves": [
-          "Dragon Claw",
-          "Earthquake",
-          "Rock Slide",
-          "Protect"
-        ],
-        "role": "Physical Sweeper"
-      },
-      {
-        "name": "Incineroar",
-        "item": "Sitrus Berry",
-        "ability": "Intimidate",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 32,
-          "atk": 5,
-          "def": 7,
-          "spa": 0,
-          "spd": 16,
-          "spe": 6
-        },
-        "moves": [
-          "Throat Chop",
-          "Flare Blitz",
-          "Parting Shot",
-          "Fake Out"
-        ],
-        "role": "Support"
-      },
-      {
-        "name": "Venusaur",
-        "item": "Focus Sash",
-        "ability": "Chlorophyll",
-        "nature": "Modest",
-        "evs": {
-          "hp": 0,
-          "atk": 0,
-          "def": 1,
-          "spa": 32,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Energy Ball",
-          "Sludge Bomb",
-          "Sleep Powder",
-          "Earth Power"
-        ],
-        "role": "Sun Abuser"
-      }
+
+  suica_sun: {
+    name: 'Suica Sun',
+    label: 'SUICA',
+    style: 'sun',
+    description: 'Charizard Y sun offense. Sneasler + Basculegion revenge killers. Incineroar provides Intimidate support.',
+    members: [
+      { name:'Charizard', item:'Charizardite Y', ability:'Blaze', nature:'Modest',
+        evs:{hp:6,atk:0,def:16,spa:31,spd:0,spe:13}, moves:['Heat Wave','Air Slash','Weather Ball','Protect'], role:'Mega Sweeper' },
+      { name:'Sneasler', item:'White Herb', ability:'Unburden', nature:'Adamant',
+        evs:{hp:0,atk:32,def:2,spa:0,spd:0,spe:32}, moves:['Close Combat','Dire Claw','Rock Slide','Protect'], role:'Physical Sweeper' },
+      { name:'Basculegion', item:'Choice Scarf', ability:'Adaptability', nature:'Jolly',
+        evs:{hp:0,atk:32,def:2,spa:0,spd:0,spe:32}, moves:['Wave Crash','Last Respects','Aqua Jet','Flip Turn'], role:'Scarfer' },
+      { name:'Garchomp', item:'Haban Berry', ability:'Rough Skin', nature:'Adamant',
+        evs:{hp:24,atk:20,def:0,spa:0,spd:1,spe:21}, moves:['Dragon Claw','Earthquake','Rock Slide','Protect'], role:'Physical Sweeper' },
+      { name:'Incineroar', item:'Sitrus Berry', ability:'Intimidate', nature:'Adamant',
+        evs:{hp:32,atk:5,def:7,spa:0,spd:16,spe:6}, moves:['Throat Chop','Flare Blitz','Parting Shot','Fake Out'], role:'Support' },
+      { name:'Venusaur', item:'Focus Sash', ability:'Chlorophyll', nature:'Modest',
+        evs:{hp:0,atk:0,def:1,spa:32,spd:1,spe:32}, moves:['Energy Ball','Sludge Bomb','Sleep Powder','Earth Power'], role:'Sun Abuser' }
     ]
   },
-  "cofagrigus_tr": {
-    "name": "Cofagrigus TR",
-    "label": "TRICK ROOM",
-    "style": "trick_room",
-    "description": "Classic Trick Room team. Cofagrigus + Sinistcha lead sets TR. Slow, powerful sweepers underneath.",
-    "members": [
-      {
-        "name": "Cofagrigus",
-        "item": "Mental Herb",
-        "ability": "Mummy",
-        "nature": "Quiet",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 4,
-          "spa": 252,
-          "spd": 0,
-          "spe": 0
-        },
-        "moves": [
-          "Trick Room",
-          "Will-O-Wisp",
-          "Shadow Ball",
-          "Ally Switch"
-        ],
-        "role": "TR Setter"
-      },
-      {
-        "name": "Sinistcha",
-        "item": "Sitrus Berry",
-        "ability": "Hospitality",
-        "nature": "Quiet",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 4,
-          "spa": 252,
-          "spd": 0,
-          "spe": 0
-        },
-        "moves": [
-          "Trick Room",
-          "Matcha Gotcha",
-          "Rage Powder",
-          "Life Dew"
-        ],
-        "role": "TR Setter"
-      },
-      {
-        "name": "Hatterene",
-        "item": "Life Orb",
-        "ability": "Magic Bounce",
-        "nature": "Quiet",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 0,
-          "spa": 252,
-          "spd": 4,
-          "spe": 0
-        },
-        "moves": [
-          "Psychic",
-          "Dazzling Gleam",
-          "Shadow Ball",
-          "Protect"
-        ],
-        "role": "TR Sweeper"
-      },
-      {
-        "name": "Cresselia",
-        "item": "Leftovers",
-        "ability": "Levitate",
-        "nature": "Sassy",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 128,
-          "spa": 0,
-          "spd": 128,
-          "spe": 0
-        },
-        "moves": [
-          "Trick Room",
-          "Lunar Dance",
-          "Psychic",
-          "Helping Hand"
-        ],
-        "role": "TR + Revive"
-      },
-      {
-        "name": "Dusclops",
-        "item": "Eviolite",
-        "ability": "Pressure",
-        "nature": "Relaxed",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 128,
-          "spa": 0,
-          "spd": 128,
-          "spe": 0
-        },
-        "moves": [
-          "Trick Room",
-          "Will-O-Wisp",
-          "Shadow Sneak",
-          "Helping Hand"
-        ],
-        "role": "TR Support"
-      },
-      {
-        "name": "Flutter Mane",
-        "item": "Choice Specs",
-        "ability": "Protosynthesis",
-        "nature": "Modest",
-        "evs": {
-          "hp": 0,
-          "atk": 0,
-          "def": 0,
-          "spa": 252,
-          "spd": 4,
-          "spe": 252
-        },
-        "moves": [
-          "Moon Blast",
-          "Shadow Ball",
-          "Mystical Fire",
-          "Psyshock"
-        ],
-        "role": "Sweeper"
-      }
+
+  cofagrigus_tr: {
+    name: 'Cofagrigus TR',
+    label: 'TRICK ROOM',
+    style: 'trick_room',
+    description: 'Classic Trick Room team. Cofagrigus + Sinistcha lead sets TR. Slow, powerful sweepers underneath.',
+    members: [
+      { name:'Cofagrigus', item:'Mental Herb', ability:'Mummy', nature:'Quiet',
+        evs:{hp:252,atk:0,def:4,spa:252,spd:0,spe:0}, moves:['Trick Room','Will-O-Wisp','Shadow Ball','Ally Switch'], role:'TR Setter' },
+      { name:'Sinistcha', item:'Sitrus Berry', ability:'Hospitality', nature:'Quiet',
+        evs:{hp:252,atk:0,def:4,spa:252,spd:0,spe:0}, moves:['Trick Room','Matcha Gotcha','Rage Powder','Life Dew'], role:'TR Setter' },
+      { name:'Hatterene', item:'Life Orb', ability:'Magic Bounce', nature:'Quiet',
+        evs:{hp:252,atk:0,def:0,spa:252,spd:4,spe:0}, moves:['Psychic','Dazzling Gleam','Shadow Ball','Protect'], role:'TR Sweeper' },
+      { name:'Cresselia', item:'Leftovers', ability:'Levitate', nature:'Sassy',
+        evs:{hp:252,atk:0,def:128,spa:0,spd:128,spe:0}, moves:['Trick Room','Lunar Dance','Psychic','Helping Hand'], role:'TR + Revive' },
+      { name:'Dusclops', item:'Eviolite', ability:'Pressure', nature:'Relaxed',
+        evs:{hp:252,atk:0,def:128,spa:0,spd:128,spe:0}, moves:['Trick Room','Will-O-Wisp','Shadow Sneak','Helping Hand'], role:'TR Support' },
+      { name:'Flutter Mane', item:'Choice Specs', ability:'Protosynthesis', nature:'Modest',
+        evs:{hp:0,atk:0,def:0,spa:252,spd:4,spe:252}, moves:['Moon Blast','Shadow Ball','Mystical Fire','Psyshock'], role:'Sweeper' }
     ]
   },
-  "champions_arena_1st": {
-    "name": "Hyungwoo Shin — Champions Arena",
-    "label": "1ST CHAMPIONS ARENA",
-    "style": "sun",
-    "description": "Mega Charizard-Y Sun with Coil Milotic secret weapon. Champions Arena winner April 2026. Rental: SQMPYRW6BP",
-    "members": [
-      {
-        "name": "Charizard-Mega-Y",
-        "item": "Charizardite Y",
-        "ability": "Drought",
-        "nature": "Modest",
-        "evs": {
-          "hp": 6,
-          "atk": 0,
-          "def": 16,
-          "spa": 30,
-          "spd": 0,
-          "spe": 14
-        },
-        "moves": [
-          "Heat Wave",
-          "Weather Ball",
-          "Solar Beam",
-          "Protect"
-        ],
-        "role": "Sun Setter / Spread Attacker"
-      },
-      {
-        "name": "Milotic",
-        "item": "Leftovers",
-        "ability": "Competitive",
-        "nature": "Bold",
-        "evs": {
-          "hp": 31,
-          "atk": 0,
-          "def": 21,
-          "spa": 1,
-          "spd": 12,
-          "spe": 1
-        },
-        "moves": [
-          "Muddy Water",
-          "Coil",
-          "Hypnosis",
-          "Recover"
-        ],
-        "role": "Utility / Secret Weapon"
-      },
-      {
-        "name": "Incineroar",
-        "item": "Chople Berry",
-        "ability": "Intimidate",
-        "nature": "Serious",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 11,
-          "spa": 0,
-          "spd": 16,
-          "spe": 7
-        },
-        "moves": [
-          "Throat Chop",
-          "Parting Shot",
-          "Fake Out",
-          "Flare Blitz"
-        ],
-        "role": "Support / Pivot"
-      },
-      {
-        "name": "Sneasler",
-        "item": "White Herb",
-        "ability": "Unburden",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 2,
-          "atk": 32,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Fake Out",
-          "Close Combat",
-          "Dire Claw",
-          "Protect"
-        ],
-        "role": "Unburden Sweeper"
-      },
-      {
-        "name": "Garchomp",
-        "item": "Sitrus Berry",
-        "ability": "Rough Skin",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 24,
-          "atk": 19,
-          "def": 0,
-          "spa": 0,
-          "spd": 1,
-          "spe": 22
-        },
-        "moves": [
-          "Dragon Claw",
-          "Rock Slide",
-          "Earthquake",
-          "Protect"
-        ],
-        "role": "Physical Sweeper"
-      },
-      {
-        "name": "Venusaur",
-        "item": "Focus Sash",
-        "ability": "Chlorophyll",
-        "nature": "Modest",
-        "evs": {
-          "hp": 2,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Energy Ball",
-          "Sludge Bomb",
-          "Sleep Powder",
-          "Protect"
-        ],
-        "role": "Chlorophyll Sweeper"
-      }
+
+  // ---- CHAMPIONS ARENA TEAMS ----
+  champions_arena_1st: {
+    name: 'Hyungwoo Shin — Champions Arena',
+    label: '1ST CHAMPIONS ARENA',
+    style: 'sun',
+    description: 'Mega Charizard-Y Sun with Coil Milotic secret weapon. Champions Arena winner April 2026. Rental: SQMPYRW6BP',
+    members: [
+      { name:'Charizard-Mega-Y', item:'Charizardite Y', ability:'Drought', nature:'Modest',
+        evs:{hp:6,atk:0,def:16,spa:30,spd:0,spe:14}, moves:['Heat Wave','Weather Ball','Solar Beam','Protect'], role:'Sun Setter / Spread Attacker' },
+      { name:'Milotic', item:'Leftovers', ability:'Competitive', nature:'Bold',
+        evs:{hp:31,atk:0,def:21,spa:1,spd:12,spe:1}, moves:['Muddy Water','Coil','Hypnosis','Recover'], role:'Utility / Secret Weapon' },
+      { name:'Incineroar', item:'Chople Berry', ability:'Intimidate', nature:'Serious',
+        evs:{hp:32,atk:0,def:11,spa:0,spd:16,spe:7}, moves:['Throat Chop','Parting Shot','Fake Out','Flare Blitz'], role:'Support / Pivot' },
+      { name:'Sneasler', item:'White Herb', ability:'Unburden', nature:'Adamant',
+        evs:{hp:2,atk:32,def:0,spa:0,spd:0,spe:32}, moves:['Fake Out','Close Combat','Dire Claw','Protect'], role:'Unburden Sweeper' },
+      { name:'Garchomp', item:'Sitrus Berry', ability:'Rough Skin', nature:'Adamant',
+        evs:{hp:24,atk:19,def:0,spa:0,spd:1,spe:22}, moves:['Dragon Claw','Rock Slide','Earthquake','Protect'], role:'Physical Sweeper' },
+      { name:'Venusaur', item:'Focus Sash', ability:'Chlorophyll', nature:'Modest',
+        evs:{hp:2,atk:0,def:0,spa:32,spd:0,spe:32}, moves:['Energy Ball','Sludge Bomb','Sleep Powder','Protect'], role:'Chlorophyll Sweeper' }
     ]
   },
-  "champions_arena_2nd": {
-    "name": "Jorge Tabuyo — Champions Arena Finalist",
-    "label": "2ND CHAMPIONS ARENA",
-    "style": "balance",
-    "description": "Double Mega Charizard-X + Tyranitar with Sinistcha TR fallback. Rental: P08QQ5NU9C",
-    "members": [
-      {
-        "name": "Charizard-Mega-X",
-        "item": "Charizardite X",
-        "ability": "Tough Claws",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 14,
-          "atk": 21,
-          "def": 1,
-          "spa": 0,
-          "spd": 1,
-          "spe": 29
-        },
-        "moves": [
-          "Flare Blitz",
-          "Dragon Claw",
-          "Dragon Dance",
-          "Protect"
-        ],
-        "role": "Setup Sweeper"
-      },
-      {
-        "name": "Milotic",
-        "item": "Leftovers",
-        "ability": "Competitive",
-        "nature": "Calm",
-        "evs": {
-          "hp": 29,
-          "atk": 0,
-          "def": 22,
-          "spa": 1,
-          "spd": 0,
-          "spe": 14
-        },
-        "moves": [
-          "Icy Wind",
-          "Scald",
-          "Protect",
-          "Recover"
-        ],
-        "role": "Speed Control / Pivot"
-      },
-      {
-        "name": "Sinistcha",
-        "item": "Sitrus Berry",
-        "ability": "Hospitality",
-        "nature": "Bold",
-        "evs": {
-          "hp": 31,
-          "atk": 0,
-          "def": 5,
-          "spa": 1,
-          "spd": 29,
-          "spe": 0
-        },
-        "moves": [
-          "Matcha Gotcha",
-          "Rage Powder",
-          "Life Dew",
-          "Trick Room"
-        ],
-        "role": "TR Setter / Redirect"
-      },
-      {
-        "name": "Tyranitar-Mega",
-        "item": "Tyranitarite",
-        "ability": "Sand Stream",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 17,
-          "atk": 26,
-          "def": 1,
-          "spa": 0,
-          "spd": 1,
-          "spe": 21
-        },
-        "moves": [
-          "Rock Slide",
-          "Crunch",
-          "High Horsepower",
-          "Protect"
-        ],
-        "role": "Sand Setter / Physical Attacker"
-      },
-      {
-        "name": "Incineroar",
-        "item": "Sitrus Berry",
-        "ability": "Intimidate",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 30,
-          "atk": 5,
-          "def": 10,
-          "spa": 0,
-          "spd": 10,
-          "spe": 11
-        },
-        "moves": [
-          "Flare Blitz",
-          "Throat Chop",
-          "Fake Out",
-          "Parting Shot"
-        ],
-        "role": "Support / Pivot"
-      },
-      {
-        "name": "Sneasler",
-        "item": "White Herb",
-        "ability": "Unburden",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 0,
-          "atk": 32,
-          "def": 0,
-          "spa": 0,
-          "spd": 2,
-          "spe": 32
-        },
-        "moves": [
-          "Dire Claw",
-          "Fake Out",
-          "Close Combat",
-          "Coaching"
-        ],
-        "role": "Unburden Sweeper"
-      }
+
+  champions_arena_2nd: {
+    name: 'Jorge Tabuyo — Champions Arena Finalist',
+    label: '2ND CHAMPIONS ARENA',
+    style: 'balance',
+    description: 'Double Mega Charizard-X + Tyranitar with Sinistcha TR fallback. Rental: P08QQ5NU9C',
+    members: [
+      { name:'Charizard-Mega-X', item:'Charizardite X', ability:'Tough Claws', nature:'Adamant',
+        evs:{hp:14,atk:21,def:1,spa:0,spd:1,spe:29}, moves:['Flare Blitz','Dragon Claw','Dragon Dance','Protect'], role:'Setup Sweeper' },
+      { name:'Milotic', item:'Leftovers', ability:'Competitive', nature:'Calm',
+        evs:{hp:29,atk:0,def:22,spa:1,spd:0,spe:14}, moves:['Icy Wind','Scald','Protect','Recover'], role:'Speed Control / Pivot' },
+      { name:'Sinistcha', item:'Sitrus Berry', ability:'Hospitality', nature:'Bold',
+        evs:{hp:31,atk:0,def:5,spa:1,spd:29,spe:0}, moves:['Matcha Gotcha','Rage Powder','Life Dew','Trick Room'], role:'TR Setter / Redirect' },
+      { name:'Tyranitar-Mega', item:'Tyranitarite', ability:'Sand Stream', nature:'Adamant',
+        evs:{hp:17,atk:26,def:1,spa:0,spd:1,spe:21}, moves:['Rock Slide','Crunch','High Horsepower','Protect'], role:'Sand Setter / Physical Attacker' },
+      { name:'Incineroar', item:'Sitrus Berry', ability:'Intimidate', nature:'Adamant',
+        evs:{hp:30,atk:5,def:10,spa:0,spd:10,spe:11}, moves:['Flare Blitz','Throat Chop','Fake Out','Parting Shot'], role:'Support / Pivot' },
+      { name:'Sneasler', item:'White Herb', ability:'Unburden', nature:'Adamant',
+        evs:{hp:0,atk:32,def:0,spa:0,spd:2,spe:32}, moves:['Dire Claw','Fake Out','Close Combat','Coaching'], role:'Unburden Sweeper' }
     ]
   },
-  "champions_arena_3rd": {
-    "name": "Juan Benítez — Champions Arena Top 3",
-    "label": "3RD CHAMPIONS ARENA",
-    "style": "sun",
-    "description": "Mega Charizard-Y + Max Speed Kingambit tech. Prankster Whimsicott + Scarf Garchomp. Rental: KN6SNLGUPA",
-    "members": [
-      {
-        "name": "Charizard-Mega-Y",
-        "item": "Charizardite Y",
-        "ability": "Drought",
-        "nature": "Timid",
-        "evs": {
-          "hp": 10,
-          "atk": 0,
-          "def": 5,
-          "spa": 18,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Protect",
-          "Heat Wave",
-          "Overheat",
-          "Solar Beam"
-        ],
-        "role": "Sun Setter / Spread Attacker"
-      },
-      {
-        "name": "Farigiraf",
-        "item": "Sitrus Berry",
-        "ability": "Armor Tail",
-        "nature": "Modest",
-        "evs": {
-          "hp": 31,
-          "atk": 0,
-          "def": 12,
-          "spa": 10,
-          "spd": 13,
-          "spe": 0
-        },
-        "moves": [
-          "Psychic",
-          "Imprison",
-          "Trick Room",
-          "Hyper Voice"
-        ],
-        "role": "TR Setter / Priority Blocker"
-      },
-      {
-        "name": "Garchomp",
-        "item": "Choice Scarf",
-        "ability": "Rough Skin",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 2,
-          "atk": 32,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Earthquake",
-          "Dragon Claw",
-          "Rock Slide",
-          "Stomping Tantrum"
-        ],
-        "role": "Speed Control / Sweeper"
-      },
-      {
-        "name": "Whimsicott",
-        "item": "Focus Sash",
-        "ability": "Prankster",
-        "nature": "Timid",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 10,
-          "spa": 2,
-          "spd": 0,
-          "spe": 22
-        },
-        "moves": [
-          "Protect",
-          "Moonblast",
-          "Tailwind",
-          "Encore"
-        ],
-        "role": "Prankster Support"
-      },
-      {
-        "name": "Sneasler",
-        "item": "White Herb",
-        "ability": "Unburden",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 8,
-          "atk": 20,
-          "def": 5,
-          "spa": 0,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Dire Claw",
-          "Fake Out",
-          "Close Combat",
-          "Protect"
-        ],
-        "role": "Unburden Sweeper"
-      },
-      {
-        "name": "Kingambit",
-        "item": "Black Glasses",
-        "ability": "Defiant",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 6,
-          "atk": 25,
-          "def": 2,
-          "spa": 0,
-          "spd": 1,
-          "spe": 32
-        },
-        "moves": [
-          "Kowtow Cleave",
-          "Sucker Punch",
-          "Low Kick",
-          "Protect"
-        ],
-        "role": "Late-Game Sweeper"
-      }
+
+  champions_arena_3rd: {
+    name: 'Juan Benítez — Champions Arena Top 3',
+    label: '3RD CHAMPIONS ARENA',
+    style: 'sun',
+    description: 'Mega Charizard-Y + Max Speed Kingambit tech. Prankster Whimsicott + Scarf Garchomp. Rental: KN6SNLGUPA',
+    members: [
+      { name:'Charizard-Mega-Y', item:'Charizardite Y', ability:'Drought', nature:'Timid',
+        evs:{hp:10,atk:0,def:5,spa:18,spd:1,spe:32}, moves:['Protect','Heat Wave','Overheat','Solar Beam'], role:'Sun Setter / Spread Attacker' },
+      { name:'Farigiraf', item:'Sitrus Berry', ability:'Armor Tail', nature:'Modest',
+        evs:{hp:31,atk:0,def:12,spa:10,spd:13,spe:0}, moves:['Psychic','Imprison','Trick Room','Hyper Voice'], role:'TR Setter / Priority Blocker' },
+      { name:'Garchomp', item:'Choice Scarf', ability:'Rough Skin', nature:'Adamant',
+        evs:{hp:2,atk:32,def:0,spa:0,spd:0,spe:32}, moves:['Earthquake','Dragon Claw','Rock Slide','Stomping Tantrum'], role:'Speed Control / Sweeper' },
+      { name:'Whimsicott', item:'Focus Sash', ability:'Prankster', nature:'Timid',
+        evs:{hp:32,atk:0,def:10,spa:2,spd:0,spe:22}, moves:['Protect','Moonblast','Tailwind','Encore'], role:'Prankster Support' },
+      { name:'Sneasler', item:'White Herb', ability:'Unburden', nature:'Adamant',
+        evs:{hp:8,atk:20,def:5,spa:0,spd:1,spe:32}, moves:['Dire Claw','Fake Out','Close Combat','Protect'], role:'Unburden Sweeper' },
+      { name:'Kingambit', item:'Black Glasses', ability:'Defiant', nature:'Adamant',
+        evs:{hp:6,atk:25,def:2,spa:0,spd:1,spe:32}, moves:['Kowtow Cleave','Sucker Punch','Low Kick','Protect'], role:'Late-Game Sweeper' }
     ]
   },
-  "chuppa_balance": {
-    "name": "Chuppa Cross IV — Pittsburgh Champion",
-    "label": "REGIONAL WINNER",
-    "style": "balance",
-    "description": "Adaptability Basculegion + Last Respects win-con. Pittsburgh Regional champion. Focus Sash + Maushold Follow Me.",
-    "members": [
-      {
-        "name": "Basculegion",
-        "item": "Focus Sash",
-        "ability": "Adaptability",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Liquidation",
-          "Last Respects",
-          "Aqua Jet",
-          "Protect"
-        ],
-        "role": "Adaptability Sweeper"
-      },
-      {
-        "name": "Maushold",
-        "item": "Rocky Helmet",
-        "ability": "Friend Guard",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 4,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Super Fang",
-          "Feint",
-          "Follow Me",
-          "Protect"
-        ],
-        "role": "Redirection Support"
-      },
-      {
-        "name": "Dragonite",
-        "item": "Loaded Dice",
-        "ability": "Multiscale",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Scale Shot",
-          "Tailwind",
-          "Haze",
-          "Protect"
-        ],
-        "role": "Tailwind + Multi-hit"
-      },
-      {
-        "name": "Incineroar",
-        "item": "Safety Goggles",
-        "ability": "Intimidate",
-        "nature": "Careful",
-        "evs": {
-          "hp": 252,
-          "atk": 4,
-          "def": 0,
-          "spa": 0,
-          "spd": 252,
-          "spe": 0
-        },
-        "moves": [
-          "Flare Blitz",
-          "Knock Off",
-          "Parting Shot",
-          "Fake Out"
-        ],
-        "role": "Support / Pivot"
-      },
-      {
-        "name": "Ursaluna-Bloodmoon",
-        "item": "Assault Vest",
-        "ability": "Mind's Eye",
-        "nature": "Modest",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 4,
-          "spa": 252,
-          "spd": 0,
-          "spe": 0
-        },
-        "moves": [
-          "Blood Moon",
-          "Hyper Voice",
-          "Earth Power",
-          "Vacuum Wave"
-        ],
-        "role": "TR Sweeper / Tank"
-      },
-      {
-        "name": "Gholdengo",
-        "item": "Choice Specs",
-        "ability": "Good as Gold",
-        "nature": "Modest",
-        "evs": {
-          "hp": 4,
-          "atk": 0,
-          "def": 0,
-          "spa": 252,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Make It Rain",
-          "Shadow Ball",
-          "Power Gem",
-          "Trick"
-        ],
-        "role": "Status-Immune Attacker"
-      }
+
+  chuppa_balance: {
+    name: 'Chuppa Cross IV — Pittsburgh Champion',
+    label: 'REGIONAL WINNER',
+    style: 'balance',
+    description: 'Adaptability Basculegion + Last Respects win-con. Pittsburgh Regional champion. Focus Sash + Maushold Follow Me.',
+    members: [
+      { name:'Basculegion', item:'Focus Sash', ability:'Adaptability', nature:'Adamant',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Liquidation','Last Respects','Aqua Jet','Protect'], role:'Adaptability Sweeper' },
+      { name:'Maushold', item:'Rocky Helmet', ability:'Friend Guard', nature:'Jolly',
+        evs:{hp:252,atk:0,def:4,spa:0,spd:0,spe:252}, moves:['Super Fang','Feint','Follow Me','Protect'], role:'Redirection Support' },
+      { name:'Dragonite', item:'Loaded Dice', ability:'Multiscale', nature:'Adamant',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Scale Shot','Tailwind','Haze','Protect'], role:'Tailwind + Multi-hit' },
+      { name:'Incineroar', item:'Safety Goggles', ability:'Intimidate', nature:'Careful',
+        evs:{hp:252,atk:4,def:0,spa:0,spd:252,spe:0}, moves:['Flare Blitz','Knock Off','Parting Shot','Fake Out'], role:'Support / Pivot' },
+      { name:'Ursaluna-Bloodmoon', item:'Assault Vest', ability:"Mind's Eye", nature:'Modest',
+        evs:{hp:252,atk:0,def:4,spa:252,spd:0,spe:0}, moves:['Blood Moon','Hyper Voice','Earth Power','Vacuum Wave'], role:'TR Sweeper / Tank' },
+      { name:'Gholdengo', item:'Choice Specs', ability:'Good as Gold', nature:'Modest',
+        evs:{hp:4,atk:0,def:0,spa:252,spd:0,spe:252}, moves:['Make It Rain','Shadow Ball','Power Gem','Trick'], role:'Status-Immune Attacker' }
     ]
   },
-  "aurora_veil_froslass": {
-    "name": "Mega Froslass — Aurora Veil",
-    "label": "VEIL TEAM",
-    "style": "veil",
-    "description": "Mega Froslass Snow Warning sets instant Aurora Veil. Dragonite + Kingambit behind veil. High win-condition team.",
-    "members": [
-      {
-        "name": "Froslass-Mega",
-        "item": "Froslassite",
-        "ability": "Snow Warning",
-        "nature": "Timid",
-        "evs": {
-          "hp": 4,
-          "atk": 0,
-          "def": 0,
-          "spa": 252,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Aurora Veil",
-          "Blizzard",
-          "Shadow Ball",
-          "Protect"
-        ],
-        "role": "Veil Setter / Attacker"
-      },
-      {
-        "name": "Dragonite",
-        "item": "Lum Berry",
-        "ability": "Multiscale",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Extreme Speed",
-          "Dragon Dance",
-          "Fire Punch",
-          "Protect"
-        ],
-        "role": "Multiscale Setup Sweeper"
-      },
-      {
-        "name": "Kingambit",
-        "item": "Chople Berry",
-        "ability": "Supreme Overlord",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Kowtow Cleave",
-          "Sucker Punch",
-          "Low Kick",
-          "Protect"
-        ],
-        "role": "Supreme Overlord Sweeper"
-      },
-      {
-        "name": "Milotic",
-        "item": "Life Orb",
-        "ability": "Competitive",
-        "nature": "Modest",
-        "evs": {
-          "hp": 4,
-          "atk": 0,
-          "def": 0,
-          "spa": 252,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Scald",
-          "Ice Beam",
-          "Life Dew",
-          "Protect"
-        ],
-        "role": "Competitive Attacker"
-      },
-      {
-        "name": "Incineroar",
-        "item": "Sitrus Berry",
-        "ability": "Intimidate",
-        "nature": "Careful",
-        "evs": {
-          "hp": 252,
-          "atk": 4,
-          "def": 0,
-          "spa": 0,
-          "spd": 252,
-          "spe": 0
-        },
-        "moves": [
-          "Fake Out",
-          "Parting Shot",
-          "Flare Blitz",
-          "Knock Off"
-        ],
-        "role": "Support / Pivot"
-      },
-      {
-        "name": "Garchomp",
-        "item": "Rocky Helmet",
-        "ability": "Rough Skin",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Earthquake",
-          "Rock Slide",
-          "Dragon Claw",
-          "Protect"
-        ],
-        "role": "Physical Pressure"
-      }
+
+  aurora_veil_froslass: {
+    name: 'Mega Froslass — Aurora Veil',
+    label: 'VEIL TEAM',
+    style: 'veil',
+    description: 'Mega Froslass Snow Warning sets instant Aurora Veil. Dragonite + Kingambit behind veil. High win-condition team.',
+    members: [
+      { name:'Froslass-Mega', item:'Froslassite', ability:'Snow Warning', nature:'Timid',
+        evs:{hp:4,atk:0,def:0,spa:252,spd:0,spe:252}, moves:['Aurora Veil','Blizzard','Shadow Ball','Protect'], role:'Veil Setter / Attacker' },
+      { name:'Dragonite', item:'Lum Berry', ability:'Multiscale', nature:'Adamant',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Extreme Speed','Dragon Dance','Fire Punch','Protect'], role:'Multiscale Setup Sweeper' },
+      { name:'Kingambit', item:'Chople Berry', ability:'Supreme Overlord', nature:'Adamant',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Kowtow Cleave','Sucker Punch','Low Kick','Protect'], role:'Supreme Overlord Sweeper' },
+      { name:'Milotic', item:'Life Orb', ability:'Competitive', nature:'Modest',
+        evs:{hp:4,atk:0,def:0,spa:252,spd:0,spe:252}, moves:['Scald','Ice Beam','Life Dew','Protect'], role:'Competitive Attacker' },
+      { name:'Incineroar', item:'Sitrus Berry', ability:'Intimidate', nature:'Careful',
+        evs:{hp:252,atk:4,def:0,spa:0,spd:252,spe:0}, moves:['Fake Out','Parting Shot','Flare Blitz','Knock Off'], role:'Support / Pivot' },
+      { name:'Garchomp', item:'Rocky Helmet', ability:'Rough Skin', nature:'Jolly',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Earthquake','Rock Slide','Dragon Claw','Protect'], role:'Physical Pressure' }
     ]
   },
-  "kingambit_sneasler": {
-    "name": "Kingambit + Sneasler Core",
-    "label": "META CORE",
-    "style": "offense",
-    "description": "The #1 ranked meta core in Reg M-A. 1,329 teams tracked. Defiant Kingambit punishes Intimidate; Unburden Sneasler cleans up.",
-    "members": [
-      {
-        "name": "Kingambit",
-        "item": "Black Glasses",
-        "ability": "Defiant",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Kowtow Cleave",
-          "Sucker Punch",
-          "Low Kick",
-          "Protect"
-        ],
-        "role": "Primary Win Condition"
-      },
-      {
-        "name": "Sneasler",
-        "item": "White Herb",
-        "ability": "Unburden",
-        "nature": "Adamant",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Fake Out",
-          "Close Combat",
-          "Dire Claw",
-          "Protect"
-        ],
-        "role": "Unburden Sweeper"
-      },
-      {
-        "name": "Incineroar",
-        "item": "Sitrus Berry",
-        "ability": "Intimidate",
-        "nature": "Careful",
-        "evs": {
-          "hp": 252,
-          "atk": 4,
-          "def": 0,
-          "spa": 0,
-          "spd": 252,
-          "spe": 0
-        },
-        "moves": [
-          "Fake Out",
-          "Parting Shot",
-          "Flare Blitz",
-          "Darkest Lariat"
-        ],
-        "role": "Intimidate Chain"
-      },
-      {
-        "name": "Garchomp",
-        "item": "Choice Scarf",
-        "ability": "Rough Skin",
-        "nature": "Jolly",
-        "evs": {
-          "hp": 4,
-          "atk": 252,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 252
-        },
-        "moves": [
-          "Earthquake",
-          "Dragon Claw",
-          "Rock Slide",
-          "Stomping Tantrum"
-        ],
-        "role": "Speed Control"
-      },
-      {
-        "name": "Amoonguss",
-        "item": "Rocky Helmet",
-        "ability": "Regenerator",
-        "nature": "Bold",
-        "evs": {
-          "hp": 252,
-          "atk": 0,
-          "def": 252,
-          "spa": 0,
-          "spd": 4,
-          "spe": 0
-        },
-        "moves": [
-          "Spore",
-          "Rage Powder",
-          "Sludge Bomb",
-          "Protect"
-        ],
-        "role": "Redirect / Sleep"
-      },
-      {
-        "name": "Rotom-Wash",
-        "item": "Leftovers",
-        "ability": "Levitate",
-        "nature": "Bold",
-        "evs": {
-          "hp": 244,
-          "atk": 0,
-          "def": 52,
-          "spa": 212,
-          "spd": 0,
-          "spe": 0
-        },
-        "moves": [
-          "Thunderbolt",
-          "Hydro Pump",
-          "Will-O-Wisp",
-          "Protect"
-        ],
-        "role": "Utility / Status"
-      }
-    ]
-  },
-  "custom_1776994789805": {
-    "name": "Froslass's Team",
-    "label": "CUSTOM",
-    "style": "custom",
-    "description": "Imported via Showdown paste",
-    "members": [
-      {
-        "name": "Froslass",
-        "item": "Froslassite",
-        "ability": "Snow Cloak",
-        "level": 50,
-        "nature": "Timid",
-        "evs": {
-          "hp": 2,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Blizzard",
-          "Shadow Ball",
-          "Aurora Veil",
-          "Protect"
-        ],
-        "role": "",
-        "tera": null
-      },
-      {
-        "name": "Glaceon",
-        "item": "Shell Bell",
-        "ability": "Ice Body",
-        "level": 50,
-        "nature": "Modest",
-        "evs": {
-          "hp": 0,
-          "atk": 0,
-          "def": 32,
-          "spa": 32,
-          "spd": 2,
-          "spe": 0
-        },
-        "moves": [
-          "Blizzard",
-          "Freeze-Dry",
-          "Protect",
-          "Calm Mind"
-        ],
-        "role": "",
-        "tera": null
-      },
-      {
-        "name": "Ninetales-Alola",
-        "item": "Focus Sash",
-        "ability": "Snow Warning",
-        "level": 50,
-        "nature": "Modest",
-        "evs": {
-          "hp": 2,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Aurora Veil",
-          "Blizzard",
-          "Moonblast",
-          "Encore"
-        ],
-        "role": "",
-        "tera": null
-      },
-      {
-        "name": "Milotic",
-        "item": "Leftovers",
-        "ability": "Competitive",
-        "level": 50,
-        "nature": "Calm",
-        "evs": {
-          "hp": 0,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 32,
-          "spe": 2
-        },
-        "moves": [
-          "Blizzard",
-          "Scald",
-          "Weather Ball",
-          "Life Dew"
-        ],
-        "role": "",
-        "tera": null
-      },
-      {
-        "name": "Sneasler",
-        "item": "Sitrus Berry",
-        "ability": "Unburden",
-        "level": 50,
-        "nature": "Jolly",
-        "evs": {
-          "hp": 2,
-          "atk": 32,
-          "def": 0,
-          "spa": 0,
-          "spd": 0,
-          "spe": 32
-        },
-        "moves": [
-          "Fake Out",
-          "Dire Claw",
-          "Close Combat",
-          "Rock Tomb"
-        ],
-        "role": "",
-        "tera": null
-      },
-      {
-        "name": "Farigiraf",
-        "item": "Choice Scarf",
-        "ability": "Cud Chew",
-        "level": 50,
-        "nature": "Modest",
-        "evs": {
-          "hp": 32,
-          "atk": 0,
-          "def": 0,
-          "spa": 32,
-          "spd": 2,
-          "spe": 0
-        },
-        "moves": [
-          "Hyper Voice",
-          "Psychic",
-          "Trick Room",
-          "Protect"
-        ],
-        "role": "",
-        "tera": null
-      }
+
+  kingambit_sneasler: {
+    name: 'Kingambit + Sneasler Core',
+    label: 'META CORE',
+    style: 'offense',
+    description: 'The #1 ranked meta core in Reg M-A. 1,329 teams tracked. Defiant Kingambit punishes Intimidate; Unburden Sneasler cleans up.',
+    members: [
+      { name:'Kingambit', item:'Black Glasses', ability:'Defiant', nature:'Adamant',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Kowtow Cleave','Sucker Punch','Low Kick','Protect'], role:'Primary Win Condition' },
+      { name:'Sneasler', item:'White Herb', ability:'Unburden', nature:'Adamant',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Fake Out','Close Combat','Dire Claw','Protect'], role:'Unburden Sweeper' },
+      { name:'Incineroar', item:'Sitrus Berry', ability:'Intimidate', nature:'Careful',
+        evs:{hp:252,atk:4,def:0,spa:0,spd:252,spe:0}, moves:['Fake Out','Parting Shot','Flare Blitz','Darkest Lariat'], role:'Intimidate Chain' },
+      { name:'Garchomp', item:'Choice Scarf', ability:'Rough Skin', nature:'Jolly',
+        evs:{hp:4,atk:252,def:0,spa:0,spd:0,spe:252}, moves:['Earthquake','Dragon Claw','Rock Slide','Stomping Tantrum'], role:'Speed Control' },
+      { name:'Amoonguss', item:'Rocky Helmet', ability:'Regenerator', nature:'Bold',
+        evs:{hp:252,atk:0,def:252,spa:0,spd:4,spe:0}, moves:['Spore','Rage Powder','Sludge Bomb','Protect'], role:'Redirect / Sleep' },
+      { name:'Rotom-Wash', item:'Leftovers', ability:'Levitate', nature:'Bold',
+        evs:{hp:244,atk:0,def:52,spa:212,spd:0,spe:0}, moves:['Thunderbolt','Hydro Pump','Will-O-Wisp','Protect'], role:'Utility / Status' }
     ]
   }
 };
+
+
 // Move type map for damage calc
 const MOVE_TYPES = {
   // Player moves

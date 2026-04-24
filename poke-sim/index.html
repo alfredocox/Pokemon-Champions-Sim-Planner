@@ -78,6 +78,7 @@
   <button class="tab-btn" role="tab" data-tab="replays">Replay Log</button>
   <button class="tab-btn" role="tab" data-tab="sources">Sources</button>
   <button class="tab-btn" role="tab" data-tab="pilot">Pilot Guide</button>
+  <button class="tab-btn" role="tab" data-tab="strategy">🧠 Strategy</button>
 </nav>
 
 <!-- ===== SIMULATOR ===== -->
@@ -87,17 +88,27 @@
     <div class="team-card player-card">
       <div class="card-header">
         <span class="badge badge-blue">YOUR TEAM</span>
-        <h2 class="card-title">TR Counter Squad</h2>
+        <h2 class="card-title" id="player-team-name">TR Counter Squad</h2>
         <button class="card-action-btn" id="export-player-btn" title="Export to Showdown format">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Export
         </button>
       </div>
+      <div class="player-team-selector">
+        <label class="control-label" style="margin-bottom:4px">Selected Team</label>
+        <select class="select-input" id="player-select"></select>
+      </div>
       <div class="roster" id="player-roster"></div>
     </div>
 
     <div class="sim-controls">
-      <div class="vs-badge">VS</div>
+      <div class="vs-row">
+        <div class="vs-badge">VS</div>
+        <button class="swap-btn" id="swap-sides-btn" title="Swap teams">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+          Swap
+        </button>
+      </div>
 
       <div class="coverage-widget" id="coverage-widget">
         <div class="coverage-widget-title">Team Coverage</div>
@@ -376,6 +387,9 @@
   </div>
 </section>
 
+<!-- ===== STRATEGY ===== -->
+<div class="tab-panel" id="tab-strategy"></div>
+
 <!-- ===== IMPORT MODAL ===== -->
 <div class="modal-overlay" id="import-modal" style="display:none" role="dialog" aria-modal="true">
   <div class="modal-box">
@@ -462,6 +476,7 @@
 <script src="data.js"></script>
 <script src="engine.js"></script>
 <script src="ui.js"></script>
+<script src="strategy-injectable.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
