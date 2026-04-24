@@ -78,7 +78,7 @@ function validateTeam(team, format = 'vgc') {
 }
 
 class Pokemon {
-  constructor(data, teamStyle) {
+  constructor(data, teamStyle, teamFormat) {
     this.name = data.name;
     this.item = data.item;
     this.ability = data.ability;
@@ -88,6 +88,14 @@ class Pokemon {
     this.role = data.role || '';
     this.teamStyle = teamStyle;
     this.tera = data.tera || null;
+    // Issue #T1: Champions Stat Point (SP) system support.
+    // Champions replaced SV-style EVs with Stat Points:
+    //   - Per-stat cap 32 (SV: 252), total cap 66 (SV: 510)
+    //   - IVs fixed at 31 and removed from formula
+    //   - HP = Base + SP + 75 ; Other = floor((Base + SP + 20) * Alignment)
+    // Source: https://bulbapedia.bulbagarden.net/wiki/Stat_point
+    // Format resolution order: explicit teamFormat > auto-detect from spread shape > 'sv'.
+    this.statFormat = teamFormat || data.format || this._detectStatFormat(this.evs);
     const _baseStats = BASE_STATS[data.name] || { hp:80,atk:80,def:80,spa:80,spd:80,spe:80, types:['Normal'] };
     // Use POKEMON_TYPES_DB for more accurate type coverage on imported Pokémon
     const _types = (typeof POKEMON_TYPES_DB !== 'undefined' && POKEMON_TYPES_DB[data.name])
@@ -112,10 +120,31 @@ class Pokemon {
     this.multiscaleActive = (this.ability === 'Multiscale');
   }
 
+  // Issue #T1: Auto-detect SP vs SV spreads.
+  // Champions spreads: every stat ≤32 AND total ≤66 AND total > 0.
+  // All-zero or anything exceeding the SP caps → SV (preserves legacy behavior).
+  _detectStatFormat(evs) {
+    const vals = Object.values(evs || {});
+    if (vals.length === 0) return 'sv';
+    const total = vals.reduce((a, b) => a + b, 0);
+    const max = Math.max(...vals);
+    if (total === 0) return 'sv'; // empty spread → SV default
+    if (max <= 32 && total <= 66) return 'champions';
+    return 'sv';
+  }
+
   // Issue #4 FIX: _stat() is HP-only. Removed broken nature logic that
   // compared a stat-key string to a numeric base value (always returned nm=1).
   // Natures do not apply to HP — no nature logic needed here.
+  // Issue #T1: Dual-mode formula for Champions Stat Points.
   _stat(base, ev, nature, isHp) {
+    if (this.statFormat === 'champions') {
+      // Champions HP: Base + SP + 75 (no IV, L50 fixed)
+      if (isHp) return base + (ev || 0) + 75;
+      // Non-HP fallback (should not be called — _statRaw() handles all non-HP stats)
+      return Math.floor(base + (ev || 0) + 20);
+    }
+    // SV formula (unchanged)
     const iv = 31;
     if (isHp) return Math.floor(((2*base + iv + Math.floor(ev/4)) * this.level / 100) + this.level + 10);
     // Non-HP fallback (should not be called — _statRaw() handles all non-HP stats)
@@ -133,7 +162,7 @@ class Pokemon {
   }
 
   _statRaw(base, ev, stat) {
-    const iv = 31;
+    // Nature / Stat Alignment table is identical in both systems (0.9 / 1.0 / 1.1).
     const natureBonus = {
       Adamant:{atk:1.1,spa:0.9}, Modest:{spa:1.1,atk:0.9}, Jolly:{spe:1.1,spa:0.9},
       Timid:{spe:1.1,atk:0.9}, Bold:{def:1.1,atk:0.9}, Calm:{spd:1.1,atk:0.9},
@@ -142,6 +171,12 @@ class Pokemon {
       Naive:{spe:1.1,spd:0.9}, Hardy:{}
     };
     const nm = (natureBonus[this.nature] || {})[stat] || 1;
+    if (this.statFormat === 'champions') {
+      // Champions: floor((Base + SP + 20) × Alignment)
+      return Math.floor((base + (ev || 0) + 20) * nm);
+    }
+    // SV (unchanged)
+    const iv = 31;
     return Math.floor(Math.floor((2*base + iv + Math.floor(ev/4)) * this.level / 100 + 5) * nm);
   }
 
@@ -380,7 +415,8 @@ class Field {
 function buildTeam(teamDef) {
   if (!teamDef || !teamDef.members) return [];
   const style = teamDef.style || '';
-  return teamDef.members.map(m => new Pokemon(m, style));
+  // Issue #T1: propagate team.format so Pokemon uses correct stat math.
+  return teamDef.members.map(m => new Pokemon(m, style, teamDef.format));
 }
 
 // ============================================================
