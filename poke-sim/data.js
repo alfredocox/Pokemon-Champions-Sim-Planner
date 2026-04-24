@@ -3010,3 +3010,122 @@ function getEffectiveness(moveType, defTypes) {
   }
   return mult;
 }
+
+
+// ============================================================
+// CHAMPIONS MEGA EVOLUTION REGISTRY (T9c)
+// Source: CHAMPIONS_MEGA_DATASET.json (cross-confirmed audit, 60 entries)
+// All Reg M-A legal Megas. Keyed by Mega display name ("Base-Mega" or
+//   "Base-Mega-X/Y/M/F" / "Base-Mega-EF" for Floette Eternal Flower).
+// Schema: { baseSpecies, nationalDex, types, ability, abilityIsNew,
+//           abilityIsUpdated, megaBaseStats{hp,atk,def,spa,spd,spe},
+//           megaStone, megaStoneSource }
+// Engine hooks (deferred, see GitHub issues filed post-audit):
+//   Mega activation should check holder.item === megaStone, then swap
+//   BASE_STATS + ability at start of turn on user command. Stat swap
+//   retains SP, Alignment, HP% delta. Only one Mega per side per battle.
+// Sources:
+//   Game8 Mega list: https://game8.co/games/Pokemon-Champions/archives/592472
+//   Game8 Items:     https://game8.co/games/Pokemon-Champions/archives/588871
+//   Serebii New Abilities: https://www.serebii.net/pokemonchampions/newabilities.shtml
+//   Serebii Updated Abilities: https://www.serebii.net/pokemonchampions/updatedabilities.shtml
+//   Serebii Mega Abilities: https://www.serebii.net/pokemonchampions/megaabilities.shtml
+//   Serebii Reg M-A: https://www.serebii.net/pokemonchampions/rankedbattle/regulationm-a.shtml
+// ============================================================
+var CHAMPIONS_MEGAS = {
+  'Venusaur-Mega': { baseSpecies:'Venusaur', nationalDex:3, types:['Grass','Poison'], ability:'Thick Fat', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:80,atk:100,def:123,spa:122,spd:120,spe:80}, megaStone:'Venusaurite', megaStoneSource:"Shop: 2000 VP" },
+  'Charizard-Mega-X': { baseSpecies:'Charizard', nationalDex:6, types:['Fire','Dragon'], ability:'Tough Claws', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:78,atk:130,def:111,spa:130,spd:85,spe:100}, megaStone:'Charizardite X', megaStoneSource:"Shop: 2000 VP" },
+  'Charizard-Mega-Y': { baseSpecies:'Charizard', nationalDex:6, types:['Fire','Flying'], ability:'Drought', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:78,atk:104,def:78,spa:159,spd:115,spe:100}, megaStone:'Charizardite Y', megaStoneSource:"Shop: 2000 VP" },
+  'Blastoise-Mega': { baseSpecies:'Blastoise', nationalDex:9, types:['Water'], ability:'Mega Launcher', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:79,atk:103,def:120,spa:135,spd:115,spe:78}, megaStone:'Blastoisinite', megaStoneSource:"Shop: 2000 VP" },
+  'Beedrill-Mega': { baseSpecies:'Beedrill', nationalDex:15, types:['Bug','Poison'], ability:'Adaptability', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:65,atk:150,def:40,spa:15,spd:80,spe:145}, megaStone:'Beedrillite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Pidgeot-Mega': { baseSpecies:'Pidgeot', nationalDex:18, types:['Normal','Flying'], ability:'No Guard', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:83,atk:80,def:80,spa:135,spd:80,spe:121}, megaStone:'Pidgeotite', megaStoneSource:"Shop: 2000 VP" },
+  'Clefable-Mega': { baseSpecies:'Clefable', nationalDex:36, types:['Fairy'], ability:'Magic Bounce', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:95,atk:80,def:93,spa:135,spd:110,spe:70}, megaStone:'Clefablite', megaStoneSource:"Shop: 2000 VP" },
+  'Alakazam-Mega': { baseSpecies:'Alakazam', nationalDex:65, types:['Psychic'], ability:'Trace', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:55,atk:50,def:65,spa:175,spd:105,spe:150}, megaStone:'Alakazite', megaStoneSource:"Shop: 2000 VP" },
+  'Victreebel-Mega': { baseSpecies:'Victreebel', nationalDex:71, types:['Grass','Poison'], ability:'Innards Out', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:80,atk:125,def:85,spa:135,spd:95,spe:70}, megaStone:'Victreebelite', megaStoneSource:"Shop: 2000 VP" },
+  'Slowbro-Mega': { baseSpecies:'Slowbro', nationalDex:80, types:['Water','Psychic'], ability:'Shell Armor', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:95,atk:75,def:180,spa:130,spd:80,spe:30}, megaStone:'Slowbronite', megaStoneSource:"Shop: 2000 VP" },
+  'Gengar-Mega': { baseSpecies:'Gengar', nationalDex:94, types:['Ghost','Poison'], ability:'Shadow Tag', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:60,atk:65,def:80,spa:170,spd:95,spe:130}, megaStone:'Gengarite', megaStoneSource:"Shop: 2000 VP" },
+  'Kangaskhan-Mega': { baseSpecies:'Kangaskhan', nationalDex:115, types:['Normal'], ability:'Parental Bond', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:105,atk:125,def:100,spa:60,spd:100,spe:100}, megaStone:'Kangaskhanite', megaStoneSource:"Shop: 2000 VP" },
+  'Starmie-Mega': { baseSpecies:'Starmie', nationalDex:121, types:['Water','Psychic'], ability:'Huge Power', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:60,atk:100,def:105,spa:130,spd:105,spe:120}, megaStone:'Starminite', megaStoneSource:"Shop: 2000 VP" },
+  'Pinsir-Mega': { baseSpecies:'Pinsir', nationalDex:127, types:['Bug','Flying'], ability:'Aerilate', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:65,atk:155,def:120,spa:65,spd:90,spe:105}, megaStone:'Pinsirite', megaStoneSource:"Shop: 2000 VP" },
+  'Gyarados-Mega': { baseSpecies:'Gyarados', nationalDex:130, types:['Water','Dark'], ability:'Mold Breaker', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:95,atk:155,def:109,spa:70,spd:130,spe:81}, megaStone:'Gyaradosite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Aerodactyl-Mega': { baseSpecies:'Aerodactyl', nationalDex:142, types:['Rock','Flying'], ability:'Tough Claws', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:80,atk:135,def:85,spa:70,spd:95,spe:150}, megaStone:'Aerodactylite', megaStoneSource:"Shop: 2000 VP" },
+  'Dragonite-Mega': { baseSpecies:'Dragonite', nationalDex:149, types:['Dragon','Flying'], ability:'Multiscale', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:91,atk:124,def:115,spa:145,spd:125,spe:100}, megaStone:'Dragoninite', megaStoneSource:"Shop: 2000 VP" },
+  'Meganium-Mega': { baseSpecies:'Meganium', nationalDex:154, types:['Grass','Fairy'], ability:'Mega Sol', abilityIsNew:true, abilityIsUpdated:false, megaBaseStats:{hp:80,atk:92,def:115,spa:143,spd:115,spe:80}, megaStone:'Meganiumite', megaStoneSource:"Shop: 2000 VP; Battle Pass: Season M-1" },
+  'Feraligatr-Mega': { baseSpecies:'Feraligatr', nationalDex:160, types:['Water','Dragon'], ability:'Dragonize', abilityIsNew:true, abilityIsUpdated:false, megaBaseStats:{hp:85,atk:160,def:125,spa:89,spd:93,spe:78}, megaStone:'Feraligite', megaStoneSource:"Shop: 2000 VP; Battle Pass: Season M-1" },
+  'Ampharos-Mega': { baseSpecies:'Ampharos', nationalDex:181, types:['Electric','Dragon'], ability:'Mold Breaker', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:90,atk:95,def:105,spa:165,spd:110,spe:45}, megaStone:'Ampharosite', megaStoneSource:"Shop: 2000 VP" },
+  'Steelix-Mega': { baseSpecies:'Steelix', nationalDex:208, types:['Steel','Ground'], ability:'Sand Force', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:75,atk:125,def:230,spa:55,spd:95,spe:30}, megaStone:'Steelixite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Scizor-Mega': { baseSpecies:'Scizor', nationalDex:212, types:['Bug','Steel'], ability:'Technician', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:70,atk:150,def:140,spa:65,spd:100,spe:75}, megaStone:'Scizorite', megaStoneSource:"Shop: 2000 VP" },
+  'Heracross-Mega': { baseSpecies:'Heracross', nationalDex:214, types:['Bug','Fighting'], ability:'Skill Link', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:80,atk:185,def:115,spa:40,spd:105,spe:75}, megaStone:'Heracronite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Skarmory-Mega': { baseSpecies:'Skarmory', nationalDex:227, types:['Steel','Flying'], ability:'Stalwart', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:65,atk:140,def:110,spa:40,spd:100,spe:110}, megaStone:'Skarmorite', megaStoneSource:"Shop: 2000 VP" },
+  'Houndoom-Mega': { baseSpecies:'Houndoom', nationalDex:229, types:['Dark','Fire'], ability:'Solar Power', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:75,atk:90,def:90,spa:140,spd:90,spe:115}, megaStone:'Houndoominite', megaStoneSource:"Shop: 2000 VP" },
+  'Tyranitar-Mega': { baseSpecies:'Tyranitar', nationalDex:248, types:['Rock','Dark'], ability:'Sand Stream', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:100,atk:164,def:150,spa:95,spd:120,spe:71}, megaStone:'Tyranitarite', megaStoneSource:"Shop: 2000 VP" },
+  'Gardevoir-Mega': { baseSpecies:'Gardevoir', nationalDex:282, types:['Psychic','Fairy'], ability:'Pixilate', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:68,atk:85,def:65,spa:165,spd:135,spe:100}, megaStone:'Gardevoirite', megaStoneSource:"Shop: 2000 VP" },
+  'Sableye-Mega': { baseSpecies:'Sableye', nationalDex:302, types:['Dark','Ghost'], ability:'Magic Bounce', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:50,atk:85,def:125,spa:85,spd:115,spe:20}, megaStone:'Sablenite', megaStoneSource:"Shop: 2000 VP" },
+  'Aggron-Mega': { baseSpecies:'Aggron', nationalDex:306, types:['Steel'], ability:'Filter', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:70,atk:140,def:230,spa:60,spd:80,spe:50}, megaStone:'Aggronite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Medicham-Mega': { baseSpecies:'Medicham', nationalDex:308, types:['Fighting','Psychic'], ability:'Pure Power', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:60,atk:100,def:85,spa:80,spd:85,spe:100}, megaStone:'Medichamite', megaStoneSource:"Shop: 2000 VP" },
+  'Manectric-Mega': { baseSpecies:'Manectric', nationalDex:310, types:['Electric'], ability:'Intimidate', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:70,atk:75,def:80,spa:135,spd:80,spe:135}, megaStone:'Manectite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Sharpedo-Mega': { baseSpecies:'Sharpedo', nationalDex:319, types:['Water','Dark'], ability:'Strong Jaw', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:70,atk:140,def:70,spa:110,spd:65,spe:105}, megaStone:'Sharpedonite', megaStoneSource:"Shop: 2000 VP" },
+  'Camerupt-Mega': { baseSpecies:'Camerupt', nationalDex:323, types:['Fire','Ground'], ability:'Sheer Force', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:70,atk:120,def:100,spa:145,spd:105,spe:20}, megaStone:'Cameruptite', megaStoneSource:"Shop: 2000 VP" },
+  'Altaria-Mega': { baseSpecies:'Altaria', nationalDex:334, types:['Dragon','Fairy'], ability:'Pixilate', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:75,atk:110,def:110,spa:110,spd:105,spe:80}, megaStone:'Altarianite', megaStoneSource:"Shop: 2000 VP" },
+  'Banette-Mega': { baseSpecies:'Banette', nationalDex:354, types:['Ghost'], ability:'Prankster', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:64,atk:165,def:75,spa:93,spd:83,spe:75}, megaStone:'Banettite', megaStoneSource:"Shop: 2000 VP" },
+  'Chimecho-Mega': { baseSpecies:'Chimecho', nationalDex:358, types:['Psychic','Steel'], ability:'Levitate', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:75,atk:50,def:110,spa:135,spd:120,spe:65}, megaStone:'Chimechite', megaStoneSource:"Shop: 2000 VP" },
+  'Absol-Mega': { baseSpecies:'Absol', nationalDex:359, types:['Dark'], ability:'Magic Bounce', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:65,atk:150,def:60,spa:115,spd:60,spe:115}, megaStone:'Absolite', megaStoneSource:"Shop: 2000 VP" },
+  'Glalie-Mega': { baseSpecies:'Glalie', nationalDex:362, types:['Ice'], ability:'Refrigerate', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:80,atk:120,def:80,spa:120,spd:80,spe:100}, megaStone:'Glalitite', megaStoneSource:"Shop: 2000 VP" },
+  'Lopunny-Mega': { baseSpecies:'Lopunny', nationalDex:428, types:['Normal','Fighting'], ability:'Scrappy', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:65,atk:136,def:94,spa:54,spd:96,spe:135}, megaStone:'Lopunnite', megaStoneSource:"Shop: 2000 VP" },
+  'Garchomp-Mega': { baseSpecies:'Garchomp', nationalDex:445, types:['Dragon','Ground'], ability:'Sand Force', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:108,atk:170,def:115,spa:120,spd:95,spe:92}, megaStone:'Garchompite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Lucario-Mega': { baseSpecies:'Lucario', nationalDex:448, types:['Fighting','Steel'], ability:'Adaptability', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:70,atk:145,def:88,spa:140,spd:70,spe:112}, megaStone:'Lucarionite', megaStoneSource:"Shop: 2000 VP" },
+  'Abomasnow-Mega': { baseSpecies:'Abomasnow', nationalDex:460, types:['Grass','Ice'], ability:'Snow Warning', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:90,atk:132,def:105,spa:132,spd:105,spe:30}, megaStone:'Abomasite', megaStoneSource:"Battle Tutorial: Mega Evolution" },
+  'Gallade-Mega': { baseSpecies:'Gallade', nationalDex:475, types:['Psychic','Fighting'], ability:'Inner Focus', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:68,atk:165,def:95,spa:65,spd:115,spe:110}, megaStone:'Galladite', megaStoneSource:"Shop: 2000 VP" },
+  'Froslass-Mega': { baseSpecies:'Froslass', nationalDex:478, types:['Ice','Ghost'], ability:'Snow Warning', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:70,atk:80,def:70,spa:140,spd:100,spe:120}, megaStone:'Froslassite', megaStoneSource:"Shop: 2000 VP" },
+  'Emboar-Mega': { baseSpecies:'Emboar', nationalDex:500, types:['Fire','Fighting'], ability:'Mold Breaker', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:110,atk:148,def:75,spa:110,spd:110,spe:75}, megaStone:'Emboarite', megaStoneSource:"Shop: 2000 VP; Battle Pass: Season M-1" },
+  'Excadrill-Mega': { baseSpecies:'Excadrill', nationalDex:530, types:['Ground','Steel'], ability:'Piercing Drill', abilityIsNew:true, abilityIsUpdated:false, megaBaseStats:{hp:110,atk:165,def:100,spa:65,spd:65,spe:103}, megaStone:'Excadrite', megaStoneSource:"Shop: 2000 VP" },
+  'Audino-Mega': { baseSpecies:'Audino', nationalDex:531, types:['Normal','Fairy'], ability:'Healer', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:103,atk:60,def:126,spa:80,spd:126,spe:50}, megaStone:'Audinite', megaStoneSource:"Shop: 2000 VP" },
+  'Chandelure-Mega': { baseSpecies:'Chandelure', nationalDex:609, types:['Ghost','Fire'], ability:'Infiltrator', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:60,atk:75,def:110,spa:175,spd:110,spe:90}, megaStone:'Chandelurite', megaStoneSource:"Shop: 2000 VP" },
+  'Golurk-Mega': { baseSpecies:'Golurk', nationalDex:623, types:['Ground','Ghost'], ability:'Unseen Fist', abilityIsNew:false, abilityIsUpdated:true, megaBaseStats:{hp:89,atk:159,def:105,spa:70,spd:105,spe:55}, megaStone:'Golurkite', megaStoneSource:"Shop: 2000 VP" },
+  'Chesnaught-Mega': { baseSpecies:'Chesnaught', nationalDex:652, types:['Grass','Fighting'], ability:'Bulletproof', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:88,atk:137,def:172,spa:74,spd:115,spe:44}, megaStone:'Chesnaughtite', megaStoneSource:"Transfer Gifts: Transfer Chesnaught to Pokemon Champions" },
+  'Delphox-Mega': { baseSpecies:'Delphox', nationalDex:655, types:['Fire','Psychic'], ability:'Levitate', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:75,atk:69,def:72,spa:159,spd:125,spe:134}, megaStone:'Delphoxite', megaStoneSource:"Transfer Gifts: Transfer Delphox to Pokemon Champions" },
+  'Greninja-Mega': { baseSpecies:'Greninja', nationalDex:658, types:['Water','Dark'], ability:'Protean', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:72,atk:125,def:77,spa:133,spd:81,spe:142}, megaStone:'Greninjite', megaStoneSource:"Transfer Gifts: Transfer Greninja to Pokemon Champions" },
+  'Floette (Eternal Flower)-Mega': { baseSpecies:'Floette (Eternal Flower)', nationalDex:670, types:['Fairy'], ability:'Fairy Aura', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:74,atk:85,def:87,spa:155,spd:148,spe:102}, megaStone:'Floettite', megaStoneSource:"Transfer Gifts: Transfer Eternal Flower Floette to Pokemon Champions" },
+  'Meowstic (Male)-Mega': { baseSpecies:'Meowstic (Male)', nationalDex:678, types:['Psychic'], ability:'Trace', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:74,atk:48,def:76,spa:143,spd:101,spe:124}, megaStone:'Meowsticite', megaStoneSource:"Shop: 2000 VP" },
+  'Meowstic (Female)-Mega': { baseSpecies:'Meowstic (Female)', nationalDex:678, types:['Psychic'], ability:'Trace', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:74,atk:48,def:76,spa:83,spd:81,spe:104}, megaStone:'Meowsticite', megaStoneSource:"Shop: 2000 VP" },
+  'Hawlucha-Mega': { baseSpecies:'Hawlucha', nationalDex:701, types:['Fighting','Flying'], ability:'No Guard', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:78,atk:137,def:100,spa:74,spd:93,spe:118}, megaStone:'Hawluchanite', megaStoneSource:"Shop: 2000 VP" },
+  'Crabominable-Mega': { baseSpecies:'Crabominable', nationalDex:740, types:['Fighting','Ice'], ability:'Iron Fist', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:97,atk:157,def:122,spa:62,spd:107,spe:33}, megaStone:'Crabominite', megaStoneSource:"Shop: 2000 VP" },
+  'Drampa-Mega': { baseSpecies:'Drampa', nationalDex:780, types:['Normal','Dragon'], ability:'Berserk', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:78,atk:85,def:110,spa:160,spd:116,spe:36}, megaStone:'Drampanite', megaStoneSource:"Shop: 2000 VP" },
+  'Scovillain-Mega': { baseSpecies:'Scovillain', nationalDex:952, types:['Grass','Fire'], ability:'Spicy Spray', abilityIsNew:true, abilityIsUpdated:false, megaBaseStats:{hp:65,atk:138,def:85,spa:138,spd:85,spe:75}, megaStone:'Scovillainite', megaStoneSource:"Shop: 2000 VP" },
+  'Glimmora-Mega': { baseSpecies:'Glimmora', nationalDex:970, types:['Rock','Poison'], ability:'Adaptability', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:83,atk:90,def:105,spa:150,spd:96,spe:101}, megaStone:'Glimmoranite', megaStoneSource:"Shop: 2000 VP" },
+};
+
+// New Champions-exclusive abilities (engine hooks to be implemented per
+// filed GitHub issues). Each entry records the Mega holder + effect tag
+// for dispatch wiring.
+var CHAMPIONS_NEW_ABILITIES = {
+  'Piercing Drill': { holder:'Excadrill-Mega',  effect:'contact-bypass-protect-25pct',
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
+  'Dragonize':      { holder:'Feraligatr-Mega', effect:'normal-to-dragon-plus-20pct',
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
+  'Mega Sol':       { holder:'Meganium-Mega',   effect:'personal-sun-no-weather',
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
+  'Spicy Spray':    { holder:'Scovillain-Mega', effect:'burn-attacker-on-damage',
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] }
+};
+
+// Abilities nerfed from prior gens for Champions. Engine must apply the
+// new behavior when referenced (see CHAMPIONS_MEGAS.abilityIsUpdated flag
+// and Urshifu forms for Unseen Fist).
+var CHAMPIONS_UPDATED_ABILITIES = {
+  'Unseen Fist':   { from:'full-damage-through-protect', to:'25pct-through-protect',
+                     damageThroughProtect:0.25,
+                     sources:['https://www.serebii.net/pokemonchampions/updatedabilities.shtml'] },
+  'Parental Bond': { from:'child-1/2-power', to:'child-1/4-power',
+                     childPowerMult:0.25,
+                     sources:['https://game8.co/games/Pokemon-Champions/archives/590403'] },
+  'Protean':       { from:'change-every-move', to:'change-once-per-entry',
+                     oncePerEntry:true,
+                     sources:['https://game8.co/games/Pokemon-Champions/archives/590403'] }
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports.CHAMPIONS_MEGAS = CHAMPIONS_MEGAS;
+  module.exports.CHAMPIONS_NEW_ABILITIES = CHAMPIONS_NEW_ABILITIES;
+  module.exports.CHAMPIONS_UPDATED_ABILITIES = CHAMPIONS_UPDATED_ABILITIES;
+}
