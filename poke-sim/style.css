@@ -202,6 +202,35 @@ table{border-collapse:collapse;width:100%}
 .export-card-btn{font-size:9px;padding:2px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-full);color:var(--text-m);cursor:pointer;transition:all var(--tr);font-family:var(--font-display);font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:3px;flex-shrink:0}
 .export-card-btn:hover{color:var(--primary);border-color:var(--primary)}
 
+/* ===== T9j.10 TEAM PREVIEW BRING PICKER (Refs #16) =====
+   Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+   Doubles: 4 slots (LEAD 1-2, BENCH 3-4). Singles: 3 slots. Hybrid drag+tap. */
+.bring-mode-row{display:flex;align-items:center;gap:var(--sp2);margin:var(--sp3) 0;flex-wrap:wrap}
+.bring-mode-label{font-size:10px;color:var(--text-m);font-family:var(--font-mono);letter-spacing:.04em;text-transform:uppercase}
+.bring-mode-btn{font-size:10px;padding:3px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-full);color:var(--text-m);cursor:pointer;transition:all var(--tr);font-family:var(--font-display);font-weight:700;letter-spacing:.04em}
+.bring-mode-btn:hover{color:var(--primary);border-color:var(--primary)}
+.bring-mode-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.bring-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp2);margin-bottom:var(--sp3)}
+@media(max-width:480px){.bring-slots{grid-template-columns:repeat(4,1fr);gap:4px}}
+.bring-slot{position:relative;background:var(--surface2);border:2px dashed var(--border);border-radius:var(--r-md);padding:6px 4px;text-align:center;min-height:72px;cursor:pointer;transition:all var(--tr);user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+.bring-slot:hover{border-color:var(--primary)}
+.bring-slot-lead{border-style:solid;border-color:var(--accent,#4a9eff)}
+.bring-slot-bench{border-style:dashed}
+.bring-slot-label{font-size:8px;font-weight:700;color:var(--text-m);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.bring-slot-lead .bring-slot-label{color:var(--accent,#4a9eff)}
+.bring-slot-sprite{width:40px;height:40px;image-rendering:pixelated;background:var(--surface);border-radius:var(--r-sm);margin:2px 0}
+.bring-slot-name{font-size:9px;font-weight:700;color:var(--text-h,#fff);line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.bring-slot-empty{font-size:20px;color:var(--border);margin-top:8px;opacity:.5}
+.bring-drop-hover{border-color:var(--primary);background:rgba(74,158,255,.08);transform:scale(1.03)}
+.bring-pool{display:flex;flex-direction:column;border-top:1px solid var(--border);padding-top:var(--sp2)}
+.bring-pool-row{display:flex;gap:var(--sp3);padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--tr);border-radius:var(--r-sm)}
+.bring-pool-row:last-child{border-bottom:none}
+.bring-pool-row:hover{background:var(--surface2)}
+.bring-pool-row.bring-out{opacity:.55}
+.bring-pool-row.bring-in{opacity:1}
+.bring-pool-row.bring-picked{background:rgba(74,158,255,.12);outline:1px solid var(--accent,#4a9eff)}
+.bring-pool-row.bring-dragging{opacity:.4}
+
 /* ===== EDITOR ===== */
 .editor-layout{display:grid;grid-template-columns:260px 1fr;gap:var(--sp5);align-items:start}
 @media(max-width:760px){.editor-layout{grid-template-columns:1fr}}

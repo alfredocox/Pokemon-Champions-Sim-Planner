@@ -1026,6 +1026,43 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   const playerPokemon = buildTeam(playerTeam);
   const oppPokemon    = buildTeam(oppTeam);
 
+  // T9j.10 (Refs #16) — Team Preview / bring-N-of-6.
+  //   Doubles: bring 4 of 6 (leads 1-2, bench 3-4)
+  //   Singles: bring 3 of 6 (lead 1, bench 2-3)
+  // Caller passes opts.playerBring / opts.opponentBring — arrays of Pokemon
+  // names in picked order. Names not in bring list are EXCLUDED from battle.
+  // Legacy opts.playerLeads / opts.opponentLeads still supported: leads occupy
+  // indices 0-1 and the rest of the team fills remaining slots in original order.
+  //   Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+  //   Cite: https://bulbapedia.bulbagarden.net/wiki/VGC
+  const _bringCount = (field._format === 'singles') ? 3 : 4;
+  function _applyBring(pokemonArr, bringNames, leadNames) {
+    // Prefer explicit bring list. Falls back to lead list (legacy T9j.10 early rev).
+    const useBring = Array.isArray(bringNames) && bringNames.length > 0;
+    const names = useBring ? bringNames : (Array.isArray(leadNames) ? leadNames : []);
+    if (names.length === 0) return pokemonArr.slice(); // no override — use team order as-is (return copy; caller clears original)
+    const picked = [];
+    const rest = pokemonArr.slice();
+    for (const name of names) {
+      if (picked.length >= _bringCount) break;
+      const idx = rest.findIndex(p => p.name === name);
+      if (idx >= 0) picked.push(rest.splice(idx, 1)[0]);
+    }
+    // When explicit bring list is given, unbrought mons DO NOT enter battle.
+    // When only leads given (legacy), keep the rest as bench so teams still have switches.
+    if (useBring) {
+      // Pad with original-order filler only if picks are short (invalid names etc).
+      while (picked.length < _bringCount && rest.length) picked.push(rest.shift());
+      return picked;
+    }
+    return picked.concat(rest);
+  }
+  const _orderedPlayer = _applyBring(playerPokemon, opts.playerBring,   opts.playerLeads);
+  const _orderedOpp    = _applyBring(oppPokemon,    opts.opponentBring, opts.opponentLeads);
+  // Replace the array contents in place so any downstream references still work.
+  playerPokemon.length = 0; for (const p of _orderedPlayer) playerPokemon.push(p);
+  oppPokemon.length    = 0; for (const p of _orderedOpp)    oppPokemon.push(p);
+
   // T9j.7 — apply Mega trigger policy override from sweep driver.
   // When runMegaTriggerSweep() calls simulateBattle with _megaPolicyOverride,
   // we stamp every Mega-capable mon on the target side with the requested
@@ -1944,6 +1981,20 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     pHpSum, oHpSum,
     log, winCondition, seed,
     playerSurvivors: pSurvive, oppSurvivors: oSurvive,
+    // T9j.10 (Refs #16) — structured lead + bring info so UI never parses log strings.
+    //   leads:  active battlers at turn 1 (doubles: 2, singles: 1)
+    //   bring:  the N-of-6 actually entering battle (doubles: 4, singles: 3)
+    leads: {
+      player:   playerPokemon.slice(0, field._format === 'singles' ? 1 : 2).map(p => p.name),
+      opponent: oppPokemon.slice(0,    field._format === 'singles' ? 1 : 2).map(p => p.name)
+    },
+    bring: {
+      // Always slice to bring count so default (no override) still reflects VGC rules:
+      // doubles 4 of 6, singles 3 of 6. When caller supplies playerBring, the team
+      // has already been pruned to that count by _applyBring above.
+      player:   playerPokemon.slice(0, field._format === 'singles' ? 3 : 4).map(p => p.name),
+      opponent: oppPokemon.slice(0,    field._format === 'singles' ? 3 : 4).map(p => p.name)
+    },
     // #5 — attach legality verdict so UI can surface warnings on team/match cards.
     legality: { player: playerLegality, opp: oppLegality }
   };

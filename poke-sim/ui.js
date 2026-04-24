@@ -539,17 +539,50 @@ function renderTeamsGrid() {
           ${team.source === 'custom' ? `<button class="delete-card-btn" data-team="${key}" title="Delete this custom team"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete</button>` : ''}
         </div>
       </div>
-      ${team.members.map(m => {
-        const base = BASE_STATS[m.name]||{types:['Normal']};
-        return `<div class="poke-full-row">
-          <img class="poke-full-sprite" src="${getSpriteUrl(m.name)}" alt="${m.name}" loading="lazy" onerror="this.style.opacity='.3'"/>
-          <div class="poke-full-info">
-            <div class="poke-full-name">${m.name} <span style="font-weight:400;color:var(--text-m);font-size:10px">@ ${m.item||'—'}</span></div>
-            <div class="poke-full-detail">${m.ability||'—'} · ${m.nature||'Hardy'} · Lv${m.level||50}</div>
-            <div class="move-tags">${(m.moves||[]).map(mv=>`<span class="move-tag">${mv}</span>`).join('')}</div>
-          </div>
+      ${(function(){
+        // T9j.10 (Refs #16) — Team Preview bring-N-of-6 slot picker.
+        //   Doubles: 4 slots (LEAD 1, LEAD 2, BENCH 3, BENCH 4)
+        //   Singles: 3 slots (LEAD 1, BENCH 2, BENCH 3)
+        // Hybrid controls: desktop drag-and-drop, mobile tap-to-assign.
+        //   Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+        //   Cite: https://bulbapedia.bulbagarden.net/wiki/Lead_Pok%C3%A9mon
+        const bringCount = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 3 : 4;
+        const leadCount  = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 1 : 2;
+        const bring = (typeof getBringFor === 'function') ? getBringFor(key) : team.members.slice(0, bringCount).map(m=>m.name);
+        const mode  = (typeof getBringMode === 'function') ? getBringMode(key) : (key === (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player') ? 'manual' : 'random');
+        const slotLabels = []; for (let i=0; i<bringCount; i++) slotLabels.push(i < leadCount ? `LEAD ${i+1}` : `BENCH ${i+1}`);
+        const slotsHtml = slotLabels.map((label, i) => {
+          const monName = bring[i] || '';
+          const base = monName ? (BASE_STATS[monName]||{types:['Normal']}) : null;
+          const sprite = monName ? getSpriteUrl(monName) : '';
+          return `<div class="bring-slot ${i < leadCount ? 'bring-slot-lead' : 'bring-slot-bench'}" data-team="${key}" data-slot="${i}" draggable="${monName ? 'true' : 'false'}" title="${label}${mode==='random'?' (random mode)':''}">
+            <div class="bring-slot-label">${label}</div>
+            ${monName
+              ? `<img class="bring-slot-sprite" src="${sprite}" alt="${monName}" loading="lazy" onerror="this.style.opacity='.3'"/><div class="bring-slot-name">${monName}</div>`
+              : `<div class="bring-slot-empty">—</div>`}
+          </div>`;
+        }).join('');
+        const poolHtml = team.members.map(m => {
+          const inBring = bring.includes(m.name);
+          return `<div class="bring-pool-row ${inBring?'bring-in':'bring-out'}" data-team="${key}" data-mon="${m.name}" draggable="${mode==='random'?'false':'true'}">
+            <img class="poke-full-sprite" src="${getSpriteUrl(m.name)}" alt="${m.name}" loading="lazy" onerror="this.style.opacity='.3'"/>
+            <div class="poke-full-info">
+              <div class="poke-full-name">${m.name} <span style="font-weight:400;color:var(--text-m);font-size:10px">@ ${m.item||'—'}</span>${inBring?` <span style="font-size:9px;color:var(--accent,#4a9eff);font-weight:600;margin-left:4px">◆ ${bring.indexOf(m.name) < leadCount ? 'LEAD' : 'BENCH'} ${bring.indexOf(m.name)+1}</span>`:''}</div>
+              <div class="poke-full-detail">${m.ability||'—'} · ${m.nature||'Hardy'} · Lv${m.level||50}</div>
+              <div class="move-tags">${(m.moves||[]).map(mv=>`<span class="move-tag">${mv}</span>`).join('')}</div>
+            </div>
+          </div>`;
+        }).join('');
+        // Mode toggle (every team gets it; defaults differ: player=manual, others=random).
+        const modeToggle = `<div class="bring-mode-row" data-team="${key}">
+          <span class="bring-mode-label">Bring picker:</span>
+          <button class="bring-mode-btn ${mode==='manual'?'active':''}" data-team="${key}" data-mode="manual" title="Pick your ${bringCount} Pokemon by hand">Manual</button>
+          <button class="bring-mode-btn ${mode==='random'?'active':''}" data-team="${key}" data-mode="random" title="Re-roll a random ${bringCount} of 6 each series">Random ${bringCount}/6</button>
         </div>`;
-      }).join('')}`;
+        return `${modeToggle}
+          <div class="bring-slots">${slotsHtml}</div>
+          <div class="bring-pool">${poolHtml}</div>`;
+      })()}`;
     grid.appendChild(card);
   }
   // Export buttons
@@ -567,6 +600,130 @@ function renderTeamsGrid() {
   // T9h: reset button wiring (preloaded teams with overrides)
   grid.querySelectorAll('.reset-card-btn').forEach(btn => {
     btn.addEventListener('click', () => resetPreloadedTeam(btn.dataset.team));
+  });
+  // T9j.10 (Refs #16) — Bring picker wiring. Mode toggle + hybrid drag/tap.
+  //   Desktop (hover+fine-pointer): HTML5 drag-and-drop between pool and slots
+  //   Mobile: tap pool mon to select, then tap a slot to assign (or swap)
+  //   Tapping a filled slot on any device clears it.
+  // Refs: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+  const _isHoverCapable = (typeof window.matchMedia === 'function')
+    ? window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    : true;
+  // Mode toggle buttons (Manual / Random N/6)
+  grid.querySelectorAll('.bring-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const teamKey = btn.dataset.team;
+      const mode    = btn.dataset.mode;
+      setBringMode(teamKey, mode);
+      renderTeamsGrid();
+    });
+  });
+  // Tap-to-select staging per card (mobile + click fallback on desktop).
+  const _tapState = {}; // { [teamKey]: pickedMonName | null }
+  function _assignSlot(teamKey, slotIdx, monName) {
+    if (getBringMode(teamKey) === 'random') return; // locked in random mode
+    const count = getBringCount();
+    const cur = getBringFor(teamKey).slice();
+    while (cur.length < count) cur.push(null);
+    // Remove monName from any other slot first (swap semantics).
+    const existingIdx = cur.indexOf(monName);
+    if (existingIdx >= 0 && existingIdx !== slotIdx) {
+      cur[existingIdx] = cur[slotIdx] || null;
+    }
+    cur[slotIdx] = monName;
+    // Compact out nulls and backfill from team order so we always bring exactly N.
+    const compact = cur.filter(Boolean);
+    const team = TEAMS[teamKey];
+    if (team) {
+      for (const m of team.members) {
+        if (compact.length >= count) break;
+        if (!compact.includes(m.name)) compact.push(m.name);
+      }
+    }
+    setBringFor(teamKey, compact.slice(0, count));
+  }
+  function _clearSlot(teamKey, slotIdx) {
+    if (getBringMode(teamKey) === 'random') return;
+    const count = getBringCount();
+    const cur = getBringFor(teamKey).slice();
+    if (slotIdx < cur.length) cur.splice(slotIdx, 1);
+    // Backfill from team order.
+    const team = TEAMS[teamKey];
+    if (team) {
+      for (const m of team.members) {
+        if (cur.length >= count) break;
+        if (!cur.includes(m.name)) cur.push(m.name);
+      }
+    }
+    setBringFor(teamKey, cur.slice(0, count));
+  }
+  // Pool row interactions (drag-source on desktop, tap-to-pick on mobile / click)
+  grid.querySelectorAll('.bring-pool-row').forEach(row => {
+    const teamKey = row.dataset.team;
+    const monName = row.dataset.mon;
+    if (_isHoverCapable) {
+      row.addEventListener('dragstart', (ev) => {
+        if (getBringMode(teamKey) === 'random') { ev.preventDefault(); return; }
+        try { ev.dataTransfer.setData('text/plain', JSON.stringify({ teamKey, monName })); } catch (e) {}
+        ev.dataTransfer.effectAllowed = 'move';
+        row.classList.add('bring-dragging');
+      });
+      row.addEventListener('dragend', () => row.classList.remove('bring-dragging'));
+    }
+    row.addEventListener('click', () => {
+      if (getBringMode(teamKey) === 'random') return;
+      _tapState[teamKey] = (_tapState[teamKey] === monName) ? null : monName;
+      // Visual feedback: add a picked class to the row.
+      grid.querySelectorAll(`.bring-pool-row[data-team="${teamKey}"]`).forEach(r => {
+        r.classList.toggle('bring-picked', r.dataset.mon === _tapState[teamKey]);
+      });
+    });
+  });
+  // Slot interactions (drop target on desktop, tap-to-assign on mobile / click)
+  grid.querySelectorAll('.bring-slot').forEach(slot => {
+    const teamKey = slot.dataset.team;
+    const slotIdx = parseInt(slot.dataset.slot, 10);
+    if (_isHoverCapable) {
+      slot.addEventListener('dragover', (ev) => {
+        if (getBringMode(teamKey) === 'random') return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'move';
+        slot.classList.add('bring-drop-hover');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('bring-drop-hover'));
+      slot.addEventListener('drop', (ev) => {
+        ev.preventDefault();
+        slot.classList.remove('bring-drop-hover');
+        if (getBringMode(teamKey) === 'random') return;
+        let payload = null;
+        try { payload = JSON.parse(ev.dataTransfer.getData('text/plain') || 'null'); } catch (e) {}
+        if (payload && payload.teamKey === teamKey && payload.monName) {
+          _assignSlot(teamKey, slotIdx, payload.monName);
+          renderTeamsGrid();
+        }
+      });
+      slot.addEventListener('dragstart', (ev) => {
+        if (getBringMode(teamKey) === 'random') { ev.preventDefault(); return; }
+        const cur = getBringFor(teamKey);
+        const mon = cur[slotIdx];
+        if (!mon) { ev.preventDefault(); return; }
+        try { ev.dataTransfer.setData('text/plain', JSON.stringify({ teamKey, monName: mon, fromSlot: slotIdx })); } catch (e) {}
+        ev.dataTransfer.effectAllowed = 'move';
+      });
+    }
+    slot.addEventListener('click', () => {
+      if (getBringMode(teamKey) === 'random') return;
+      const picked = _tapState[teamKey];
+      if (picked) {
+        _assignSlot(teamKey, slotIdx, picked);
+        _tapState[teamKey] = null;
+        renderTeamsGrid();
+      } else {
+        // No pending pick: tapping a filled slot clears it.
+        _clearSlot(teamKey, slotIdx);
+        renderTeamsGrid();
+      }
+    });
   });
   // Speed tier sections appended by renderSpeedTiersForGrid() after TEAMS data
 }
@@ -1053,14 +1210,13 @@ function showInlinePilotCard(oppKey, res) {
 
   const wcEntries = Object.entries(res.winConditions || {}).sort((a,b) => b[1]-a[1]).slice(0,2);
 
-  // Top leads from winning logs
+  // T9j.10 (Refs #16) — Top leads from STRUCTURED battle.leads (post-override team ordering).
+  // Old behavior parsed log strings which falsely named fainted or targeted Pokemon as leads.
   const leadCounts = {};
   const winLogs = (res.allLogs || []).filter(g => g.result === 'win');
   for (const game of winLogs) {
-    const firstLines = (game.log || []).slice(0,8).join(' ');
-    for (const m of TEAMS.player.members) {
-      if (firstLines.includes(m.name)) leadCounts[m.name] = (leadCounts[m.name]||0)+1;
-    }
+    const names = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : [];
+    for (const n of names) leadCounts[n] = (leadCounts[n]||0)+1;
   }
   const leads = Object.entries(leadCounts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
 
@@ -1151,10 +1307,133 @@ window.lastSimResults = {};
 // ============================================================
 // BO SERIES RUNNER
 // ============================================================
+// T9j.10 (Refs #16) — Team Preview bring-N-of-6 state.
+// Keyed by team slot (e.g. 'player', 'mega_altaria'). Value is an ordered
+// array of Pokemon names of length BRING_COUNT. Slot 1-2 (or 1 in singles)
+// are leads; remaining slots are bench. Picked via slot-layout UI in
+// renderTeamsGrid and forwarded into simulateBattle() via opts.playerBring
+// / opts.opponentBring. Unset keys fall back to team.members[0..bring-1].
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/VGC
+var BRING_SELECTION = {};
+// BRING_MODE[teamKey] = 'manual' | 'random'. Defaults to 'manual' for the
+// player slot and 'random' for every other team (opponents reroll per series).
+var BRING_MODE = {};
+// localStorage persistence keyed by teamKey + format so each format keeps its
+// own bring order. Saved on every setBringFor / setBringMode mutation.
+const _BRING_LS_KEY = 'poke-sim:bring:v1';
+function _loadBringState() {
+  try {
+    const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem(_BRING_LS_KEY) : null;
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === 'object') {
+      if (obj.selection && typeof obj.selection === 'object') BRING_SELECTION = obj.selection;
+      if (obj.mode      && typeof obj.mode      === 'object') BRING_MODE      = obj.mode;
+    }
+  } catch (e) { /* corrupt storage — ignore */ }
+}
+function _saveBringState() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(_BRING_LS_KEY, JSON.stringify({ selection: BRING_SELECTION, mode: BRING_MODE }));
+  } catch (e) { /* quota / private mode — ignore */ }
+}
+_loadBringState();
+
+function getBringCount() {
+  return (currentFormat === 'singles') ? 3 : 4;
+}
+function getLeadCount() {
+  return (currentFormat === 'singles') ? 1 : 2;
+}
+function getBringMode(teamKey) {
+  // Guard for early-load invocations (renderTeamsGrid fires before the var
+  // initializer for BRING_MODE runs; var hoists declaration but leaves undefined).
+  if (typeof BRING_MODE !== 'undefined' && BRING_MODE && BRING_MODE[teamKey]) return BRING_MODE[teamKey];
+  // Default: player slot is manual, every other team is random.
+  return (teamKey === currentPlayerKey) ? 'manual' : 'random';
+}
+function setBringMode(teamKey, mode) {
+  BRING_MODE[teamKey] = (mode === 'random') ? 'random' : 'manual';
+  _saveBringState();
+}
+function getBringFor(teamKey) {
+  const team = TEAMS[teamKey];
+  if (!team) return [];
+  const count = getBringCount();
+  // Guard for early-load (var hoisted, initializer not yet run).
+  const picked = (typeof BRING_SELECTION !== 'undefined' && BRING_SELECTION && BRING_SELECTION[teamKey]) ? BRING_SELECTION[teamKey] : [];
+  // Keep only names that still exist on the team (handles edits / resets).
+  const valid  = picked.filter(n => team.members.some(m => m.name === n));
+  const filled = valid.slice(0, count);
+  // Fill missing slots from team order, skipping already-picked names.
+  for (const m of team.members) {
+    if (filled.length >= count) break;
+    if (!filled.includes(m.name)) filled.push(m.name);
+  }
+  return filled;
+}
+function setBringFor(teamKey, names) {
+  const arr = Array.isArray(names) ? names.slice(0, getBringCount()) : [];
+  BRING_SELECTION[teamKey] = arr;
+  _saveBringState();
+}
+// Random pick helper — deterministic given optional seed, otherwise Math.random.
+// Always returns exactly bringCount unique members from team.members.
+function randomBringFor(teamKey, seed) {
+  const team = TEAMS[teamKey];
+  if (!team) return [];
+  const count = Math.min(getBringCount(), team.members.length);
+  // Fisher-Yates on a copy. Seed optional for reproducible tests.
+  const pool = team.members.map(m => m.name);
+  let rnd = (typeof seed === 'number')
+    ? (function(){ let s = seed >>> 0; return function(){ s = (s * 1664525 + 1013904223) >>> 0; return s / 0x100000000; }; })()
+    : Math.random;
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+  }
+  return pool.slice(0, count);
+}
+// Legacy shims — kept in case external callers / saved sessions still reference
+// the pre-T9j.10 lead-only API. Map onto the bring picker (leads = first N).
+function getLeadsFor(teamKey) {
+  return getBringFor(teamKey).slice(0, getLeadCount());
+}
+function setLeadsFor(teamKey, leads) {
+  const cur = getBringFor(teamKey).slice();
+  const cap = getLeadCount();
+  const next = Array.isArray(leads) ? leads.slice(0, cap) : [];
+  // Replace slots 0..cap-1, keep bench slots cap.. unchanged (or fill from team).
+  const merged = next.slice();
+  for (const n of cur) {
+    if (merged.length >= getBringCount()) break;
+    if (!merged.includes(n)) merged.push(n);
+  }
+  setBringFor(teamKey, merged);
+}
+window.BRING_SELECTION = BRING_SELECTION;
+window.BRING_MODE      = BRING_MODE;
+window.getBringFor     = getBringFor;
+window.setBringFor     = setBringFor;
+window.getBringMode    = getBringMode;
+window.setBringMode    = setBringMode;
+window.randomBringFor  = randomBringFor;
+window.getLeadsFor     = getLeadsFor;
+window.setLeadsFor     = setLeadsFor;
+
 async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress) {
   const results = { wins:0, losses:0, draws:0, totalTurns:0, totalTrTurns:0, winConditions:{}, allLogs:[], turnDist:{} };
   let liveW=0, liveL=0;
   const BATCH = 20;
+  // T9j.10 — resolve bring picks. Manual mode: resolve ONCE per series (locked).
+  // Random mode: reroll each series so the matrix explores every 4-of-6 over
+  // a long Bo run but individual games within a series keep the same bring.
+  const playerMode = getBringMode(playerTeamKey);
+  const oppMode    = getBringMode(oppTeamKey);
+  const manualPlayerBring = (playerMode === 'manual') ? getBringFor(playerTeamKey) : null;
+  const manualOpponentBring = (oppMode === 'manual') ? getBringFor(oppTeamKey) : null;
 
   for (let i=0; i<numSeries; i+=BATCH) {
     const bSize = Math.min(BATCH, numSeries-i);
@@ -1164,8 +1443,12 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
       let gamesPlayed = 0;
       let seriesTurns=0, seriesTrTurns=0;
 
+      // Per-series bring lock. Re-roll for random teams at each new series.
+      const playerBring   = manualPlayerBring   || randomBringFor(playerTeamKey);
+      const opponentBring = manualOpponentBring || randomBringFor(oppTeamKey);
+
       while (seriesW<gamesNeeded && seriesL<gamesNeeded && gamesPlayed<bo) {
-        const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey], { format: currentFormat });
+        const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey], { format: currentFormat, playerBring, opponentBring });
         if (battle.result==='win') seriesW++;
         else if (battle.result==='loss') seriesL++;
         else { seriesW+=0.5; seriesL+=0.5; }
@@ -1321,17 +1604,13 @@ function generatePilotGuide(oppKey, results) {
   const wcEntries = Object.entries(results.winConditions || {}).sort((a,b) => b[1]-a[1]).slice(0,2);
   const maxWC = wcEntries.length ? wcEntries[0][1] : 1;
 
+  // T9j.10 (Refs #16) — read leads from battle.leads, not log string matching.
   const leadCounts = {};
   const allLogs = results.allLogs || [];
   const winLogs = allLogs.filter(g => g.result === 'win');
   for (const game of winLogs) {
-    const log = game.log || [];
-    const firstTurnLines = log.slice(0, 8).join(' ');
-    for (const m of TEAMS.player.members) {
-      if (firstTurnLines.includes(m.name)) {
-        leadCounts[m.name] = (leadCounts[m.name] || 0) + 1;
-      }
-    }
+    const names = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : [];
+    for (const n of names) leadCounts[n] = (leadCounts[n] || 0) + 1;
   }
   const leads = Object.entries(leadCounts).sort((a,b) => b[1]-a[1]).slice(0,2).map(e => e[0]);
 
@@ -1436,13 +1715,12 @@ function generatePDFReport() {
     const wcEntries = Object.entries(res.winConditions || {}).sort((a,b) => b[1]-a[1]).slice(0,3);
     const wcText = wcEntries.map(([c,n]) => `${c} (${Math.round(n/total*100)}%)`).join(', ');
 
+    // T9j.10 (Refs #16) — PDF guide reads structured leads too.
     const leadCounts = {};
     const winLogs = (res.allLogs || []).filter(g => g.result === 'win');
     for (const game of winLogs) {
-      const firstLines = (game.log || []).slice(0,8).join(' ');
-      for (const m of TEAMS.player.members) {
-        if (firstLines.includes(m.name)) leadCounts[m.name] = (leadCounts[m.name]||0)+1;
-      }
+      const names = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : [];
+      for (const n of names) leadCounts[n] = (leadCounts[n]||0)+1;
     }
     const leads = Object.entries(leadCounts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
 
