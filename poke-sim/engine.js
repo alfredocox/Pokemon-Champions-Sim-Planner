@@ -203,739 +203,635 @@ class Pokemon {
       'Iron Head':80,'Scorching Sands':70,'Dark Pulse':80,'Psychic Noise':75,'Draco Meteor':130,
       'Close Combat':120,'Dire Claw':60,'Ice Punch':75,'High Horsepower':95,
       'Dragon Darts':50,'Phantom Force':90,'Solar Beam':120,'Dazzling Gleam':80,'Air Slash':75,
-      'Energy Ball':90,'Sludge Bomb':90,'Sleep Powder':0,'Earth Power':90,'Throat Chop':80,
-      'Ally Switch':0,'Lunar Dance':0,'Psychic':90,'Shadow Sneak':40,'Psyshock':80,
-      'Mystical Fire':75,
+      'Energy Ball':90,'Sludge Bomb':90,'Sleep Powder':0
     };
-
     let bp = BP_MAP[move] || 60;
-    if (bp === 0) return 0; // status move
 
-    // Weather boost
-    const w = field.weather;
-    if (w === 'sun') {
-      if (moveType === 'Fire') bp = Math.floor(bp * 1.5);
-      if (moveType === 'Water') bp = Math.floor(bp * 0.5);
+    // Weather Ball doubles in active weather
+    if (move === 'Weather Ball' && field.weather !== 'none') bp = 100;
+    // Electro Shot: 130 in rain (one-turn), else still 130 after charge
+    if (move === 'Electro Shot' && field.weather === 'rain') bp = 130;
+    // Last Respects: +50 per fainted ally (max +300)
+    if (move === 'Last Respects') {
+      const fainted = target.side?.fainted || 0;
+      bp = 50 + Math.min(fainted, 5) * 50;
     }
-    if (w === 'rain') {
-      if (moveType === 'Water') bp = Math.floor(bp * 1.5);
-      if (moveType === 'Fire') bp = Math.floor(bp * 0.5);
-    }
-
-    // Solar Beam halved in non-sun
-    if (move === 'Solar Beam' && w !== 'sun') bp = 60;
-
-    // Weather Ball power boost
-    if (move === 'Weather Ball' && w !== 'clear') bp = 100;
-
-    // Eruption power scales with HP%
-    if (move === 'Eruption' || move === 'Last Respects') {
-      if (move === 'Eruption') bp = Math.max(1, Math.floor(150 * this.hp / this.maxHp));
-      if (move === 'Last Respects') bp = 50; // simplified
+    // Eruption: scales with user HP
+    if (move === 'Eruption') {
+      bp = Math.max(1, Math.floor(150 * this.hp / this.maxHp));
     }
 
-    // Solar Power boost under sun
-    if (this.ability === 'Solar Power' && w === 'sun') bp = Math.floor(bp * 1.5);
-
-    // Helping Hand boost
-    if (partner && partner.justUsedHelpingHand) bp = Math.floor(bp * 1.5);
-
-    // Issue #11: Life Orb — 1.3x damage multiplier
-    const lifeOrbMult = (this.item === 'Life Orb' && !this.itemConsumed) ? 1.3 : 1.0;
-
-    // Adaptability
-    const stab = this.types.includes(moveType) ? (this.ability === 'Adaptability' ? 2.0 : 1.5) : 1.0;
+    if (bp === 0) return 0; // Status move
 
     // Type effectiveness
-    let targetTypes = target.types;
-    if (target.teraActivated && target.tera) targetTypes = [target.tera];
-    const eff = getEffectiveness(moveType, targetTypes);
-    if (eff === 0) return 0;
+    const TYPE_CHART = {
+      Normal:   { Rock:0.5, Ghost:0, Steel:0.5 },
+      Fire:     { Fire:0.5, Water:0.5, Rock:0.5, Dragon:0.5, Grass:2, Ice:2, Bug:2, Steel:2 },
+      Water:    { Water:0.5, Grass:0.5, Dragon:0.5, Fire:2, Ground:2, Rock:2 },
+      Electric: { Electric:0.5, Grass:0.5, Dragon:0.5, Ground:0, Flying:2, Water:2 },
+      Grass:    { Fire:0.5, Grass:0.5, Poison:0.5, Flying:0.5, Bug:0.5, Dragon:0.5, Steel:0.5, Water:2, Ground:2, Rock:2 },
+      Ice:      { Water:0.5, Ice:0.5, Fire:0.5, Steel:0.5, Grass:2, Ground:2, Flying:2, Dragon:2 },
+      Fighting: { Normal:2, Ice:2, Rock:2, Dark:2, Steel:2, Poison:0.5, Bug:0.5, Psychic:0.5, Flying:0.5, Ghost:0, Fairy:0.5 },
+      Poison:   { Grass:2, Fairy:2, Poison:0.5, Ground:0.5, Rock:0.5, Ghost:0.5, Steel:0 },
+      Ground:   { Electric:2, Fire:2, Poison:2, Rock:2, Steel:2, Grass:0.5, Bug:0.5, Flying:0 },
+      Flying:   { Grass:2, Fighting:2, Bug:2, Rock:0.5, Steel:0.5, Electric:0.5 },
+      Psychic:  { Fighting:2, Poison:2, Psychic:0.5, Steel:0.5, Dark:0 },
+      Bug:      { Grass:2, Psychic:2, Dark:2, Fire:0.5, Fighting:0.5, Flying:0.5, Ghost:0.5, Steel:0.5, Fairy:0.5 },
+      Rock:     { Fire:2, Ice:2, Flying:2, Bug:2, Fighting:0.5, Ground:0.5, Steel:0.5 },
+      Ghost:    { Ghost:2, Psychic:2, Normal:0, Dark:0.5 },
+      Dragon:   { Dragon:2, Steel:0.5, Fairy:0 },
+      Dark:     { Ghost:2, Psychic:2, Fighting:0.5, Dark:0.5, Fairy:0.5 },
+      Steel:    { Ice:2, Rock:2, Fairy:2, Fire:0.5, Water:0.5, Electric:0.5, Steel:0.5 },
+      Fairy:    { Fighting:2, Dragon:2, Dark:2, Fire:0.5, Poison:0.5, Steel:0.5 },
+    };
 
-    // Doubles spread nerf (Earthquake, Rock Slide, Heat Wave, etc.)
-    const spreadMoves = ['Earthquake','Rock Slide','Heat Wave','Eruption','Hyper Voice','Dazzling Gleam','Moonblast','Discharge','Blizzard','Surf'];
-    const spreadMult = spreadMoves.includes(move) ? 0.75 : 1.0;
+    // Use Tera type if activated
+    const targetTypes = (this.teraActivated && target.tera)
+      ? [target.tera]
+      : target.types;
 
-    // Multiscale
-    let multiscale = 1;
-    if (target.multiscaleActive && target.hp === target.maxHp) multiscale = 0.5;
+    let typeEff = 1;
+    const chart = TYPE_CHART[moveType] || {};
+    for (const t of targetTypes) {
+      typeEff *= (chart[t] !== undefined ? chart[t] : 1);
+    }
+    if (typeEff === 0) return 0;
 
-    // Base damage formula
-    const baseDmg = Math.floor((Math.floor((2 * 50 / 5 + 2) * bp * atk / def) / 50) + 2);
+    // STAB — include Tera STAB
+    const attackerTypes = (this.teraActivated && this.tera) ? [this.tera] : this.types;
+    const stab = attackerTypes.includes(moveType) ? 1.5 : 1;
 
-    // Issue #2 FIX: use seeded rng() instead of Math.random()
+    // Doubles spread nerf
+    const isSpread = (move === 'Earthquake' || move === 'Rock Slide' ||
+                      move === 'Heat Wave' || move === 'Hyper Voice' ||
+                      move === 'Dazzling Gleam' || move === 'Eruption');
+    const spreadMod = isSpread ? 0.75 : 1;
+
+    // Weather bonus
+    let weatherMod = 1;
+    if (field.weather === 'sun')  { if (moveType === 'Fire') weatherMod = 1.5; if (moveType === 'Water') weatherMod = 0.5; }
+    if (field.weather === 'rain') { if (moveType === 'Water') weatherMod = 1.5; if (moveType === 'Fire') weatherMod = 0.5; }
+    if (field.weather === 'sand') { if (moveType === 'Rock') weatherMod = 1.5; }
+
+    // Terrain bonus
+    let terrainMod = 1;
+    if (field.terrain === 'electric' && moveType === 'Electric' && !target.flying) terrainMod = 1.3;
+    if (field.terrain === 'grassy'   && moveType === 'Grass'    && !target.flying) terrainMod = 1.3;
+    if (field.terrain === 'psychic'  && moveType === 'Psychic'  && !target.flying) terrainMod = 1.3;
+    if (field.terrain === 'misty'    && moveType === 'Dragon')                     terrainMod = 0.5;
+
+    // Screen modifiers
+    let screenMod = 1;
+    if (isPhysical  && target.side?.reflect)    screenMod = 0.5;
+    if (!isPhysical && target.side?.lightScreen) screenMod = 0.5;
+
+    // Helping Hand boost
+    const hhMod = (this.helpingHand) ? 1.5 : 1;
+
+    // Life Orb
+    const loMod = (this.item === 'Life Orb') ? 1.3 : 1;
+
+    // Choice Specs/Band handled in getStat
+    // Burn handled in getStat
+
+    // Base damage formula (Gen 9)
+    const raw = Math.floor(Math.floor(Math.floor(2 * this.level / 5 + 2) * bp * atk / def) / 50) + 2;
+    const dmg = Math.floor(raw * stab * typeEff * spreadMod * weatherMod * terrainMod * screenMod * hhMod * loMod);
+
+    // Random roll 85–100%
     const roll = 0.85 + rng() * 0.15;
-
-    const total = Math.floor(baseDmg * stab * eff * spreadMult * multiscale * lifeOrbMult * roll);
-    return Math.max(1, total);
+    return Math.max(1, Math.floor(dmg * roll));
   }
 
-  applyDamage(dmg, source) {
-    // Issue #8 FIX: snapshot full-HP status BEFORE applying damage.
-    // The old check (this.hp + dmg === this.maxHp) ran after hp was already 0 — always wrong.
-    const wasFullHp = this.hp === this.maxHp;
-
-    // Rocky Helmet recoil — handled in engine after hit
-    this.hp = Math.max(0, this.hp - dmg);
-
-    // Multiscale breaks on any damage
-    if (dmg > 0) this.multiscaleActive = false;
-
-    // Focus Sash: activates only from full HP on a would-be KO
-    if (this.item === 'Focus Sash' && !this.itemConsumed && wasFullHp && this.hp <= 0) {
-      this.hp = 1;
-      this.alive = true;
+  applyItem(trigger, field) {
+    if (this.itemConsumed) return;
+    // Lum Berry: clears status
+    if (this.item === 'Lum Berry' && trigger === 'status') {
+      this.status = null; this.statusTurns = 0; this.itemConsumed = true;
+      return `${this.name}'s Lum Berry cured its status!`;
+    }
+    // Sitrus Berry: restores 25% HP
+    if (this.item === 'Sitrus Berry' && trigger === 'damage' && this.hp <= this.maxHp * 0.5) {
+      const heal = Math.floor(this.maxHp * 0.25);
+      this.hp = Math.min(this.maxHp, this.hp + heal);
       this.itemConsumed = true;
-      return; // stop further processing — mon survived
+      return `${this.name}'s Sitrus Berry restored HP!`;
     }
-
-    if (this.hp <= 0) {
-      this.alive = false;
-      this.hp = 0;
-    }
-
-    // Sitrus Berry
-    if (this.item === 'Sitrus Berry' && !this.itemConsumed && this.hp < this.maxHp / 2 && this.hp > 0) {
-      this.hp = Math.min(this.maxHp, this.hp + Math.floor(this.maxHp / 4));
+    // Oran Berry: restores 10 HP
+    if (this.item === 'Oran Berry' && trigger === 'damage' && this.hp <= this.maxHp * 0.5) {
+      this.hp = Math.min(this.maxHp, this.hp + 10);
       this.itemConsumed = true;
+      return `${this.name}'s Oran Berry restored HP!`;
     }
-
-    // Issue #11: Life Orb recoil — 1/10 max HP after dealing damage
-    if (source && source.item === 'Life Orb' && !source.itemConsumed && dmg > 0) {
-      const recoil = Math.floor(source.maxHp / 10);
-      source.hp = Math.max(0, source.hp - recoil);
-      if (source.hp <= 0) { source.alive = false; source.hp = 0; }
+    // Mental Herb: clears taunt etc (placeholder)
+    if (this.item === 'Mental Herb' && trigger === 'taunt') {
+      this.itemConsumed = true;
+      return `${this.name}'s Mental Herb removed the effect!`;
     }
-    // White Herb consumed on stat drop — handled separately
-  }
-
-  applyRecoil(fraction) {
-    const dmg = Math.floor(this.maxHp * fraction);
-    this.hp = Math.max(0, this.hp - dmg);
-    if (this.hp <= 0) { this.alive = false; this.hp = 0; }
-  }
-
-  heal(fraction) {
-    this.hp = Math.min(this.maxHp, this.hp + Math.floor(this.maxHp * fraction));
-    if (!this.alive && this.hp > 0) this.alive = true;
-  }
-
-  applyStatus(status) {
-    if (this.status) return false; // already statused
-    if (status === 'burn' && (this.types.includes('Fire') || this.ability === 'Water Veil')) return false;
-    if (status === 'paralysis' && this.types.includes('Electric')) return false;
-    if (status === 'poison' && (this.types.includes('Poison') || this.types.includes('Steel'))) return false;
-    if (status === 'sleep' && this.ability === 'Sweet Veil') return false;
-    this.status = status;
-    this.statusTurns = 0;
-    return true;
-  }
-
-  // Issue #2 FIX: endOfTurn now receives rng from simulateBattle scope
-  endOfTurn(field, rng) {
-    const msgs = [];
-    if (!this.alive) return msgs;
-    if (this.status === 'burn') {
-      const dmg = Math.floor(this.maxHp / 16);
-      this.hp = Math.max(0, this.hp - dmg);
-      if (this.hp <= 0) { this.alive = false; msgs.push(`${this.name} fainted from burn`); }
-      else msgs.push(`${this.name} hurt by burn`);
-    }
-    if (this.status === 'poison') {
-      this.statusTurns++;
-      const dmg = Math.floor(this.maxHp / 8);
-      this.hp = Math.max(0, this.hp - dmg);
-      if (this.hp <= 0) { this.alive = false; msgs.push(`${this.name} fainted from poison`); }
-    }
-    if (this.status === 'sleep') {
-      this.statusTurns++;
-      // Issue #2 FIX: use seeded rng() instead of Math.random()
-      if (this.statusTurns >= 2 + Math.floor(rng() * 2)) { this.status = null; msgs.push(`${this.name} woke up`); }
-    }
-    // Leftovers
-    if (this.item === 'Leftovers' && !this.itemConsumed) {
-      this.hp = Math.min(this.maxHp, this.hp + Math.floor(this.maxHp / 16));
-    }
-    // Solar Power damage in sun
-    if (this.ability === 'Solar Power' && field.weather === 'sun') {
-      const dmg = Math.floor(this.maxHp / 8);
-      this.hp = Math.max(0, this.hp - dmg);
-      if (this.hp <= 0) { this.alive = false; }
-    }
-    // Sand damage
-    if (field.weather === 'sand') {
-      const sandImmune = ['Rock','Ground','Steel'];
-      if (!sandImmune.some(t => this.types.includes(t))) {
-        const dmg = Math.floor(this.maxHp / 16);
-        this.hp = Math.max(0, this.hp - dmg);
-        if (this.hp <= 0) { this.alive = false; msgs.push(`${this.name} buffeted by sand`); }
-      }
-    }
-    return msgs;
   }
 }
 
+// ============================================================
+// FIELD STATE
+// ============================================================
 class Field {
   constructor() {
-    this.weather = 'clear'; // clear, sun, rain, sand, hail
+    this.weather      = 'none'; // 'sun','rain','sand','hail','snow'
     this.weatherTurns = 0;
-    this.trickRoom = false;
+    this.trickRoom    = false;
     this.trickRoomTurns = 0;
-    this.tailwind = { player: false, opponent: false };
-    this.tailwindTurns = { player: 0, opponent: 0 };
-    this.reflect = { player: false, opponent: false };
-    this.lightScreen = { player: false, opponent: false };
-    this.reflectTurns = { player: 0, opponent: 0 };
-    this.lightScreenTurns = { player: 0, opponent: 0 };
-    this.turn = 0;
-    this.log = [];
+    this.terrain      = 'none';
+    this.terrainTurns = 0;
+    this.playerSide   = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false };
+    this.oppSide      = { tailwind:false, tailwindTurns:0, reflect:false, lightScreen:false, auroraVeil:false };
   }
 
-  setWeather(type, permanent) {
-    this.weather = type;
-    this.weatherTurns = permanent ? 999 : 8;
-  }
-
-  endOfTurn() {
-    this.turn++;
-    if (this.weatherTurns > 0 && this.weatherTurns < 999) {
+  tick(logs) {
+    // Weather countdown
+    if (this.weather !== 'none' && this.weatherTurns > 0) {
       this.weatherTurns--;
-      if (this.weatherTurns === 0) this.weather = 'clear';
+      if (this.weatherTurns === 0) { logs.push(`The ${this.weather} subsided.`); this.weather = 'none'; }
     }
+    // Trick Room countdown
     if (this.trickRoom) {
-      this.trickRoomTurns++;
-      if (this.trickRoomTurns >= 5) { this.trickRoom = false; this.trickRoomTurns = 0; }
+      this.trickRoomTurns--;
+      if (this.trickRoomTurns <= 0) { this.trickRoom = false; logs.push('Trick Room returned to NORMAL!'); }
     }
-    for (const side of ['player','opponent']) {
-      if (this.tailwind[side]) {
-        this.tailwindTurns[side]++;
-        if (this.tailwindTurns[side] >= 4) { this.tailwind[side] = false; this.tailwindTurns[side] = 0; }
-      }
-      if (this.reflect[side]) {
-        this.reflectTurns[side]++;
-        if (this.reflectTurns[side] >= 5) { this.reflect[side] = false; }
-      }
-      if (this.lightScreen[side]) {
-        this.lightScreenTurns[side]++;
-        if (this.lightScreenTurns[side] >= 5) { this.lightScreen[side] = false; }
-      }
+    // Terrain countdown
+    if (this.terrain !== 'none' && this.terrainTurns > 0) {
+      this.terrainTurns--;
+      if (this.terrainTurns === 0) { this.terrain = 'none'; logs.push('The terrain returned to normal.'); }
+    }
+    // Tailwind countdown
+    if (this.playerSide.tailwind) {
+      this.playerSide.tailwindTurns--;
+      if (this.playerSide.tailwindTurns <= 0) { this.playerSide.tailwind = false; logs.push("Player's Tailwind ended."); }
+    }
+    if (this.oppSide.tailwind) {
+      this.oppSide.tailwindTurns--;
+      if (this.oppSide.tailwindTurns <= 0) { this.oppSide.tailwind = false; logs.push("Opponent's Tailwind ended."); }
     }
   }
-
-  log_(msg) { this.log.push(msg); }
 }
 
 // ============================================================
-// BATTLE SIMULATION — 4v4 Doubles
+// TEAM BUILDER — builds active battlers from team definition
 // ============================================================
+function buildTeam(teamDef) {
+  if (!teamDef || !teamDef.members) return [];
+  const style = teamDef.style || '';
+  return teamDef.members.map(m => new Pokemon(m, style));
+}
 
+// ============================================================
+// SIMULATE BATTLE
+// ============================================================
 function simulateBattle(playerTeam, oppTeam, opts = {}) {
-  // Issue #5 FIX: validate both teams before any simulation begins
-  const pVal = validateTeam(playerTeam, 'vgc');
-  const oVal = validateTeam(oppTeam, 'vgc');
-  if (!pVal.valid) {
-    return {
-      result: 'error',
-      validationErrors: { player: pVal.errors, opponent: oVal.errors },
-      validationWarnings: { player: pVal.warnings, opponent: oVal.warnings },
-      log: [`VALIDATION ERROR (Player): ${pVal.errors.join(' | ')}`],
-      turns: 0, trTurns: 0, winCondition: 'Invalid team'
-    };
-  }
-  if (!oVal.valid) {
-    return {
-      result: 'error',
-      validationErrors: { player: pVal.errors, opponent: oVal.errors },
-      validationWarnings: { player: pVal.warnings, opponent: oVal.warnings },
-      log: [`VALIDATION ERROR (Opponent): ${oVal.errors.join(' | ')}`],
-      turns: 0, trTurns: 0, winCondition: 'Invalid team'
-    };
-  }
-
-  // Issue #2 FIX: initialise seeded PRNG for this battle.
-  // Caller may supply opts.seed = [a,b,c,d]; otherwise auto-generate.
   const seed = opts.seed || makeSeed();
-  const rng = makePRNG(seed);
-
+  const rng  = makePRNG(seed);
+  const log  = [];
   const field = new Field();
-  const log = [];
 
-  // Attach validation warnings to log (non-blocking)
-  for (const w of [...pVal.warnings, ...oVal.warnings]) {
-    log.push(`<span class="log-warn">⚠ Legality warning: ${w}</span>`);
-  }
+  const playerPokemon = buildTeam(playerTeam);
+  const oppPokemon    = buildTeam(oppTeam);
 
-  // Build Pokemon instances
-  const pTeam = playerTeam.members.map(m => new Pokemon(m, playerTeam.style));
-  const oTeam = oppTeam.members.map(m => new Pokemon(m, oppTeam.style));
+  // Active battlers (doubles: 2 per side)
+  let playerActive = [playerPokemon[0], playerPokemon[1]].filter(Boolean);
+  let oppActive    = [oppPokemon[0],    oppPokemon[1]   ].filter(Boolean);
+  let playerBench  = playerPokemon.slice(2);
+  let oppBench     = oppPokemon.slice(2);
 
-  // Choose leads
-  function chooseLead(team, teamObj) {
-    const style = teamObj.style;
-    if (style === 'trick_room') {
-      const setter = team.find(p => p.moves.includes('Trick Room') && p.alive);
-      const ragePowder = team.find(p => p.moves.includes('Rage Powder') && p.alive);
-      if (setter && ragePowder) return [setter, ragePowder];
-    }
-    if (style === 'sun' || style === 'sun_tr') {
-      const setter = team.find(p => p.moves.includes('Sunny Day') || p.ability === 'Drought' || p.ability === 'Blaze');
-      const sweeper = team.find(p => p !== setter && p.alive);
-      if (setter) return [setter, sweeper || team[1]];
-    }
-    if (style === 'rain') {
-      const setter = team.find(p => p.ability === 'Drizzle' || p.moves.includes('Rain Dance'));
-      const sweeper = team.find(p => p !== setter && p.alive);
-      if (setter) return [setter, sweeper || team[1]];
-    }
-    if (style === 'sand') {
-      const setter = team.find(p => p.ability === 'Sand Stream');
-      const rusher = team.find(p => p.ability === 'Sand Rush');
-      if (setter && rusher) return [setter, rusher];
-    }
-    return [team[0], team[1]];
-  }
+  // Track fainted counts per side for Last Respects
+  const sideFainted = { player: 0, opp: 0 };
 
-  const [pA, pB] = chooseLead(pTeam, playerTeam);
-  const [oA, oB] = chooseLead(oTeam, oppTeam);
-
-  let active = {
-    player: [pA, pB].filter(Boolean),
-    opponent: [oA, oB].filter(Boolean)
-  };
-
-  function processEntryAbilities(mon, side) {
-    if (!mon) return;
-    if (mon.ability === 'Drought') field.setWeather('sun', false);
-    if (mon.ability === 'Drizzle') field.setWeather('rain', false);
-    if (mon.ability === 'Sand Stream') field.setWeather('sand', true);
-    if (mon.ability === 'Snow Warning') field.setWeather('hail', false);
+  // Apply on-entry abilities
+  function applyEntryAbility(mon, side, field, log) {
     if (mon.ability === 'Intimidate') {
-      for (const opp of active.opponent) {
-        if (!opp.alive) continue;
-        opp.statBoosts.atk = Math.max(-6, (opp.statBoosts.atk||0) - 1);
-      }
-    }
-    if (mon.hospitality) {
-      const ally = active[side].find(a => a !== mon && a.alive);
-      if (ally) ally.heal(0.25);
-    }
-  }
-
-  for (const m of active.player) if (m) processEntryAbilities(m, 'player');
-  for (const m of active.opponent) if (m) processEntryAbilities(m, 'opponent');
-
-  let trickRoomTurnsActive = 0;
-  let battleResult = null;
-  let winCondition = '';
-
-  // ---- MOVE DECISION AI ----
-  function chooseMove(mon, allies, opponents, isPlayer) {
-    if (!mon.alive) return null;
-    const alive_opps = opponents.filter(o => o && o.alive);
-    const alive_allies = allies.filter(a => a && a.alive && a !== mon);
-    if (alive_opps.length === 0) return null;
-
-    // Fake Out
-    if (mon.moves.includes('Fake Out') && !mon.hasActed && alive_opps.length > 0) {
-      const target = alive_opps.reduce((a,b) => a.hp < b.hp ? a : b);
-      return { move: 'Fake Out', target, priority: 3 };
-    }
-
-    // TR prevention
-    if (isPlayer && field.trickRoom === false) {
-      const trSetter = alive_opps.find(o => o.moves.includes('Trick Room'));
-      if (trSetter) {
-        if (mon.moves.includes('Will-O-Wisp')) {
-          return { move: 'Will-O-Wisp', target: trSetter, priority: 0 };
+      const targets = side === 'player' ? oppActive : playerActive;
+      for (const t of targets) {
+        if (t.alive && t.ability !== 'Inner Focus' && t.ability !== 'Own Tempo' && t.ability !== 'Oblivious') {
+          t.statBoosts.atk = Math.max(-6, t.statBoosts.atk - 1);
+          log.push(`${mon.name}'s Intimidate lowered ${t.name}'s Attack!`);
         }
-        const atkMove = mon.moves.find(m => ['Power Gem','Head Smash','Flare Blitz','Earthquake','Dragon Claw','Thunderbolt','Hydro Pump','Moonblast'].includes(m));
-        if (atkMove) return { move: atkMove, target: trSetter, priority: 0 };
       }
     }
-
-    // Issue #2 FIX: all AI probability rolls use seeded rng()
-    // Protect
-    if (mon.moves.includes('Protect') && mon.hp < mon.maxHp * 0.4 && rng() < 0.35) {
-      return { move: 'Protect', target: mon, priority: 4 };
+    if (mon.ability === 'Drought')       { field.weather = 'sun';  field.weatherTurns = 5; log.push(`${mon.name} summoned harsh sunlight!`); }
+    if (mon.ability === 'Drizzle')       { field.weather = 'rain'; field.weatherTurns = 5; log.push(`${mon.name} summoned rain!`); }
+    if (mon.ability === 'Sand Stream')   { field.weather = 'sand'; field.weatherTurns = 5; log.push(`${mon.name} summoned a sandstorm!`); }
+    if (mon.ability === 'Snow Warning')  { field.weather = 'snow'; field.weatherTurns = 5; log.push(`${mon.name} summoned snow!`); }
+    if (mon.ability === 'Hospitality' && side === 'player') {
+      const ally = playerActive.find(a => a !== mon && a.alive);
+      if (ally) { ally.hp = Math.min(ally.maxHp, ally.hp + Math.floor(ally.maxHp * 0.25)); log.push(`${mon.name}'s Hospitality restored ${ally.name}'s HP!`); }
     }
-
-    // Trick Room (opponent AI)
-    if (!isPlayer && mon.moves.includes('Trick Room') && !field.trickRoom && alive_allies.length > 0 && rng() < 0.85) {
-      return { move: 'Trick Room', target: null, priority: -7 };
-    }
-
-    // Tailwind / weather setup
-    if (mon.moves.includes('Tailwind') && !field.tailwind[isPlayer?'player':'opponent'] && rng() < 0.7) {
-      return { move: 'Tailwind', target: null, priority: 0 };
-    }
-    if (mon.moves.includes('Sunny Day') && field.weather !== 'sun' && !['Drizzle','Sand Stream'].includes(alive_allies[0]?.ability)) {
-      if (rng() < 0.6) return { move: 'Sunny Day', target: null, priority: 0 };
-    }
-    if (mon.moves.includes('Rain Dance') && field.weather !== 'rain' && rng() < 0.6) {
-      return { move: 'Rain Dance', target: null, priority: 0 };
-    }
-
-    // Rage Powder
-    if (mon.moves.includes('Rage Powder') && alive_allies.length > 0) {
-      const needsProtection = alive_allies.find(a => a.hp < a.maxHp * 0.6);
-      if (needsProtection && rng() < 0.6) {
-        return { move: 'Rage Powder', target: mon, priority: 0 };
-      }
-    }
-
-    // Parting Shot
-    if (mon.moves.includes('Parting Shot') && mon.hp < mon.maxHp * 0.5) {
-      const target = alive_opps[0];
-      return { move: 'Parting Shot', target, priority: 0 };
-    }
-
-    // Best damaging move
-    let bestMove = null, bestDmg = -1, bestTarget = null;
-    for (const move of mon.moves) {
-      if (['Protect','Tailwind','Trick Room','Sunny Day','Rain Dance','Life Dew','Rage Powder',
-           'Parting Shot','Roost','Reflect','Light Screen','Recover','Shed Tail',
-           'Helping Hand','Ally Switch','Lunar Dance','Fake Out','Thunder Wave','Sleep Powder',
-           'Will-O-Wisp'].includes(move)) continue;
-      for (const t of alive_opps) {
-        // Issue #2 FIX: pass rng to calcDamage for move-selection look-ahead
-        const dmg = mon.calcDamage(move, t, field, null, rng);
-        if (dmg > bestDmg) { bestDmg = dmg; bestMove = move; bestTarget = t; }
-      }
-    }
-
-    if (!bestMove) {
-      bestMove = mon.moves.find(m => !['Protect'].includes(m)) || mon.moves[0];
-      bestTarget = alive_opps[0];
-    }
-
-    return { move: bestMove, target: bestTarget, priority: 0 };
   }
 
-  // ---- EXECUTE MOVE ----
-  function executeMove(mon, decision, allies, opponents, side, logLines) {
-    if (!mon || !mon.alive || !decision) return;
-    const { move, target } = decision;
+  for (const m of playerActive) applyEntryAbility(m, 'player', field, log);
+  for (const m of oppActive)    applyEntryAbility(m, 'opp', field, log);
 
-    // Issue #17 FIX: Gen 9 paralysis does NOT skip turns — speed halving only.
-    // The 25% skip block has been removed entirely.
-    // Sleep skip
-    if (mon.status === 'sleep') {
-      logLines.push(`  ${mon.name} is fast asleep.`);
-      return;
-    }
+  // ============================================================
+  // GREEDY MOVE SELECTION
+  // Scores moves by expected damage or utility value.
+  // ============================================================
+  function selectMove(attacker, allies, enemies, field) {
+    const STATUS_MOVES = new Set(['Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder',
+      'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail']);
+    const PRIORITY_MOVES = new Set(['Fake Out','Aqua Jet','Extreme Speed','Shadow Sneak']);
 
-    mon.hasActed = true;
-    const aliveOpps = opponents.filter(o => o.alive);
-    const aliveAllies = allies.filter(a => a.alive && a !== mon);
+    let best = { move: null, target: null, score: -Infinity };
 
-    // -- STATUS / SUPPORT MOVES --
-    if (move === 'Protect') {
-      mon._protected = true;
-      logLines.push(`  ${mon.name} used Protect`);
-      return;
-    }
-    if (move === 'Trick Room') {
-      field.trickRoom = !field.trickRoom;
-      field.trickRoomTurns = 0;
-      trickRoomTurnsActive += field.trickRoom ? 1 : 0;
-      logLines.push(`  <span class="log-tr">${mon.name} set up Trick Room! Field is now ${field.trickRoom ? 'SLOW-FIRST' : 'NORMAL'}</span>`);
-      return;
-    }
-    if (move === 'Tailwind') {
-      field.tailwind[side] = true; field.tailwindTurns[side] = 0;
-      logLines.push(`  ${mon.name} whipped up Tailwind for ${side}`);
-      return;
-    }
-    if (move === 'Sunny Day' || (mon.ability === 'Drought')) {
-      field.setWeather('sun', mon.ability === 'Drought');
-      logLines.push(`  ${mon.name} used Sunny Day — Sun is harsh!`);
-      return;
-    }
-    if (move === 'Rain Dance') {
-      field.setWeather('rain', false);
-      logLines.push(`  ${mon.name} used Rain Dance — Rain started!`);
-      return;
-    }
-    if (move === 'Will-O-Wisp') {
-      if (target && target.alive) {
-        if (target.applyStatus('burn')) logLines.push(`  ${mon.name} burned ${target.name}!`);
-        else logLines.push(`  Will-O-Wisp failed on ${target.name}`);
-      }
-      return;
-    }
-    if (move === 'Thunder Wave') {
-      if (target && target.alive) {
-        if (target.applyStatus('paralysis')) logLines.push(`  ${mon.name} paralyzed ${target.name}!`);
-      }
-      return;
-    }
-    if (move === 'Sleep Powder') {
-      // Issue #2 FIX: use seeded rng()
-      if (target && target.alive && rng() < 0.75) {
-        if (target.applyStatus('sleep')) logLines.push(`  ${target.name} fell asleep!`);
-      }
-      return;
-    }
-    if (move === 'Parting Shot') {
-      if (target && target.alive) {
-        target.statBoosts.atk = Math.max(-6, (target.statBoosts.atk||0) - 1);
-        target.statBoosts.spa = Math.max(-6, (target.statBoosts.spa||0) - 1);
-        logLines.push(`  ${mon.name} used Parting Shot on ${target.name} then switched`);
-        mon.alive = false; // simplified pivot out
-      }
-      return;
-    }
-    if (move === 'Rage Powder') {
-      mon._ragePowder = true;
-      logLines.push(`  ${mon.name} used Rage Powder — drawing attacks!`);
-      return;
-    }
-    if (move === 'Life Dew') {
-      for (const a of allies.filter(a => a.alive)) a.heal(0.25);
-      logLines.push(`  ${mon.name} used Life Dew — healed team!`);
-      return;
-    }
-    if (move === 'Roost') { mon.heal(0.5); logLines.push(`  ${mon.name} roosted`); return; }
-    if (move === 'Recover') { mon.heal(0.5); return; }
-    if (move === 'Reflect') {
-      field.reflect[side] = true; field.reflectTurns[side] = 0;
-      logLines.push(`  Reflect set on ${side}`); return;
-    }
-    if (move === 'Light Screen') {
-      field.lightScreen[side] = true; field.lightScreenTurns[side] = 0;
-      logLines.push(`  Light Screen set on ${side}`); return;
-    }
-    if (move === 'Helping Hand') {
-      if (aliveAllies[0]) aliveAllies[0].justUsedHelpingHand = true;
-      return;
-    }
-    if (move === 'Knock Off') {
-      if (target && target.alive && target.item && !target.itemConsumed) {
-        target.item = null; target.itemConsumed = true;
-        logLines.push(`  ${mon.name} knocked off ${target.name}'s item!`);
-      }
-    }
-    if (move === 'Shed Tail') {
-      if (aliveAllies[0]) aliveAllies[0].substituteHp = Math.floor(mon.maxHp * 0.25);
-      logLines.push(`  ${mon.name} used Shed Tail`); return;
-    }
-    if (move === 'Ally Switch') { return; }
-    if (move === 'Lunar Dance') {
-      mon.alive = false; mon.hp = 0;
-      logLines.push(`  ${mon.name} used Lunar Dance!`);
-      return;
-    }
-    if (move === 'Fake Out') {
-      if (target && target.alive) {
-        target._flinched = true;
-        // Issue #2 FIX: pass rng to calcDamage
-        const dmg = mon.calcDamage(move, target, field, null, rng);
-        target.applyDamage(dmg, mon);
-        logLines.push(`  ${mon.name} used Fake Out → ${target.name} flinched! (${dmg} dmg)`);
-        if (!target.alive) logLines.push(`  <span class="log-ko">${target.name} fainted!</span>`);
-      }
-      return;
-    }
+    const liveEnemies = enemies.filter(e => e.alive);
+    const liveAllies  = allies.filter(a => a !== attacker && a.alive);
 
-    // -- DAMAGING MOVES --
-    if (!target || !target.alive) return;
+    for (const move of attacker.moves) {
+      const moveType = MOVE_TYPES[move] || 'Normal';
 
-    if (target._protected) {
-      logLines.push(`  ${target.name} protected itself from ${move}`);
-      return;
-    }
-
-    const spreadMoves = ['Earthquake','Rock Slide','Heat Wave','Eruption','Hyper Voice',
-      'Dazzling Gleam','Moonblast','Discharge','Blizzard','Surf','Thunderbolt'];
-    const isSpread = spreadMoves.includes(move) && aliveOpps.length > 1 && move !== 'Thunderbolt';
-
-    let hitTargets = [target];
-    if (isSpread) {
-      hitTargets = opponents.filter(o => o.alive);
-    }
-
-    // Electro Shot: charge turn in non-rain
-    if (move === 'Electro Shot' && field.weather !== 'rain') {
-      if (!mon._electroCharging) {
-        mon._electroCharging = true;
-        mon.statBoosts.spa = Math.min(6, (mon.statBoosts.spa||0) + 1);
-        logLines.push(`  ${mon.name} is charging Electro Shot...`);
-        return;
-      } else {
-        mon._electroCharging = false;
-      }
-    }
-
-    // Phantom Force two-turn
-    if (move === 'Phantom Force' && !mon._phantomTurn) {
-      mon._phantomTurn = true;
-      mon._invisible = true;
-      logLines.push(`  ${mon.name} vanished!`);
-      return;
-    } else if (mon._phantomTurn) {
-      mon._phantomTurn = false;
-      mon._invisible = false;
-    }
-
-    for (const t of hitTargets) {
-      if (!t.alive) continue;
-      // Issue #2 FIX: pass rng to calcDamage
-      let dmg = mon.calcDamage(move, t, field, null, rng);
-
-      // Screen halving
-      const oppSide = side === 'player' ? 'opponent' : 'player';
-      if (MOVE_TYPES[move] && ['Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel','Fire','Water','Grass','Ice','Electric','Dragon','Dark','Fairy'].includes(MOVE_TYPES[move])) {
-        const isPhys = ['Earthquake','Rock Slide','Close Combat','High Horsepower','Iron Head','Flash Cannon','Wave Crash','Dragon Darts','Foul Play','Shadow Sneak','Ice Punch','Head Smash','Flare Blitz','Dragon Claw','Fire Fang','Throat Chop','Dire Claw','Phantom Force'].includes(move);
-        if (isPhys && field.reflect[oppSide]) dmg = Math.floor(dmg * 0.5);
-        if (!isPhys && field.lightScreen[oppSide]) dmg = Math.floor(dmg * 0.5);
-      }
-
-      // Substitute intercepts
-      if (t.substituteHp > 0) {
-        t.substituteHp -= dmg;
-        if (t.substituteHp <= 0) { t.substituteHp = 0; logLines.push(`  ${t.name}'s substitute broke!`); }
+      // Status/utility scoring
+      if (STATUS_MOVES.has(move)) {
+        let score = 0;
+        if (move === 'Trick Room' && !field.trickRoom) score = 55;
+        if (move === 'Tailwind'   && !field[attacker.side === 'player' ? 'playerSide' : 'oppSide']?.tailwind) score = 50;
+        if (move === 'Will-O-Wisp' && liveEnemies.length) {
+          const target = liveEnemies.find(e => !e.status) || liveEnemies[0];
+          if (target && !target.status && target.types.every(t => t !== 'Fire')) {
+            if (best.score < 45) { best = { move, target, score: 45 }; }
+          }
+          continue;
+        }
+        if (move === 'Life Dew' && liveAllies.some(a => a.hp < a.maxHp * 0.6)) score = 40;
+        if (move === 'Rage Powder' && liveAllies.some(a => !a.alive)) score = 35;
+        if (move === 'Roost' && attacker.hp < attacker.maxHp * 0.5) score = 45;
+        if (score > best.score) best = { move, target: liveEnemies[0] || null, score };
         continue;
       }
 
-      t.applyDamage(dmg, mon);
-      logLines.push(`  ${mon.name} → ${move} → ${t.name}: ${dmg} dmg (${Math.floor(t.hp/t.maxHp*100)}% HP left)`);
-
-      // Rocky Helmet
-      if (t.item === 'Rocky Helmet' && !t.itemConsumed) {
-        const recoilDmg = Math.floor(mon.maxHp / 6);
-        mon.applyDamage(recoilDmg, t);
-        logLines.push(`  ${mon.name} hurt by Rocky Helmet (${recoilDmg} dmg)`);
+      // Priority move logic
+      if (PRIORITY_MOVES.has(move)) {
+        if (move === 'Fake Out' && !attacker._fakeDone) {
+          const target = liveEnemies[0];
+          if (target) {
+            const dmg = attacker.calcDamage(move, target, field, null, rng);
+            const score = dmg / target.maxHp * 100 + 25;
+            if (score > best.score) best = { move, target, score };
+          }
+          continue;
+        }
       }
 
-      if (!t.alive) logLines.push(`  <span class="log-ko">${t.name} fainted!</span>`);
-
-      // Life Orb recoil log
-      if (mon.item === 'Life Orb' && !mon.itemConsumed && dmg > 0) {
-        logLines.push(`  ${mon.name} lost HP from Life Orb recoil`);
-        if (!mon.alive) logLines.push(`  <span class="log-ko">${mon.name} fainted from Life Orb recoil!</span>`);
-      }
-
-      // Recoil moves
-      if (['Flare Blitz','Head Smash','Wave Crash'].includes(move)) {
-        const recoil = move === 'Head Smash' ? 0.5 : 0.33;
-        mon.applyRecoil(recoil);
-        if (!mon.alive) logLines.push(`  <span class="log-ko">${mon.name} fainted from recoil!</span>`);
+      // Damage scoring — pick highest damage target
+      for (const target of liveEnemies) {
+        const dmg = attacker.calcDamage(move, target, field, null, rng);
+        // Score: damage fraction + KO bonus + priority bonus
+        let score = dmg / target.maxHp * 100;
+        if (dmg >= target.hp) score += 50; // KO bonus
+        if (PRIORITY_MOVES.has(move)) score += 10;
+        if (score > best.score) best = { move, target, score };
       }
     }
+
+    // Fallback
+    if (!best.move) {
+      best.move   = attacker.moves[0] || 'Tackle';
+      best.target = liveEnemies[0] || allies[0];
+    }
+    return best;
   }
 
-  // ---- REPLACE FAINTED ----
-  function replaceFainted(side, teamArr, activeArr) {
-    const bench = teamArr.filter(p => p && p.alive && !activeArr.includes(p));
-    for (let i = 0; i < activeArr.length; i++) {
-      if (!activeArr[i] || !activeArr[i].alive) {
-        const next = bench.shift();
-        if (next) {
-          activeArr[i] = next;
-          if (next.ability === 'Drought') field.setWeather('sun', false);
-          if (next.ability === 'Drizzle') field.setWeather('rain', false);
-          if (next.ability === 'Sand Stream') field.setWeather('sand', true);
-          if (next.ability === 'Intimidate') {
-            const oppSide = side === 'player' ? 'opponent' : 'player';
-            for (const o of active[oppSide]) {
-              if (o && o.alive) o.statBoosts.atk = Math.max(-6, (o.statBoosts.atk||0) - 1);
-            }
-          }
-          if (next.hospitality) {
-            const ally = activeArr.find(a => a && a.alive && a !== next);
-            if (ally) ally.heal(0.25);
-          }
-          log.push(`  ${next.name} sent in for ${side}!`);
+  // ============================================================
+  // EXECUTE ACTION
+  // ============================================================
+  function executeAction(attacker, move, target, allies, enemies, field, log, rng) {
+    if (!attacker.alive) return;
+    if (!move) return;
+
+    const moveType = MOVE_TYPES[move] || 'Normal';
+    const PROTECT_MOVES = new Set(['Protect','Wide Guard','Quick Guard']);
+    const STATUS_MOVES  = new Set(['Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder',
+      'Tailwind','Sunny Day','Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail']);
+
+    // Attacker must be alive
+    if (!attacker.alive) return;
+
+    // Handle Protect
+    if (PROTECT_MOVES.has(move)) {
+      attacker.protected = true;
+      log.push(`${attacker.name} used ${move}!`);
+      return;
+    }
+
+    // Status moves
+    if (STATUS_MOVES.has(move)) {
+      log.push(`${attacker.name} used ${move}!`);
+      if (move === 'Trick Room') {
+        if (field.trickRoom) {
+          field.trickRoom = false;
+          field.trickRoomTurns = 0;
+          log.push('Trick Room returned to NORMAL!');
         } else {
-          activeArr[i] = null;
+          field.trickRoom = true;
+          field.trickRoomTurns = 5;
+          log.push('Trick Room was set! Slower Pokémon go first!');
+        }
+      }
+      if (move === 'Tailwind') {
+        const side = allies === playerActive ? field.playerSide : field.oppSide;
+        side.tailwind = true;
+        side.tailwindTurns = 4;
+        log.push(`${attacker.name}'s Tailwind is blowing!`);
+      }
+      if (move === 'Sunny Day') { field.weather = 'sun'; field.weatherTurns = 5; log.push('The sunlight turned harsh!'); }
+      if (move === 'Rain Dance') { field.weather = 'rain'; field.weatherTurns = 5; log.push('It started to rain!'); }
+      if (move === 'Will-O-Wisp' && target && target.alive && !target.status && !target.types.includes('Fire')) {
+        // Miss chance 15%
+        if (rng() < 0.15) { log.push(`${attacker.name}'s Will-O-Wisp missed!`); return; }
+        target.status = 'burn'; log.push(`${target.name} was burned by ${attacker.name}'s Will-O-Wisp!`);
+        target.applyItem('status', field);
+      }
+      if (move === 'Thunder Wave' && target && target.alive && !target.status && !target.types.includes('Electric') && !target.types.includes('Ground')) {
+        target.status = 'paralysis'; log.push(`${target.name} is paralysed! It may be unable to move!`);
+      }
+      if (move === 'Sleep Powder' && target && target.alive && !target.status) {
+        if (rng() < 0.25) { log.push(`${attacker.name}'s Sleep Powder missed!`); return; }
+        target.status = 'sleep'; target.statusTurns = 2 + Math.floor(rng() * 2);
+        log.push(`${target.name} fell asleep from ${attacker.name}'s Sleep Powder!`);
+      }
+      if (move === 'Life Dew') {
+        for (const a of allies.filter(a => a.alive)) {
+          const heal = Math.floor(a.maxHp * 0.25);
+          a.hp = Math.min(a.maxHp, a.hp + heal);
+          log.push(`${a.name} had its HP restored by Life Dew!`);
+        }
+      }
+      if (move === 'Roost') {
+        const heal = Math.floor(attacker.maxHp * 0.5);
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
+        log.push(`${attacker.name} restored HP with Roost!`);
+      }
+      if (move === 'Parting Shot' && target && target.alive) {
+        target.statBoosts.atk = Math.max(-6, target.statBoosts.atk - 1);
+        target.statBoosts.spa = Math.max(-6, target.statBoosts.spa - 1);
+        log.push(`${attacker.name}'s Parting Shot lowered ${target.name}'s offenses!`);
+      }
+      if (move === 'Shed Tail') {
+        attacker.substituteHp = Math.floor(attacker.maxHp * 0.25);
+        attacker.hp -= attacker.substituteHp;
+        log.push(`${attacker.name} shed its tail and created a Substitute!`);
+      }
+      return;
+    }
+
+    // Skip if target protected
+    if (target && target.protected) {
+      log.push(`${attacker.name} used ${move}! But ${target.name} was protected!`);
+      return;
+    }
+
+    // Fake Out: only first turn
+    if (move === 'Fake Out') {
+      if (attacker._fakeDone) {
+        // Fall through to damage
+      } else {
+        attacker._fakeDone = true;
+      }
+    }
+
+    // Miss chance for low-accuracy moves
+    const ACC_MAP = { 'Focus Blast':0.70, 'Hydro Pump':0.80, 'Blizzard':0.70,
+                     'Thunder':0.70, 'Hurricane':0.70, 'Sleep Powder':0.75,
+                     'Will-O-Wisp':0.85, 'High Horsepower':0.95, 'Dire Claw':1.0 };
+    const acc = ACC_MAP[move] || 1.0;
+    if (rng() > acc) {
+      log.push(`${attacker.name} used ${move}! It missed!`);
+      return;
+    }
+
+    // Helping Hand: boost ally
+    if (move === 'Helping Hand') {
+      const ally = allies.find(a => a !== attacker && a.alive);
+      if (ally) {
+        ally.helpingHand = true;
+        log.push(`${attacker.name} used Helping Hand for ${ally.name}!`);
+      }
+      return;
+    }
+
+    // U-turn / Flip Turn: damage + switch
+    if (move === 'U-turn' || move === 'Flip Turn') {
+      if (target && target.alive) {
+        const dmg = attacker.calcDamage(move, target, field, null, rng);
+        applyDamage(attacker, move, target, dmg, field, log);
+        log.push(`${attacker.name} pivoted out!`);
+      }
+      return;
+    }
+
+    // Dragon Darts: hits twice, targets split between enemies
+    if (move === 'Dragon Darts') {
+      const darts = 2;
+      const targets = enemies.filter(e => e.alive);
+      for (let d = 0; d < darts; d++) {
+        const t = targets[d % targets.length];
+        if (t) {
+          const dmg = attacker.calcDamage(move, t, field, null, rng);
+          applyDamage(attacker, move, t, dmg, field, log);
+        }
+      }
+      return;
+    }
+
+    // Regular damage
+    if (!target || !target.alive) {
+      log.push(`${attacker.name} used ${move}! (no valid target)`);
+      return;
+    }
+    const dmg = attacker.calcDamage(move, target, field, null, rng);
+    applyDamage(attacker, move, target, dmg, field, log);
+  }
+
+  function applyDamage(attacker, move, target, dmg, field, log) {
+    if (dmg <= 0) return;
+    let finalDmg = dmg;
+    // Substitute absorb
+    if (target.substituteHp > 0) {
+      target.substituteHp -= finalDmg;
+      if (target.substituteHp <= 0) { target.substituteHp = 0; log.push(`${target.name}'s Substitute was destroyed!`); }
+      else log.push(`${attacker.name} used ${move}! (Substitute absorbed ${finalDmg} dmg)`);
+      return;
+    }
+    target.hp = Math.max(0, target.hp - finalDmg);
+    log.push(`${attacker.name} used ${move}! → ${target.name} [${finalDmg} dmg, ${target.hp}/${target.maxHp} HP]`);
+    // Recoil
+    if (move === 'Flare Blitz' || move === 'Head Smash' || move === 'Wave Crash') {
+      const recoil = Math.floor(finalDmg / 3);
+      attacker.hp = Math.max(0, attacker.hp - recoil);
+      log.push(`${attacker.name} was hurt by recoil! [${recoil} dmg]`);
+    }
+    // Life Orb recoil
+    if (attacker.item === 'Life Orb') {
+      const loRecoil = Math.floor(attacker.maxHp * 0.1);
+      attacker.hp = Math.max(0, attacker.hp - loRecoil);
+      if (attacker.hp <= 0) attacker.alive = false;
+    }
+    // Berry check after damage
+    const berryMsg = target.applyItem('damage', field);
+    if (berryMsg) log.push(berryMsg);
+    // Multiscale: deactivate after first hit
+    target.multiscaleActive = false;
+    if (target.hp === 0) { target.alive = false; log.push(`${target.name} fainted!`); }
+  }
+
+  // ============================================================
+  // MAIN BATTLE LOOP
+  // ============================================================
+  let turn = 0;
+  const MAX_TURNS = 25;
+
+  while (turn < MAX_TURNS) {
+    turn++;
+    log.push(`--- Turn ${turn} ---`);
+
+    // Clear per-turn flags
+    for (const m of [...playerActive, ...oppActive]) {
+      m.hasActed = false;
+      m.protected = false;
+      m.helpingHand = false;
+    }
+
+    // Check win condition
+    const pAlive = playerActive.filter(m => m.alive).length + playerBench.filter(m => m.alive).length;
+    const oAlive = oppActive.filter(m => m.alive).length + oppBench.filter(m => m.alive).length;
+    if (pAlive === 0 || oAlive === 0) break;
+
+    // --------------------------------------------------------
+    // BUILD ACTION QUEUE
+    // --------------------------------------------------------
+    const actions = [];
+
+    for (const mon of playerActive.filter(m => m.alive)) {
+      const { move, target } = selectMove(mon, playerActive, oppActive, field);
+      actions.push({ attacker:mon, move, target, side:'player', priority: getPriority(move) });
+    }
+    for (const mon of oppActive.filter(m => m.alive)) {
+      const { move, target } = selectMove(mon, oppActive, playerActive, field);
+      actions.push({ attacker:mon, move, target, side:'opp', priority: getPriority(move) });
+    }
+
+    // Sort by priority → then speed (Trick Room inverts)
+    actions.sort((a, b) => {
+      if (b.priority !== a.priority) return b.priority - a.priority;
+      const sA = a.attacker.getEffSpeed(field);
+      const sB = b.attacker.getEffSpeed(field);
+      if (sA !== sB) return field.trickRoom ? sA - sB : sB - sA;
+      return rng() < 0.5 ? -1 : 1; // Speed tie
+    });
+
+    // Execute actions
+    for (const action of actions) {
+      if (!action.attacker.alive) continue;
+      // Status check before acting
+      if (action.attacker.status === 'sleep') {
+        action.attacker.statusTurns--;
+        if (action.attacker.statusTurns <= 0) {
+          action.attacker.status = null;
+          log.push(`${action.attacker.name} woke up!`);
+        } else {
+          log.push(`${action.attacker.name} is fast asleep!`);
+          continue;
+        }
+      }
+      if (action.attacker.status === 'paralysis' && rng() < 0.25) {
+        log.push(`${action.attacker.name} is fully paralysed and can't move!`);
+        continue;
+      }
+      executeAction(action.attacker, action.move, action.target,
+        action.side === 'player' ? playerActive : oppActive,
+        action.side === 'player' ? oppActive : playerActive,
+        field, log, rng);
+    }
+
+    // Sand damage
+    if (field.weather === 'sand') {
+      for (const mon of [...playerActive, ...oppActive].filter(m => m.alive)) {
+        if (!['Rock','Steel','Ground'].includes(mon.types[0]) &&
+            !['Rock','Steel','Ground'].includes(mon.types[1] || '')) {
+          const sandDmg = Math.floor(mon.maxHp / 16);
+          mon.hp = Math.max(0, mon.hp - sandDmg);
+          log.push(`${mon.name} is buffeted by the sandstorm! [${sandDmg} dmg]`);
+          if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
         }
       }
     }
-  }
 
-  // ---- MAIN LOOP ----
-  const MAX_TURNS = 30;
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
-    field.turn = turn + 1;
-    const turnLog = [`<span class="log-turn">--- Turn ${turn+1} | Weather: ${field.weather} | TR: ${field.trickRoom?'ON':'OFF'} | TW-P:${field.tailwind.player?'✓':'✗'} TW-O:${field.tailwind.opponent?'✓':'✗'} ---</span>`];
+    // Burn damage
+    for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'burn')) {
+      const burnDmg = Math.floor(mon.maxHp / 16);
+      mon.hp = Math.max(0, mon.hp - burnDmg);
+      log.push(`${mon.name} is hurt by its burn! [${burnDmg} dmg]`);
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+    }
 
-    for (const side of ['player','opponent']) {
-      for (const m of active[side].filter(Boolean)) {
-        m.hasActed = false; m._protected = false; m._ragePowder = false; m.justUsedHelpingHand = false; m._flinched = false;
+    // Field upkeep
+    field.tick(log);
+
+    // --------------------------------------------------------
+    // REPLACEMENTS
+    // --------------------------------------------------------
+    function replaceOnField(activeArr, bench, side, field, log) {
+      const fainted = activeArr.filter(m => !m.alive);
+      for (const mon of fainted) {
+        sideFainted[side]++;
+        const idx = activeArr.indexOf(mon);
+        const replacement = bench.find(b => b.alive);
+        if (replacement) {
+          bench.splice(bench.indexOf(replacement), 1);
+          activeArr[idx] = replacement;
+          log.push(`${replacement.name} was sent out!`);
+          applyEntryAbility(replacement, side, field, log);
+        }
+      }
+      // Remove dead and no replacement
+      for (let i = activeArr.length - 1; i >= 0; i--) {
+        if (!activeArr[i].alive) activeArr.splice(i, 1);
       }
     }
-
-    const actions = [];
-    const pActive = active.player.filter(Boolean);
-    const oActive = active.opponent.filter(Boolean);
-    for (const m of pActive) {
-      if (!m.alive) continue;
-      const dec = chooseMove(m, pActive, oActive, true);
-      if (dec) actions.push({ mon:m, dec, side:'player', allies:pActive, opponents:oActive });
-    }
-    for (const m of oActive) {
-      if (!m.alive) continue;
-      const dec = chooseMove(m, oActive, pActive, false);
-      if (dec) actions.push({ mon:m, dec, side:'opponent', allies:oActive, opponents:pActive });
-    }
-
-    actions.sort((a,b) => {
-      const pa = a.dec.priority || 0, pb = b.dec.priority || 0;
-      if (pa !== pb) return pb - pa;
-      return b.mon.getEffSpeed(field) - a.mon.getEffSpeed(field);
-    });
-
-    for (const act of actions) {
-      if (!act.mon.alive) continue;
-      if (act.mon._flinched) { turnLog.push(`  ${act.mon.name} flinched!`); continue; }
-      executeMove(act.mon, act.dec, act.allies, act.opponents, act.side, turnLog);
-    }
-
-    const allActive = [...active.player.filter(Boolean), ...active.opponent.filter(Boolean)].filter(m => m.alive);
-    for (const m of allActive) {
-      // Issue #2 FIX: pass rng to endOfTurn
-      const eotMsgs = m.endOfTurn(field, rng);
-      for (const msg of eotMsgs) turnLog.push(`  ${msg}`);
-    }
-    field.endOfTurn();
-
-    log.push(...turnLog);
-
-    replaceFainted('player', pTeam, active.player);
-    replaceFainted('opponent', oTeam, active.opponent);
-
-    const pAlive = pTeam.filter(p => p && p.alive).length;
-    const oAlive = oTeam.filter(o => o && o.alive).length;
-
-    if (pAlive === 0 && oAlive === 0) { battleResult = 'draw'; break; }
-    if (pAlive === 0) { battleResult = 'loss'; break; }
-    if (oAlive === 0) { battleResult = 'win'; break; }
+    replaceOnField(playerActive, playerBench, 'player', field, log);
+    replaceOnField(oppActive, oppBench, 'opp', field, log);
   }
 
-  if (!battleResult) {
-    const pHp = pTeam.filter(p=>p&&p.alive).reduce((s,p) => s + p.hp/p.maxHp, 0);
-    const oHp = oTeam.filter(o=>o&&o.alive).reduce((s,o) => s + o.hp/o.maxHp, 0);
-    battleResult = pHp > oHp ? 'win' : pHp < oHp ? 'loss' : 'draw';
+  // ============================================================
+  // RESULT
+  // ============================================================
+  const pSurvive = playerActive.filter(m => m.alive).length + playerBench.filter(m => m.alive).length;
+  const oSurvive = oppActive.filter(m => m.alive).length + oppBench.filter(m => m.alive).length;
+  let result;
+  let winCondition = '';
+  if (pSurvive > oSurvive) {
+    result = 'win';
+    const ko = log.filter(l => l.includes('fainted')).length;
+    const trSet = log.some(l => l.includes('Trick Room was set'));
+    const twSet = log.some(l => l.includes('Tailwind is blowing'));
+    winCondition = trSet ? 'TR Win' : twSet ? 'Tailwind Win' : ko >= 4 ? 'KO Sweep' : 'Attrition Win';
+  } else if (oSurvive > pSurvive) {
+    result = 'loss';
+    winCondition = 'Opponent Win';
+  } else {
+    result = 'draw';
+    winCondition = 'Draw';
   }
 
-  if (battleResult === 'win') {
-    winCondition = field.tailwind.player ? 'Tailwind Sweep' :
-                   log.some(l => l.includes('Trick Room') && l.includes('NORMAL')) ? 'TR Broken' :
-                   log.some(l => l.includes('Power Gem') || l.includes('Head Smash')) ? 'Arcanine Punch' :
-                   log.some(l => l.includes('Earthquake')) ? 'Garchomp Ground' :
-                   log.some(l => l.includes('Parting Shot')) ? 'Incineroar Pivot' :
-                   log.some(l => l.includes('Fake Out')) ? 'Priority Pressure' : 'Speed Advantage';
-  }
+  return { result, turns: turn, trTurns: field.trickRoomTurns, log, winCondition, seed,
+    playerSurvivors: pSurvive, oppSurvivors: oSurvive };
+}
 
-  return {
-    result: battleResult,
-    seed,                  // Issue #2: seed returned for reproducibility auditing
-    turns: field.turn,
-    trTurns: trickRoomTurnsActive,
-    winCondition,
-    validationWarnings: { player: pVal.warnings, opponent: oVal.warnings },
-    log: log.slice(0, 150),
+// ============================================================
+// PRIORITY LOOKUP
+// ============================================================
+function getPriority(move) {
+  const P = {
+    'Fake Out':3, 'Extreme Speed':2, 'Aqua Jet':1, 'Shadow Sneak':1, 'Helping Hand':5,
+    'Protect':4, 'Wide Guard':3, 'Quick Guard':3,
+    'Trick Room':-7, 'Roost':0
   };
+  return P[move] || 0;
 }
 
 // ============================================================
@@ -1011,4 +907,94 @@ async function runAllMatchups(numBattles, onProgress, onMatchupDone) {
     if (onMatchupDone) onMatchupDone(opp, res);
   }
   return allResults;
+}
+
+// ============================================================
+// ISSUE #1 FIX — CANONICAL ANALYSIS PAYLOAD
+// buildAnalysisPayload() wraps any raw sim result (from runSimulation
+// or runBoSeries) into the canonical structured object.
+// ALL coaching layers (showInlinePilotCard, generatePilotGuide,
+// buildReportText) MUST consume this object — never the raw result.
+// Fields:
+//   analysis_id     — unique run identifier (timestamp + random)
+//   engine_version  — semantic version of this engine file
+//   formatid        — format string ("vgc-doubles" | "singles")
+//   custom_rules    — array of any active custom rules
+//   team_inputs     — player + opponent team keys
+//   hidden_info_priors — what is assumed vs known about hidden sets
+//   seed_policy     — how seeds were generated
+//   sample_size     — battles or series run
+//   policy_models   — description of AI decision policy
+//   win_rate        — raw float 0–1
+//   confidence_interval — Wilson score 95% CI [lo, hi]
+//   confidence_tier — "Low" | "Moderate" | "High"
+//   top_win_paths   — top win conditions by frequency
+//   top_loss_paths  — placeholder (requires loss-path tracking)
+//   critical_damage_calcs — placeholder for future calc layer
+//   traceable_log_refs    — first N seed refs for replayability
+// ============================================================
+const ENGINE_VERSION = '1.1.0'; // Increment on any mechanics change
+
+function wilsonCI(wins, n, z = 1.96) {
+  if (n === 0) return [0, 0];
+  const p = wins / n;
+  const denom = 1 + z * z / n;
+  const centre = p + z * z / (2 * n);
+  const margin = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+  return [
+    Math.max(0, Math.round(((centre - margin) / denom) * 1000) / 1000),
+    Math.min(1, Math.round(((centre + margin) / denom) * 1000) / 1000)
+  ];
+}
+
+function buildAnalysisPayload(rawResult, ctx = {}) {
+  const n   = rawResult.wins + rawResult.losses + (rawResult.draws || 0);
+  const ci  = wilsonCI(rawResult.wins, n);
+  const tier = n < 20 ? 'Low' : n < 100 ? 'Moderate' : 'High';
+
+  // Top win paths from winConditions map
+  const topWinPaths = Object.entries(rawResult.winConditions || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([cond, count]) => ({ condition: cond, count, pct: n > 0 ? Math.round(count / n * 100) : 0 }));
+
+  return {
+    analysis_id:           `sim_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    engine_version:        ENGINE_VERSION,
+    formatid:              rawResult.format || ctx.formatid || 'vgc-doubles',
+    custom_rules:          ctx.custom_rules || [],
+    team_inputs: {
+      player:   rawResult.playerTeam || ctx.playerTeamKey || 'player',
+      opponent: rawResult.oppTeam    || ctx.oppTeamKey    || 'unknown'
+    },
+    hidden_info_priors: {
+      note:   'All opponent set details taken as declared in TEAMS definition. No hidden-set priors applied.',
+      source: 'exact-input',
+      items:  'declared',
+      evs:    'declared',
+      tera:   'declared',
+      moves:  'declared'
+    },
+    seed_policy:    rawResult.seeds ? 'per-battle-mulberry32' : 'legacy-unseed',
+    sample_size:    rawResult.sampleSize || n,
+    bo_mode:        ctx.bo || null,
+    policy_models:  rawResult.policy || ctx.policy || 'greedy-vs-greedy',
+    win_rate:       rawResult.winRate,
+    wins:           rawResult.wins,
+    losses:         rawResult.losses,
+    draws:          rawResult.draws || 0,
+    total_battles:  n,
+    confidence_interval: ci,
+    confidence_tier:     tier,
+    confidence_note:     rawResult.confidenceNote ||
+      (tier === 'Low'      ? 'Low confidence — run Bo10+ or increase sample size' :
+       tier === 'Moderate' ? 'Moderate confidence' : 'High confidence'),
+    top_win_paths:        topWinPaths,
+    top_loss_paths:       [], // TODO: requires per-loss winCondition tracking
+    critical_damage_calcs: [], // TODO: populated by damage calc layer (future)
+    traceable_log_refs:   (rawResult.seeds || []).slice(0, 10),
+    avg_turns:            rawResult.avgTurns    || 0,
+    avg_tr_turns:         rawResult.avgTrTurns  || 0,
+    raw_logs_sample:      (rawResult.allLogs    || []).slice(0, 5)
+  };
 }
