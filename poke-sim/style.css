@@ -453,3 +453,58 @@ table{border-collapse:collapse;width:100%}
   cursor: pointer; margin-left: 6px;
 }
 .reset-card-btn:hover { background: rgba(234, 179, 8, 0.25); }
+
+/* ============================================================
+   T9j.11 (Refs #73) Teams-tab persistence banner + filter chips
+   + bulk file buttons. Cite: MDN File API.
+   https://developer.mozilla.org/en-US/docs/Web/API/File_API
+   ============================================================ */
+.teams-persistence-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; margin: 8px 0 10px;
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.30);
+  border-radius: 6px; font-size: 12px; color: #a7f3d0;
+}
+.teams-persistence-banner.empty {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.30);
+  color: #cbd5e1;
+}
+.teams-persistence-banner.error {
+  background: rgba(220, 38, 38, 0.10);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #fca5a5;
+}
+.teams-filter-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 4px 0 12px;
+}
+.teams-filter-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; font-size: 11px; font-weight: 600;
+  background: rgba(100, 116, 139, 0.14);
+  color: #cbd5e1;
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  border-radius: 999px; cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.teams-filter-chip:hover { background: rgba(100, 116, 139, 0.24); }
+.teams-filter-chip.active {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #bfdbfe;
+}
+.teams-filter-chip .chip-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; padding: 0 5px; height: 16px;
+  font-size: 10px; font-weight: 700;
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: 999px; color: #e2e8f0;
+}
+.teams-filter-chip.active .chip-count {
+  background: rgba(37, 99, 235, 0.55); color: #eff6ff;
+}
+.teams-actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}

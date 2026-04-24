@@ -505,11 +505,92 @@ applyLadderGate();
 // ============================================================
 // TEAMS TAB
 // ============================================================
+// ============================================================
+// T9j.11 (Refs #73) Teams-tab filter + persistence banner + bulk file I/O
+// ------------------------------------------------------------
+// Filter chips: All / Preloaded / Custom / Tournament / Mega
+//   - Preloaded = any team whose source !== 'custom'
+//   - Custom    = team.source === 'custom' (imported by user, localStorage-backed)
+//   - Tournament = preloaded team whose key matches champions_arena_* or known
+//                  tournament rosters (chuppa_balance, aurora_veil_froslass,
+//                  kingambit_sneasler, cofagrigus_tr, rin_sand, suica_sun).
+//   - Mega      = team whose key starts with mega_ (mega_altaria / mega_dragonite
+//                  / mega_houndoom).
+// Bulk I/O: JSON is the authoritative round-trip format (uses the T9f schema
+//   { version:1, saved_at, teams:{...} }). Showdown .txt is the interop format
+//   (multi-team pokepaste; split on `=== name ===` markers or blank-line runs).
+// Cite: Pokemon Showdown team format -- https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_Showdown
+// Cite: Smogon export convention   -- https://www.smogon.com/forums/threads/3587177/
+// Cite: MDN File API (reader)      -- https://developer.mozilla.org/en-US/docs/Web/API/File_API
+// ============================================================
+var TEAMS_FILTER = 'all'; // 'all' | 'preloaded' | 'custom' | 'tournament' | 'mega'
+var TOURNAMENT_TEAM_KEYS = {
+  champions_arena_1st:1, champions_arena_2nd:1, champions_arena_3rd:1,
+  chuppa_balance:1, aurora_veil_froslass:1, kingambit_sneasler:1,
+  cofagrigus_tr:1, rin_sand:1, suica_sun:1
+};
+function teamMatchesFilter(key, team, filter) {
+  if (!team) return false;
+  var isCustom = team.source === 'custom';
+  if (filter === 'all') return true;
+  if (filter === 'custom') return isCustom;
+  if (filter === 'preloaded') return !isCustom;
+  if (filter === 'tournament') return !isCustom && !!TOURNAMENT_TEAM_KEYS[key];
+  if (filter === 'mega') return /^mega_/.test(key);
+  return true;
+}
+function countTeamsByFilter(filter) {
+  var n = 0;
+  for (var k in TEAMS) if (teamMatchesFilter(k, TEAMS[k], filter)) n++;
+  return n;
+}
+function renderTeamsPersistenceBanner() {
+  var el = document.getElementById('teams-persistence-banner');
+  if (!el) return;
+  var customCount = countTeamsByFilter('custom');
+  el.className = 'teams-persistence-banner' + (customCount === 0 ? ' empty' : '');
+  el.style.display = '';
+  if (customCount === 0) {
+    el.textContent = 'No custom teams saved yet. Imported teams persist automatically across refresh.';
+  } else {
+    el.textContent = 'Loaded ' + customCount + ' custom team' + (customCount === 1 ? '' : 's') +
+      ' from this device (auto-saved across refresh).';
+  }
+}
+function renderTeamsFilterRow() {
+  var row = document.getElementById('teams-filter-row');
+  if (!row) return;
+  var chips = [
+    { id:'all',        label:'All' },
+    { id:'preloaded',  label:'Preloaded' },
+    { id:'custom',     label:'Custom' },
+    { id:'tournament', label:'Tournament' },
+    { id:'mega',       label:'Mega' }
+  ];
+  row.innerHTML = chips.map(function(c){
+    var count = countTeamsByFilter(c.id);
+    var active = (c.id === TEAMS_FILTER) ? ' active' : '';
+    return '<button class="teams-filter-chip' + active + '" data-filter="' + c.id + '">' +
+      '<span class="chip-label">' + c.label + '</span>' +
+      '<span class="chip-count">' + count + '</span></button>';
+  }).join('');
+  row.querySelectorAll('.teams-filter-chip').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      TEAMS_FILTER = btn.dataset.filter;
+      renderTeamsFilterRow();
+      renderTeamsGrid();
+    });
+  });
+}
+
 function renderTeamsGrid() {
+  renderTeamsPersistenceBanner();
+  renderTeamsFilterRow();
   const grid = document.getElementById('teams-grid');
   if (!grid) return;
   grid.innerHTML = '';
   for (const [key, team] of Object.entries(TEAMS)) {
+    if (!teamMatchesFilter(key, team, TEAMS_FILTER)) continue;
     const isPlayer = key === 'player';
     const card = document.createElement('div');
     card.className = 'team-full-card';
@@ -731,6 +812,214 @@ renderTeamsGrid();
 // Note: renderSpeedTiersForGrid is called at bottom after it's defined
 
 document.getElementById('import-team-btn')?.addEventListener('click', () => openImportModal());
+
+// ============================================================
+// T9j.11 (Refs #73) Bulk file import/export
+// ------------------------------------------------------------
+// parseMultiTeamShowdown(text): accepts a Smogon/pokepaste multi-team dump.
+//   Splits first on lines of the form `=== [name] ===` (pokepaste convention
+//   used by Showdown's teambuilder export-all). If no `=== ... ===` markers
+//   are found, falls back to splitting on two-or-more consecutive blank lines
+//   and treats each block as one team. Normalizes CRLF/CR before splitting.
+// Returns: [{ name, members:[...] }, ...]
+// Cite: Smogon export-all team format -- https://www.smogon.com/forums/threads/3587177/
+// Cite: MDN File API                  -- https://developer.mozilla.org/en-US/docs/Web/API/File_API
+// ============================================================
+function parseMultiTeamShowdown(text) {
+  if (!text) return [];
+  // Normalize line endings (Windows CRLF, classic Mac CR -> \n).
+  var norm = String(text).replace(/\r\n?/g, '\n').trim();
+  if (!norm) return [];
+  var out = [];
+  // Strategy 1: explicit team markers `=== [name] ===` (pokepaste convention).
+  //   Pokepaste and Showdown's "Export all teams" output wrap the team name
+  //   in square brackets; accept both bracketed and bare forms.
+  var markerRe = /^===\s*(?:\[([^\]\n]+)\]|([^=\n]+?))\s*===\s*$/gm;
+  var markers = [];
+  var m;
+  while ((m = markerRe.exec(norm)) !== null) {
+    markers.push({ idx: m.index, end: markerRe.lastIndex, name: ((m[1] || m[2] || '')).trim() });
+  }
+  if (markers.length > 0) {
+    for (var i = 0; i < markers.length; i++) {
+      var start = markers[i].end;
+      var stop  = (i + 1 < markers.length) ? markers[i + 1].idx : norm.length;
+      var block = norm.slice(start, stop).trim();
+      if (!block) continue;
+      var members = parseShowdownPaste(block);
+      if (members.length === 0) continue;
+      out.push({ name: markers[i].name || (members[0] ? members[0].name + "'s Team" : 'Imported Team'), members: members });
+    }
+    if (out.length > 0) return out;
+  }
+  // Strategy 2: no markers -> split on 2+ blank lines between teams.
+  //   Single blank lines separate mons WITHIN a team, so a run of >=2 blank
+  //   lines is the team boundary. This matches how users manually glue pastes.
+  var chunks = norm.split(/\n\s*\n\s*\n+/);
+  if (chunks.length > 1) {
+    for (var j = 0; j < chunks.length; j++) {
+      var ch = chunks[j].trim();
+      if (!ch) continue;
+      var mems = parseShowdownPaste(ch);
+      if (mems.length === 0) continue;
+      out.push({ name: (mems[0] ? mems[0].name + "'s Team" : 'Imported Team'), members: mems });
+    }
+    if (out.length > 0) return out;
+  }
+  // Fallback: treat the whole blob as one team.
+  var single = parseShowdownPaste(norm);
+  if (single.length > 0) out.push({ name: (single[0] ? single[0].name + "'s Team" : 'Imported Team'), members: single });
+  return out;
+}
+
+function _uniqueCustomKey(baseName) {
+  // Generate a collision-free custom_<ts>_<n> key even when many teams are
+  // imported in the same millisecond. baseName is purely informational.
+  var root = 'custom_' + Date.now();
+  if (!TEAMS[root]) return root;
+  var n = 1;
+  while (TEAMS[root + '_' + n]) n++;
+  return root + '_' + n;
+}
+
+function _uniqueTeamName(wanted) {
+  // Append "(2)", "(3)" etc. if a team with this name already exists. Case
+  // sensitive; duplicates are user-facing so we leave capitalization alone.
+  var existing = {};
+  for (var k in TEAMS) if (TEAMS[k] && TEAMS[k].name) existing[TEAMS[k].name] = 1;
+  if (!existing[wanted]) return wanted;
+  var n = 2;
+  while (existing[wanted + ' (' + n + ')']) n++;
+  return wanted + ' (' + n + ')';
+}
+
+function importCustomTeamsBulk(teams /* [{name, members}] */) {
+  // Returns { added, skipped, keys:[...] }
+  var added = 0, skipped = 0, keys = [];
+  if (!Array.isArray(teams)) return { added: 0, skipped: 0, keys: [] };
+  for (var i = 0; i < teams.length; i++) {
+    var t = teams[i];
+    if (!t || !Array.isArray(t.members) || t.members.length === 0) { skipped++; continue; }
+    var key = _uniqueCustomKey(t.name);
+    var name = _uniqueTeamName(t.name || 'Imported Team');
+    TEAMS[key] = {
+      name: name,
+      label: 'CUSTOM',
+      style: 'custom',
+      description: 'Imported via bulk file',
+      members: t.members,
+      source: 'custom',
+      format: 'champions',
+      legality_status: 'unverified',
+      created_at: new Date().toISOString()
+    };
+    added++;
+    keys.push(key);
+  }
+  if (added > 0 && typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
+  return { added: added, skipped: skipped, keys: keys };
+}
+
+function importFromJsonText(jsonText) {
+  // Restores the T9f schema { version:1, saved_at, teams:{ key: teamObj } }.
+  // Unknown versions are rejected so we do not silently mis-import future schemas.
+  var parsed;
+  try { parsed = JSON.parse(jsonText); }
+  catch (e) { throw new Error('Invalid JSON: ' + e.message); }
+  if (!parsed || typeof parsed !== 'object') throw new Error('JSON must be an object');
+  if (parsed.version !== CUSTOM_TEAMS_SCHEMA_VERSION) {
+    throw new Error('Unsupported schema version ' + parsed.version + ' (expected ' + CUSTOM_TEAMS_SCHEMA_VERSION + ')');
+  }
+  if (!parsed.teams || typeof parsed.teams !== 'object') throw new Error('Missing teams object');
+  var asArr = [];
+  for (var k in parsed.teams) {
+    var t = parsed.teams[k];
+    if (t && Array.isArray(t.members) && t.members.length > 0) {
+      asArr.push({ name: t.name || k, members: t.members });
+    }
+  }
+  return importCustomTeamsBulk(asArr);
+}
+
+function exportAllCustomAsJson() {
+  var out = { version: CUSTOM_TEAMS_SCHEMA_VERSION, saved_at: new Date().toISOString(), teams: {} };
+  for (var k in TEAMS) {
+    if (TEAMS[k] && TEAMS[k].source === 'custom') out.teams[k] = TEAMS[k];
+  }
+  return JSON.stringify(out, null, 2);
+}
+
+function exportAllCustomAsShowdown() {
+  // Multi-team pokepaste using `=== [Name] ===` markers between teams.
+  // Two trailing blank lines separate teams so the result re-parses cleanly
+  // via either strategy in parseMultiTeamShowdown.
+  var parts = [];
+  for (var k in TEAMS) {
+    if (TEAMS[k] && TEAMS[k].source === 'custom') {
+      parts.push('=== [' + (TEAMS[k].name || k) + '] ===');
+      parts.push(exportTeamToPaste(TEAMS[k]));
+      parts.push('');
+    }
+  }
+  return parts.join('\n').trim() + '\n';
+}
+
+function _downloadBlob(filename, mime, text) {
+  try {
+    var blob = new Blob([text], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  } catch (e) { console.warn('[T9j.11] download failed:', e); alert('Could not download file: ' + e.message); }
+}
+
+document.getElementById('bulk-export-json-btn')?.addEventListener('click', function(){
+  var customCount = countTeamsByFilter('custom');
+  if (customCount === 0) { alert('No custom teams to export. Import a team first.'); return; }
+  var ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  _downloadBlob('champions-sim-custom-teams-' + ts + '.json', 'application/json', exportAllCustomAsJson());
+});
+document.getElementById('bulk-export-showdown-btn')?.addEventListener('click', function(){
+  var customCount = countTeamsByFilter('custom');
+  if (customCount === 0) { alert('No custom teams to export. Import a team first.'); return; }
+  var ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  _downloadBlob('champions-sim-custom-teams-' + ts + '.txt', 'text/plain', exportAllCustomAsShowdown());
+});
+document.getElementById('bulk-import-btn')?.addEventListener('click', function(){
+  var picker = document.getElementById('bulk-import-file');
+  if (picker) { picker.value = ''; picker.click(); }
+});
+document.getElementById('bulk-import-file')?.addEventListener('change', function(ev){
+  var file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onerror = function(){ alert('Could not read file'); };
+  reader.onload = function(){
+    var text = String(reader.result || '');
+    var looksJson = /\.json$/i.test(file.name) || /^\s*\{/.test(text);
+    var result;
+    try {
+      if (looksJson) {
+        result = importFromJsonText(text);
+      } else {
+        var teams = parseMultiTeamShowdown(text);
+        if (teams.length === 0) throw new Error('No teams parsed from file');
+        result = importCustomTeamsBulk(teams);
+      }
+    } catch (e) {
+      alert('Import failed: ' + e.message);
+      return;
+    }
+    if (typeof rebuildTeamSelects === 'function') rebuildTeamSelects();
+    renderTeamsGrid();
+    var msg = 'Imported ' + result.added + ' team' + (result.added === 1 ? '' : 's');
+    if (result.skipped > 0) msg += ' (' + result.skipped + ' skipped)';
+    alert(msg + '.');
+  };
+  reader.readAsText(file);
+});
+
 
 // ============================================================
 // EDITOR TAB

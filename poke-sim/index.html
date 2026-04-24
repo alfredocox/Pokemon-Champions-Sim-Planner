@@ -275,7 +275,25 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Import New Team
     </button>
+    <!-- T9j.11 (Refs #73) bulk file import accepting .json (round-trip schema)
+         and .txt (multi-team pokepaste split on === name === or double blank). -->
+    <button class="btn-secondary" id="bulk-import-btn" title="Import a file with one or many teams (.json from this app, or .txt pokepaste)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import File
+    </button>
+    <input type="file" id="bulk-import-file" accept=".json,.txt,application/json,text/plain" style="display:none"/>
+    <button class="btn-secondary" id="bulk-export-json-btn" title="Download all custom teams as a JSON file (round-trip)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export All Custom (JSON)
+    </button>
+    <button class="btn-secondary" id="bulk-export-showdown-btn" title="Download all custom teams as a Showdown multi-team .txt">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export as Showdown
+    </button>
   </div>
+  <!-- T9j.11 persistence verification banner + filter chips -->
+  <div class="teams-persistence-banner" id="teams-persistence-banner" style="display:none"></div>
+  <div class="teams-filter-row" id="teams-filter-row"></div>
   <div class="teams-grid" id="teams-grid"></div>
 </section>
 
