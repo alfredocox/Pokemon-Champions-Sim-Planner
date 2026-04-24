@@ -42,6 +42,10 @@ document.querySelectorAll('.fmt-btn').forEach(btn => {
     } else {
       indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="4"/></svg> SINGLES · 6v6 · No spread nerf`;
     }
+    // T9j.12 (Refs #74): format change alters bring slot count (4 vs 3);
+    // re-render both Teams grid and Simulator pickers to reflect.
+    if (typeof renderTeamsGrid === 'function') renderTeamsGrid();
+    if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
   });
 });
 
@@ -393,6 +397,8 @@ function rebuildTeamSelects() {
 renderRoster('player-roster', TEAMS.player.members);
 renderRoster('opp-roster', TEAMS.mega_altaria.members);
 rebuildTeamSelects();
+// T9j.12 (Refs #74): draw sim-side bring pickers on initial load.
+if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
 
 // ---- Player select ----
 document.getElementById('player-select').addEventListener('change', function() {
@@ -404,6 +410,8 @@ document.getElementById('player-select').addEventListener('change', function() {
     if (typeof applyLadderGate === 'function') applyLadderGate();
     // T9j.3b: recompute coverage on active-team change (no cache, always fresh).
     if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
+    // T9j.12 (Refs #74): refresh sim-side bring picker after active-team change.
+    if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
   }
 });
 
@@ -413,6 +421,8 @@ document.getElementById('opponent-select').addEventListener('change', function()
   if (team) {
     document.getElementById('opp-team-name').textContent = team.name;
     renderRoster('opp-roster', team.members);
+    // T9j.12 (Refs #74): refresh sim-side bring picker on opponent switch.
+    if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
   }
 });
 
@@ -426,6 +436,8 @@ document.getElementById('swap-teams-btn')?.addEventListener('click', function() 
   oSel.value = tmp;
   pSel.dispatchEvent(new Event('change'));
   oSel.dispatchEvent(new Event('change'));
+  // T9j.12 (Refs #74): ensure sim-side pickers reflect the swap.
+  if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
 });
 
 // ============================================================
@@ -505,6 +517,237 @@ applyLadderGate();
 // ============================================================
 // TEAMS TAB
 // ============================================================
+// ============================================================
+// T9j.12 (Refs #74) Shared bring-picker HTML builder + wiring
+// ------------------------------------------------------------
+// Same markup used on Teams tab (cards) and Simulator tab (inline, under the
+// two VS roster columns). State (BRING_SELECTION + BRING_MODE) is authoritative
+// in localStorage via the T9j.10 helpers getBringFor/setBringFor/getBringMode/
+// setBringMode; both tabs read/write the same key so an override on one tab
+// propagates to the other on next render.
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+//   Cite: https://bulbapedia.bulbagarden.net/wiki/Lead_Pok%C3%A9mon
+//   Cite: https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API
+// ============================================================
+function buildBringPickerHtml(teamKey, opts) {
+  opts = opts || {};
+  var compact = !!opts.compact;
+  var team = TEAMS[teamKey];
+  if (!team || !team.members) return '';
+  var bringCount = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 3 : 4;
+  var leadCount  = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 1 : 2;
+  var bring = (typeof getBringFor === 'function')
+    ? getBringFor(teamKey)
+    : team.members.slice(0, bringCount).map(function(m){ return m.name; });
+  var mode = (typeof getBringMode === 'function')
+    ? getBringMode(teamKey)
+    : (teamKey === (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player') ? 'manual' : 'random');
+  var slotLabels = [];
+  for (var i = 0; i < bringCount; i++) slotLabels.push(i < leadCount ? 'LEAD ' + (i+1) : 'BENCH ' + (i+1));
+  var slotsHtml = slotLabels.map(function(label, i){
+    var monName = bring[i] || '';
+    var sprite = monName ? getSpriteUrl(monName) : '';
+    return '<div class="bring-slot ' + (i < leadCount ? 'bring-slot-lead' : 'bring-slot-bench') +
+      '" data-team="' + teamKey + '" data-slot="' + i +
+      '" draggable="' + (monName ? 'true' : 'false') +
+      '" title="' + label + (mode === 'random' ? ' (random mode)' : '') + '">' +
+      '<div class="bring-slot-label">' + label + '</div>' +
+      (monName
+        ? '<img class="bring-slot-sprite" src="' + sprite + '" alt="' + monName + '" loading="lazy" onerror="this.style.opacity=\'.3\'"/>' +
+          '<div class="bring-slot-name">' + monName + '</div>'
+        : '<div class="bring-slot-empty">\u2014</div>') +
+      '</div>';
+  }).join('');
+  // Compact pool (for Simulator side) omits the heavy meta rows in favor of
+  // a single sprite strip so it tucks under the roster without pushing the
+  // Run Simulation button off-screen. The full pool stays on Teams tab.
+  var poolHtml;
+  if (compact) {
+    poolHtml = team.members.map(function(m){
+      var inBring = bring.indexOf(m.name) >= 0;
+      var pos = inBring ? (bring.indexOf(m.name) < leadCount ? 'LEAD ' + (bring.indexOf(m.name)+1) : 'BENCH ' + (bring.indexOf(m.name)+1)) : '';
+      return '<div class="bring-pool-chip ' + (inBring ? 'bring-in' : 'bring-out') +
+        '" data-team="' + teamKey + '" data-mon="' + m.name +
+        '" draggable="' + (mode === 'random' ? 'false' : 'true') +
+        '" title="' + m.name + (inBring ? ' (' + pos + ')' : '') + '">' +
+        '<img class="bring-pool-chip-sprite" src="' + getSpriteUrl(m.name) + '" alt="' + m.name + '" loading="lazy" onerror="this.style.opacity=\'.3\'"/>' +
+        '<span class="bring-pool-chip-name">' + m.name + '</span>' +
+        (inBring ? '<span class="bring-pool-chip-pos">' + pos + '</span>' : '') +
+        '</div>';
+    }).join('');
+  } else {
+    poolHtml = team.members.map(function(m){
+      var inBring = bring.indexOf(m.name) >= 0;
+      return '<div class="bring-pool-row ' + (inBring ? 'bring-in' : 'bring-out') +
+        '" data-team="' + teamKey + '" data-mon="' + m.name +
+        '" draggable="' + (mode === 'random' ? 'false' : 'true') + '">' +
+        '<img class="poke-full-sprite" src="' + getSpriteUrl(m.name) + '" alt="' + m.name + '" loading="lazy" onerror="this.style.opacity=\'.3\'"/>' +
+        '<div class="poke-full-info">' +
+          '<div class="poke-full-name">' + m.name +
+            ' <span style="font-weight:400;color:var(--text-m);font-size:10px">@ ' + (m.item || '\u2014') + '</span>' +
+            (inBring ? ' <span style="font-size:9px;color:var(--accent,#4a9eff);font-weight:600;margin-left:4px">\u25c6 ' +
+              (bring.indexOf(m.name) < leadCount ? 'LEAD' : 'BENCH') + ' ' + (bring.indexOf(m.name)+1) + '</span>' : '') +
+          '</div>' +
+          '<div class="poke-full-detail">' + (m.ability || '\u2014') + ' \u00b7 ' + (m.nature || 'Hardy') + ' \u00b7 Lv' + (m.level || 50) + '</div>' +
+          '<div class="move-tags">' + (m.moves || []).map(function(mv){ return '<span class="move-tag">' + mv + '</span>'; }).join('') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+  var modeToggle =
+    '<div class="bring-mode-row" data-team="' + teamKey + '">' +
+      '<span class="bring-mode-label">Bring picker:</span>' +
+      '<button class="bring-mode-btn ' + (mode === 'manual' ? 'active' : '') + '" data-team="' + teamKey + '" data-mode="manual" title="Pick your ' + bringCount + ' Pokemon by hand">Manual</button>' +
+      '<button class="bring-mode-btn ' + (mode === 'random' ? 'active' : '') + '" data-team="' + teamKey + '" data-mode="random" title="Re-roll a random ' + bringCount + ' of 6 each series">Random ' + bringCount + '/6</button>' +
+    '</div>';
+  var poolCls = compact ? 'bring-pool bring-pool-compact' : 'bring-pool';
+  return modeToggle +
+    '<div class="bring-slots">' + slotsHtml + '</div>' +
+    '<div class="' + poolCls + '">' + poolHtml + '</div>';
+}
+
+// Shared wiring: attach drag/tap handlers to every .bring-mode-btn /
+// .bring-pool-row / .bring-pool-chip / .bring-slot inside rootEl, and call
+// onChange() after any state mutation (both renders must re-run).
+function wireBringPickerElements(rootEl, onChange) {
+  if (!rootEl) return;
+  var _isHoverCapable = (typeof window !== 'undefined' && window.matchMedia)
+    ? window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    : true;
+  var _tapState = {};
+  function _assignSlot(teamKey, slotIdx, monName) {
+    if (getBringMode(teamKey) === 'random') return;
+    var count = getBringCount();
+    var cur = getBringFor(teamKey).slice();
+    while (cur.length < count) cur.push(null);
+    var existingIdx = cur.indexOf(monName);
+    if (existingIdx >= 0 && existingIdx !== slotIdx) cur[existingIdx] = cur[slotIdx] || null;
+    cur[slotIdx] = monName;
+    var compact = cur.filter(Boolean);
+    var team = TEAMS[teamKey];
+    if (team) {
+      for (var i = 0; i < team.members.length; i++) {
+        if (compact.length >= count) break;
+        if (compact.indexOf(team.members[i].name) < 0) compact.push(team.members[i].name);
+      }
+    }
+    setBringFor(teamKey, compact.slice(0, count));
+  }
+  function _clearSlot(teamKey, slotIdx) {
+    if (getBringMode(teamKey) === 'random') return;
+    var count = getBringCount();
+    var cur = getBringFor(teamKey).slice();
+    if (slotIdx < cur.length) cur.splice(slotIdx, 1);
+    var team = TEAMS[teamKey];
+    if (team) {
+      for (var i = 0; i < team.members.length; i++) {
+        if (cur.length >= count) break;
+        if (cur.indexOf(team.members[i].name) < 0) cur.push(team.members[i].name);
+      }
+    }
+    setBringFor(teamKey, cur.slice(0, count));
+  }
+  rootEl.querySelectorAll('.bring-mode-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      setBringMode(btn.dataset.team, btn.dataset.mode);
+      onChange && onChange();
+    });
+  });
+  // Pool handles BOTH shapes: .bring-pool-row (Teams tab) and .bring-pool-chip (Simulator compact).
+  rootEl.querySelectorAll('.bring-pool-row, .bring-pool-chip').forEach(function(row){
+    var teamKey = row.dataset.team;
+    var monName = row.dataset.mon;
+    if (_isHoverCapable) {
+      row.addEventListener('dragstart', function(ev){
+        if (getBringMode(teamKey) === 'random') { ev.preventDefault(); return; }
+        try { ev.dataTransfer.setData('text/plain', JSON.stringify({ teamKey: teamKey, monName: monName })); } catch (e) {}
+        ev.dataTransfer.effectAllowed = 'move';
+        row.classList.add('bring-dragging');
+      });
+      row.addEventListener('dragend', function(){ row.classList.remove('bring-dragging'); });
+    }
+    row.addEventListener('click', function(){
+      if (getBringMode(teamKey) === 'random') return;
+      _tapState[teamKey] = (_tapState[teamKey] === monName) ? null : monName;
+      rootEl.querySelectorAll('[data-team="' + teamKey + '"][data-mon]').forEach(function(r){
+        r.classList.toggle('bring-picked', r.dataset.mon === _tapState[teamKey]);
+      });
+    });
+  });
+  rootEl.querySelectorAll('.bring-slot').forEach(function(slot){
+    var teamKey = slot.dataset.team;
+    var slotIdx = parseInt(slot.dataset.slot, 10);
+    if (_isHoverCapable) {
+      slot.addEventListener('dragover', function(ev){
+        if (getBringMode(teamKey) === 'random') return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'move';
+        slot.classList.add('bring-drop-hover');
+      });
+      slot.addEventListener('dragleave', function(){ slot.classList.remove('bring-drop-hover'); });
+      slot.addEventListener('drop', function(ev){
+        ev.preventDefault();
+        slot.classList.remove('bring-drop-hover');
+        if (getBringMode(teamKey) === 'random') return;
+        var payload = null;
+        try { payload = JSON.parse(ev.dataTransfer.getData('text/plain') || 'null'); } catch (e) {}
+        if (payload && payload.teamKey === teamKey && payload.monName) {
+          _assignSlot(teamKey, slotIdx, payload.monName);
+          onChange && onChange();
+        }
+      });
+      slot.addEventListener('dragstart', function(ev){
+        if (getBringMode(teamKey) === 'random') { ev.preventDefault(); return; }
+        var cur = getBringFor(teamKey);
+        var mon = cur[slotIdx];
+        if (!mon) { ev.preventDefault(); return; }
+        try { ev.dataTransfer.setData('text/plain', JSON.stringify({ teamKey: teamKey, monName: mon, fromSlot: slotIdx })); } catch (e) {}
+        ev.dataTransfer.effectAllowed = 'move';
+      });
+    }
+    slot.addEventListener('click', function(){
+      if (getBringMode(teamKey) === 'random') return;
+      var picked = _tapState[teamKey];
+      if (picked) {
+        _assignSlot(teamKey, slotIdx, picked);
+        _tapState[teamKey] = null;
+        onChange && onChange();
+      } else {
+        _clearSlot(teamKey, slotIdx);
+        onChange && onChange();
+      }
+    });
+  });
+}
+
+// T9j.12 (Refs #74) — render the compact bring picker into one Simulator side.
+//   containerId — 'player-bring-picker' or 'opp-bring-picker'
+//   teamKey     — currentPlayerKey for player side, opponent-select.value for opp
+function renderSimBringPicker(containerId, teamKey) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  if (!TEAMS[teamKey]) { el.innerHTML = ''; return; }
+  el.innerHTML =
+    '<div class="sim-bring-header">Bring (' +
+      (typeof currentFormat !== 'undefined' && currentFormat === 'singles' ? '3 of 6' : '4 of 6') +
+    ') \u2014 LEAD + BENCH</div>' +
+    buildBringPickerHtml(teamKey, { compact: true });
+  wireBringPickerElements(el, function(){
+    // Re-render both sides AND the Teams tab grid so an override on one
+    // view propagates to the other immediately.
+    renderSimBringPickers();
+    if (typeof renderTeamsGrid === 'function') renderTeamsGrid();
+  });
+}
+
+function renderSimBringPickers() {
+  var playerKey = (typeof currentPlayerKey !== 'undefined') ? currentPlayerKey : 'player';
+  var oppSel = document.getElementById('opponent-select');
+  var oppKey = oppSel ? oppSel.value : 'mega_altaria';
+  renderSimBringPicker('player-bring-picker', playerKey);
+  renderSimBringPicker('opp-bring-picker', oppKey);
+}
+
 // ============================================================
 // T9j.11 (Refs #73) Teams-tab filter + persistence banner + bulk file I/O
 // ------------------------------------------------------------
@@ -620,50 +863,7 @@ function renderTeamsGrid() {
           ${team.source === 'custom' ? `<button class="delete-card-btn" data-team="${key}" title="Delete this custom team"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Delete</button>` : ''}
         </div>
       </div>
-      ${(function(){
-        // T9j.10 (Refs #16) — Team Preview bring-N-of-6 slot picker.
-        //   Doubles: 4 slots (LEAD 1, LEAD 2, BENCH 3, BENCH 4)
-        //   Singles: 3 slots (LEAD 1, BENCH 2, BENCH 3)
-        // Hybrid controls: desktop drag-and-drop, mobile tap-to-assign.
-        //   Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
-        //   Cite: https://bulbapedia.bulbagarden.net/wiki/Lead_Pok%C3%A9mon
-        const bringCount = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 3 : 4;
-        const leadCount  = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 1 : 2;
-        const bring = (typeof getBringFor === 'function') ? getBringFor(key) : team.members.slice(0, bringCount).map(m=>m.name);
-        const mode  = (typeof getBringMode === 'function') ? getBringMode(key) : (key === (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player') ? 'manual' : 'random');
-        const slotLabels = []; for (let i=0; i<bringCount; i++) slotLabels.push(i < leadCount ? `LEAD ${i+1}` : `BENCH ${i+1}`);
-        const slotsHtml = slotLabels.map((label, i) => {
-          const monName = bring[i] || '';
-          const base = monName ? (BASE_STATS[monName]||{types:['Normal']}) : null;
-          const sprite = monName ? getSpriteUrl(monName) : '';
-          return `<div class="bring-slot ${i < leadCount ? 'bring-slot-lead' : 'bring-slot-bench'}" data-team="${key}" data-slot="${i}" draggable="${monName ? 'true' : 'false'}" title="${label}${mode==='random'?' (random mode)':''}">
-            <div class="bring-slot-label">${label}</div>
-            ${monName
-              ? `<img class="bring-slot-sprite" src="${sprite}" alt="${monName}" loading="lazy" onerror="this.style.opacity='.3'"/><div class="bring-slot-name">${monName}</div>`
-              : `<div class="bring-slot-empty">—</div>`}
-          </div>`;
-        }).join('');
-        const poolHtml = team.members.map(m => {
-          const inBring = bring.includes(m.name);
-          return `<div class="bring-pool-row ${inBring?'bring-in':'bring-out'}" data-team="${key}" data-mon="${m.name}" draggable="${mode==='random'?'false':'true'}">
-            <img class="poke-full-sprite" src="${getSpriteUrl(m.name)}" alt="${m.name}" loading="lazy" onerror="this.style.opacity='.3'"/>
-            <div class="poke-full-info">
-              <div class="poke-full-name">${m.name} <span style="font-weight:400;color:var(--text-m);font-size:10px">@ ${m.item||'—'}</span>${inBring?` <span style="font-size:9px;color:var(--accent,#4a9eff);font-weight:600;margin-left:4px">◆ ${bring.indexOf(m.name) < leadCount ? 'LEAD' : 'BENCH'} ${bring.indexOf(m.name)+1}</span>`:''}</div>
-              <div class="poke-full-detail">${m.ability||'—'} · ${m.nature||'Hardy'} · Lv${m.level||50}</div>
-              <div class="move-tags">${(m.moves||[]).map(mv=>`<span class="move-tag">${mv}</span>`).join('')}</div>
-            </div>
-          </div>`;
-        }).join('');
-        // Mode toggle (every team gets it; defaults differ: player=manual, others=random).
-        const modeToggle = `<div class="bring-mode-row" data-team="${key}">
-          <span class="bring-mode-label">Bring picker:</span>
-          <button class="bring-mode-btn ${mode==='manual'?'active':''}" data-team="${key}" data-mode="manual" title="Pick your ${bringCount} Pokemon by hand">Manual</button>
-          <button class="bring-mode-btn ${mode==='random'?'active':''}" data-team="${key}" data-mode="random" title="Re-roll a random ${bringCount} of 6 each series">Random ${bringCount}/6</button>
-        </div>`;
-        return `${modeToggle}
-          <div class="bring-slots">${slotsHtml}</div>
-          <div class="bring-pool">${poolHtml}</div>`;
-      })()}`;
+      ${buildBringPickerHtml(key, { compact: false })}`;
     grid.appendChild(card);
   }
   // Export buttons
@@ -682,129 +882,14 @@ function renderTeamsGrid() {
   grid.querySelectorAll('.reset-card-btn').forEach(btn => {
     btn.addEventListener('click', () => resetPreloadedTeam(btn.dataset.team));
   });
-  // T9j.10 (Refs #16) — Bring picker wiring. Mode toggle + hybrid drag/tap.
-  //   Desktop (hover+fine-pointer): HTML5 drag-and-drop between pool and slots
-  //   Mobile: tap pool mon to select, then tap a slot to assign (or swap)
-  //   Tapping a filled slot on any device clears it.
+  // T9j.12 (Refs #74) — Bring picker wiring delegated to shared helper so
+  // Simulator side (wired in renderSimBringPicker) uses identical logic.
+  // After any state mutation we re-render both Teams grid AND the Simulator
+  // bring pickers so an override on one view propagates to the other.
   // Refs: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
-  const _isHoverCapable = (typeof window.matchMedia === 'function')
-    ? window.matchMedia('(hover: hover) and (pointer: fine)').matches
-    : true;
-  // Mode toggle buttons (Manual / Random N/6)
-  grid.querySelectorAll('.bring-mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const teamKey = btn.dataset.team;
-      const mode    = btn.dataset.mode;
-      setBringMode(teamKey, mode);
-      renderTeamsGrid();
-    });
-  });
-  // Tap-to-select staging per card (mobile + click fallback on desktop).
-  const _tapState = {}; // { [teamKey]: pickedMonName | null }
-  function _assignSlot(teamKey, slotIdx, monName) {
-    if (getBringMode(teamKey) === 'random') return; // locked in random mode
-    const count = getBringCount();
-    const cur = getBringFor(teamKey).slice();
-    while (cur.length < count) cur.push(null);
-    // Remove monName from any other slot first (swap semantics).
-    const existingIdx = cur.indexOf(monName);
-    if (existingIdx >= 0 && existingIdx !== slotIdx) {
-      cur[existingIdx] = cur[slotIdx] || null;
-    }
-    cur[slotIdx] = monName;
-    // Compact out nulls and backfill from team order so we always bring exactly N.
-    const compact = cur.filter(Boolean);
-    const team = TEAMS[teamKey];
-    if (team) {
-      for (const m of team.members) {
-        if (compact.length >= count) break;
-        if (!compact.includes(m.name)) compact.push(m.name);
-      }
-    }
-    setBringFor(teamKey, compact.slice(0, count));
-  }
-  function _clearSlot(teamKey, slotIdx) {
-    if (getBringMode(teamKey) === 'random') return;
-    const count = getBringCount();
-    const cur = getBringFor(teamKey).slice();
-    if (slotIdx < cur.length) cur.splice(slotIdx, 1);
-    // Backfill from team order.
-    const team = TEAMS[teamKey];
-    if (team) {
-      for (const m of team.members) {
-        if (cur.length >= count) break;
-        if (!cur.includes(m.name)) cur.push(m.name);
-      }
-    }
-    setBringFor(teamKey, cur.slice(0, count));
-  }
-  // Pool row interactions (drag-source on desktop, tap-to-pick on mobile / click)
-  grid.querySelectorAll('.bring-pool-row').forEach(row => {
-    const teamKey = row.dataset.team;
-    const monName = row.dataset.mon;
-    if (_isHoverCapable) {
-      row.addEventListener('dragstart', (ev) => {
-        if (getBringMode(teamKey) === 'random') { ev.preventDefault(); return; }
-        try { ev.dataTransfer.setData('text/plain', JSON.stringify({ teamKey, monName })); } catch (e) {}
-        ev.dataTransfer.effectAllowed = 'move';
-        row.classList.add('bring-dragging');
-      });
-      row.addEventListener('dragend', () => row.classList.remove('bring-dragging'));
-    }
-    row.addEventListener('click', () => {
-      if (getBringMode(teamKey) === 'random') return;
-      _tapState[teamKey] = (_tapState[teamKey] === monName) ? null : monName;
-      // Visual feedback: add a picked class to the row.
-      grid.querySelectorAll(`.bring-pool-row[data-team="${teamKey}"]`).forEach(r => {
-        r.classList.toggle('bring-picked', r.dataset.mon === _tapState[teamKey]);
-      });
-    });
-  });
-  // Slot interactions (drop target on desktop, tap-to-assign on mobile / click)
-  grid.querySelectorAll('.bring-slot').forEach(slot => {
-    const teamKey = slot.dataset.team;
-    const slotIdx = parseInt(slot.dataset.slot, 10);
-    if (_isHoverCapable) {
-      slot.addEventListener('dragover', (ev) => {
-        if (getBringMode(teamKey) === 'random') return;
-        ev.preventDefault();
-        ev.dataTransfer.dropEffect = 'move';
-        slot.classList.add('bring-drop-hover');
-      });
-      slot.addEventListener('dragleave', () => slot.classList.remove('bring-drop-hover'));
-      slot.addEventListener('drop', (ev) => {
-        ev.preventDefault();
-        slot.classList.remove('bring-drop-hover');
-        if (getBringMode(teamKey) === 'random') return;
-        let payload = null;
-        try { payload = JSON.parse(ev.dataTransfer.getData('text/plain') || 'null'); } catch (e) {}
-        if (payload && payload.teamKey === teamKey && payload.monName) {
-          _assignSlot(teamKey, slotIdx, payload.monName);
-          renderTeamsGrid();
-        }
-      });
-      slot.addEventListener('dragstart', (ev) => {
-        if (getBringMode(teamKey) === 'random') { ev.preventDefault(); return; }
-        const cur = getBringFor(teamKey);
-        const mon = cur[slotIdx];
-        if (!mon) { ev.preventDefault(); return; }
-        try { ev.dataTransfer.setData('text/plain', JSON.stringify({ teamKey, monName: mon, fromSlot: slotIdx })); } catch (e) {}
-        ev.dataTransfer.effectAllowed = 'move';
-      });
-    }
-    slot.addEventListener('click', () => {
-      if (getBringMode(teamKey) === 'random') return;
-      const picked = _tapState[teamKey];
-      if (picked) {
-        _assignSlot(teamKey, slotIdx, picked);
-        _tapState[teamKey] = null;
-        renderTeamsGrid();
-      } else {
-        // No pending pick: tapping a filled slot clears it.
-        _clearSlot(teamKey, slotIdx);
-        renderTeamsGrid();
-      }
-    });
+  wireBringPickerElements(grid, function(){
+    renderTeamsGrid();
+    if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
   });
   // Speed tier sections appended by renderSpeedTiersForGrid() after TEAMS data
 }

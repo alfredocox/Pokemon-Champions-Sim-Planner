@@ -508,3 +508,79 @@ table{border-collapse:collapse;width:100%}
 .teams-actions {
   display: flex; flex-wrap: wrap; gap: 8px;
 }
+
+/* ============================================================
+ * T9j.12 (Refs #74) Simulator-tab inline bring picker
+ * Compact sibling of the Teams-tab picker. Sits under each roster
+ * column (player / opponent) on the Simulator view so leads + bench
+ * can be overridden without switching tabs. Shares state via the
+ * T9j.10 BRING_SELECTION / BRING_MODE helpers (localStorage).
+ * Refs: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
+ *       https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API
+ * ============================================================ */
+.sim-bring-picker {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  border-radius: 10px;
+}
+.sim-bring-header {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-m);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+/* Compact pool strip: single-row wrap of sprite + name chips. */
+.bring-pool-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.bring-pool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px 3px 3px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 999px;
+  cursor: grab;
+  transition: background 120ms, border-color 120ms, transform 80ms;
+  font-size: 10px;
+  font-weight: 600;
+  color: #e2e8f0;
+  user-select: none;
+}
+.bring-pool-chip:hover { background: rgba(51, 65, 85, 0.75); }
+.bring-pool-chip:active { cursor: grabbing; transform: scale(0.97); }
+.bring-pool-chip-sprite {
+  width: 28px; height: 28px; object-fit: contain;
+  image-rendering: pixelated;
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: 50%;
+}
+.bring-pool-chip-name { white-space: nowrap; }
+.bring-pool-chip-pos {
+  font-size: 9px;
+  font-weight: 700;
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.45);
+  padding: 1px 5px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.bring-pool-chip.bring-in {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #eff6ff;
+}
+.bring-pool-chip.bring-picked {
+  background: rgba(250, 204, 21, 0.22);
+  border-color: rgba(234, 179, 8, 0.7);
+  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.25);
+}
+.bring-pool-chip.bring-dragging { opacity: 0.5; }
