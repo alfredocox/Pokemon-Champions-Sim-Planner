@@ -367,11 +367,30 @@ The nightly harness (`tests/nightly_bring_harness.js`) is an end-to-end wiring c
 
 ## ACTIVE TICKET — (none — ready for next)
 
-T9j.15 shipped and issue #71 is CLOSED. Pick the next ticket from the OPEN ISSUES section.
+T9j.16 shipped (PR #100 open) and the v3 coaching engine is live. 23 infrastructure issues filed across 5 new milestones (M7 through M11). Pick the next ticket from the OPEN ISSUES section.
+
+### Standing assignment policy (binding)
+- **TheYfactora12** (you) — product / feature scoping, rule design, user-facing capability decisions
+- **alfredocox** — engineering refactors, infra, perf, security
+- **Jdoutt38** — testing + a11y
+
+All three get plain-English explanations on every ticket. No em-dashes in commit messages.
 
 ---
 
 ## COMPLETED TICKETS (recent)
+
+### T9j.16 — Elite Champions Coaching Engine + Strategy Report (PR #100, commit `eb904d4`)
+- 17 coaching rules total: 6 base + 3 human + 8 elite, all firing through new `T9J16` module in `ui.js` (~810 lines, var-scoped, exposed via `window.T9J16`)
+- `buildStrategyReport(teamKey, results, fmt)` returns the v3 spec Step 8 structured shape
+- `teamSignature(team)` djb2 hash so persistence works on **any imported team**, not just the bundled 13
+- Adaptive autosave on every Run All Matchups via `t9j16AutoSave`, rolling 5-run history per signature
+- Inline Pilot Card now shows Elite Decisions, Lead and Recovery Plan, Coaching Summary panels
+- PDF report sections render Strategy Report data alongside the existing Pilot Guide
+- localStorage key: `champions_strategy_v1::<teamSignature>`
+- Tests: `t9j16_tests.js` 58/58 (total regression: 343/343), audit 5070/0
+- Engine and data files untouched (T9j.17 mechanics work tracked separately)
+- Cites: Bulbapedia Fake Out priority and legality, Parental Bond 0.25 multiplier, Unseen Fist contact-only
 
 ### T9j.8 — Crits, flinch, six champion abilities (commit `f95fcd4`)
 - Closed #27, #19, #30
@@ -479,7 +498,17 @@ const b64 = btoa(binary);
 ## OPEN ISSUES (priority order)
 
 ### P0 — next ticket candidates
-- **#42** — Cofagrigus / Aurora Veil 100% WR in audit (likely legality data, not engine) — suggested T9j.13
+- **#42** — Cofagrigus / Aurora Veil 100% WR in audit (resolved in T9j.13, kept open as observability check)
+- **T9j.17** — Engine mechanics: Piercing Drill 25%, Parental Bond 0.25x, Fake Out hard-gate, status weakening (Bulbapedia-verified, deferred from T9j.16)
+
+### Infrastructure milestones (filed April 24, 2026)
+- **M7 Architecture & Modularity** (#77 - #80) — alfredocox
+- **M8 Profile & Sync** (#81 - #86) — TheYfactora12 (product) + alfredocox (#84 schema migration)
+- **M9 Observability & QA** (#87 - #91) — alfredocox + Jdoutt38 (#90 backfill tests)
+- **M10 Performance & Quality** (#92 - #96) — alfredocox + Jdoutt38 (#96 a11y)
+- **M11 Advanced Features** (#97 - #99) — TheYfactora12
+
+P1-priority infra unblocks everything else: #87 (CI), #88 (bundle freshness), #95 (service worker cache bump). Recommended start order: #95 -> #87 -> #88, then anything in M8 (#81 first - the Profile container).
 
 ### P1 — Critical
 1. **Source files incomplete vs bundle** — `index.html` and `ui.js` are missing `player-select`, Strategy tab, Swap button, and `strategy-injectable.js` reference on some branches. Bundle is source of truth; backport before rebuilding. *(Logged April 23, 2026)*
@@ -546,20 +575,24 @@ When you ask the AI to make changes:
 | April 24, 2026 | **T9j.15 shipped** — Best Mega Trigger Turn card + PDF column, 285/285 tests, closed #71 |
 | April 24, 2026 | **Nightly bring harness added** — ceiling-aware N=500 regression across 5 matchups, Wilson CI, PASS/WEAK/CEIL/FAIL verdicts |
 | April 24, 2026 | **Master prompt v6** — T9j.8-12 wiring, 191/191 test baseline, nightly harness line, next-ticket selection reset |
+| April 24, 2026 | **T9j.16 shipped** (`eb904d4`, PR #100) — v3 elite coaching engine, 17 rules, Strategy Report, adaptive persistence, 343/343 tests, audit 5070/0 |
+| April 24, 2026 | **Infrastructure audit + 23 issues filed** — 5 new milestones M7-M11 covering modularity, profile/sync, observability, perf, advanced features |
+| April 24, 2026 | **Master prompt v7** — T9j.16 + infra audit + assignment policy block |
 
 ---
 
 ## LAST KNOWN GOOD STATE
 
 - **Branch:** `fix/champions-sp-and-legality`
-- **Last pushed commit:** (T9j.15 — Best Mega Trigger Turn card)
-- **Bundle size:** 506,132 bytes (after T9j.15 rebuild)
+- **Last pushed commit:** `eb904d4` (T9j.16 — Elite Coaching Engine + Strategy Report)
+- **Open PR:** #100 (T9j.16) into `main`
+- **Bundle size:** 546,881 bytes (after T9j.16 rebuild)
 - **Engine:** Non-deterministic confirmed (`Math.random()` damage roll); crits and flinch rolls via RNG
 - **Trick Room:** 5-turn countdown, speed inversion, toggle cancel
 - **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
 - **Move data:** MOVE_CATEGORY (104), MOVE_BP (110+) — Serebii-sourced
 - **Syntax:** `data.js` ✓  `engine.js` ✓  `ui.js` ✓  `var COVERAGE_CHECKS` preserved
-- **Tests:** 263/263 + 5070-battle audit, 0 JS errors; nightly harness PASS at N=500; cofagrigus_tr 27% WR / aurora_veil_froslass 43% WR post-fix
+- **Tests:** 343/343 + 5070-battle audit, 0 JS errors; nightly harness PASS at N=500; cofagrigus_tr 27% WR / aurora_veil_froslass 43% WR post-fix
 - **Tested on:** Chrome 124 macOS / Chrome Android
 - **Live URL:** htmlpreview bundle link and GitHub Pages both confirmed working
 
