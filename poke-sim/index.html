@@ -353,6 +353,25 @@
         <div class="engine-row"><b>Status</b><span>Burn · Paralysis · Sleep · Poison with EOT chip</span></div>
         <div class="engine-row"><b>Priority</b><span>Fake Out P+3 · Protect P+4 · Trick Room P−7 · Extreme Speed P+2 · Aqua Jet P+1</span></div>
       </div>
+      <h3 class="about-sub">GitHub Sync</h3>
+      <p class="editor-hint" style="margin-bottom:8px">
+        Optional: enter a GitHub Personal Access Token to let the app write TEAMS back to
+        <code>poke-sim/data.js</code> in your repository.
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input
+          id="gh-token-input"
+          type="password"
+          class="form-input"
+          placeholder="GitHub PAT (repo scope)"
+          autocomplete="off"
+          spellcheck="false"
+          style="max-width:260px"
+        />
+        <span id="gh-sync-status" style="font-size:11px;color:var(--text-m)">
+          Token is only stored in this session and used when saving.
+        </span>
+      </div>
     </div>
   </div>
 </section>

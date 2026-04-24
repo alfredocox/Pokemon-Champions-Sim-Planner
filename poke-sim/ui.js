@@ -146,6 +146,99 @@ function exportTeamToPaste(team) {
 function typeColor(type) { return TYPE_COLORS[type] || '#888'; }
 
 // ============================================================
+// GITHUB WRITE-BACK (TEAMS -> poke-sim/data.js)
+// ============================================================
+let DATA_JS_SHA = null;
+
+async function fetchDataJsSha() {
+  if (DATA_JS_SHA) return DATA_JS_SHA;
+  const tokenInput = document.getElementById('gh-token-input');
+  if (!tokenInput) return null;
+  const token = tokenInput.value.trim();
+  if (!token) return null;
+
+  const statusEl = document.getElementById('gh-sync-status');
+  try {
+    const resp = await fetch('https://api.github.com/repos/alfredocox/Pokemon-Champions-Sim-Planner/contents/poke-sim/data.js', {
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!resp.ok) throw new Error(`Status ${resp.status}`);
+    const json = await resp.json();
+    DATA_JS_SHA = json.sha;
+    if (statusEl) statusEl.textContent = 'GitHub: ready (SHA cached)';
+    return DATA_JS_SHA;
+  } catch (e) {
+    console.warn('[GitHub] Failed to fetch data.js SHA', e);
+    if (statusEl) statusEl.textContent = 'GitHub: auth or network error';
+    return null;
+  }
+}
+
+function serializeTeamsBlock() {
+  // JSON is valid JS literal; safe as a const assignment
+  return 'const TEAMS = ' + JSON.stringify(TEAMS, null, 2) + ';\n';
+}
+
+async function saveTeamsToGitHub(reason) {
+  const tokenInput = document.getElementById('gh-token-input');
+  if (!tokenInput) return; // UI not present
+  const token = tokenInput.value.trim();
+  const statusEl = document.getElementById('gh-sync-status');
+  if (!token) {
+    if (statusEl) statusEl.textContent = 'GitHub: no token entered (local-only change)';
+    return;
+  }
+
+  const sha = await fetchDataJsSha();
+  if (!sha) return;
+
+  try {
+    // Get current data.js content
+    const respGet = await fetch('https://api.github.com/repos/alfredocox/Pokemon-Champions-Sim-Planner/contents/poke-sim/data.js', {
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!respGet.ok) throw new Error(`GET failed: ${respGet.status}`);
+    const json = await respGet.json();
+    const content = atob(json.content.replace(/\n/g, ''));
+    const newTeamsBlock = serializeTeamsBlock();
+
+    // Replace const TEAMS = { ... };
+    const replaced = content.replace(
+      /const TEAMS\s*=\s*\{[\s\S]*?\};\s*/m,
+      newTeamsBlock
+    );
+    const b64 = btoa(unescape(encodeURIComponent(replaced)));
+
+    const respPut = await fetch('https://api.github.com/repos/alfredocox/Pokemon-Champions-Sim-Planner/contents/poke-sim/data.js', {
+      method: 'PUT',
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `chore: update TEAMS (${reason || 'Champions Sim'})`,
+        content: b64,
+        sha: json.sha
+      })
+    });
+    if (!respPut.ok) throw new Error(`PUT failed: ${respPut.status}`);
+    const putJson = await respPut.json();
+    DATA_JS_SHA = putJson.content?.sha || json.sha;
+    if (statusEl) statusEl.textContent = 'GitHub: TEAMS saved ✓';
+  } catch (e) {
+    console.warn('[GitHub] Failed to save TEAMS', e);
+    if (statusEl) statusEl.textContent = 'GitHub: save failed (see console)';
+  }
+}
+
+// ============================================================
 // ROSTER RENDERING
 // ============================================================
 function getPokemonTypes(name) {
@@ -313,6 +406,8 @@ function saveEdits() {
   setTimeout(()=>{ btn.textContent=orig; btn.style.background=''; }, 1500);
   // Update coverage widget when player team changes
   if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
+  // Persist TEAMS back to GitHub if token is present
+  saveTeamsToGitHub('Set Editor');
 }
 
 renderEditorRoster();
@@ -480,6 +575,8 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
   const previewLabel = document.getElementById('import-preview-label');
   if (previewLabel) previewLabel.textContent = `Preview (${members.length} Pok\u00e9mon parsed)`;
   showImportPreview(members);
+  // Persist TEAMS back to GitHub if token is present
+  saveTeamsToGitHub('Import Team');
   setTimeout(closeImportModal, 1400);
 });
 
