@@ -566,6 +566,31 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   const log  = [];
   const field = new Field();
 
+  // #5 — Legality validation (non-blocking by default).
+  // validateTeam detects stat-point caps (SP or EV), move count, Species/Item
+  // Clause, Champions ban list. Errors are logged to battle log and attached
+  // to the result so UI / PDF report can surface them. Pass opts.strict=true
+  // to abort before rolling seeds (for CI / golden tests).
+  const fmt = opts.format === 'singles' ? 'singles' : 'vgc';
+  const playerLegality = validateTeam(playerTeam, fmt);
+  const oppLegality    = validateTeam(oppTeam, fmt);
+  if (!playerLegality.valid) {
+    log.push(`[LEGALITY] Player team errors: ${playerLegality.errors.join('; ')}`);
+  }
+  for (const w of playerLegality.warnings) log.push(`[LEGALITY] Player warning: ${w}`);
+  if (!oppLegality.valid) {
+    log.push(`[LEGALITY] Opponent team errors: ${oppLegality.errors.join('; ')}`);
+  }
+  for (const w of oppLegality.warnings) log.push(`[LEGALITY] Opponent warning: ${w}`);
+  if (opts.strict && (!playerLegality.valid || !oppLegality.valid)) {
+    return {
+      result: 'error', turns: 0, trTurns: 0, log,
+      winCondition: 'Illegal team — simulation aborted (strict mode)',
+      seed, playerSurvivors: 0, oppSurvivors: 0,
+      legality: { player: playerLegality, opp: oppLegality },
+    };
+  }
+
   const playerPokemon = buildTeam(playerTeam);
   const oppPokemon    = buildTeam(oppTeam);
 
@@ -1171,7 +1196,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   }
 
   return { result, turns: turn, trTurns: field.trickRoomTurns, log, winCondition, seed,
-    playerSurvivors: pSurvive, oppSurvivors: oSurvive };
+    playerSurvivors: pSurvive, oppSurvivors: oSurvive,
+    // #5 — attach legality verdict so UI can surface warnings on team/match cards.
+    legality: { player: playerLegality, opp: oppLegality } };
 }
 
 // ============================================================
