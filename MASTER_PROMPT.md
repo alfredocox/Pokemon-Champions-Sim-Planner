@@ -75,7 +75,7 @@ Pokemon-Champions-Sim-Planner/
 │   │   ├── index.html                  ← App shell + tab structure + PWA meta
 │   │   ├── style.css                   ← Full dark theme, mobile-first
 │   │   ├── data.js                     ← BASE_STATS, POKEMON_TYPES_DB, DEX_NUM_MAP,
-│   │   │                                  TEAMS (13 tournament teams), MOVE_TYPES,
+│   │   │                                  TEAMS (22 teams: 13 tournament + 9 imported), MOVE_TYPES,
 │   │   │                                  MOVE_CATEGORY (104 entries, T9j.9),
 │   │   │                                  MOVE_BP (110+ entries, T9j.9),
 │   │   │                                  getSpriteUrl()
@@ -124,7 +124,8 @@ Phases 1 and 2 of #95 are **COMPLETE**.
 | `champions-sim-v1` | — | Foundation | — | Retired |
 | `champions-sim-v2` | — | T9j.1–T9j.6 | — | Retired |
 | `champions-sim-v3` | — | T9j.7–T9j.15 | `8977090` | Retired |
-| `champions-sim-v4-t9j16` | T9j.16 | Coaching engine | `944b405` | **✅ Current** |
+| `champions-sim-v4-t9j16` | T9j.16 | Coaching engine | `944b405` | Retired |
+| `champions-sim-v5-phase3` | phase3 | Strategy tab + persistence (#106 #108) | `4053ea6` | **✅ Current** |
 
 **#95 Remaining phases:**
 - Phase 3: CI check enforces bump was not forgotten (open)
@@ -143,12 +144,15 @@ chmod +x tools/release.sh         # first time only
 
 ## TABS
 
-`Simulator` | `Teams` | `Set Editor` | `Replay Log` | `Sources` | `Pilot Guide` | `Strategy`
+`Simulator` | `Teams` | `Set Editor` | `Strategy` | `Replay Log` | `Sources` | `Pilot Guide`
+
+**Strategy tab** added in Phase 2 (PR #106). See `## COACHING LAYER ROLLOUT` below.
 
 ---
 
-## 13 LOADED TEAMS
+## 22 LOADED TEAMS
 
+### Tournament + custom (13)
 | Key | Team Description |
 |-----|-----------------|
 | `player` | TR Counter Squad — Incineroar / Arcanine / Garchomp / Whimsicott / Rotom-Wash / Garchomp-Scarf |
@@ -164,6 +168,19 @@ chmod +x tools/release.sh         # first time only
 | `chuppa_balance` | Chuppa Cross IV — Pittsburgh Champion |
 | `aurora_veil_froslass` | Aurora Veil Froslass team |
 | `kingambit_sneasler` | Kingambit + Sneasler Core |
+
+### Imported / archetype (9)
+| Key | Team Description |
+|-----|-----------------|
+| `custom_1776995210260` | User-imported custom team |
+| `perish_trap_gengar` | Perish Trap Gengar |
+| `rain_offense` | Rain Offense |
+| `trick_room_golurk` | TR Golurk-Mega (sprite gap: custom mega form, see Sprite Gaps section) |
+| `sun_offense_charizard` | Sun Offense Charizard |
+| `z2r_feitosa_mega_floette` | Feitosa Mega Floette |
+| `benny_v_mega_froslass` | Benny V Mega Froslass |
+| `lukasjoel1_sand_gengar` | Lukasjoel1 Sand Gengar |
+| `hiroto_imai_snow` | Hiroto Imai Snow |
 
 ---
 
@@ -318,6 +335,46 @@ The rebuild script inlines all source files into the single-file bundle. After a
   - TheYfactora12 — product / feature scoping, rule design, user-facing decisions
   - alfredocox — engineering refactors, infra, perf, security
   - Jdoutt38 — testing + a11y
+
+### Build version chip
+A visible build chip lives in the header (`<span class="build-version">` in `index.html`). Bump on every commit so testers can confirm which build they are on:
+- During an active phase: `vMAJOR.MINOR.0-phaseN.M` where M increments per commit (e.g. `v2.0.0-phase2.1`, `v2.0.0-phase2.2`)
+- On phase merge to main: drop the suffix and bump the next phase prefix (e.g. `v2.0.0` → `v2.1.0-phase3.1`)
+- Tied to the CACHE_NAME bump — when the chip changes major/minor, `tools/release.sh <tag> --bump-major` should also fire.
+
+---
+
+## COACHING LAYER ROLLOUT
+
+Multi-phase rollout for the Strategy tab + coaching engine. Tracked in `poke-sim/COACHING_LAYER_SPEC.md`.
+
+| Phase | Scope | PRs / Issues | Status |
+|-------|-------|--------------|--------|
+| 1 | Spec doc | #105 / #50 | ✅ Merged |
+| 2 | Strategy tab + theory engine (12 sections, 22 teams, V2 adapters) | #106 / #46 #49 | ✅ Merged (`f584a15`) |
+| 3 | Per-team report persistence (localStorage Section 7 schema) | #108 / #51 | ✅ Merged (`98ffa69`) |
+| 4 | Trend Analysis hook (post-Run-All overlay) | pending / #52 #53 #54 #55 | Open |
+| 5 | Source labels + Stress Test polish | pending | Open |
+
+**Storage keys in use:**
+- `champions_strategy_v1::<sig>` — legacy T9j.16 history (untouched, soft-migrated)
+- `champions_strategy_report_v1` — Phase 3 Section 7 schema (`{schema_version, reports: {<sig>: {team_key, theory_report, simulation_overlay, last_built_at, last_simmed_at}}}`)
+- `champions_evidence_chips_visible` — Section 14 evidence toggle
+- `poke-sim:bring:v1` — T9j.10 bring picker selections
+
+IndexedDB is explicitly deferred per Spec Section 11. v1 uses synchronous localStorage with QuotaExceededError purge of oldest 25%.
+
+---
+
+## SPRITE GAPS — known
+
+`getSpriteUrl()` looks up `DEX_NUM_MAP` by exact form name. Custom mega/regional forms with no PokeAPI dex entry render blank. Confirmed misses:
+- `Golurk-Mega` (custom mega in `trick_room_golurk` team)
+
+**Planned fix (separate PR):**
+1. Strip known suffixes (`-Mega`, `-Mega-X/Y`, `-Alola`, `-Galar`, `-Hisui`, `-Paldea`) before dex lookup so custom megas fall back to base dex.
+2. Add `CUSTOM_FORM_SPRITES` override map for explicit team-specific art.
+3. Audit all 22 teams' members programmatically and log every blank sprite.
 
 ---
 
