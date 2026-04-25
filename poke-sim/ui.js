@@ -5980,6 +5980,30 @@ function csRenderAdaptiveBanner(history) {
   return html;
 }
 
+// Detect whether pre-Phase-4 sim data exists in the Phase 3 persistence store
+// but the Phase 4 raw sim log is empty. Used to show a clearer empty-state
+// hint in the Record bar so users who simmed before v2.1.6 know why their
+// prior games don't appear (the per-series log did not exist yet).
+//   Returns 'legacy'  - Phase 3 overlays with sample_size > 0 exist, log empty
+//           'new'     - no data anywhere
+//           'has_log' - Phase 4 sim log has at least one entry
+function _csRecordEmptyStateKind() {
+  try {
+    var logEntries = (typeof csSimLogGetAll === 'function') ? csSimLogGetAll() : [];
+    if (logEntries && logEntries.length > 0) return 'has_log';
+    var store = (typeof _csPersistRead === 'function') ? _csPersistRead() : null;
+    var reports = (store && store.reports) || {};
+    var sigs = Object.keys(reports);
+    for (var i = 0; i < sigs.length; i++) {
+      var overlay = reports[sigs[i]] && reports[sigs[i]].simulation_overlay;
+      if (overlay && overlay.sample_size && overlay.sample_size > 0) return 'legacy';
+    }
+    return 'new';
+  } catch (_e) {
+    return 'new';
+  }
+}
+
 // Render the Record bar: overall W-L pill + per-archetype chips. Shown right
 // under the adaptive banner on the Strategy tab. No draws surfaced (per user:
 // "there no draw in pokemon"). Sorted by sample size so the most-battled
@@ -6016,6 +6040,19 @@ function csRenderRecordBar(history) {
            +  '</span>';
     });
     html += '</div>';
+  }
+  // Empty-state hint: only when there is no per-series data yet. Distinguishes
+  // between "you have legacy aggregate sims from before v2.1.6" and "brand
+  // new install" so the message is actionable. Refs #53, #55.
+  if (total.n === 0) {
+    var kind = _csRecordEmptyStateKind();
+    var hint;
+    if (kind === 'legacy') {
+      hint = 'Previous sim data was recorded before per-series tracking (added in v2.1.6). Run a fresh sim to start your record.';
+    } else {
+      hint = 'Run a sim to start tracking your W-L by matchup.';
+    }
+    html += '<div class="cs-record-empty-hint">' + _csEsc(hint) + '</div>';
   }
   html += '</div>';
   return html;

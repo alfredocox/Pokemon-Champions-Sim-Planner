@@ -1257,7 +1257,20 @@ table{border-collapse:collapse;width:100%}
 .cs-record-wr-mid  .cs-record-total-score,
 .cs-record-wr-mid  .cs-record-chip-score { color: #fde68a; }
 
+/* Empty-state hint under the Record pill. Shown only when the Phase 4 sim
+   log has no per-series data yet - tells the user whether they have legacy
+   aggregate data or need to run their first sim. Refs #53, #55. */
+.cs-record-empty-hint {
+  flex-basis: 100%;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #94a3b8;
+  padding: 4px 2px 0;
+  font-style: italic;
+}
+
 @media (max-width: 640px) {
   .cs-record-total-score { font-size: 16px; }
   .cs-record-chip { font-size: 11px; padding: 3px 8px; }
+  .cs-record-empty-hint { font-size: 11px; }
 }
