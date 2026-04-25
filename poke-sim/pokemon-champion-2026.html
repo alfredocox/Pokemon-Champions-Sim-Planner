@@ -1147,7 +1147,7 @@ table{border-collapse:collapse;width:100%}
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-        <h1 class="site-title">Pokémon Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.0.0-phase2.2</span></h1>
+        <h1 class="site-title">Pokémon Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.0-phase3.1</span></h1>
         <p class="site-sub">April 2026 Meta · VGC Doubles Simulator</p>
       </div>
     </div>
@@ -8836,6 +8836,9 @@ document.getElementById('player-select').addEventListener('change', function() {
     // T9j.12 (Refs #74): refresh sim-side bring picker after active-team change.
     if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
     // Phase 2 (Refs #46 #49) - rebuild Strategy tab when player switches teams.
+    // Phase 3 (Refs #51) - paint cached snapshot first so the tab never flashes
+    // blank between switches; the debounced rebuild will repaint with fresh data.
+    if (typeof renderStrategyTabFromCache === 'function') renderStrategyTabFromCache(this.value);
     if (typeof csScheduleStrategyRebuild === 'function') csScheduleStrategyRebuild();
   }
 });
@@ -13404,11 +13407,26 @@ function renderStrategyTab(teamKey) {
     host.innerHTML = '<div class="strategy-empty">Select a team to generate the coaching report.</div>';
     return;
   }
-  var results = (typeof window !== 'undefined' && window.lastSimResults) ? window.lastSimResults : {};
-  var report = csBuildStrategyReportV2(teamKey, results, (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles'));
+  // Phase 3 (Refs #51): cached fast-path. If renderStrategyTabFromCache has
+  // stashed a saved report on window._csCachedOverride, paint that instead
+  // of rebuilding from scratch. Skips the (cheap) build but more importantly
+  // gives us instant paint on team switches and after page reload.
+  var report;
+  var fromCache = false;
+  if (typeof window !== 'undefined' && window._csCachedOverride) {
+    report = window._csCachedOverride;
+    fromCache = true;
+  } else {
+    var results = (typeof window !== 'undefined' && window.lastSimResults) ? window.lastSimResults : {};
+    report = csBuildStrategyReportV2(teamKey, results, (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles'));
+  }
   if (!report) {
     host.innerHTML = '<div class="strategy-empty">Could not generate report for this team.</div>';
     return;
+  }
+  // Phase 3: persist freshly-built reports so the next page load paints instantly.
+  if (!fromCache) {
+    try { csSaveReport(teamKey, report); } catch(e) { console.warn('[Phase3] save failed:', e && e.message); }
   }
   // Stash for tests / inspection
   if (typeof window !== 'undefined') window._lastStrategyReport = report;
@@ -13628,6 +13646,186 @@ function _csInitEvidenceToggle() {
     _csApplyEvidenceVisibility();
   });
   _csApplyEvidenceVisibility();
+}
+
+// =====================================================================
+// PHASE 3 - PER-TEAM REPORT PERSISTENCE (Section 7)
+// =====================================================================
+// Stores StrategyReport snapshots in localStorage keyed by team_signature
+// so the Strategy tab paints instantly on team switch, with no flash.
+// Implements Section 7 schema: { schema_version, reports: { <sig>: ... } }
+// Section 11 explicitly defers IndexedDB to a later effort, so we use
+// localStorage only for v1 - simpler and synchronous.
+//
+// Lifecycle (per Section 13.1 lifecycle 1 + 4):
+//   page load: paint cached snapshot synchronously, then schedule rebuild
+//   rebuild fires: compute new report, write snapshot, repaint
+// ---------------------------------------------------------------------
+var CS_PERSIST_KEY = 'champions_strategy_report_v1';
+var CS_PERSIST_SCHEMA = 1;
+
+// Read entire persistence store. Returns empty shape on first run or parse error.
+function _csPersistRead() {
+  try {
+    var raw = localStorage.getItem(CS_PERSIST_KEY);
+    if (!raw) return { schema_version: CS_PERSIST_SCHEMA, reports: {} };
+    var parsed = JSON.parse(raw);
+    if (!parsed || parsed.schema_version !== CS_PERSIST_SCHEMA) {
+      // Future: migrate. For v1 just reset on schema mismatch.
+      return { schema_version: CS_PERSIST_SCHEMA, reports: {} };
+    }
+    if (!parsed.reports) parsed.reports = {};
+    return parsed;
+  } catch (e) {
+    console.warn('[Phase3] persistence read failed:', e && e.message);
+    return { schema_version: CS_PERSIST_SCHEMA, reports: {} };
+  }
+}
+
+// Write store. Catches QuotaExceededError - if hit, drops oldest reports first.
+function _csPersistWrite(store) {
+  try {
+    localStorage.setItem(CS_PERSIST_KEY, JSON.stringify(store));
+    return true;
+  } catch (e) {
+    if (e && /Quota/i.test(e.name || e.message || '')) {
+      var sigs = Object.keys(store.reports || {});
+      // Sort by last_built_at ascending and drop oldest 25 percent
+      sigs.sort(function(a, b){
+        return (store.reports[a].last_built_at || '').localeCompare(store.reports[b].last_built_at || '');
+      });
+      var drop = Math.max(1, Math.floor(sigs.length * 0.25));
+      sigs.slice(0, drop).forEach(function(s){ delete store.reports[s]; });
+      try {
+        localStorage.setItem(CS_PERSIST_KEY, JSON.stringify(store));
+        return true;
+      } catch (e2) { console.warn('[Phase3] still over quota after purge:', e2 && e2.message); }
+    } else {
+      console.warn('[Phase3] persistence write failed:', e && e.message);
+    }
+    return false;
+  }
+}
+
+// Save a StrategyReport. Splits into theory_report + simulation_overlay
+// per Section 7 so we never overwrite theory notes with sim notes.
+function csSaveReport(teamKey, report) {
+  if (!report || !report.team_signature) return false;
+  var store = _csPersistRead();
+  var sig = report.team_signature;
+  var existing = store.reports[sig] || {};
+  var sample = report.sim_data_version || 0;
+
+  // Theory part - everything except trend_analysis (which is sim-derived)
+  var theory = {};
+  Object.keys(report).forEach(function(k){
+    if (k !== 'trend_analysis') theory[k] = report[k];
+  });
+
+  // Simulation overlay - only populated if we actually have sim data
+  var overlay = existing.simulation_overlay || null;
+  if (sample > 0) {
+    overlay = {
+      sample_size: sample,
+      trend_analysis: report.trend_analysis,
+      lead_win_rates: {},
+      matchup_win_rates: {},
+      loss_causes: [],
+      first_ko_turns: []
+    };
+    // Pull lead WRs out of the report's lead_guide if available
+    (report.lead_guide && report.lead_guide.recommendations || []).forEach(function(r){
+      if (r.win_rate !== null && r.lead && r.lead.length) {
+        var k = r.lead.slice().sort().join('+');
+        overlay.lead_win_rates[k] = r.win_rate;
+      }
+    });
+  }
+
+  store.reports[sig] = {
+    team_key: teamKey,
+    theory_report: theory,
+    simulation_overlay: overlay,
+    last_built_at: new Date().toISOString(),
+    last_simmed_at: sample > 0 ? new Date().toISOString() : (existing.last_simmed_at || null)
+  };
+  return _csPersistWrite(store);
+}
+
+// Load a saved report by team_signature. Merges theory_report + overlay
+// per Section 7 (overlay overrides trend_analysis, never theory fields).
+// Returns null if not found.
+function csLoadReport(teamKey) {
+  var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+  if (!team) return null;
+  var sig = teamSignature(team);
+  var store = _csPersistRead();
+  var entry = store.reports[sig];
+  if (!entry || !entry.theory_report) return null;
+  var merged = {};
+  Object.keys(entry.theory_report).forEach(function(k){ merged[k] = entry.theory_report[k]; });
+  if (entry.simulation_overlay && entry.simulation_overlay.trend_analysis) {
+    merged.trend_analysis = entry.simulation_overlay.trend_analysis;
+    merged.sim_data_version = entry.simulation_overlay.sample_size;
+  } else {
+    // No saved sim data - provide the same no-data placeholder the builder
+    // emits, so renderStrategyTab's `ta.has_data` access never trips on null.
+    merged.trend_analysis = entry.theory_report.trend_analysis || {
+      has_data: false,
+      message_if_no_data: 'No simulations recorded yet for this team. Run All Matchups to populate trend data.',
+      best_lead: null,
+      worst_lead: null,
+      most_common_loss_cause: null,
+      avg_first_ko_turn: null,
+      dead_moves: [],
+      failed_matchups: []
+    };
+  }
+  merged._cached = true;
+  merged._cached_at = entry.last_built_at;
+  return merged;
+}
+
+// Load every saved report - useful for cross-team rollups (Phase 4 / #55).
+function csLoadAllReports() {
+  return _csPersistRead().reports || {};
+}
+
+// Drop a single team's cached report. No-op if absent.
+function csClearReport(teamKey) {
+  var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+  if (!team) return false;
+  var sig = teamSignature(team);
+  var store = _csPersistRead();
+  if (!store.reports[sig]) return false;
+  delete store.reports[sig];
+  return _csPersistWrite(store);
+}
+
+// Drop everything. Used by tests + a possible debug button later.
+function csClearAllReports() {
+  return _csPersistWrite({ schema_version: CS_PERSIST_SCHEMA, reports: {} });
+}
+
+// Paint cached report immediately if available. Used as the fast-path on
+// team-select change so the user never sees a blank tab between switches.
+// Returns true if a cached report was painted, false otherwise.
+function renderStrategyTabFromCache(teamKey) {
+  var host = document.getElementById('strategy-content');
+  if (!host) return false;
+  var cached = csLoadReport(teamKey);
+  if (!cached) return false;
+  // Re-use the same painter - feed it a fake builder by swapping the
+  // global lastSimResults? No - cleaner to rerender from the cached
+  // object directly. Reuse renderStrategyTab's HTML builder by calling
+  // it with a sentinel that short-circuits. Simpler: just call
+  // renderStrategyTab(teamKey) which will rebuild from current state.
+  // BUT we want the cached paint to be instant. So we paint with an
+  // override: temporarily stash the cached report on window and read
+  // it inside renderStrategyTab.
+  window._csCachedOverride = cached;
+  try { renderStrategyTab(teamKey); } finally { delete window._csCachedOverride; }
+  return true;
 }
 
 // ---- Auto-rebuild (Section 14, decision 1) --------------------------
