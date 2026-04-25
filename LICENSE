@@ -1,16 +1,16 @@
-MIT License
+Poke-e-Sim Champion 2026
+Copyright (c) 2026 Alfredo Cox (@alfredocox) and Kevin Medeiros (@TheYfactora12).
+All Rights Reserved.
 
-Copyright (c) 2026 Pokemon Champions Sim Planner contributors
+This software and associated documentation files (the "Software") are
+proprietary. No part of the Software may be reproduced, distributed, or
+transmitted in any form or by any means, including copying, modification,
+merging, publishing, sublicensing, or selling, without the prior written
+permission of the copyright holders.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Pokemon names, sprites, and game data are property of Nintendo / Game Freak /
+The Pokemon Company and are used here under fair use for a non-commercial
+fan project. See NOTICE.md for full attribution.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -19,12 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-NOTE: Pokemon, Pokemon character names, and all related indicia are
-trademarks of Nintendo, Game Freak, and The Pokemon Company. This project
-is an unofficial fan-made simulator created for educational and competitive
-analysis purposes. No copyright infringement is intended. All Pokemon
-sprites, move data, and type information are used under fair use for
-non-commercial, transformative purposes.

@@ -1,4 +1,9 @@
-# MASTER PROMPT — Pokémon Champion 2026
+# MASTER PROMPT — Poke-e-Sim Champion 2026
+
+> **(c) 2026 Alfredo Cox (@alfredocox) and Kevin Medeiros (@TheYfactora12). All Rights Reserved.**
+> **Proprietary - see `LICENSE`. Pokemon IP attribution: see `NOTICE.md`.**
+> **Canonical product tagline: "Battle-tested. Always evolving."**
+>
 > **HOW TO USE:** Copy everything from the `--- COPY FROM HERE ---` line to the very end of this file.
 > Paste it as your **first message** in a new Perplexity AI chat.
 > The AI will have full project context instantly.
@@ -532,6 +537,17 @@ Dropdown: **10 / 50 / 100 / 500** (50 default). 500 is the hard ceiling — do n
 1. **No draws surfaced.** Per user directive — Pokemon has no draws, so Record bar + per-archetype splits exclude the draw bucket. Raw draws may still be stored but must never render as a W-L-D triple.
 2. **"If the system gives the same advice after 100 battles, it is failing."** Phase 4e MUST ship a regression test that seeds a 100-series log with distinct loss patterns and asserts the advice surface delta is measurable. This test blocks Phase 4 closeout.
 3. **No data fabrication across storage keys.** Do not synthesize Phase 4 sim-log entries from Phase 3 aggregates — the aggregates lack per-series ground truth. Surface guidance instead (PR #121 pattern).
+4. **Population qualifier within one sentence of every percentage.** Every `%` rendered to a user (UI, PDF, README, marketing) ships next to the population it was measured against. v1 = "in simulated play" / "in N AI simulations". Stages 2-5 introduce upgraded qualifiers via `populationQualifier()` helper. Enforced by `PHASE6_COACHING_VOICE_SPEC.md` rule #5 + tests T7/T9.
+5. **Banned tournament-claim phrasings.** Until the Credibility Ladder advances (`COACHING_NORTH_STAR.md` Section 6), the following are forbidden in any user-facing surface: `tournament-grade`, `ladder-tested`, `meta-proven`, `competitive viable`, `tournament-tested` (without stage qualifier), `pro-approved`, `world's #1`. Enforced by `PHASE6_COACHING_VOICE_SPEC.md` rule #7 + regex test T7.
+6. **Surface candidates, not directives.** Recommendations use "consider" / "best candidate" / "first option to try". Inside a chosen line, action verbs are still required. We surface options; the player chooses. Enforced by `PHASE6_COACHING_VOICE_SPEC.md` rule #6.
+
+### Canonical product tagline
+
+**"Battle-tested. Always evolving."**
+
+This is the locked product tagline. It is honest at every Credibility Ladder stage because the population qualifier upgrades automatically. The tagline appears in: every PRE/POST template footer (Phase 6), README, marketing, social, packaging.
+
+**Tagline usage rule:** any percentage in the same surface must include a population qualifier within the same sentence (or the sentence immediately before/after). "Battle-tested in 47 simulations" is honest. "Battle-tested" alone is honest (qualitative claim about origin of advice). "Battle-tested - 73% win rate" is NOT honest unless followed by "in simulated play" or stronger.
 
 ### Remaining work
 

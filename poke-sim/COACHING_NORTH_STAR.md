@@ -97,10 +97,40 @@ These are not up for re-debate without a written ADR overriding them.
 4. **No data fabrication across storage keys.** Phase 3 aggregate snapshots will never be synthesized into Phase 4 sim-log entries. Empty-state guidance only. (`MASTER_PROMPT.md` invariant.)
 5. **No draws surfaced.** Pokemon has no draws (per user). Draws may be stored in raw log but never render as W-L-D triple.
 6. **"Same advice after 100 battles = failing."** Phase 4e MUST ship a regression test that proves advice diverges between a 10-series and 100-series log with distinct loss patterns. Blocks Phase 4 closeout.
+7. **No claim outruns the data.** Today's data is AI-vs-AI greedy simulations. We cite that population on every percentage. We do not say "tournament-tested", "ladder-tested", "meta-proven", "competitive viable", "world's #1", or "pro-approved" in any user-facing surface (UI, PDF, README, marketing) until the Credibility Ladder (Section 6) advances. Voice rules in `PHASE6_COACHING_VOICE_SPEC.md` Section 3 enforce this in code.
+8. **Surface candidates, not directives.** At the recommendation level, use "consider" / "best candidate" / "first option to try". Inside a chosen line, action verbs are still required. The system surfaces options, the player chooses. Locked in `PHASE6_COACHING_VOICE_SPEC.md` rule #6.
 
 ---
 
-## 6. What this is NOT
+## 6. The Credibility Ladder
+
+We will not pretend the system is more proven than it is. The ladder below maps the evidence we currently have, what we'd add at each stage, and what each stage **earns** us the right to claim. Every voice rule, badge, and qualifier in the system reads from this ladder.
+
+Ladder progression is the long-term roadmap behind the canonical product tagline **"Battle-tested. Always evolving."** (`MASTER_PROMPT.md`).
+
+| Stage | Adds | Can claim | Time horizon | GitHub milestone |
+|---|---|---|---|---|
+| 1 (current) | AI-vs-AI greedy simulation | "Battle-tested in N AI simulations" | Now (Phases 4-6) | n/a (current state) |
+| 2 | Smarter AI: prediction layer, switch logic, item awareness | "vs adaptive AI" | 2-3 mo post Phase 6 | [Stage 2 - Smarter AI](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/12) |
+| 3 | Pokemon Showdown public-replay ingestion + calibration | "Replay-calibrated against M real-player matches" | 3-4 mo post Stage 2 | [Stage 3 - Showdown Replay Ingestion](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/13) |
+| 4 | In-app feedback loop (thumbs up/down + free-text on coaching) | "Validated by N players over M sessions" | Post-launch | [Stage 4 - User Feedback Loop](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/14) |
+| 5 | Limitless / VGCStats / Trainer Tower top-cut crosswalk | "Aligned with X% of top-cut leads / brings" | ~1 yr | [Stage 5 - Tournament Crosswalk](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/15) |
+| 6 | Pro-player or registered-team partnership (signed) | "Used by [pro] in [event]" | When the partnership exists | (created when signed) |
+| 7 | Official partnership (Limitless / TPCi / Play! Pokemon) | "World's #1 tournament prep guide" | Multi-year | (created when signed) |
+
+**Mechanical ties to the rest of the system:**
+
+- Phase 4d solver output annotates every result with `population: 'ai_vs_ai_greedy'` (Stage 1). Stages 2-5 introduce new values (`'ai_vs_ai_smarter'`, `'replay_calibrated'`, `'tournament_aligned'`).
+- Phase 4e audit rows annotate `validation_status: 'unvalidated_simulation' | 'replay_calibrated' | 'tournament_aligned'`.
+- Phase 6 voice rule #5 maps stage values to in-line qualifier wording via `populationQualifier()`. Upgrading from Stage 1 to Stage 2 is a single helper change, not a global string sweep.
+- Phase 6 voice rule #7 enumerates phrasings that are banned **until** their stage unlocks them. "Tournament-tested" without a stage qualifier fails CI today.
+- Decision #7 in Section 5 above gates this in plain English; Phase 6 enforces it in code.
+
+**What this means in practice:** today's UI and marketing can say "Battle-tested in N AI simulations. Always evolving." That sentence is honest at Stage 1 and stays honest at every stage above (because the population qualifier upgrades automatically). It cannot be replaced with "tournament-grade" language unless Stage 5 has shipped and the data is in the repo.
+
+---
+
+## 7. What this is NOT
 
 - Not a promise to ship every spec section. Some (full §3 line enumeration at full depth) require compute we are explicitly deferring.
 - Not a tone permission slip. Brutal != hostile. Brutal here means specific, evidence-backed, and unwilling to blame variance unless variance is in fact the issue.
@@ -108,7 +138,7 @@ These are not up for re-debate without a written ADR overriding them.
 
 ---
 
-## 7. Cross-references
+## 8. Cross-references
 
 - Engine entry: `engine.js` `simulateBattle()` line ~1087, return shape line ~2196
 - AI selector: `engine.js` `selectMove()` line ~1230 (single-shot greedy, the source of "no line enumeration" today)
@@ -119,7 +149,7 @@ These are not up for re-debate without a written ADR overriding them.
 
 ---
 
-## 8. How to use this doc in PRs
+## 9. How to use this doc in PRs
 
 Every coaching-layer PR description must answer:
 
@@ -132,7 +162,7 @@ If a PR cannot answer 1, 2, and 4, it does not get the "north-star" label. It ca
 
 ---
 
-## 9. Original spec (preserved verbatim)
+## 10. Original spec (preserved verbatim)
 
 The full text of the standard the user set on 2026-04-25:
 
