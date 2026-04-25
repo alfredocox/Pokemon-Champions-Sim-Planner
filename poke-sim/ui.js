@@ -4361,11 +4361,30 @@ function csMistakes(team, identity, format) {
   var rules = [];
 
   // Lead-trap rules (highest severity)
+  // Fake Out is a Normal-type move. Ghost types are 0x immune, and Inner Focus
+  // / Own Tempo / Oblivious ignore the flinch. So a Ghost lead or an
+  // Inner-Focus lead is NOT vulnerable to Fake Out pressure and this rule
+  // should not fire for them. Bug caught in Froslass's Team build v2.1.1:
+  // coach was warning "do not lead Froslass-Mega into Fake Out pressure" even
+  // though Froslass is Ice/Ghost and cannot be touched by Fake Out at all.
+  // Cite: https://bulbapedia.bulbagarden.net/wiki/Fake_Out_(move) (Normal-type)
+  // Cite: https://www.serebii.net/abilitydex/innerfocus.shtml (flinch immune)
+  var FAKE_OUT_IMMUNE_ABILITIES = ['Inner Focus', 'Own Tempo', 'Oblivious'];
+  function _fakeOutVulnerable(m) {
+    // Ghost types: Normal move does 0 damage -> no flinch roll either.
+    var types = (typeof getPokemonTypes === 'function') ? getPokemonTypes(m.name) : [];
+    if (types.indexOf('Ghost') >= 0) return false;
+    // Inner Focus / Own Tempo / Oblivious mons: take the chip damage but no
+    // flinch, so Fake Out "pressure" loses its tempo value on them.
+    if (FAKE_OUT_IMMUNE_ABILITIES.indexOf(m.ability || '') >= 0) return false;
+    return true;
+  }
   var fragileLeaders = members.filter(function(m){
     var stats = (typeof BASE_STATS !== 'undefined' && BASE_STATS[m.name]) ? BASE_STATS[m.name] : null;
     if (!stats) return false;
     var bulk = (stats.hp||0) * Math.max(stats.def||0, stats.spd||0);
-    return bulk < 12000;
+    if (bulk >= 12000) return false;
+    return _fakeOutVulnerable(m);
   });
   if (fragileLeaders.length && members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); })) {
     rules.push({
