@@ -39,25 +39,76 @@ User quote (verbatim, binding): *"focus on accuracy"*.
 
 ## 3. Voice rules
 
-### 3.1 The four hard rules
+### 3.1 The seven hard rules
 
 1. **Every claim cites a number.** "Your team loses 52% of games when Trick Room goes unanswered (47-game sample)." NOT "you struggle vs TR."
 2. **Numbers come from struct, not vibes.** Every cited percentage maps to a field on `team_history`, `branchResult`, or `turnLog`. If the field doesn't exist, the sentence doesn't ship.
 3. **No RNG blame unless `consistency_score.rng_dependency > 0.6`.** Phase 4d struct is the only source. If we lose 12 games in a row but `rng_dependency = 0.3`, we say "this is a positional problem, not luck."
 4. **Action verbs only.** "Bring Garchomp." "Lead Arcanine + Incineroar." NOT "you might consider thinking about possibly bringing Garchomp."
+5. **Population qualifier within one sentence of every percentage.** Every `%` ships next to a phrase that says where the % came from: "in simulated play" (v1, AI-vs-AI greedy), "vs adaptive AI" (Stage 2), "replay-calibrated against M real-player matches" (Stage 3), "tournament-aligned with X% of top-cut leads" (Stage 5). The qualifier comes from `solverOutput.population` (Phase 4d) or `auditRow.validation_status` (Phase 4e). NEVER ship a bare percentage.
+6. **Surface candidates, not directives.** Use "consider", "best candidate", "first option to try". NOT "you should", "you must", "the right answer is". This is the language difference between an evolving simulator and a tournament oracle, and we are the former. Rule #4 (action verbs) still applies inside a chosen line - this rule applies at the recommendation level. Example: "Best candidate: Safe (61% in simulated play). Lead Arcanine + Incineroar T1." The recommendation is softened; the in-line action is still imperative.
+7. **Banned tournament-claim phrasings.** Until the Credibility Ladder advances (see `COACHING_NORTH_STAR.md` Section 6), the following phrasings are forbidden anywhere in coaching output, marketing copy, or specs:
+   - `tournament-grade`
+   - `ladder-tested`
+   - `meta-proven`
+   - `competitive viable`
+   - `tournament-tested` (without an explicit stage qualifier)
+   - `pro-approved`
+   - `world's #1` (reserved for Stage 7 in the ladder)
+
+   T7 (Section 7) regex-scans every rendered coaching string for these and fails CI on any match.
 
 ### 3.2 Banned phrasings
+
+**Hedge / vibe phrasings** (rule #1 / #4 violations):
 
 | Banned | Why | Replacement |
 |---|---|---|
 | "you might want to" | Hedge | "do X" |
-| "this team is okay" | Vague | "win rate is N% over M games (confidence: med)" |
+| "this team is okay" | Vague | "win rate is N% in simulated play over M games (confidence: med)" |
 | "unlucky" / "RNG" (without struct citation) | Blames variance | Cite consistency_score or remove |
-| "consider running" | Hedge | "swap X for Y" |
+| "consider running" | Hedge for swap suggestions | "swap X for Y" |
 | "in general" | Vague | Cite a sample |
 | "could be" | Hedge | "is" with a number |
 | "feels like" | Vibes | Citation or remove |
 | "you should probably" | Hedge | "do X" |
+
+**Tournament-claim phrasings** (rule #7 violations - banned until ladder advances):
+
+| Banned | Why | Replacement (current stage) |
+|---|---|---|
+| "tournament-grade" | Overclaims evidence stage | "battle-tested in N AI simulations" |
+| "ladder-tested" | We have no ladder data yet (Stage 3) | "battle-tested in N AI simulations" |
+| "meta-proven" | We have no top-cut crosswalk yet (Stage 5) | "matches the simulated meta" |
+| "competitive viable" | Vague + overclaims | "holds up across N simulations" |
+| "tournament-tested" (no qualifier) | Reserved for Stage 5+ | "simulated against the current meta sample" |
+| "pro-approved" | Reserved for Stage 6 | (drop until partnership exists) |
+| "world's #1" | Reserved for Stage 7 | (drop) |
+
+### 3.2.1 Stage qualifier system
+
+Voice rule #5 requires a population qualifier within one sentence of every percentage. The qualifier wording is selected from the data row's `population` (Phase 4d) or `validation_status` (Phase 4e):
+
+| Stage / value | Qualifier wording | Source |
+|---|---|---|
+| `ai_vs_ai_greedy` / `unvalidated_simulation` (v1) | "in simulated play" / "in N AI simulations" | Now |
+| `ai_vs_ai_smarter` (Stage 2) | "vs adaptive AI" | Future |
+| `replay_calibrated` (Stage 3) | "replay-calibrated against M matches" | Future |
+| `tournament_aligned` (Stage 5) | "aligned with X% of top-cut leads" | Future |
+
+A helper `populationQualifier(populationOrStatus)` returns the wording string. The renderer always calls it; it cannot be inlined or hardcoded. This means upgrading from Stage 1 -> Stage 2 is a single-helper change, not a global string sweep.
+
+### 3.2.2 Permanent epistemic footer
+
+Every PRE and POST template ends with a one-line footer (no exceptions):
+
+```
+Based on N AI-vs-AI simulations. Real ladder + tournament data coming. Battle-tested. Always evolving.
+```
+
+The `N` is the largest sample size cited in the body. The phrase "Battle-tested. Always evolving." is the canonical product tagline (locked in `MASTER_PROMPT.md`). The footer text upgrades automatically when the data row's stage advances - it reads from `populationQualifier()` for the leading clause.
+
+T8 (Section 7) asserts the footer renders on every PRE and POST output.
 
 ### 3.3 Citation format
 
@@ -228,6 +279,19 @@ Each template has all required sections (PRE: 4, POST: 5). Missing section = fai
 
 ### T6 - Number provenance
 Pick a random claim from the rendered output. Assert the cited number maps to a field on `team_history` or `branchResult` or `turnLog`. Tested via JSON path lookup.
+
+### T7 - Tournament-claim regex (epistemic honesty)
+Render every template (PRE, POST, inline pilot card) from a Stage-1 fixture. For each banned phrasing in Section 3.2 (tournament-claim table), run a case-insensitive regex over the rendered string. Assert zero matches. This blocks marketing language from leaking into coaching output until the Credibility Ladder advances. The banned-phrasing list is imported from a single source-of-truth array in `ui.js` so adding a new banned phrase is a one-line change.
+
+### T8 - Permanent epistemic footer present
+Render PRE and POST templates from a fixture. Assert the rendered output ends with:
+- A line containing `"AI-vs-AI simulations"` (or whatever `populationQualifier(stage1)` returns once stages advance)
+- A line containing `"Battle-tested. Always evolving."`
+
+Footer must render even when the body is at the soft 400-word cap; it counts toward the hard cap of 1000.
+
+### T9 - Population qualifier proximity
+Render PRE and POST. Tokenize into sentences. For each sentence containing `\d+%`, assert the qualifier ("in simulated play" for Stage 1) appears within the same sentence OR the immediately adjacent one. This enforces voice rule #5 mechanically - if a future detector ever lets a bare percentage slip through, this test fails.
 
 ---
 

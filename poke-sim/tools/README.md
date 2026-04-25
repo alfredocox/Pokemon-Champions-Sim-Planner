@@ -1,6 +1,6 @@
 # poke-sim/tools
 
-Build and validation scripts for the Champions Sim project.
+Build and validation scripts for the Poke-e-Sim Champion 2026 project.
 
 ---
 

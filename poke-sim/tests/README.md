@@ -1,4 +1,4 @@
-# Champions Sim Test Suite
+# Poke-e-Sim Champion 2026 - Test Suite
 
 Node-based regression and unit tests for `engine.js` and `data.js`. All tests load source files into a VM context (no bundling required) and run in ~3s combined.
 

@@ -124,10 +124,35 @@ A phase is "Go" only if every gate from the previous phase passed. Gates are **m
 | Voice layer cites a number that doesn't exist in any struct | 6 | T6 number provenance test (JSON path lookup) |
 | Phase 6 RNG gate violated by an action verb that mentions "lucky" | 6 | T1 banned-phrasings linter |
 | Spec drift: detector renamed in 4c but 6 still cites old name | 6 | Cross-reference test reads field names from a single constants file |
+| **Epistemic overreach** (system claims more confidence than data warrants) | 4c, 4d, 4e, 6 | Effect-size guard (`PHASE4C_DETECTORS_SPEC.md` §3.4.1), `population` annotation (`PHASE4D_THREAT_RESPONSE_SPEC.md` solver output), `validation_status` field (`PHASE4E_POLICY_AUDIT_SPEC.md` acceptance #8), voice rules #5/#6/#7 + tournament-claim regex test T7 (`PHASE6_COACHING_VOICE_SPEC.md`). All four phases share enforcement; failure in any one fails CI. |
 
 ---
 
-## 7. Out of scope across all phases
+## 7. Follow-on stages (Credibility Ladder beyond v1)
+
+The v1 ship at end of Phase 6 is **Stage 1** of the Credibility Ladder defined in `COACHING_NORTH_STAR.md` Section 6. Stages 2-5 are tracked as known future phases with placeholder GitHub milestones so the roadmap is visible from day one.
+
+These are explicitly **out of scope for v1**, but in scope for the long-term "Battle-tested. Always evolving." promise. They are the path from "trust us, we simulated this" to "trust us, the data shows it."
+
+| Stage | Phase name (placeholder) | Adds | Earns the right to claim | Effort estimate | GitHub milestone |
+|---|---|---|---|---|---|
+| 2 | Smarter AI | Prediction layer, switch logic, item awareness in `selectMove()` | "vs adaptive AI" | 3-4 weeks engine work | [milestone/12](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/12) |
+| 3 | Showdown Replay Ingestion | Parser for public Pokemon Showdown replays + calibration layer that compares solver output to real-player choices | "Replay-calibrated against M real-player matches" | 4-6 weeks (parser + storage + calibration) | [milestone/13](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/13) |
+| 4 | User Feedback Loop | Thumbs up/down + free-text on every coaching surface; opt-in telemetry; weekly aggregate review | "Validated by N players over M sessions" | 2-3 weeks (UI + storage + review tooling) | [milestone/14](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/14) |
+| 5 | Tournament Crosswalk | Limitless / VGCStats / Trainer Tower top-cut data ingestion + alignment metric | "Aligned with X% of top-cut leads / brings" | 4-8 weeks (depends on data access) | [milestone/15](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/milestone/15) |
+| 6 | Pro / Team Partnership | Signed partnership with a registered tournament team or pro player | "Used by [pro] in [event]" | n/a (relationship-driven) | (created when signed) |
+| 7 | Official Partnership | Signed partnership with Limitless / TPCi / Play! Pokemon | "World's #1 tournament prep guide" | Multi-year | (created when signed) |
+
+**How this hooks into v1 code:** the data-shape and voice scaffolding for Stages 2-5 already exist after Phase 6 ships:
+- `population` field on Phase 4d solver output
+- `validation_status` field on Phase 4e audit rows
+- `populationQualifier()` helper in Phase 6 voice layer
+
+Upgrading from Stage 1 to Stage 2 is a single-helper change to add the `'ai_vs_ai_smarter'` value plus the engine work in the smarter-AI milestone. No global string sweep, no spec rewrite.
+
+---
+
+## 8. Out of scope across all phases
 
 To prevent scope creep, the following are explicitly **not** in the 5 phases above:
 
@@ -144,7 +169,7 @@ To prevent scope creep, the following are explicitly **not** in the 5 phases abo
 
 ---
 
-## 8. What ships at the end of Phase 6 (v1)
+## 9. What ships at the end of Phase 6 (v1)
 
 Concrete user-visible deliverables when all 5 phases are done:
 
@@ -157,7 +182,7 @@ Concrete user-visible deliverables when all 5 phases are done:
 
 ---
 
-## 9. Credit / cost awareness
+## 10. Credit / cost awareness
 
 User constraint (verbatim, binding): *"try keep aware how many credit we use because get low want do this phase on budget without affixing anything."*
 
@@ -175,7 +200,7 @@ These rules apply across all 5 phases and should be repeated in each PR descript
 
 ---
 
-## 10. Sub-skills cross-reference (the user's North Star)
+## 11. Sub-skills cross-reference (the user's North Star)
 
 Every phase pulls from the canonical north star (`COACHING_NORTH_STAR.md` Section 2). This table maps north-star sections to the phase that owns them.
 
@@ -197,7 +222,7 @@ Every phase pulls from the canonical north star (`COACHING_NORTH_STAR.md` Sectio
 
 ---
 
-## 11. Locked decisions summary (from `@alfredocox` review 2026-04-25)
+## 12. Locked decisions summary (from `@alfredocox` review 2026-04-25)
 
 All 19 open questions across the 4 specs were answered in the staging review. Quick lookup:
 
@@ -232,7 +257,7 @@ Full rationale lives in each spec's "Locked decisions" table.
 
 ---
 
-## 12. Cross-references
+## 13. Cross-references
 
 - `PHASE4_DYNAMIC_ADVICE_SPEC.md` - the parent spec for Phases 4c/4d/4e
 - `PHASE4C_DETECTORS_SPEC.md`
@@ -240,5 +265,5 @@ Full rationale lives in each spec's "Locked decisions" table.
 - `PHASE4E_POLICY_AUDIT_SPEC.md`
 - `PHASE5_TURN_LOG_SPEC_DRAFT.md`
 - `PHASE6_COACHING_VOICE_SPEC.md`
-- `COACHING_NORTH_STAR.md` - the standing brief
-- `MASTER_PROMPT.md` - the canonical agent prompt + storage keys + invariants
+- `COACHING_NORTH_STAR.md` - the standing brief (Section 6 owns the Credibility Ladder)
+- `MASTER_PROMPT.md` - the canonical agent prompt + storage keys + invariants + tagline

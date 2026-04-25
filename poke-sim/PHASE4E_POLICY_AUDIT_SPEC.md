@@ -61,10 +61,17 @@ A turn is "fake-good" when the AI registered a KO but the **strategic ledger** g
 [
   { pattern: 'ko_but_tr_dropped',
     occurrences: 14, share_of_games: 0.30,
-    severity: 'high',                   // see 4c severity rules
-    confidence: 'high',
+    severity: 'high',                            // see 4c severity rules
+    confidence: { tier: 'high', reason: '...' }, // shape from PHASE4C §3.4.1
     sample_size: 47,
-    example_games: [123, 145, 167] }    // sim-log indices
+    validation_status: 'unvalidated_simulation', // EPISTEMIC HONESTY: every audit row
+                                                  // declares its evidence stage. v1 hard-codes
+                                                  // 'unvalidated_simulation' (AI-vs-AI greedy).
+                                                  // v2 candidates: 'replay_calibrated',
+                                                  // 'tournament_aligned'. Phase 6 voice rule
+                                                  // selects qualifier wording from this field.
+    population: 'ai_vs_ai_greedy',               // copied from solver output (Phase 4d)
+    example_games: [123, 145, 167] }             // sim-log indices
 ]
 ```
 
@@ -272,6 +279,7 @@ A reviewer can mark this phase complete when **all** are true:
 5. Manual: deliberately seed a static log (rerun `Run All` on identical state); STATIC ADVICE WARNING banner shows
 6. Bumps version chip + CACHE_NAME
 7. PR description must answer: "What test guarantees the system gives different advice after 100 new battles?" with a link to the test
+8. **EPISTEMIC HONESTY:** every output row from `detectFakeGoodPlays`, `detectPlayerBehaviorPatterns`, and `auditCoachingDelta` has a non-null `validation_status` field with a value in the allowed enum (`'unvalidated_simulation' | 'replay_calibrated' | 'tournament_aligned'`). A new test `T7_validation_status_required` enumerates all audit outputs and fails if any row is missing the field or has an out-of-enum value. Without this guard, Phase 6 voice rules cannot reliably attach the right population qualifier.
 
 ---
 

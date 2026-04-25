@@ -72,6 +72,11 @@ solveThreatResponse(teamKey, oppKey, opts = {})
 ```js
 {
   teamKey, oppKey,
+  population: 'ai_vs_ai_greedy',     // EPISTEMIC HONESTY: every solver output is annotated
+                                      // with the population it was measured against. Required
+                                      // for Phase 6 voice rule #5 (population qualifier within
+                                      // 1 sentence of any %). v2 candidates: 'ai_vs_ai_smarter',
+                                      // 'replay_calibrated', 'tournament_aligned'.
   branches: [
     {
       id: 'safe',
@@ -85,11 +90,13 @@ solveThreatResponse(teamKey, oppKey, opts = {})
       consistency_score: { rng_dependency: 0.42, variance: 0.18 },
       classification: 'stable',      // see 5
       data: 'phase4c' | 'meta-only',
-      confidence: 'med'              // from confidenceBadge(n)
+      confidence: { tier: 'med', reason: 'n=200, winRate=61%' }  // from confidenceBadge(n, winRate)
     },
     ...
   ],
-  recommended: 'safe',                // highest classification, ties broken by win_rate
+  best_candidate: 'safe',             // RENAMED from 'recommended' for epistemic honesty.
+                                      // We surface candidates, not directives. Phase 6 voice
+                                      // rule #6 enforces "consider" / "best candidate" wording.
   generatedAt: 1714080000000
 }
 ```
@@ -102,16 +109,18 @@ Every branch is classified into one of four buckets. The rules are deterministic
 
 | Bucket | Rule | Plain English |
 |---|---|---|
-| `strong`   | `win_rate >= 0.65` AND `consistency_score.variance <= 0.20` | High win rate AND repeatable |
+| `strong`   | `win_rate >= 0.65` AND `n >= 200` AND `\|z\| >= 1.96` (effect-size guard from 4c §3.4.1) AND `consistency_score.variance <= 0.20` | High win rate AND repeatable AND statistically distinguishable from a coin flip |
 | `stable`   | `win_rate >= 0.55` AND `consistency_score.variance <= 0.30` | Above-even AND still repeatable |
 | `volatile` | `win_rate >= 0.50` BUT `variance > 0.30` OR `rng_dependency > 0.6` | Wins more often than not but coin-flippy |
 | `losing`   | `win_rate < 0.50` | Below 50% over the sample |
 
-**Recommendation rule:**
+**Epistemic honesty:** the `strong` bucket has the strictest gate. A 65% win rate at n=50 is NOT `strong` (insufficient sample). A 51% win rate at n=200 is NOT `strong` (no detectable effect). Both fall through to `volatile` or `stable` depending on variance. This prevents the failure mode where a noisy or under-powered branch gets sold as the obvious winner.
+
+**Best-candidate selection rule** (note: `best_candidate`, not `recommended` - we surface candidates, not directives):
 1. Best classification wins (`strong` > `stable` > `volatile` > `losing`)
-2. If two or more branches tie at `strong`, **all are co-recommended** (user-locked decision 2026-04-25 Q2). UI shows them side-by-side in priority order (lower variance first).
+2. If two or more branches tie at `strong`, **all are co-surfaced as candidates** (user-locked decision 2026-04-25 Q2). UI shows them side-by-side in priority order (lower variance first).
 3. For `stable`/`volatile`/`losing` ties: pick one. Higher `win_rate` wins, then lower `variance`, then alphabetical branch id.
-4. Co-recommendation applies only to the `strong` bucket. Two `stable` branches do not co-recommend - this prevents hedge-y output.
+4. Co-candidacy applies only to the `strong` bucket. Two `stable` branches do not co-surface - this prevents hedge-y output.
 
 **Sample-size guard:** Branch with `n < 30` is annotated `low_sample` and never marked `recommended` even if its raw win rate is highest. The next-best non-low-sample branch is recommended instead, and the UI shows "data not yet ready" on the low-sample branch.
 

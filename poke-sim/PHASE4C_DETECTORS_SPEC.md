@@ -154,11 +154,11 @@ if lift > LOSS_LIFT_THRESHOLD AND loss_freq > LOSS_FREQ_THRESHOLD:
 ]
 ```
 
-### 3.4 `confidenceBadge(n)`
+### 3.4 `confidenceBadge(n, winRate)`
 
-Single source of truth used everywhere:
+Single source of truth used everywhere. **Returns `{ tier, reason }`** so the UI can show *why* a tier was chosen.
 
-| Sample size | Badge | Color | UI label |
+| Sample size | Tier (sample-only) | Color | UI label |
 |---|---|---|---|
 | `n < 5` | `none` | grey | "insufficient data" |
 | `5 <= n < 15` | `low` | amber | "low confidence" |
@@ -166,6 +166,34 @@ Single source of truth used everywhere:
 | `n >= 50` | `high` | green | "high confidence" |
 
 `15` matches `CS_STATE_MATURE_THRESHOLD`. Constants kept in sync.
+
+### 3.4.1 Effect-size guard (epistemic honesty hard rule)
+
+Sample size alone is NOT enough. A 200-game lead with a 51% win rate is statistically indistinguishable from a coin flip. We must guard against the trap of "high-n therefore confident".
+
+**Rule:** Whenever `winRate` is supplied, run a two-sided z-test against the null hypothesis `p = 0.5`:
+
+```
+z = (winRate - 0.5) / sqrt(0.25 / n)
+if (n >= 50 && Math.abs(z) < EFFECT_SIZE_Z_THRESHOLD):
+  tier   = 'inconclusive'
+  reason = 'large sample, no detectable edge (|z|=' + z.toFixed(2) + ')'
+else:
+  tier follows the table above
+  reason = 'n=' + n + ', winRate=' + (winRate*100).toFixed(0) + '%'
+```
+
+**Constant:**
+- `EFFECT_SIZE_Z_THRESHOLD = 1.96` (two-sided 95% CI; configurable in one place)
+
+**Where this applies:**
+- `computeLeadPerformance` rows: a high-n lead with no detectable edge over 50% must surface as `inconclusive`, not `high`.
+- `detectLossConditions`: lift below threshold + n high should still render as `inconclusive`, not silently disappear.
+- Any future detector that produces a rate.
+
+**UI:** `inconclusive` renders as a 5th badge (slate grey, label "inconclusive") so users can see we have data but no signal. This is intentional and good - prevents fake-confident coaching.
+
+**Cross-reference:** `MASTER_PROMPT.md` hard invariants (population qualifier, no fake-confident claims) + `COACHING_NORTH_STAR.md` Section 5 epistemic ground rules.
 
 ### 3.5 Severity (for detector output)
 
@@ -254,6 +282,14 @@ Create `tests/phase4c_detectors.js` with three fixtures:
 - Assert: `outputA.loss_conditions` and `outputB.loss_conditions` differ by at least 1 condition flag, OR ranking changes
 
 This is the regression test that gates Phase 4c closeout.
+
+### Fixture D: High-n null effect (epistemic honesty regression)
+- Seed: 100 games on a single lead pair, 51 wins / 49 losses (essentially a coin flip).
+- Compute `confidenceBadge(100, 0.51)`.
+- Assert: `tier === 'inconclusive'` (NOT `'high'`).
+- Assert: `reason` mentions "no detectable edge" and includes `|z|` value.
+- Assert: `Math.abs(z) < 1.96`.
+- This guards against the failure mode where a large but flat sample masquerades as high-confidence advice. Any future change that lets a 51% / n=100 case through as `high` fails CI.
 
 ---
 
