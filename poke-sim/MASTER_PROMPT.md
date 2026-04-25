@@ -115,10 +115,20 @@ Pokemon-Champions-Sim-Planner/
 │   │   ├── COACHING_LAYER_SPEC.md      ← Phase 1-3 coaching spec (Sections 1-14)
 │   │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md ← Phase 4 adaptive coaching spec v2
 │   │   │                                  (state machine + threat response + policy audit)
-│   │   ├── COACHING_NORTH_STAR.md      ← Standing brief: top-1%-sim spec +
-│   │   │                                  validation matrix + acceptance criteria
-│   │   └── PHASE5_TURN_LOG_SPEC_DRAFT.md ← Phase 5 DRAFT: structured turnLog,
-│   │                                      positionScore, winProbabilityDelta
+│   │   ├── PHASE4C_DETECTORS_SPEC.md   ← Phase 4c: dead moves, lead perf,
+│   │   │                                  loss conditions, confidence badges
+│   │   ├── PHASE4D_THREAT_RESPONSE_SPEC.md ← Phase 4d: 4-branch MC solver,
+│   │   │                                      line classification v1, 200x4 budget
+│   │   ├── PHASE4E_POLICY_AUDIT_SPEC.md ← Phase 4e: fake-good detector,
+│   │   │                                   same-advice regression test (BLOCKER)
+│   │   ├── PHASE5_TURN_LOG_SPEC_DRAFT.md ← Phase 5 DRAFT: structured turnLog,
+│   │   │                                   positionScore, winProbabilityDelta
+│   │   ├── PHASE6_COACHING_VOICE_SPEC.md ← Phase 6: PRE/IN/POST templates,
+│   │   │                                   RNG-blame gating, banned-phrasings linter
+│   │   ├── PHASE_ROLLOUT_REVIEW.md     ← Master index: side-by-side, effort,
+│   │   │                                  dependencies, go/no-go gates
+│   │   └── COACHING_NORTH_STAR.md      ← Standing brief: top-1%-sim spec +
+│   │                                      validation matrix + acceptance criteria
 │   ├── DEVELOPMENT_RUNBOOK.md          ← Full dev history, architecture, QA log
 │   ├── CHAMPIONS_MECHANICS_SPEC.md     ← Authoritative mechanics reference
 │   ├── CHAMPIONS_VALIDATOR_FRAMEWORK.md ← Validator framework doc (T9j.8)
@@ -433,16 +443,22 @@ Multi-phase rollout for the Strategy tab + coaching engine. Tracked in `poke-sim
 | 4b+ | Record bar: total W-L + per-archetype splits + 10/50/100/500 sim presets | #119 / #53 #55 | ✅ Merged |
 | 4b+ | Both-sides sim log mirroring (opponent-only teams populate Strategy view) | #120 / #95 | ✅ Merged |
 | 4b+ | Record bar legacy vs new empty-state guidance | #121 / #53 #55 | ✅ Merged |
-| 4c | Detectors — dead moves, lead performance, common loss conditions, confidence badges | pending / #53 #54 | Open |
-| 4d | Threat Response System with Monte Carlo solver (200 sims/branch × 4 branches) | pending / #54 | Open |
-| 4e | Policy audit / player coaching + "same advice after 100 battles = failing" regression test | pending / #54 #55 | Open |
+| 4c | Detectors — dead moves, lead performance, common loss conditions, confidence badges (`PHASE4C_DETECTORS_SPEC.md`) | pending / #53 #54 | **Spec ready for review** |
+| 4d | Threat Response System with Monte Carlo solver, 200 sims/branch × 4 branches, line classification v1 (`PHASE4D_THREAT_RESPONSE_SPEC.md`) | pending / #54 | **Spec ready for review** |
+| 4e | Policy audit / player coaching + "same advice after 100 battles = failing" regression test (`PHASE4E_POLICY_AUDIT_SPEC.md`) | pending / #54 #55 | **Spec ready for review** |
 | **5a** | **Structured `turnLog: Turn[]` capture in `simulateBattle` (engine refactor, backwards-compat `log: string[]` derived view)** | spec drafted / N§2 | **Drafted** |
 | **5b** | **`positionScore(state)` heuristic + `position_path` + `turning_point` + cause taxonomy** | spec drafted / N§4 N§10 | **Drafted** |
 | **5c** | **Opt-in `winProbabilityDelta` micro-rollouts + Deep Coach toggle** | spec drafted / N§5 N§7 | **Drafted** |
-| **6** | **Coaching voice + per-match output templates (PRE/IN/POST). RNG blame gated on `consistency_score.rng_dependency > 0.6`** | spec TBD post-Phase-5 / N§11 N§12 | **Open** |
+| **6** | **Coaching voice + per-match output templates (PRE/IN/POST). RNG blame gated on `consistency_score.rng_dependency > 0.6`** (`PHASE6_COACHING_VOICE_SPEC.md`) | spec drafted / N§11 N§12 | **Spec ready for review** |
 | 7 | Source labels + Stress Test polish | pending | Open |
 
-> N§X references = north-star spec section in `COACHING_NORTH_STAR.md` Section 2 (validation matrix). Phase 5 sub-phases drafted in `PHASE5_TURN_LOG_SPEC_DRAFT.md`. Phase 6 spec deferred until Phase 5 lands.
+> N§X references = north-star spec section in `COACHING_NORTH_STAR.md` Section 2 (validation matrix). All upcoming phases now have ready-for-review specs:
+> - `PHASE4C_DETECTORS_SPEC.md` (detectors + confidence badges)
+> - `PHASE4D_THREAT_RESPONSE_SPEC.md` (MC solver, 4 branches @ 200 sims, line classification)
+> - `PHASE4E_POLICY_AUDIT_SPEC.md` (fake-good detector, **same-advice regression test = closeout blocker**)
+> - `PHASE5_TURN_LOG_SPEC_DRAFT.md` (turnLog struct, positionScore, winProbabilityDelta)
+> - `PHASE6_COACHING_VOICE_SPEC.md` (PRE/IN/POST templates, RNG-blame gating, banned-phrasings linter)
+> - `PHASE_ROLLOUT_REVIEW.md` (master index: side-by-side, effort, dependencies, go/no-go gates)
 
 **Storage keys in use:**
 - `champions_strategy_v1::<sig>` — legacy T9j.16 history (untouched, soft-migrated)
