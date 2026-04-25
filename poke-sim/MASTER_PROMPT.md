@@ -76,6 +76,10 @@ Pokemon-Champions-Sim-Planner/
 │   ├── ISSUE_TEMPLATE/
 │   └── pull_request_template.md
 ├── poke-sim/
+│   ├── tools/
+│   │   ├── build-bundle.py             ← #88: extracted rebuild script, shared by CI + humans
+│   │   ├── check-bundle.sh             ← #88: fails if bundle drifts from source files
+│   │   └── README.md                   ← #88: explains all tools + drift fix instructions
 │   ├── poke-sim/                       ← nested dev workspace (source of truth)
 │   │   ├── index.html                  ← App shell + tab structure + PWA meta
 │   │   ├── style.css                   ← Full dark theme, mobile-first
@@ -94,7 +98,7 @@ Pokemon-Champions-Sim-Planner/
 │   │   │                                  bring-picker slot layout + drag/tap (T9j.10)
 │   │   ├── strategy-injectable.js      ← TEAM_META knowledge base
 │   │   ├── manifest.json               ← PWA manifest
-│   │   ├── sw.js                       ← Service worker (cache-first) — CACHE_NAME: see SW CACHE HISTORY table
+│   │   ├── sw.js                       ← Service worker (cache-first) -- CACHE_NAME: see SW CACHE HISTORY table
 │   │   ├── icon-192.png                ← PWA icon
 │   │   ├── icon-512.png                ← PWA icon
 │   │   ├── pokemon-champion-2026.html  ← Self-contained single-file bundle (~685 KB)
@@ -118,7 +122,7 @@ Pokemon-Champions-Sim-Planner/
 │   ├── SPREAD_DAMAGE_SPEC.md           ← Doubles spread damage spec
 │   ├── BATTLE_DAMAGE_DOCUMENT.md       ← Damage formula reference
 │   ├── GITHUB_ISSUES_TO_FILE.md        ← Backlog log
-│   ├── MASTER_PROMPT.md                ← stale root copy (tech debt — see note below)
+│   ├── MASTER_PROMPT.md                ← stale root copy (tech debt -- see note below)
 │   └── README.md                       ← Quickstart guide
 ```
 
@@ -309,10 +313,9 @@ This is a known architectural limitation — do not "fix" it without restructuri
 
 The bundle (`pokemon-champion-2026.html`) is the rebuilt artifact — generated from the source files (`index.html`, `style.css`, `data.js`, `engine.js`, `ui.js`, `strategy-injectable.js`). It is **not** edited directly.
 
-**Rebuild procedure:**
+**Rebuild procedure (from `poke-sim/` directory):**
 ```bash
-cd poke-sim
-python3 build.py   # or: python3 ../t5_apply.py
+cd poke-sim && python3 tools/build-bundle.py
 ```
 The rebuild script inlines all source files into the single-file bundle. After any source file edit, the bundle must be rebuilt and committed together with the source changes.
 
@@ -380,7 +383,7 @@ Any PR that modifies one or more of:
      ```
 5. Rebuild the bundle if any source file changed:
      ```bash
-     cd poke-sim && python3 build.py
+     cd poke-sim && python3 tools/build-bundle.py
      ```
 6. Update MASTER_PROMPT.md to reflect your change
 7. Open PR — the CI check will verify step 2 was done
@@ -553,6 +556,6 @@ Dropdown: **10 / 50 / 100 / 500** (50 default). 500 is the hard ceiling — do n
 - M6 Polish & Launch (v2.0) — pending M1-M5 and M7-M10 close
 - M7 Architecture & Modularity (v2.1) — #77-#80
 - M8 Profile & Sync (v2.2) — #81-#86 (headline ask)
-- M9 Observability & QA (v2.3) — #87-#91 | **#95 ALL 3 PHASES DONE**
+- M9 Observability & QA (v2.3) — #87-#91 | **#95 ALL 3 PHASES DONE** | **#88 DONE**
 - M10 Performance & Quality (v2.4) — #92-#96
 - M11 Advanced Features (v2.5) — #97-#99 plus deferred #7 Tera
