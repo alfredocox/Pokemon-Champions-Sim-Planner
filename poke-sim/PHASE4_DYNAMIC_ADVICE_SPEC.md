@@ -1,249 +1,262 @@
-# Phase 4 — Dynamic, Data-Driven Coaching Layer
+# Phase 4 — Adaptive Dynamic Coaching Layer
 
-**Status:** DRAFT (for alfredocox review)
+**Status:** DRAFT v2 (supersedes v1; expanded per user adaptive-loop framework)
 **Author:** Computer (on behalf of alfredocox)
-**Base branch:** `main` @ `81083fe`
-**Target version:** `v2.2.0-phase4.1` (minor bump — new feature surface)
-**Target CACHE_NAME:** `champions-sim-v6-phase4`
-**Related:** Refs #52 #53 #54 #55 (Phase 4 Trend Analysis hook)
+**Base branch:** `main` @ `26962ec` (4a already merged)
+**Last merged phase:** 4a — simlog foundation (PR #113)
+**Related issues:** Refs #52 #53 #54 #55
 
 ---
 
-## Why
+## North Star
 
-The coaching layer today is **static rule-based** — e.g., "Do not lead Froslass into Fake Out pressure" fires from a type/BST heuristic, not from what actually happened in your sims. The user wants:
+> **"If the system gives the same advice after 100 battles, it is failing."**
 
-> "real analitical feed back and dynamic advice that is tailored off the rating and more battle you sim with that team"
+Coaching must visibly evolve as sim data accumulates. State must flow:
 
-Translation: coach should get **smarter the more you sim**, and surface patterns from **your actual battle history**, not just archetype rules.
+```
+State 1 (No Data, 0 sims)
+  → theory-based, low confidence, labelled "from archetype heuristics"
+
+State 2 (Early Sims, 1-14 sims)
+  → point-out obvious failures, still mark as provisional
+
+State 3 (Mature Data, 15+ sims)
+  → trend-based coaching: adjust leads, threats, risk profile
+```
+
+**Validation test** (hard requirement for shipping):
+For any one team, capture the Strategy tab snapshot at 0, 5, and 30 sims. Advice text, confidence bands, threat list, and lead recommendations MUST differ between at least two of those checkpoints. Automated regression test will snapshot the three states and fail the build if ≥1 key section is identical across all three.
 
 ---
 
-## Scope (4 deliverables approved by user)
+## Per-team state object: `team_history`
 
-1. **Confidence badges on existing static tips** — "High confidence · 18/20 sims"
-2. **Loss-pattern generated tips** — mined from sim history
-3. **Rating-driven overall team grade** — single letter grade with breakdown
-4. **Per-matchup postgame debriefs** — auto-generated after any Bo-series
+Computed on demand from `champions_sim_log_v1` (no new storage key). Cached per team with 500 ms TTL so the Strategy tab doesn't recompute for every re-render.
 
-Each is independently shippable. Recommended merge order below.
+```js
+team_history = {
+  total_battles,           // sum of games across all series for this team
+  total_series,            // count of series entries
+  state: 1 | 2 | 3,        // No Data / Early / Mature
 
----
+  win_rate,                // 0..1, per-game (not per-series)
+  series_win_rate,         // 0..1 per-series
+  consistency_score: {
+    label: 'consistent' | 'inconsistent' | 'volatile',
+    variance,              // variance of 0/1 outcomes across games
+    spread_gap,            // max_matchup_wr - min_matchup_wr (requires >=3 opps simmed)
+    rng_dependency         // heuristic: stdev of turn count / mean turn count
+  },
 
-## Architecture
+  lead_performance: [{     // one row per unique player-lead pair used
+    leadPair: ['Incineroar','Arcanine'],
+    n: 12,
+    wins: 7,
+    win_rate: 0.58,
+    avg_turns: 11.2,
+    verdict: 'strong' | 'ok' | 'weak'   // vs team-average win rate +/- bands
+  }],
 
-### New storage key: `champions_sim_log_v1`
+  common_loss_conditions: [{
+    pattern: 'early_ko_of_X',    // e.g. "Whimsicott KO'd by turn <=2"
+    victim: 'Whimsicott',
+    by_turn: 2,
+    seen_in_losses: 5,
+    total_losses: 7,
+    pct: 0.71
+  }, ...],
 
-Separate from `champions_strategy_report_v1` (Phase 3) because:
-- Strategy reports are **computed/snapshot** data (re-derivable)
-- Sim log is **raw event history** (append-only, source-of-truth for Phase 4 analytics)
+  dead_moves: [{           // requires movesUsed[] plumbing (see below)
+    owner: 'Whimsicott',
+    move: 'Moonblast',
+    games_sampled: 20,
+    times_used: 0
+  }],
 
-**Schema:**
-```json
-{
-  "version": 1,
-  "entries": [
-    {
-      "id": "sim_<timestamp>_<rand>",
-      "ts": 1714000000000,
-      "playerKey": "aurora_veil_froslass",
-      "oppKey": "rin_sand",
-      "format": "doubles",
-      "bo": 3,
-      "games": [
-        {
-          "result": "win",
-          "turns": 14,
-          "leads": { "player": ["Froslass-Mega","Tapu Koko"], "opponent": ["Tyranitar","Excadrill"] },
-          "bring": { "player": [...4], "opponent": [...4] },
-          "playerSurvivors": 2,
-          "oppSurvivors": 0,
-          "winCondition": "Sweep",
-          "trTurns": 0,
-          "twTurns": 4,
-          "koEvents": [
-            { "turn": 2, "victim": "Tyranitar", "side": "opp", "byMove": "Moonblast", "byAttacker": "Tapu Koko" }
-          ]
-        }
-      ],
-      "seriesResult": "win"
-    }
-  ]
+  matchup_failures: [{
+    oppKey: 'rin_sand',
+    n: 8,
+    win_rate: 0.125,
+    avg_turns_on_loss: 6.4,
+    recurring_killer: { attacker: 'Excadrill', move: 'Rock Slide', kos: 5 }
+  }],
+
+  player_behavior_patterns: [{
+    // Since the AI policy plays "you", this layer audits the policy's choices
+    // on the USER's team. Framed as "your team needs this style of play".
+    pattern: 'over_protect' | 'passive' | 'over_aggression' | 'bad_lead_choice',
+    evidence: { ... },
+    severity: 'info' | 'warning' | 'critical'
+  }]
 }
 ```
 
-**Storage strategy:**
-- Cap at **500 entries total** (LRU eviction). At ~1 KB/entry worst case = 500 KB, well under 5 MB localStorage budget.
-- Separate cap of **100 entries per (playerKey, oppKey) pair** to prevent one heavy matchup from crowding out others.
-- QuotaExceededError → purge oldest 25% (same pattern as Phase 3).
+---
 
-### New engine return field: `koEvents[]`
+## Four-feature framework (maps to user's spec)
 
-To avoid log-string parsing (fragile), extend `simulateBattle` return with structured KO events:
+### Feature 1 — Adaptive State Machine
+
+`team_history.state` drives a top banner on the Strategy tab:
+
+| State | Games | Banner | Coaching text style |
+|-------|-------|--------|-----|
+| 1 | 0 | "Theory-based — sim battles to unlock tailored coaching" (amber) | Low confidence pills on all tips. Static archetype rules only. |
+| 2 | 1-14 | "Early data — X sims logged (15 to full confidence)" (blue) | Provisional tips. "Based on 6 sims — keep simming to confirm." |
+| 3 | 15+ | "Mature data — X sims logged" (green) | Full dynamic advice. Trend-adjusted leads, threats, risks. |
+
+### Feature 2 — Adaptive Coaching Update Rules (5 rules from user spec)
+
+| Rule | Signal | Output |
+|------|--------|--------|
+| Same loss repeats | Identical loss condition ≥3 times | Escalate severity: info → warning → critical |
+| Move never used | `dead_moves[i].times_used === 0` after ≥10 games | "Dead move: Whimsicott never used Moonblast. Consider swap." |
+| Lead underperforms | `lead_performance[i].win_rate` < team wr − 15pp at n≥5 | Downgrade from primary to backup lead in recommendation |
+| Matchup repeatedly fails | `matchup_failures[i].win_rate` < 0.25 at n≥5 | Auto-add to threat list with counter-line |
+| Behavior pattern | See Feature 4 | Coach the player (not the team) |
+
+### Feature 3 — Threat Response System
+
+For each entry in `matchup_failures` (or top 5 meta threats from `META_THREATS` if State 1), compute:
 
 ```js
-koEvents: [
-  { turn: 2, victim: 'Tyranitar', side: 'opp', byMove: 'Moonblast', byAttacker: 'Tapu Koko' },
-  { turn: 5, victim: 'Whimsicott', side: 'player', byMove: 'Rock Slide', byAttacker: 'Excadrill' }
-]
+{
+  threat: 'Rin Sand',
+  why_it_beats_you: "Your Whimsicott dies T<=2 to Rock Slide in 5/8 losses.",
+  correct_lead: ['Incineroar', 'Arcanine'],       // solver output
+  turn_1_action: 'Fake Out on Tyranitar + Flare Blitz on Excadrill',
+  turn_2_followup: 'Switch Whimsicott in after Excadrill KO to set Tailwind',
+  fallback_if_wrong: 'If opp leads Dragapult instead: Incineroar Knock Off, hold Arcanine Extreme Speed for Dragapult after Pult commits.',
+  common_mistake: "Leading Whimsicott exposes it to Rock Slide flinch chain."
+}
 ```
 
-Plumb from the existing faint hooks at `engine.js:1523/1839/1999/2009/2020/2028/2040`. Already tracking `attacker` + `move` at those sites; just need to push structured event alongside log line.
+**Solver** (new engine function `solveThreatResponse(playerTeamKey, oppTeamKey, opts)`):
+- Enumerate candidate T1 lead pairs (up to C(4,2) = 6 per side × opp reasonable leads = ~36 branches)
+- Enumerate T1 actions for each lead pair (heuristic-prune to top 3)
+- For each (lead pair × T1 action) run **200 Bo1s** with a policy-override that forces T1 action, lets AI play from T2 forward
+- Rank by win rate, pick top 1
+- For top 1, re-run 200 sims with top-2 alternative opp lead → `fallback_if_wrong`
+- Total: ~36 × 3 × 200 = 21,600 sims worst case. With speed optimizations (skip obviously-dominated branches after 50 sims) target <8s per threat.
+- UI shows a spinner and progress bar while solving.
 
-**Risk:** Non-attack faints (hazards, weather, recoil) need special casing — `byAttacker: null, byMove: "Stealth Rock"` or `"Sandstorm"`.
+**Common mistake** is derived from `common_loss_conditions` — the top loss pattern for this matchup.
 
-### Phase 4 UI surface: `#strategy-tab` additions
+### Feature 4 — Player (Policy) Audit
 
-New subsection **after** the existing Section 7 ("Mistakes to Avoid"):
+Since the AI plays both sides, we audit **the policy on your side** for classic mistakes. Framed as "your team struggles when played this way." Detectors (each opt-out by low confidence if <5 sims):
 
+| Detector | Engine signal needed | Example output |
+|----------|---------------------|----------------|
+| Protect misuse | count Protects on turns with no incoming damage threat | "Your team auto-Protects 40% of turns where opp has no setup — you're giving up tempo" |
+| Over-aggression | KO differential negative AND avg turns <10 | "You're rushing — losing trades early" |
+| Passive play | avg turns >15 AND survivors end >=3 on wins | "You win slow — opponent has time to stabilize" |
+| Bad lead choice | lead pair wr <35% AND exists alternative pair >55% | "Your Incineroar/Arcanine lead loses 65%; swap with Whimsicott/Rotom-Wash which wins 58%" |
+| Over-Protect (stacked) | same mon Protects 2+ consecutive turns ≥3 times | "Rotom-Wash is spamming Protect — opponents have time to set up" |
+
+**Out of scope for V1:** over-switching / under-switching (engine has no mid-battle switch logic; noted in Gap Analysis).
+
+### Consistency Score
+
+```js
+consistency_score.label =
+  variance < 0.15 && spread_gap < 0.25 && rng_dependency < 0.30 ? 'consistent' :
+  variance < 0.25 && spread_gap < 0.40 ? 'inconsistent' :
+  'volatile'
 ```
-┌─ Team Rating ─────────────────────────────────────┐
-│  B+     Win rate 67% (16W-8L)  ·  24 games logged │
-│         Breakdown:                                 │
-│         • Win rate ........... B  (67%)           │
-│         • Lead survival ...... A  (88% alive T3)  │
-│         • KO differential .... B+ (+1.2 avg)      │
-│         • Closing speed ..... C  (avg 13.2 turns) │
-└────────────────────────────────────────────────────┘
 
-┌─ Learned from your sims ─────────────────────────┐
-│  ⚠ Whimsicott dies turn ≤2 in 71% of your losses │
-│     Suggested: Focus Sash or Misty Seed          │
-│     (observed 5/7 losses · 3 to Rock Slide)      │
-│                                                    │
-│  ⚠ You average 14.8 turns vs Rin Sand (tied 3-3) │
-│     You're grinding — consider Trick Room break  │
-│     (observed across 6 Bo3s)                      │
-└────────────────────────────────────────────────────┘
-
-┌─ Recent matchups ─────────────────────────────────┐
-│  ✓ vs Rin Sand (Bo3)        2-1    [Debrief ▸]   │
-│  ✗ vs Chuppa Balance (Bo5)  2-3    [Debrief ▸]   │
-│  ✓ vs Mega Dragonite (Bo1)  1-0    [Debrief ▸]   │
-└────────────────────────────────────────────────────┘
-```
+Rendered as a pill at top of Strategy tab next to state banner. Explainer tooltip breaks down the three components.
 
 ---
 
-## Feature Details
+## Engine gaps (must be filled)
 
-### 1. Confidence badges (cheapest, ~1 day)
+| Need | Status | PR |
+|------|--------|-----|
+| `koEvents[]` | ✅ Done in 4a | — |
+| `movesUsed[]` — per-mon move-call histogram per game | ❌ Missing | 4b |
+| `actionLog[]` — turn-by-turn (mon, move, target, side) | ❌ Missing | 4b |
+| Protect stack counter per mon | ⚠️ Partial (mon has state but not exposed) | 4b |
+| Switch support | ❌ Absent from engine | **Out of scope** — noted limitation |
+| Policy override for solver (`force T1 action`) | ❌ Missing | 4d |
 
-**For each existing `csMistakes` rule,** if the team has ≥5 logged sims, compute how often the rule's predicted-bad-thing actually happened.
-
-**Example — the Fake Out rule we just fixed:**
-- Rule fires when fragile vulnerable leader + Fake Out in opp team
-- Badge logic: of last 20 sims where opponent had Fake Out, how many times was that fragile leader KO'd by turn 2?
-- Render: `High · 14/20` (green), `Medium · 8/20` (amber), `Low · 2/20` (red — rule may not apply to this user's playstyle)
-
-**Min sample:** 5 sims. Below that, show neutral "Static rule" pill (no color).
-
-**Storage:** computed at render time from sim log, no new persistence.
-
-### 2. Loss-pattern generated tips (meat of the work, ~2-3 days)
-
-**Pattern detectors** (each returns 0..N tips):
-
-| Detector | Signal | Example output |
-|----------|--------|----------------|
-| Early-KO victim | Member KO'd by turn ≤2 in >50% of losses, min 5 losses | "Whimsicott dies turn ≤2 in 71% of losses. Try Focus Sash." |
-| Repeat killer | Same opp move/mon KOs you ≥3 times across sims | "Rock Slide from Excadrill KO'd your leads 4 times." |
-| Grind games | Avg turns >13 in wins vs a specific opp | "You're closing slow vs Rin Sand (avg 14.8 turns)." |
-| Lead-trap | Your same lead pair loses T1 momentum ≥3 times | "Your Incineroar/Arcanine lead loses Fake Out war 60% vs Fake Out users." |
-| Survivor gap | You finish with avg ≤1 survivor while losing | "You're trading 1-for-1 instead of 2-for-1." |
-
-**Scoring:** Each tip gets a severity (`critical`/`warning`/`info`) based on frequency × cost. Cap 3 tips shown (expand to see more).
-
-**Threshold:** Minimum **10 sims total** for this section to render. Below that, show "Keep simming — dynamic advice unlocks at 10 games."
-
-### 3. Rating-driven team grade (~1 day after 1+2)
-
-Single letter grade (A+ / A / A- / B+ / ... / D) computed as weighted average:
-
-```
-grade_score =
-  0.40 * norm(win_rate, 0.30, 0.80)          // 30% = F, 80% = A+
-  + 0.20 * norm(lead_survival_t3_pct, 0.50, 0.90)
-  + 0.20 * norm(ko_diff_avg, -2.0, +2.0)
-  + 0.10 * norm(inv(turns_to_win_avg), 10, 20)  // fewer turns = better
-  + 0.10 * norm(closeout_rate_in_wins, 0.60, 1.0)
-```
-
-`norm()` clamps to [0,1], then maps linearly to 0..100. Letter grade bands: A+ ≥ 93, A ≥ 87, A- ≥ 83, B+ ≥ 77, B ≥ 73, B- ≥ 70, C+ ≥ 65, C ≥ 60, D ≥ 50, F < 50.
-
-**Min sample:** 15 sims. Below that, show "Rating available at 15 games (X more)."
-
-**Breakdown card** shows each component's grade so the user knows what to improve.
-
-### 4. Per-matchup postgame debrief (~1-2 days)
-
-After any Bo-series completes, auto-append an entry. Clicking "Debrief" shows:
-
-```
-vs Rin Sand · Bo3 · 14 Apr 2026 9:41pm
-Result: 2-1 (W-L-W)
-
-Game 1 (W, 12 turns): Swept with Froslass-Mega Aurora Veil
-Game 2 (L, 18 turns): Tyranitar set sand, you lost tempo — Whimsicott KO'd T2
-Game 3 (W, 9 turns): Tapu Koko Terrain flip closed fast
-
-Key turning points:
-  • T2 Whimsicott KO in G2 (Rock Slide, Excadrill)
-  • T1 Protect read in G3 (Froslass-Mega survived Fake Out chip)
-
-Across series:
-  • Your avg turns: 13.0 (league avg 11.2 — slightly slow)
-  • KO diff: +0.7 (positive)
-  • Recommend: bring Focus Sash on Whimsicott for G2-style openings
-```
-
-**Data source:** the 3 games in the last sim_log entry. Debrief is deterministic — no LLM, all template + data.
+`actionLog[]` is ~60 bytes/turn × 10 turns × 4 mons = 2.4 KB/game worst case → 7.2 KB/series, 3.6 MB at 500-entry cap. **Too expensive** to store in full. Design: record per-game but truncate to counts (`movesUsed`, `protectStack`) on simlog write; keep the full `actionLog` in memory only for the current session.
 
 ---
 
-## Recommended rollout order
+## Rollout — revised (4 PRs, each mergeable)
 
-Ship as **4 separate PRs**, each mergeable independently:
+| PR | Scope | Version chip | Effort |
+|----|-------|--------------|--------|
+| **4b** | Engine: `movesUsed[]`, `protectStack` counter, compact action counts attached to simlog entries. UI: `computeTeamHistory(teamKey)` + state-machine banner + consistency pill on Strategy tab. | v2.1.4-adaptive.1 | 2 days |
+| **4c** | Detectors: `lead_performance`, `common_loss_conditions`, `dead_moves`, `matchup_failures`. Render "Learned from your sims" section applying the 4 update rules (escalate, dead move, downgrade lead, auto-add threat). Confidence badges on all existing `csMistakes` rules. | v2.1.5-detectors.1 | 3 days |
+| **4d** | Threat Response System. New `solveThreatResponse()` in engine. Policy override plumbing. UI solver spinner. Populate threat cards with correct_lead / t1_action / t2_followup / fallback / common_mistake. | v2.1.6-threats.1 | 3 days |
+| **4e** | Policy-audit detectors (Protect misuse, passive, aggressive, bad lead, over-Protect-stack). New "How you're playing this team" section. | v2.2.0-phase4.1 (minor bump — Phase 4 feature complete) | 2 days |
 
-| PR | Scope | Version chip | Estimated effort |
-|----|-------|--------------|-------------------|
-| 4a | `champions_sim_log_v1` storage + `koEvents` engine plumbing + log capture in `runBoSeries` handler | v2.1.3-simlog.1 | 1 day |
-| 4b | Confidence badges on existing mistakes | v2.1.4-confidence.1 | 1 day |
-| 4c | Loss-pattern detectors + "Learned from your sims" section | v2.1.5-patterns.1 | 2-3 days |
-| 4d | Team grade + per-matchup debrief | v2.2.0-phase4.1 (minor bump — feature complete) | 2 days |
-
-**Why this order:** 4a is foundation (no user-visible change but required). 4b is the smallest user-visible win and validates the data flow. 4c+4d build on it.
+Total: ~10 days of work across 4 PRs. Spec doc gets committed immediately as standalone docs PR for clean reference.
 
 ---
 
-## Open questions for alfredocox
+## Validation / success criteria (hard requirements)
 
-1. **Do losses in a `Bo3` count as 1 entry or 1-3 entries in the sim log?** My recommendation: **1 entry per series, containing N game sub-records**. Cleaner for per-matchup debrief; still allows per-game stats.
-2. **Should the sim log track sims run with swapped sides** (user as opp)? My recommendation: **No** — only log when the team in question is `playerKey`. Keeps stats honest.
-3. **Should static rules that contradict history be suppressed** (e.g., if a static warning has fired 20 times but the predicted bad thing never happened, hide it)? My recommendation: **Demote, don't hide** — show it with "Low confidence · this rule rarely applies to your playstyle" so the user can still see what the archetypic rule is.
-4. **Grade letter vs numeric**: current spec shows `B+`. Alternatives: 0-100 number, star rating (★★★★☆), or both. My recommendation: **letter + number-in-tooltip** (e.g., `B+ (78)`).
-5. **Reset controls**: should there be a "Clear sim history for this team" button? My recommendation: **Yes**, in the Strategy tab footer alongside existing clear controls.
+- [ ] At 0 / 5 / 30 sims on the same team, Strategy tab differs in ≥2 sections across the three snapshots
+- [ ] State banner advances 1 → 2 → 3 on game-count thresholds
+- [ ] Threat Response solver returns actionable leads + T1 actions with >55% measured win rate
+- [ ] Dead moves only flag after ≥10 games AND zero uses
+- [ ] Lead downgrade only fires at n≥5
+- [ ] Repeated loss escalation: 3 identical loss conditions → severity bumps to "warning"; 6 → "critical"
+- [ ] Consistency label matches intuition on 3 hand-crafted test teams (always-wins, coin-flip, RNG-dependent)
+- [ ] 0 `pageerror` / `console.error` across 22 teams at all 3 states
+- [ ] Solver completes in <8 s per threat; Strategy tab first-paint <200 ms (solver runs async)
+- [ ] Regression test fails the build if advice identical at 0 vs 30 sims
+
+---
+
+## Open questions resolved
+
+| # | Question | User decision |
+|---|----------|---------------|
+| Q1 | Bo3 series = 1 log entry or N? | 1 entry, N game sub-records ✅ (shipped 4a) |
+| Q2 | Log swapped-side sims? | No, only when user's team is playerKey ✅ (shipped 4a) |
+| Q3 | Suppress vs demote static rules? | Demote with "Low confidence" badge (shipped 4c) |
+| Q4 | Grade letter vs numeric? | Letter + number-in-tooltip (see Feature 1 banner) |
+| Q5 | Clear sim history button? | Yes, Strategy tab footer alongside existing clear controls |
+| Q6 | Player behavior scope? | **Policy audit** — detect AI-policy mistakes on user's side, frame as "your team needs this style" |
+| Q7 | Solver compute budget? | **Medium — 200 sims per branch** |
+| Q8 | Sequence? | **Re-scope into bigger PRs** — 4b/c/d/e as above |
 
 ---
 
 ## Out of scope for Phase 4
 
-- Cross-team aggregate stats ("your overall record across all teams")
+- Mid-battle switch support in engine (would unblock over/under-switching detectors — separate phase)
+- Live in-battle coaching (sim already plays automatically; live-play mode is separate)
+- Cross-team aggregate stats
 - Social/shareable stat cards
-- LLM-generated prose advice (current plan is 100% deterministic templates)
-- Live in-battle coaching (still postgame only)
+- LLM-generated prose advice (100% deterministic templates + data)
+- Team-building recommendations ("swap Whimsicott for Tapu Fini") — analysis only, not synthesis
 
 ---
 
-## Success criteria
+## Appendix — Validation regression test sketch
 
-- [ ] User can sim 10+ battles with a team and see at least one dynamically-generated tip referencing their specific loss pattern
-- [ ] Team grade reflects actual performance (validate: simulate 20 stomps → grade ≥A; simulate 20 losses → grade ≤D)
-- [ ] Existing static tips get badges that match observed frequency
-- [ ] Per-matchup debrief renders in <100ms for any logged series
-- [ ] Zero new `pageerror`/`console.error` across all 22 teams
-- [ ] localStorage usage stays under 1 MB after 100 sims
+Added in 4e as a headless Playwright test, not shipped to users:
 
----
-
-**Review checkpoints:** alfredocox sign-off required before each of the 4 PRs is cut.
+```js
+// tests/phase4-adaptive.spec.js (conceptual)
+test('advice evolves with data', async () => {
+  await page.goto(bundle);
+  csSimLogClearAll();
+  const s1 = await snapshotStrategyTab('aurora_veil_froslass');  // 0 sims
+  await runBoSeries(5, 'aurora_veil_froslass', 'rin_sand', 1);
+  const s2 = await snapshotStrategyTab('aurora_veil_froslass');  // ~5 sims
+  await runBoSeries(25, 'aurora_veil_froslass', 'rin_sand', 1);
+  const s3 = await snapshotStrategyTab('aurora_veil_froslass');  // ~30 sims
+  expect(s1.stateBanner).toMatch(/theory-based/i);
+  expect(s3.stateBanner).toMatch(/mature/i);
+  expect(s1.adviceHash).not.toBe(s3.adviceHash);
+  expect(s2.adviceHash).not.toBe(s1.adviceHash);
+  expect(s2.confidenceBadge).toMatch(/provisional|early/i);
+});
+```
