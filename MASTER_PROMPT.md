@@ -11,7 +11,7 @@ You are continuing development of **Pokémon Champion 2026**, a production-grade
 
 **GitHub repo:** https://github.com/alfredocox/Pokemon-Champions-Sim-Planner
 **Default branch:** `main`
-**Active dev branch:** `fix/champions-sp-and-legality`
+**Active dev branch:** `main` (fix/champions-sp-and-legality was merged; all work goes to main)
 **Space name:** Pokesim (use this context for all Space-based chats)
 **Owner / committer identity:** `user.email=5zyxn9yrnt@privaterelay.appleid.com user.name=TheYfactora12`
 **All new feature tickets:** assigned to `@TheYfactora12`
@@ -54,6 +54,8 @@ Space instruction `deploy_website(project_path="poke-sim/poke-sim", site_name="C
 
 > **Why htmlpreview works for the bundle but not index.html:** The bundle (`pokemon-champion-2026.html`) is fully self-contained — all CSS/JS inlined. htmlpreview works fine for it. The multi-file `index.html` loads `data.js`, `engine.js`, `ui.js`, `style.css` as separate files which fail cross-origin.
 
+> ⚠️ **The live bundle filename is `pokemon-champion-2026.html`.** There is no `-FINAL` variant in the repo. Do not use `pokemon-champion-2026-FINAL.html` — that file does not exist and will 404.
+
 ---
 
 ## WHAT THIS PROJECT IS
@@ -85,7 +87,7 @@ Pokemon-Champions-Sim-Planner/
 │   │   │                                  bring-picker slot layout + drag/tap (T9j.10)
 │   │   ├── strategy-injectable.js      ← TEAM_META knowledge base
 │   │   ├── manifest.json               ← PWA manifest
-│   │   ├── sw.js                       ← Service worker (cache-first)
+│   │   ├── sw.js                       ← Service worker (cache-first) — CACHE_NAME: champions-sim-v4-t9j16
 │   │   ├── icon-192.png                ← PWA icon
 │   │   ├── icon-512.png                ← PWA icon
 │   │   ├── pokemon-champion-2026.html  ← Self-contained single-file bundle (~425 KB)
@@ -108,6 +110,25 @@ Pokemon-Champions-Sim-Planner/
 │   ├── GITHUB_ISSUES_TO_FILE.md        ← Backlog log
 │   └── README.md                       ← Quickstart guide
 ```
+
+---
+
+## SERVICE WORKER CACHE HISTORY (#95)
+
+Phase 1 of #95 is **COMPLETE** (commit `944b405`, 2026-04-25).
+
+| Version | Tag | Ships with | Commit | Status |
+|---------|-----|-----------|--------|--------|
+| `champions-sim-v1` | — | Foundation | — | Retired |
+| `champions-sim-v2` | — | T9j.1–T9j.6 | — | Retired |
+| `champions-sim-v3` | — | T9j.7–T9j.15 | `8977090` | Retired |
+| `champions-sim-v4-t9j16` | T9j.16 | Coaching engine | `944b405` | **✅ Current** |
+
+**#95 Remaining phases:**
+- Phase 2: `tools/release.sh` auto-bumps `CACHE_NAME` on every release (open)
+- Phase 3: CI check enforces bump was not forgotten (open)
+
+**CACHE_NAME bump rule:** Must be updated on every release that changes `engine.js`, `data.js`, `ui.js`, or `style.css`. Format: `champions-sim-v{major}-{release-tag}`.
 
 ---
 
@@ -241,361 +262,67 @@ This is a known architectural limitation — do not "fix" it without restructuri
 
 ## ⚠️ REBUILD WARNING — READ BEFORE TOUCHING SOURCE FILES
 
-The bundle (`pokemon-champion-2026.html`) is the rebuilt artifact — generated from the source files (`index.html`, `style.css`, `data.js`, `engine.js`, `ui.js`) via the rebuild command. Always edit sources and rebuild; never edit the bundle directly.
+The bundle (`pokemon-champion-2026.html`) is the rebuilt artifact — generated from the source files (`index.html`, `style.css`, `data.js`, `engine.js`, `ui.js`, `strategy-injectable.js`). It is **not** edited directly.
 
-- `player-select` dropdown in the Simulator tab
-- Swap button between player/opponent
-- Strategy tab button, panel, and all rendering logic (`renderStrategyTab`, `renderMoveLog`, etc.)
-- `strategy-injectable.js` script reference
-
-**Before rebuilding:** verify these elements exist in `index.html` and `ui.js`. If they are missing, backport from the bundle before running the rebuild script. Rebuilding from incomplete source files will silently strip these features.
-
-### Rebuild command (run from `poke-sim/poke-sim/`)
+**Rebuild procedure:**
 ```bash
-cd poke-sim/poke-sim && python3 -c "
-import re, os
-with open('index.html','r') as f: html=f.read()
-with open('style.css','r') as f: css=f.read()
-with open('data.js','r') as f: data=f.read()
-with open('engine.js','r') as f: engine=f.read()
-with open('ui.js','r') as f: ui=f.read()
-html=html.replace('<script src=\"data.js\"></script>','')
-html=html.replace('<script src=\"engine.js\"></script>','')
-html=html.replace('<script src=\"ui.js\"></script>','')
-html=html.replace('<link rel=\"stylesheet\" href=\"style.css\"/>','')
-html=re.sub(r'<script>\nif \(.serviceWorker.\).*?</script>','',html,flags=re.DOTALL)
-html=html.replace('<link rel=\"manifest\" href=\"manifest.json\"/>','')
-html=html.replace('<link rel=\"apple-touch-icon\" href=\"icon-192.png\"/>','')
-html=html.replace('</head>','<style>\n'+css+'\n</style>\n</head>')
-html=html.replace('</body>','<script>\n'+data+'\n\n'+engine+'\n\n'+ui+'\n</script>\n</body>')
-with open('pokemon-champion-2026.html','w') as f: f.write(html)
-print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
-"
+cd poke-sim
+python3 build.py   # or: python3 ../t5_apply.py
 ```
+The rebuild script inlines all source files into the single-file bundle. After any source file edit, the bundle must be rebuilt and committed together with the source changes.
+
+**sw.js is NOT inlined into the bundle.** It is a standalone file served by the PWA runtime — only active when the app is loaded via a local dev server or GitHub Pages, never via htmlpreview. Changes to `sw.js` do not require a bundle rebuild.
 
 ---
 
-## DEPLOY COMMAND (Perplexity Space)
+## ISSUE #95 — SERVICE WORKER CACHE AUTOMATION
 
-```
-deploy_website(
-  project_path="poke-sim/poke-sim",
-  site_name="Champions Sim",
-  entry_point="index.html",
-  should_validate=False
-)
-```
+**Title:** infra: automate sw.js CACHE_NAME bump on release
+**Milestone:** M9 Observability & QA
+**Assigned:** @TheYfactora12
 
----
+### Phase 1 — Manual bump ✅ COMPLETE (commit `944b405`, 2026-04-25)
+- `CACHE_NAME` bumped from `champions-sim-v3` to `champions-sim-v4-t9j16`
+- Added comment block documenting the bump scheme
+- `SPRITE_CACHE` kept at `champions-sprites-v1` (no CDN changes)
 
-## TEST SUITE (golden-regression floor)
+### Phase 2 — tools/release.sh (open)
+- Shell script that auto-bumps `CACHE_NAME` in `sw.js` on every release
+- Format: `champions-sim-v{major}-{release-tag}`
 
-All suites must be GREEN before any commit. Current baseline:
-
-| Suite              | Cases  | Status |
-|--------------------|--------|--------|
-| items_tests.js     | 14/14  | GREEN  |
-| status_tests.js    | 27/27  | GREEN  |
-| mega_tests.js      | 27/27  | GREEN  |
-| coverage_tests.js  | 9/9    | GREEN  |
-| t9j8_tests.js      | 47/47  | GREEN  |
-| t9j9_tests.js      | 24/24  | GREEN  |
-| t9j10_tests.js     | 16/16  | GREEN  |
-| t9j11_tests.js     | 16/16  | GREEN  |
-| t9j12_tests.js     | 11/11  | GREEN  |
-| **Total**          | **191/191** | GREEN |
-| audit.js           | 5070 battles, 0 JS errors | GREEN |
-| nightly_bring_harness.js | N=500 across 5 matchups | PASS (non-ceiling) |
-
-Minimum floor = 40 cases per ticket before close (per user policy).
-
-The nightly harness (`tests/nightly_bring_harness.js`) is an end-to-end wiring check that verifies bring picker choices actually move win rates in the simulator. It runs N=500 battles across 5 fixed matchups and emits one of: PASS / WEAK / CEIL / FAIL per matchup. CEIL means win rate is already saturated (>=98% or <=2%), so bring-picker deltas are invisible by design. Do not run in the fast feedback loop; run before branch merges.
+### Phase 3 — CI enforcement (open)
+- GitHub Actions check that fails the build if `CACHE_NAME` was not bumped when engine/data/ui/style changed
 
 ---
 
-## QA TEST CHECKLIST (run after any change)
+## COMMIT CONVENTIONS
 
-1. **Simulator tab** → Verify both player-select AND opponent-select dropdowns are present → Select teams, change Bo → Run Simulation → verify: win %, replay entries, inline pilot card appear
-2. **Teams tab Bring picker (T9j.10)** → Verify 4 slots (LEAD 1, LEAD 2, BENCH 3, BENCH 4) for doubles, 3 slots for singles → Drag pool row to slot (desktop) OR tap pool row + tap slot (mobile) → verify order persists after refresh via localStorage
-3. **Random mode (T9j.10)** → Toggle `Random 4/6` on opponent → run Bo5 → verify each of the 5 series uses a different random pick, but games within one series use the same bring
-4. **Run All Matchups** → verify 12-row matchup matrix, Pilot Guide tab populates, PDF button appears, Top Leads reflect `battle.leads.player` (not log strings)
-5. **Strategy tab** → Change team dropdown → verify strategy content updates (team-specific, not generic)
-6. **Import** → Paste raw Showdown text → verify team loads into slot AND bring picker resets/fills to first N members
-7. **Export** → Click export on any team → verify Showdown-format output
-8. **Format toggle** → Switch Doubles ↔ Singles → verify bring slot count changes 4→3 and re-run sim → verify results differ
-9. **Replay Log** → Click All / Wins / Losses / Clutch filters → verify filtering works and active filter is highlighted
-10. **Open app** — use htmlpreview bundle link or GitHub Pages (see LIVE APP section)
+- **ASCII hyphens only** in commit messages — no em-dashes
+- Format: `type: description - Refs #N` (use `Refs`, not `Fixes` — close is explicit via PR merge)
+- Types: `feat`, `fix`, `infra`, `docs`, `test`, `revert`
+- Assignment policy:
+  - TheYfactora12 — product / feature scoping, rule design, user-facing decisions
+  - alfredocox — engineering refactors, infra, perf, security
+  - Jdoutt38 — testing + a11y
 
 ---
 
-## FEATURES — COMPLETE
+## SHIP GATE
 
-- [x] Bo1/Bo3/Bo5/Bo10 Monte Carlo simulation (non-deterministic, Math.random() roll)
-- [x] Singles/Doubles toggle (spread move nerf applied in doubles)
-- [x] Pokepaste URL + raw Showdown text import/export
-- [x] Import as new slot OR replace existing (with confirmation dialog)
-- [x] Both sides interchangeable — player-select + opponent-select dropdowns + Swap button
-- [x] Pilot Guide tab — per-matchup: verdict, leads, win conditions, risks, tips
-- [x] Inline Pilot Notes card auto-shown after every single sim
-- [x] Download Results & Pilot Notes (.txt report)
-- [x] PDF Report (print API) — appears after Run All Matchups
-- [x] Series Summary view in Replay Log
-- [x] Meta Threat Radar (Sources tab) — 10 top Reg M-A threats, color-coded
-- [x] Speed Tier widget — collapsible per team card
-- [x] Team Coverage checker — live in VS column
-- [x] Strategy tab — keyed to currentPlayerKey, updates on team change
-- [x] Critical hits (Serebii stages) + flinch rolls + 6 champion abilities (T9j.8)
-- [x] Data-driven MOVE_CATEGORY + MOVE_BP (T9j.9)
-- [x] Team Preview bring-N-of-6 picker — slot layout, drag+tap, random opponent mode, localStorage persistence (T9j.10, in progress)
-- [x] PWA — manifest + service worker + icons (iOS / Android install)
-- [x] Single-file offline bundle (~425 KB)
+40-case golden test floor per ticket (relaxed for small features), 5070-battle audit 0 JS errors, primary-source citations in comments.
 
 ---
 
-## WORKFLOW RULES (user policy, binding)
+## MILESTONES
 
-1. **Draft → approve → edit → commit** — every change gets a diff draft approved before applying
-2. **No em-dashes in commit messages** — ASCII hyphens only
-3. **`Refs #N` not `Fixes #N`** in commits; explicit close in issue comment at end of cycle
-4. **40-case golden test floor** per ticket before close
-5. **Full cycle per ticket:** draft → apply → rebuild → regression → push → validate → close → move on
-6. **New features assign to `@TheYfactora12`**
-7. **Primary-source validation on every ticket** — every claim cites Serebii / Bulbapedia / Smogon / Smogon Damage Calc
-8. **Accuracy first** — "do a once over double check thats correct"
-
----
-
-## ACTIVE TICKET — (none — ready for next)
-
-T9j.16 shipped (PR #100 open) and the v3 coaching engine is live. 23 infrastructure issues filed across 5 new milestones (M7 through M11). Pick the next ticket from the OPEN ISSUES section.
-
-### Standing assignment policy (binding)
-- **TheYfactora12** (you) — product / feature scoping, rule design, user-facing capability decisions
-- **alfredocox** — engineering refactors, infra, perf, security
-- **Jdoutt38** — testing + a11y
-
-All three get plain-English explanations on every ticket. No em-dashes in commit messages.
-
----
-
-## COMPLETED TICKETS (recent)
-
-### T9j.16 — Elite Champions Coaching Engine + Strategy Report (PR #100, commit `eb904d4`)
-- 17 coaching rules total: 6 base + 3 human + 8 elite, all firing through new `T9J16` module in `ui.js` (~810 lines, var-scoped, exposed via `window.T9J16`)
-- `buildStrategyReport(teamKey, results, fmt)` returns the v3 spec Step 8 structured shape
-- `teamSignature(team)` djb2 hash so persistence works on **any imported team**, not just the bundled 13
-- Adaptive autosave on every Run All Matchups via `t9j16AutoSave`, rolling 5-run history per signature
-- Inline Pilot Card now shows Elite Decisions, Lead and Recovery Plan, Coaching Summary panels
-- PDF report sections render Strategy Report data alongside the existing Pilot Guide
-- localStorage key: `champions_strategy_v1::<teamSignature>`
-- Tests: `t9j16_tests.js` 58/58 (total regression: 343/343), audit 5070/0
-- Engine and data files untouched (T9j.17 mechanics work tracked separately)
-- Cites: Bulbapedia Fake Out priority and legality, Parental Bond 0.25 multiplier, Unseen Fist contact-only
-
-### T9j.8 — Crits, flinch, six champion abilities (commit `f95fcd4`)
-- Closed #27, #19, #30
-- Tests: `t9j8_tests.js` 47/47
-- Validator framework doc: `CHAMPIONS_VALIDATOR_FRAMEWORK.md`
-- Validation report: `T9j8_VALIDATION_REPORT.md`
-- Cites: Serebii Attackdex, Bulbapedia Critical Hit, Bulbapedia Flinch
-
-### T9j.9 — MOVE_CATEGORY + MOVE_BP data-driven tables (commit `cece441`)
-- Closed #3, #24, #4
-- Tests: `t9j9_tests.js` 24/24
-- `data.js` gained MOVE_CATEGORY (104 entries), MOVE_BP (110+ entries)
-- `engine.js` `isPhysical` now data-driven with warn-on-miss fallback
-- Cites: Serebii attackdex-sv
-
-### T9j.10 — Team Preview bring-N-of-6 picker (commit `04eef39`)
-- Closed #16
-- Tests: `t9j10_tests.js` 16/16
-- `engine.js` `_applyBring` helper + `opts.playerBring`/`opponentBring` plumbing + `battleResult.leads` + `.bring`
-- `ui.js` `BRING_SELECTION`, `BRING_MODE` state, localStorage persistence under `poke-sim:bring:v1`, slot-layout UI (LEAD 1-2, BENCH 3-4), drag+tap controls, `Manual | Random 4/6` mode toggle
-- `runBoSeries` resolves per-series bring lock — manual uses fixed pick, random re-rolls each series
-- Cites: Bulbapedia Team Preview, Bulbapedia Lead Pokemon
-
-### T9j.11 — Custom teams bulk import/export + filter chips (commit `21d78b3`)
-- Closed #73
-- Tests: `t9j11_tests.js` 16/16
-- Custom team bulk import/export via file, filter chips on Teams tab, localStorage persistence verified
-
-### T9j.12 — Simulator bring picker (commits `ea5ef0f` + `7184740`)
-- Closed #74
-- Tests: `t9j12_tests.js` 11/11 + `tests/t9j12_lead_validation.js` empirical proof script
-- Simulator tab now exposes bring pickers for both player and opponent under VS rosters with Manual/Random 4/6 toggle
-- Shared state with Teams tab bring picker (both read/write the same `poke-sim:bring:v1` localStorage key)
-- Empirical proof (N=200 TR Counter vs Mega Altaria doubles): different 4-of-6 subset moves win rate 64.5pp (CIs disjoint), lead swap 4pp within noise
-- Added `tests/nightly_bring_harness.js` (N=500 across 5 matchups, FAIL/CEIL/WEAK/PASS verdicts, Wilson CI)
-- Cites: Bulbapedia Team Preview, Bulbapedia Lead Pokemon, MDN HTML Drag and Drop API, VGCGuide team preview, Nugget Bridge team preview article, Wilson CI
-
-### T9j.15 — Best Mega Trigger Turn card (Pilot Guide + PDF column)
-- Closed #71
-- Tests: `t9j15_tests.js` 22/22 (total regression: 285/285)
-- Consumes `runMegaTriggerSweep()` from T9j.7 (engine.js, shipped #23); no engine changes
-- Added helpers in ui.js: `teamHasMega()`, `megaTriggerCacheKey()`, `getCachedMegaSweep()` / `setCachedMegaSweep()`, `pickBestMegaRefined()`, `findTurn1Baseline()`, `megaTriggerSeverity()`, `renderMegaTriggerCard()`, `renderMegaTriggerCards()`, `buildMegaTriggerPdfSummary()`, `computeMegaTriggerSweep()`
-- Pilot Guide card injected only when player team holds a Mega (detected by `CHAMPIONS_MEGAS[name].megaStone === member.item`); non-Mega teams get no card
-- Severity bands: green (≥ +3% delta vs turn 1), amber (+1–3%), gray (<1%); mirrored in CSS (`.mega-trigger-{green,amber,gray}`) with print-safe overrides
-- Expandable detail `<details>` block shows full sweep table with Wilson 95% CI bars (`ci95` from engine)
-- In-memory cache keyed `(playerKey, oppKey, bo, format)` with 30-min TTL; same sweep reused by PDF summary
-- PDF Matchup Guide table appends "Mega Trigger" column when player team holds a Mega (summary format: `Slot T{n} ({wr}%, +{delta}% vs T1)`)
-- Lazy sweep config tuned for <30s acceptance budget: coarseN=30, refineN=200, maxTurn=6 (vs engine defaults coarseN=50, refineN=500, maxTurn=10)
-- Cites: engine.js T9j.7 commit 63963ad, Wilson 95% CI, Bulbapedia CHAMPIONS_MEGAS registry
-
-### T9j.14 — Shadow Pressure PDF master sheet + coaching notes
-- Closed #75
-- Tests: `t9j14_tests.js` 25/25 (total regression: 263/263)
-- Design source: user-supplied `Shadow_Pressure_vFINAL_PLUS.pdf` master sheet
-- `ui.js` rewrote `generatePDFReport()` to produce team-branded master sheet with sections: Title Banner, Team Overview, Core Game Plan, Role Breakdown, Lead System, Matchup Guide, Turn Flow, Rules to Win, Bo3 Adaptation, Final Verdict, Coaching Notes
-- Added pure helpers: `inferRole()`, `inferWinFunction()`, `inferPlaystyle()`, `buildLeadSystem()`, `analyzeLossTrends()`, `findDeadMoves()`, `findCoverageGaps()`, `evaluateCoachingRules()`, `_verdictFor()`, `_escapeHtml()`
-- Coaching Notes section with Why You Lost trends (first-KO turn avg, most-lost mons, top opponent finishers, TR/TW %), Suggested Move Changes table (dead-move detection), Coverage Gaps, and Strategy Flags driven by `COACHING_RULES` pluggable registry (10 starter rules)
-- Severity tiers: Critical / Suggested / Optional, color-coded red/amber/gray
-- Added `strategy-injectable.js` registry pattern for extending `COACHING_RULES` without touching renderer (push entries; no renderer changes needed)
-- `style.css` new theme: black header bars, zebra rows, Shadow Pressure typography, page-break-before on Coaching section
-- Cites: User-supplied Shadow_Pressure_vFINAL_PLUS.pdf sample, Bulbapedia Team Preview, Bulbapedia Fake Out, Bulbapedia Tailwind
-
-### T9j.13 — Champions format-mismatch guard + cofagrigus/aurora_veil SP rescale
-- Closed #42
-- Tests: `t9j13_tests.js` 47/47
-- Root cause: `cofagrigus_tr` and `aurora_veil_froslass` declared `format: "champions"` but had SV-scale EVs (252/252/4 totaling 508). Engine applied Champions HP formula `Base + SP + 75` to SP=252, producing HP ~Base+327 — deterministic 100% WR against every opponent in the 5070-battle audit.
-- Fix A (engine defense): `engine.js` Pokemon constructor now runs `_spreadFitsChampions(evs)` guard (max<=32 AND total<=66); on mismatch falls back to SV formula and sets `this.formatMismatch = true` for observability.
-- Fix B (data correction): `data.js` rescaled both teams to valid SP spreads (66 total, 32 per stat cap) preserving intent (TR bulk for cofagrigus, speed + offense for aurora_veil).
-- Audit post-fix: cofagrigus_tr 27% WR, aurora_veil_froslass 43% WR. 0 JS errors across 5070 battles.
-- Cites: Bulbapedia Stat Point, Game8 Champions Stat Points, Pokeos Champions Stats, Bulbapedia Effort Values
-
----
-
-## TODO — NEXT SESSIONS
-
-### T9j.11 — Lead trend tracking + best-lead recommender (user suggested)
-- Store `LEAD_HISTORY` in localStorage per matchup (playerKey × oppKey × format)
-- Pilot guide surfaces "best bring" from win-rate sweep
-- Optional "All combinations" mode: C(6,4) × C(4,2) matchup matrix
-
-### T9j.11b — Cofagrigus / Aurora Veil 100% WR investigation (#42)
-- Audit shows both teams posting 100% WR — likely legality/data issue, not engine
-- Validate move legality vs team composition; suspect illegal move set bypassing legality check
-
-### TODO-1 — GitHub Write-Back for TEAMS (persistence)
-**Goal:** After editing a team in the Set Editor or importing a team, automatically persist the updated `TEAMS` object back to `poke-sim/data.js` on GitHub so changes survive a page refresh without any local git workflow.
-
-**Approach:**
-- Add a PAT input field in the Sources tab (password type, session-only, never stored)
-- On save/import, use the GitHub Contents API (GET → replace TEAMS block → PUT)
-- Surgical regex replacement of only `const TEAMS = { ... };`
-
-**⚠️ Critical encoding requirement:** Do NOT use `btoa(unescape(encodeURIComponent(content)))` — it corrupts non-ASCII chars. Use TextEncoder-based UTF-8 safe base64:
-```javascript
-const bytes = new TextEncoder().encode(replaced);
-let binary = '';
-bytes.forEach(b => binary += String.fromCharCode(b));
-const b64 = btoa(binary);
-```
-
-**PAT scope needed:** `repo` (classic) or `contents: write` (fine-grained)
-
----
-
-## OPEN ISSUES (priority order)
-
-### P0 — next ticket candidates
-- **#42** — Cofagrigus / Aurora Veil 100% WR in audit (resolved in T9j.13, kept open as observability check)
-- **T9j.17** — Engine mechanics: Piercing Drill 25%, Parental Bond 0.25x, Fake Out hard-gate, status weakening (Bulbapedia-verified, deferred from T9j.16)
-
-### Infrastructure milestones (filed April 24, 2026)
-- **M7 Architecture & Modularity** (#77 - #80) — alfredocox
-- **M8 Profile & Sync** (#81 - #86) — TheYfactora12 (product) + alfredocox (#84 schema migration)
-- **M9 Observability & QA** (#87 - #91) — alfredocox + Jdoutt38 (#90 backfill tests)
-- **M10 Performance & Quality** (#92 - #96) — alfredocox + Jdoutt38 (#96 a11y)
-- **M11 Advanced Features** (#97 - #99) — TheYfactora12
-
-P1-priority infra unblocks everything else: #87 (CI), #88 (bundle freshness), #95 (service worker cache bump). Recommended start order: #95 -> #87 -> #88, then anything in M8 (#81 first - the Profile container).
-
-### P1 — Critical
-1. **Source files incomplete vs bundle** — `index.html` and `ui.js` are missing `player-select`, Strategy tab, Swap button, and `strategy-injectable.js` reference on some branches. Bundle is source of truth; backport before rebuilding. *(Logged April 23, 2026)*
-
-### P2 — Functional
-2. **Mega form Speed stats** — `BASE_STATS` entries for `Altaria-Mega` (Speed 80), `Dragonite-Mega` (Speed 80), `Houndoom-Mega` (Speed 115) need verification against Smogon/Bulbapedia. Speed Tier widget must use post-Mega stats.
-3. **Set Editor dirty flag** — After editing EVs/moves/item in Set Editor and saving, `runAllMatchups()` may use a stale cached result. Add a dirty flag to `TEAMS[key]` on any Set Editor save to force re-simulation.
-4. **Nicknamed Pokémon import** — Parser must handle `Nickname (Species) @ Item` format.
-
-### P3 — UX
-5. **Pokepaste URL fetch error handling** — Add `.catch()` with a visible toast.
-6. **Replay Log active filter state** — Active filter button should have persistent highlight.
-7. **PDF/Download buttons discoverability** — Show grayed-out disabled buttons before Run All completes.
-8. **Weather override model** — Speed-based weather priority not modeled.
-
----
-
-## DEPENDENCIES
-
-| Dependency | Version | Source | Purpose |
-|------------|---------|--------|---------|
-| None (vanilla JS) | — | — | No npm, no bundler, no framework |
-| Python 3 | 3.8+ | System | Rebuild script only |
-| Chrome/Firefox | Modern | Browser | Runtime |
-| PokeAPI sprites | — | githubusercontent CDN | Sprite images |
-
-The app has **zero runtime npm dependencies**. Everything is vanilla HTML/CSS/JS.
-
----
-
-## WORKING WITH THIS PROJECT IN PERPLEXITY
-
-When you ask the AI to make changes:
-
-1. **Never rebuild the bundle blindly** — check that `index.html` and `ui.js` have all features before running the rebuild script (see ⚠️ REBUILD WARNING above).
-2. **For source file edits** — AI edits files in a cloned workspace, commits, and pushes via `git` on branch `fix/champions-sp-and-legality`.
-3. **For the bundle** — After source edits are verified complete, run the REBUILD COMMAND.
-4. **For deploy** — Use the DEPLOY COMMAND above from within Perplexity.
-5. **SHA requirement** — When updating an existing file via GitHub API directly, the file's current SHA must be provided. Always fetch the file first.
-6. **Run all tests** before every commit — the 40-case golden floor per ticket is binding.
-7. **Cite primary sources** inline in code comments — Serebii / Bulbapedia / Smogon for every new mechanic.
-
----
-
-## PROJECT TIMELINE
-
-| Date | Milestone |
-|------|-----------|
-| April 2026, Week 1 | Initial build — 13 teams, engine, basic sim UI |
-| April 2026, Week 2 | Pilot Guide, import/export, pokepaste integration |
-| April 2026, Week 3 | Strategy tab added, PWA packaging, PDF report |
-| April 23, 2026 | QA audit completed — 8 issues logged (P1-P3) |
-| April 23, 2026 | Master prompt v1 + runbook + README pushed |
-| April 23, 2026 | Master prompt v2 — full engine read, verified architecture |
-| April 23, 2026 | Master prompt v3 — htmlpreview URL failure documented, LIVE APP section added |
-| April 23, 2026 | Master prompt v4 — reverted to 8a0df59, GitHub write-back moved to TODO-1, rebuild warning added |
-| April 24, 2026 | **T9j.8 shipped** (`f95fcd4`) — crits, flinch, 6 abilities, 47/47 tests, closed #27 #19 #30 |
-| April 24, 2026 | **T9j.9 shipped** (`cece441`) — MOVE_CATEGORY + MOVE_BP data-driven tables, 24/24 tests, closed #3 #24 #4 |
-| April 24, 2026 | **T9j.10 shipped** (`04eef39`) — Team Preview bring-N-of-6 picker, drag+tap UI, Random 4/6 opponent mode, series-level lock, localStorage persistence, closed #16 |
-| April 24, 2026 | **T9j.11 shipped** (`21d78b3`) — custom teams bulk import/export + filter chips + persistence verification, closed #73 |
-| April 24, 2026 | **T9j.12 shipped** (`ea5ef0f` + `7184740`) — simulator tab bring pickers, shared state with Teams tab, empirical lead-impact proof, closed #74 |
-| April 24, 2026 | **T9j.13 shipped** — Champions format-mismatch guard + cofagrigus/aurora_veil SP rescale, 238/238 tests, audit clean, closed #42 |
-| April 24, 2026 | **T9j.14 shipped** — Shadow Pressure PDF master sheet + coaching notes + pluggable COACHING_RULES, 263/263 tests, closed #75 |
-| April 24, 2026 | **T9j.15 shipped** — Best Mega Trigger Turn card + PDF column, 285/285 tests, closed #71 |
-| April 24, 2026 | **Nightly bring harness added** — ceiling-aware N=500 regression across 5 matchups, Wilson CI, PASS/WEAK/CEIL/FAIL verdicts |
-| April 24, 2026 | **Master prompt v6** — T9j.8-12 wiring, 191/191 test baseline, nightly harness line, next-ticket selection reset |
-| April 24, 2026 | **T9j.16 shipped** (`eb904d4`, PR #100) — v3 elite coaching engine, 17 rules, Strategy Report, adaptive persistence, 343/343 tests, audit 5070/0 |
-| April 24, 2026 | **Infrastructure audit + 23 issues filed** — 5 new milestones M7-M11 covering modularity, profile/sync, observability, perf, advanced features |
-| April 24, 2026 | **Master prompt v7** — T9j.16 + infra audit + assignment policy block |
-
----
-
-## LAST KNOWN GOOD STATE
-
-- **Branch:** `fix/champions-sp-and-legality`
-- **Last pushed commit:** `eb904d4` (T9j.16 — Elite Coaching Engine + Strategy Report)
-- **Open PR:** #100 (T9j.16) into `main`
-- **Bundle size:** 546,881 bytes (after T9j.16 rebuild)
-- **Engine:** Non-deterministic confirmed (`Math.random()` damage roll); crits and flinch rolls via RNG
-- **Trick Room:** 5-turn countdown, speed inversion, toggle cancel
-- **Weather:** 8-turn model, permanent Sand Stream, entry ability fires on switch-in
-- **Move data:** MOVE_CATEGORY (104), MOVE_BP (110+) — Serebii-sourced
-- **Syntax:** `data.js` ✓  `engine.js` ✓  `ui.js` ✓  `var COVERAGE_CHECKS` preserved
-- **Tests:** 343/343 + 5070-battle audit, 0 JS errors; nightly harness PASS at N=500; cofagrigus_tr 27% WR / aurora_veil_froslass 43% WR post-fix
-- **Tested on:** Chrome 124 macOS / Chrome Android
-- **Live URL:** htmlpreview bundle link and GitHub Pages both confirmed working
-
----
-
-**You are now fully briefed. Ask me what to build, fix, or improve.**
+- M1 Engine Truth (v1.0) — 19/23 closed, T9j.17 pending to fully close
+- M2 Dynamic Strategy Coach (v1.1) — T9j.16 coaching engine shipped
+- M3 Piloting Analytics (v1.2) — partial (replay log live, trends pending)
+- M4 Tournament Ready PDF (v1.3) — T9j.14 + T9j.16 PDF sections shipped
+- M5 Meta Intelligence (v1.4) — pending external data source
+- M6 Polish & Launch (v2.0) — pending M1-M5 and M7-M10 close
+- M7 Architecture & Modularity (v2.1) — #77-#80
+- M8 Profile & Sync (v2.2) — #81-#86 (headline ask)
+- M9 Observability & QA (v2.3) — #87-#91 | **#95 Phase 1 done**
+- M10 Performance & Quality (v2.4) — #92-#96
+- M11 Advanced Features (v2.5) — #97-#99 plus deferred #7 Tera
