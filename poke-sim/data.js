@@ -758,13 +758,62 @@ const POKEMON_TYPES_DB = {
   'Torkoal':['Fire'],
 };
 
+// Explicit sprite overrides for custom / regional / special forms that either
+// have no PokeAPI dex entry or use a numeric form-ID file.
+// Keys are the exact member.name strings we ship in TEAMS.
+// Values are the raw PokeAPI sprite URL (ends in NUMBER.png).
+//
+// Added during sprite audit after Phase 3 - every entry here was a 404 before.
+const SPRITE_URL_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+const CUSTOM_FORM_SPRITES = {
+  // Custom megas (Champions 2026 format) - no PokeAPI entry, fall back to base dex sprite.
+  'Froslass-Mega':                  SPRITE_URL_BASE + '/478.png',
+  'Meganium-Mega':                  SPRITE_URL_BASE + '/154.png',
+  'Golurk-Mega':                    SPRITE_URL_BASE + '/623.png',
+  'Floette (Eternal Flower)-Mega':  SPRITE_URL_BASE + '/670.png',
+  // Form variants stored under numeric form IDs on the CDN.
+  'Ursaluna-Bloodmoon':             SPRITE_URL_BASE + '/10272.png'
+};
+
+// Suffixes we strip when falling back to the base-form dex sprite.
+// Order matters: longer / more specific variants first (Mega-X before Mega).
+const SPRITE_STRIP_SUFFIXES = [
+  '-Mega-X', '-Mega-Y', '-Mega',
+  '-Alola', '-Galar', '-Hisui', '-Paldea',
+  '-Gmax'
+];
+
 function getSpriteUrl(name) {
-  // Direct lookup in expanded dex map
+  if (!name) return SPRITE_URL_BASE + '/0.png';
+
+  // 1. Explicit override wins every time (custom megas, numeric form IDs).
+  if (CUSTOM_FORM_SPRITES[name]) return CUSTOM_FORM_SPRITES[name];
+
+  // 2. Direct lookup by exact name.
   const num = DEX_NUM_MAP[name];
-  if (num) return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${num}.png`;
-  // Fallback: slugify and hit PokeAPI (async resolution via onerror)
-  const slug = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/-(mega|alola|galar|hisui)$/i, '').replace(/^-|-$/g, '');
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${slug}.png`;
+  if (num) return SPRITE_URL_BASE + '/' + num + '.png';
+
+  // 3. Strip a known form suffix and retry the dex lookup.
+  //    Example: Golurk-Mega -> Golurk -> 623. Prevents the bad slug-URL path
+  //    that was producing 404s before the sprite audit.
+  for (let i = 0; i < SPRITE_STRIP_SUFFIXES.length; i++) {
+    const suffix = SPRITE_STRIP_SUFFIXES[i];
+    if (name.endsWith(suffix)) {
+      const base = name.slice(0, -suffix.length);
+      if (DEX_NUM_MAP[base]) return SPRITE_URL_BASE + '/' + DEX_NUM_MAP[base] + '.png';
+    }
+  }
+
+  // 4. Strip a parenthetical form tag: 'Floette (Eternal Flower)' -> 'Floette'.
+  //    Covers compound form names that still fail the stripped-suffix retry.
+  const parenStripped = name.replace(/\s*\([^)]*\)\s*/g, '').trim();
+  if (parenStripped !== name && DEX_NUM_MAP[parenStripped]) {
+    return SPRITE_URL_BASE + '/' + DEX_NUM_MAP[parenStripped] + '.png';
+  }
+
+  // 5. Last-ditch slug path (preserves legacy behavior for anything unknown).
+  const slug = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  return SPRITE_URL_BASE + '/' + slug + '.png';
 }
 
 // ============================================================
