@@ -5070,6 +5070,13 @@ function renderStrategyTab(teamKey) {
 
   html += '<p class="cs-summary-line">' + _csEsc(report.coaching_summary) + '</p>';
 
+  // Phase 4b (Refs #52) — Adaptive state banner + consistency pill.
+  // Inserted above Section 1 so the user sees the state before reading anything.
+  try {
+    var _history = (typeof computeTeamHistory === 'function') ? computeTeamHistory(teamKey) : null;
+    if (_history) html += csRenderAdaptiveBanner(_history);
+  } catch (e) { console.warn('[Phase4b] banner render failed:', e && e.message); }
+
   // Section 1: Team report card
   html += '<section class="cs-section"><h3 class="cs-h3">Team Report Card ' + _csSourceChip(csLabelSim()) + '</h3>';
   html += '<p class="cs-explain">' + _csEsc(rc.short_explanation) + '</p>';
@@ -5496,6 +5503,17 @@ function _csSimLogWrite(store) {
 // for analytics and blows up storage.
 function _csGameFromBattle(battle) {
   if (!battle) return null;
+  // Phase 4b: extract only the player-side movesUsed (we don't audit opp policy)
+  // and only the player-side Protect streak peaks. Keeps simlog small.
+  var playerMovesUsed = (battle.movesUsed && battle.movesUsed.player) ? battle.movesUsed.player : {};
+  var playerProtectStreakMax = {};
+  if (battle.protectStreakMax && typeof battle.protectStreakMax === 'object') {
+    Object.keys(battle.protectStreakMax).forEach(function(k){
+      if (k.indexOf('player:') === 0) {
+        playerProtectStreakMax[k.slice(7)] = battle.protectStreakMax[k];
+      }
+    });
+  }
   return {
     result: battle.result || null,
     turns: battle.turns || 0,
@@ -5506,7 +5524,10 @@ function _csGameFromBattle(battle) {
     winCondition: battle.winCondition || null,
     trTurns: battle.trTurns || 0,
     twTurns: battle.twTurns || 0,
-    koEvents: Array.isArray(battle.koEvents) ? battle.koEvents : []
+    koEvents: Array.isArray(battle.koEvents) ? battle.koEvents : [],
+    // Phase 4b additions (player-side only).
+    movesUsed: playerMovesUsed,
+    protectStreakMax: playerProtectStreakMax
   };
 }
 
@@ -5559,7 +5580,11 @@ function csSimLogAppendSeries(opts) {
     if (store.entries.length > CS_SIMLOG_MAX_TOTAL) {
       store.entries = store.entries.slice(store.entries.length - CS_SIMLOG_MAX_TOTAL);
     }
-    return _csSimLogWrite(store);
+    var ok = _csSimLogWrite(store);
+    // Phase 4b: bust the team_history cache for this team so the next
+    // Strategy tab render reflects the fresh data.
+    try { if (typeof csInvalidateTeamHistory === 'function') csInvalidateTeamHistory(opts.playerKey); } catch (_e) {}
+    return ok;
   } catch (e) {
     console.warn('[Phase4a] simlog append failed:', e && e.message);
     return false;
@@ -5594,6 +5619,261 @@ try {
   window.csSimLogClearTeam    = csSimLogClearTeam;
   window.csSimLogClearAll     = csSimLogClearAll;
 } catch (_e) { /* non-browser env (node --check) */ }
+
+// =========================================================================
+// Phase 4b (Refs #52) — team_history: adaptive state machine driver.
+//
+// Computes per-team stats on demand from the sim log. Drives the State 1/2/3
+// banner at the top of the Strategy tab and feeds detectors in Phase 4c/d/e.
+//
+// State thresholds (per spec):
+//   State 1 (No Data)    : total_battles === 0
+//   State 2 (Early Sims) : 1..14
+//   State 3 (Mature)     : >=15
+//
+// Cached per team with 500 ms TTL so the Strategy tab doesn't recompute on
+// every re-render (rebuilds happen on team switch + after every series).
+// =========================================================================
+var _csHistoryCache = {};  // teamKey -> { ts, history }
+var CS_HISTORY_TTL_MS = 500;
+var CS_STATE_MATURE_THRESHOLD = 15;
+
+function computeTeamHistory(teamKey) {
+  if (!teamKey) return null;
+  // Cache hit?
+  var cached = _csHistoryCache[teamKey];
+  if (cached && (Date.now() - cached.ts) < CS_HISTORY_TTL_MS) {
+    return cached.history;
+  }
+  var entries = (typeof csSimLogForTeam === 'function') ? csSimLogForTeam(teamKey) : [];
+  var games = [];
+  entries.forEach(function(e){ if (e.games) games = games.concat(e.games); });
+
+  var total_battles = games.length;
+  var total_series  = entries.length;
+
+  // State
+  var state = 1;
+  if (total_battles >= CS_STATE_MATURE_THRESHOLD) state = 3;
+  else if (total_battles >= 1) state = 2;
+
+  // Win rates
+  var wins = 0, losses = 0, draws = 0;
+  games.forEach(function(g){
+    if (g.result === 'win') wins++;
+    else if (g.result === 'loss') losses++;
+    else draws++;
+  });
+  var win_rate = total_battles > 0 ? wins / total_battles : 0;
+
+  var seriesW = 0, seriesL = 0, seriesD = 0;
+  entries.forEach(function(e){
+    if (e.seriesResult === 'win') seriesW++;
+    else if (e.seriesResult === 'loss') seriesL++;
+    else seriesD++;
+  });
+  var series_win_rate = total_series > 0 ? seriesW / total_series : 0;
+
+  // Consistency: variance of game outcomes (Bernoulli), spread across matchups,
+  // and RNG dependency proxied by turn-count coefficient of variation.
+  var outcomes = games.map(function(g){ return g.result === 'win' ? 1 : 0; });
+  var variance = 0;
+  if (outcomes.length > 1) {
+    var mean = outcomes.reduce(function(a,b){return a+b;},0) / outcomes.length;
+    variance = outcomes.reduce(function(a,b){return a+(b-mean)*(b-mean);},0) / outcomes.length;
+  }
+  // Matchup spread (need >=2 distinct opps with >=3 games each)
+  var byOpp = {};
+  entries.forEach(function(e){
+    if (!byOpp[e.oppKey]) byOpp[e.oppKey] = { n: 0, w: 0 };
+    (e.games || []).forEach(function(g){
+      byOpp[e.oppKey].n++;
+      if (g.result === 'win') byOpp[e.oppKey].w++;
+    });
+  });
+  var wrs = Object.keys(byOpp).filter(function(k){ return byOpp[k].n >= 3; })
+                              .map(function(k){ return byOpp[k].w / byOpp[k].n; });
+  var spread_gap = wrs.length >= 2 ? (Math.max.apply(null, wrs) - Math.min.apply(null, wrs)) : 0;
+  // RNG dependency: coefficient of variation of turn counts (higher = more swingy).
+  var turns = games.map(function(g){ return g.turns || 0; }).filter(function(t){ return t > 0; });
+  var rng_dependency = 0;
+  if (turns.length >= 3) {
+    var tMean = turns.reduce(function(a,b){return a+b;},0) / turns.length;
+    var tVar  = turns.reduce(function(a,b){return a+(b-tMean)*(b-tMean);},0) / turns.length;
+    rng_dependency = tMean > 0 ? Math.sqrt(tVar) / tMean : 0;
+  }
+  var consistency_label = 'consistent';
+  if (total_battles < 5) {
+    consistency_label = 'insufficient_data';
+  } else if (variance >= 0.25 || spread_gap >= 0.40) {
+    consistency_label = 'volatile';
+  } else if (variance >= 0.15 || spread_gap >= 0.25 || rng_dependency >= 0.30) {
+    consistency_label = 'inconsistent';
+  }
+
+  // Lead performance (Phase 4c will consume this; compute now so it's cached).
+  var byLead = {};
+  games.forEach(function(g){
+    var lp = (g.leads && g.leads.player) ? g.leads.player.slice().sort().join(' / ') : '';
+    if (!lp) return;
+    if (!byLead[lp]) byLead[lp] = { n: 0, w: 0, turnsSum: 0 };
+    byLead[lp].n++;
+    byLead[lp].turnsSum += (g.turns || 0);
+    if (g.result === 'win') byLead[lp].w++;
+  });
+  var lead_performance = Object.keys(byLead).map(function(pair){
+    var b = byLead[pair];
+    var wr = b.n > 0 ? b.w / b.n : 0;
+    var verdict = 'ok';
+    if (b.n >= 5) {
+      if (wr >= (win_rate + 0.10)) verdict = 'strong';
+      else if (wr <= (win_rate - 0.15)) verdict = 'weak';
+    } else {
+      verdict = 'insufficient';
+    }
+    return { leadPair: pair.split(' / '), n: b.n, wins: b.w, win_rate: wr,
+             avg_turns: b.n > 0 ? b.turnsSum / b.n : 0, verdict: verdict };
+  }).sort(function(a,b){ return b.n - a.n; });
+
+  // Matchup failures (win_rate < 0.35 at n>=3)
+  var matchup_failures = Object.keys(byOpp).map(function(k){
+    var b = byOpp[k];
+    return { oppKey: k, n: b.n, win_rate: b.n > 0 ? b.w / b.n : 0 };
+  }).filter(function(m){ return m.n >= 3 && m.win_rate < 0.35; })
+    .sort(function(a,b){ return a.win_rate - b.win_rate; });
+
+  // Common loss conditions (victim + by_turn buckets across losses).
+  // Phase 4c consumes this; compute minimal shape now.
+  var lossBuckets = {};
+  var lossCount = 0;
+  games.forEach(function(g){
+    if (g.result !== 'loss') return;
+    lossCount++;
+    (g.koEvents || []).forEach(function(ko){
+      if (ko.side !== 'player') return;
+      var bucket = (ko.turn <= 2) ? 'T1-2' : (ko.turn <= 5) ? 'T3-5' : 'T6+';
+      var key = ko.victim + '::' + bucket;
+      lossBuckets[key] = (lossBuckets[key] || 0) + 1;
+    });
+  });
+  var common_loss_conditions = Object.keys(lossBuckets).map(function(k){
+    var parts = k.split('::');
+    return { victim: parts[0], bucket: parts[1],
+             seen_in_losses: lossBuckets[k], total_losses: lossCount,
+             pct: lossCount > 0 ? lossBuckets[k] / lossCount : 0 };
+  }).filter(function(p){ return p.pct >= 0.30 && p.seen_in_losses >= 2; })
+    .sort(function(a,b){ return b.pct - a.pct; });
+
+  // Dead moves: per owner, list moves that never fired across >=10 games.
+  // Walk TEAMS to know what each mon's movepool is, cross-reference movesUsed.
+  var dead_moves = [];
+  if (total_battles >= 10 && typeof TEAMS !== 'undefined' && TEAMS[teamKey]) {
+    var team = TEAMS[teamKey];
+    var members = team.members || [];
+    var usageByMon = {};
+    games.forEach(function(g){
+      Object.keys(g.movesUsed || {}).forEach(function(mon){
+        if (!usageByMon[mon]) usageByMon[mon] = {};
+        Object.keys(g.movesUsed[mon]).forEach(function(mv){
+          usageByMon[mon][mv] = (usageByMon[mon][mv] || 0) + g.movesUsed[mon][mv];
+        });
+      });
+    });
+    members.forEach(function(m){
+      var owner = m.name;
+      var pool = m.moves || [];
+      pool.forEach(function(mv){
+        var used = (usageByMon[owner] && usageByMon[owner][mv]) || 0;
+        if (used === 0) {
+          dead_moves.push({ owner: owner, move: mv, games_sampled: total_battles, times_used: 0 });
+        }
+      });
+    });
+  }
+
+  // Protect streak peaks (Phase 4e policy audit). Keep top 3.
+  var protectPeaks = {};
+  games.forEach(function(g){
+    Object.keys(g.protectStreakMax || {}).forEach(function(mon){
+      protectPeaks[mon] = Math.max(protectPeaks[mon] || 0, g.protectStreakMax[mon]);
+    });
+  });
+
+  var history = {
+    total_battles: total_battles,
+    total_series: total_series,
+    state: state,
+    win_rate: win_rate,
+    series_win_rate: series_win_rate,
+    consistency_score: {
+      label: consistency_label,
+      variance: variance,
+      spread_gap: spread_gap,
+      rng_dependency: rng_dependency
+    },
+    lead_performance: lead_performance,
+    matchup_failures: matchup_failures,
+    common_loss_conditions: common_loss_conditions,
+    dead_moves: dead_moves,
+    protect_peaks: protectPeaks,
+    player_behavior_patterns: []  // Phase 4e fills this
+  };
+
+  _csHistoryCache[teamKey] = { ts: Date.now(), history: history };
+  return history;
+}
+
+function csInvalidateTeamHistory(teamKey) {
+  if (teamKey) delete _csHistoryCache[teamKey];
+  else _csHistoryCache = {};
+}
+
+// Render the adaptive-state banner + consistency pill. Returns HTML string.
+function csRenderAdaptiveBanner(history) {
+  if (!history) return '';
+  var html = '';
+  var state = history.state;
+  var total = history.total_battles;
+  var remaining = Math.max(0, CS_STATE_MATURE_THRESHOLD - total);
+  var bannerClass = 'cs-adaptive-banner cs-adaptive-state-' + state;
+  var bannerTitle, bannerBody;
+  if (state === 1) {
+    bannerTitle = 'Theory-based coaching';
+    bannerBody  = 'Sim battles to unlock tailored coaching. Tips below come from archetype heuristics.';
+  } else if (state === 2) {
+    bannerTitle = 'Early data';
+    bannerBody  = total + ' battle' + (total === 1 ? '' : 's') + ' logged. ' + remaining + ' more to reach mature confidence.';
+  } else {
+    bannerTitle = 'Mature data';
+    bannerBody  = total + ' battles logged. Coaching reflects your actual sim trends.';
+  }
+  html += '<div class="' + bannerClass + '">';
+  html +=   '<div class="cs-adaptive-row">';
+  html +=     '<span class="cs-adaptive-state-label">State ' + state + '/3</span>';
+  html +=     '<span class="cs-adaptive-title">' + _csEsc(bannerTitle) + '</span>';
+  // Consistency pill
+  var cs = history.consistency_score || {};
+  var pillClass = 'cs-consistency-pill cs-consistency-' + (cs.label || 'unknown');
+  var pillLabel = cs.label === 'insufficient_data' ? 'gathering data'
+                : cs.label === 'consistent'       ? 'consistent'
+                : cs.label === 'inconsistent'     ? 'inconsistent'
+                : cs.label === 'volatile'         ? 'volatile'
+                : 'unknown';
+  var pillTooltip = 'variance ' + (cs.variance||0).toFixed(2)
+                  + ' · spread ' + (cs.spread_gap||0).toFixed(2)
+                  + ' · rng ' + (cs.rng_dependency||0).toFixed(2);
+  html +=     '<span class="' + pillClass + '" title="' + _csEsc(pillTooltip) + '">' + _csEsc(pillLabel) + '</span>';
+  html +=   '</div>';
+  html +=   '<div class="cs-adaptive-body">' + _csEsc(bannerBody) + '</div>';
+  html += '</div>';
+  return html;
+}
+
+try {
+  window.computeTeamHistory       = computeTeamHistory;
+  window.csInvalidateTeamHistory  = csInvalidateTeamHistory;
+  window.csRenderAdaptiveBanner   = csRenderAdaptiveBanner;
+} catch (_e) { /* non-browser */ }
 
 // Paint cached report immediately if available. Used as the fast-path on
 // team-select change so the user never sees a blank tab between switches.
