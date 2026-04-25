@@ -1,7 +1,7 @@
 {
-  "name": "Champions Sim 2026",
-  "short_name": "ChampSim",
-  "description": "Pokémon VGC competitive team simulator for Champions 2026",
+  "name": "Poke-e-Sim Champion 2026",
+  "short_name": "Poke-e-Sim",
+  "description": "Poke-e-Sim Champion 2026 — VGC competitive team simulator",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b1220",
