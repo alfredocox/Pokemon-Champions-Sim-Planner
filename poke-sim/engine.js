@@ -1860,6 +1860,33 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   // reason: 'attack' | 'recoil' | 'sandstorm' | 'burn' | 'frostbite'
   //       | 'poison' | 'toxic'
   const koEvents = [];
+  // Phase 4b (Refs #52) — per-mon move-call histogram + max-consecutive-Protect
+  // streak. Used by UI to detect dead moves and Protect misuse.
+  //   movesUsed[mon.name][side] = { moveName: callCount, ... }
+  //   protectStreakMax[mon.name+side] = peak consecutive turns this mon chose
+  //     a Protect family move. Reset on any non-Protect action.
+  const movesUsed = { player: {}, opp: {} };
+  const _protectFamily = new Set(['Protect','Detect','Wide Guard','Quick Guard']);
+  const _protectStreak = {};     // running count keyed by side:name
+  const _protectStreakMax = {};  // observed peak keyed by side:name
+  const _recordAction = function(action) {
+    try {
+      if (!action || !action.attacker || !action.move) return;
+      const side = action.side;
+      const name = action.attacker.name;
+      if (!movesUsed[side][name]) movesUsed[side][name] = {};
+      movesUsed[side][name][action.move] = (movesUsed[side][name][action.move] || 0) + 1;
+      const key = side + ':' + name;
+      if (_protectFamily.has(action.move)) {
+        _protectStreak[key] = (_protectStreak[key] || 0) + 1;
+        if (_protectStreak[key] > (_protectStreakMax[key] || 0)) {
+          _protectStreakMax[key] = _protectStreak[key];
+        }
+      } else {
+        _protectStreak[key] = 0;
+      }
+    } catch (_e) { /* never kill sim for telemetry */ }
+  };
   const _recordKO = function(mon, cause) {
     try {
       const side = (playerPokemon.indexOf(mon) >= 0) ? 'player' : 'opp';
@@ -1930,11 +1957,15 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 
     for (const mon of playerActive.filter(m => m.alive)) {
       const { move, target } = selectMove(mon, playerActive, oppActive, field);
-      actions.push({ attacker:mon, move, target, side:'player', priority: getPriority(move) });
+      const _act = { attacker:mon, move, target, side:'player', priority: getPriority(move) };
+      _recordAction(_act);
+      actions.push(_act);
     }
     for (const mon of oppActive.filter(m => m.alive)) {
       const { move, target } = selectMove(mon, oppActive, playerActive, field);
-      actions.push({ attacker:mon, move, target, side:'opp', priority: getPriority(move) });
+      const _act = { attacker:mon, move, target, side:'opp', priority: getPriority(move) };
+      _recordAction(_act);
+      actions.push(_act);
     }
 
     // Sort by priority → then speed (Trick Room inverts)
@@ -2201,7 +2232,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // #5 — attach legality verdict so UI can surface warnings on team/match cards.
     legality: { player: playerLegality, opp: oppLegality },
     // Phase 4a (Refs #52) — structured KO event log. See _recordKO site above.
-    koEvents: koEvents
+    koEvents: koEvents,
+    // Phase 4b (Refs #52) — per-mon move-call histogram + Protect streak
+    // peaks. Compact shape; the simlog writer strips to what's needed.
+    movesUsed: movesUsed,
+    protectStreakMax: _protectStreakMax
   };
 }
 
