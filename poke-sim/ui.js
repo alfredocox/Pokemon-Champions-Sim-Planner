@@ -5099,6 +5099,7 @@ function renderStrategyTab(teamKey) {
   try {
     var _history = (typeof computeTeamHistory === 'function') ? computeTeamHistory(teamKey) : null;
     if (_history) html += csRenderAdaptiveBanner(_history);
+    if (_history) html += csRenderRecordBar(_history);
   } catch (e) { console.warn('[Phase4b] banner render failed:', e && e.message); }
 
   // Section 1: Team report card
@@ -5823,6 +5824,43 @@ function computeTeamHistory(teamKey) {
     });
   });
 
+  // Record by opponent archetype. Classifies each opponent team via the same
+  // inferPlaystyle() heuristic used on the player side, then tallies W/L at
+  // the game level. Pokemon has no real "draw" in the user's view, so draws
+  // are omitted from the record bar entirely (they still live in total_battles
+  // elsewhere for sample-size math). Gives the user a bar like
+  // "vs Trick Room: 12-4" at a glance.
+  var record_total = { n: wins + losses, w: wins, l: losses,
+                       win_rate: (wins + losses) > 0 ? wins / (wins + losses) : 0 };
+  var record_by_archetype = {};
+  var _archetypeCache = {};
+  function _classifyOpp(oppKey) {
+    if (_archetypeCache[oppKey]) return _archetypeCache[oppKey];
+    var label = 'Unknown';
+    try {
+      if (typeof TEAMS !== 'undefined' && TEAMS[oppKey] && typeof inferPlaystyle === 'function') {
+        label = inferPlaystyle(TEAMS[oppKey].members || []) || 'Balanced';
+      }
+    } catch (e) { /* leave as Unknown */ }
+    _archetypeCache[oppKey] = label;
+    return label;
+  }
+  entries.forEach(function(e){
+    var arch = _classifyOpp(e.oppKey);
+    if (!record_by_archetype[arch]) record_by_archetype[arch] = { n: 0, w: 0, l: 0 };
+    (e.games || []).forEach(function(g){
+      if (g.result === 'win')       { record_by_archetype[arch].n++; record_by_archetype[arch].w++; }
+      else if (g.result === 'loss') { record_by_archetype[arch].n++; record_by_archetype[arch].l++; }
+      // draws intentionally skipped in the surfaced record
+    });
+  });
+  var record_by_archetype_arr = Object.keys(record_by_archetype).map(function(k){
+    var r = record_by_archetype[k];
+    return { archetype: k, n: r.n, w: r.w, l: r.l,
+             win_rate: r.n > 0 ? r.w / r.n : 0 };
+  }).filter(function(r){ return r.n > 0; })
+    .sort(function(a,b){ return b.n - a.n; });
+
   var history = {
     total_battles: total_battles,
     total_series: total_series,
@@ -5840,6 +5878,8 @@ function computeTeamHistory(teamKey) {
     common_loss_conditions: common_loss_conditions,
     dead_moves: dead_moves,
     protect_peaks: protectPeaks,
+    record_total: record_total,
+    record_by_archetype: record_by_archetype_arr,
     player_behavior_patterns: []  // Phase 4e fills this
   };
 
@@ -5893,10 +5933,52 @@ function csRenderAdaptiveBanner(history) {
   return html;
 }
 
+// Render the Record bar: overall W-L pill + per-archetype chips. Shown right
+// under the adaptive banner on the Strategy tab. No draws surfaced (per user:
+// "there no draw in pokemon"). Sorted by sample size so the most-battled
+// archetypes lead the bar.
+function csRenderRecordBar(history) {
+  if (!history) return '';
+  var total = history.record_total || { n: 0, w: 0, l: 0, win_rate: 0 };
+  var splits = history.record_by_archetype || [];
+  function _wrClass(wr, n) {
+    if (!n) return 'cs-record-wr-na';
+    if (wr >= 0.60) return 'cs-record-wr-good';
+    if (wr >= 0.45) return 'cs-record-wr-mid';
+    return 'cs-record-wr-bad';
+  }
+  function _pct(wr) { return Math.round((wr || 0) * 100) + '%'; }
+  var html = '';
+  html += '<div class="cs-record-bar">';
+  html +=   '<div class="cs-record-total ' + _wrClass(total.win_rate, total.n) + '">';
+  html +=     '<span class="cs-record-total-label">Record</span>';
+  if (total.n > 0) {
+    html +=   '<span class="cs-record-total-score">' + total.w + '-' + total.l + '</span>';
+    html +=   '<span class="cs-record-total-wr">' + _pct(total.win_rate) + '</span>';
+  } else {
+    html +=   '<span class="cs-record-total-score">no games yet</span>';
+  }
+  html +=   '</div>';
+  if (splits.length > 0) {
+    html += '<div class="cs-record-splits">';
+    splits.forEach(function(r){
+      html += '<span class="cs-record-chip ' + _wrClass(r.win_rate, r.n) + '" '
+           +  'title="' + _csEsc(r.archetype) + ': ' + r.w + '-' + r.l + ' (' + _pct(r.win_rate) + ')">'
+           +    '<span class="cs-record-chip-arch">vs ' + _csEsc(r.archetype) + '</span>'
+           +    '<span class="cs-record-chip-score">' + r.w + '-' + r.l + '</span>'
+           +  '</span>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
 try {
   window.computeTeamHistory       = computeTeamHistory;
   window.csInvalidateTeamHistory  = csInvalidateTeamHistory;
   window.csRenderAdaptiveBanner   = csRenderAdaptiveBanner;
+  window.csRenderRecordBar        = csRenderRecordBar;
 } catch (_e) { /* non-browser */ }
 
 // Paint cached report immediately if available. Used as the fast-path on

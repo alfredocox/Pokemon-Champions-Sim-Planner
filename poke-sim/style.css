@@ -1173,3 +1173,91 @@ table{border-collapse:collapse;width:100%}
 .cs-consistency-consistent       { background: rgba(34,197,94,0.22);   color: #bbf7d0; }
 .cs-consistency-inconsistent     { background: rgba(245,158,11,0.22);  color: #fde68a; }
 .cs-consistency-volatile         { background: rgba(239,68,68,0.22);   color: #fecaca; }
+
+/* ==================================================================
+   Phase 4b (Refs #95) - Record bar: total W-L + per-archetype splits
+   User rule: no draws surfaced in Pokemon
+   ================================================================== */
+.cs-record-bar {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+.cs-record-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(148,163,184,0.10);
+  border: 1px solid rgba(148,163,184,0.25);
+}
+.cs-record-total-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.cs-record-total-score {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+}
+.cs-record-total-wr {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+.cs-record-splits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+.cs-record-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+  background: rgba(148,163,184,0.10);
+  border: 1px solid rgba(148,163,184,0.22);
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+.cs-record-chip-arch {
+  font-weight: 500;
+  color: #cbd5e1;
+}
+.cs-record-chip-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
+}
+/* Win-rate color variants - apply to both total pill and chips */
+.cs-record-wr-good { background: rgba(34,197,94,0.16);  border-color: rgba(34,197,94,0.45); }
+.cs-record-wr-mid  { background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.45); }
+.cs-record-wr-bad  { background: rgba(239,68,68,0.14);  border-color: rgba(239,68,68,0.45); }
+.cs-record-wr-na   { background: rgba(148,163,184,0.10); border-color: rgba(148,163,184,0.25); }
+.cs-record-wr-good .cs-record-total-score,
+.cs-record-wr-good .cs-record-chip-score { color: #bbf7d0; }
+.cs-record-wr-bad  .cs-record-total-score,
+.cs-record-wr-bad  .cs-record-chip-score { color: #fecaca; }
+.cs-record-wr-mid  .cs-record-total-score,
+.cs-record-wr-mid  .cs-record-chip-score { color: #fde68a; }
+
+@media (max-width: 640px) {
+  .cs-record-total-score { font-size: 16px; }
+  .cs-record-chip { font-size: 11px; padding: 3px 8px; }
+}
