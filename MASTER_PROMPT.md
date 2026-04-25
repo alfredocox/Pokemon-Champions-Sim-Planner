@@ -68,6 +68,8 @@ A browser-only VGC doubles team simulator for April 2026 meta (Regulation M-A, S
 
 ```
 Pokemon-Champions-Sim-Planner/
+├── tools/
+│   └── release.sh                      ← #95 Phase 2: auto-bumps sw.js CACHE_NAME on release
 ├── poke-sim/
 │   ├── poke-sim/                       ← nested dev workspace (source of truth)
 │   │   ├── index.html                  ← App shell + tab structure + PWA meta
@@ -115,7 +117,7 @@ Pokemon-Champions-Sim-Planner/
 
 ## SERVICE WORKER CACHE HISTORY (#95)
 
-Phase 1 of #95 is **COMPLETE** (commit `944b405`, 2026-04-25).
+Phases 1 and 2 of #95 are **COMPLETE**.
 
 | Version | Tag | Ships with | Commit | Status |
 |---------|-----|-----------|--------|--------|
@@ -125,10 +127,17 @@ Phase 1 of #95 is **COMPLETE** (commit `944b405`, 2026-04-25).
 | `champions-sim-v4-t9j16` | T9j.16 | Coaching engine | `944b405` | **✅ Current** |
 
 **#95 Remaining phases:**
-- Phase 2: `tools/release.sh` auto-bumps `CACHE_NAME` on every release (open)
 - Phase 3: CI check enforces bump was not forgotten (open)
 
 **CACHE_NAME bump rule:** Must be updated on every release that changes `engine.js`, `data.js`, `ui.js`, or `style.css`. Format: `champions-sim-v{major}-{release-tag}`.
+
+**How to run the release script:**
+```bash
+# From repo root
+chmod +x tools/release.sh         # first time only
+./tools/release.sh t9j17           # bump to next tag
+./tools/release.sh t9j17 --bump-major  # also increment major version
+```
 
 ---
 
@@ -286,9 +295,14 @@ The rebuild script inlines all source files into the single-file bundle. After a
 - Added comment block documenting the bump scheme
 - `SPRITE_CACHE` kept at `champions-sprites-v1` (no CDN changes)
 
-### Phase 2 — tools/release.sh (open)
-- Shell script that auto-bumps `CACHE_NAME` in `sw.js` on every release
-- Format: `champions-sim-v{major}-{release-tag}`
+### Phase 2 — tools/release.sh ✅ COMPLETE (2026-04-25)
+- `tools/release.sh` added — auto-bumps `CACHE_NAME` in `poke-sim/sw.js`
+- Accepts explicit tag arg (`./tools/release.sh t9j17`) or auto-detects from CHANGELOG.md
+- Optional `--bump-major` flag for breaking engine changes
+- Guards against no-op (same tag) and failed sed rewrite
+- Cross-platform: handles BSD sed (macOS) and GNU sed (Linux)
+- Stages `sw.js` via `git add`, does NOT auto-commit — engineer reviews diff first
+- Prints exact `git commit` command with correct `Refs #95` message
 
 ### Phase 3 — CI enforcement (open)
 - GitHub Actions check that fails the build if `CACHE_NAME` was not bumped when engine/data/ui/style changed
@@ -323,6 +337,6 @@ The rebuild script inlines all source files into the single-file bundle. After a
 - M6 Polish & Launch (v2.0) — pending M1-M5 and M7-M10 close
 - M7 Architecture & Modularity (v2.1) — #77-#80
 - M8 Profile & Sync (v2.2) — #81-#86 (headline ask)
-- M9 Observability & QA (v2.3) — #87-#91 | **#95 Phase 1 done**
+- M9 Observability & QA (v2.3) — #87-#91 | **#95 Phase 1 + Phase 2 done**
 - M10 Performance & Quality (v2.4) — #92-#96
 - M11 Advanced Features (v2.5) — #97-#99 plus deferred #7 Tera
