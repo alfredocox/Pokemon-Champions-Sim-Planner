@@ -94,20 +94,23 @@ Pokemon-Champions-Sim-Planner/
 │   │   │                                  bring-picker slot layout + drag/tap (T9j.10)
 │   │   ├── strategy-injectable.js      ← TEAM_META knowledge base
 │   │   ├── manifest.json               ← PWA manifest
-│   │   ├── sw.js                       ← Service worker (cache-first) — CACHE_NAME: champions-sim-v4-t9j16
+│   │   ├── sw.js                       ← Service worker (cache-first) — CACHE_NAME: see SW CACHE HISTORY table
 │   │   ├── icon-192.png                ← PWA icon
 │   │   ├── icon-512.png                ← PWA icon
-│   │   ├── pokemon-champion-2026.html  ← Self-contained single-file bundle (~425 KB)
-│   │   └── tests/
-│   │        ├── items_tests.js         ← 14 cases
-│   │        ├── status_tests.js        ← 27 cases
-│   │        ├── mega_tests.js          ← 27 cases
-│   │        ├── coverage_tests.js      ← 9 cases
-│   │        ├── t9j8_tests.js          ← 47 cases (crit / flinch / abilities)
-│   │        ├── t9j9_tests.js          ← 24 cases (MOVE_CATEGORY / MOVE_BP)
-│   │        ├── t9j10_tests.js         ← ~16 cases (Team Preview bring-N-of-6)
-│   │        └── audit.js               ← 5070-battle regression sweep
-│   ├── MASTER_PROMPT.md                ← This file
+│   │   ├── pokemon-champion-2026.html  ← Self-contained single-file bundle (~685 KB)
+│   │   ├── tests/
+│   │   │    ├── items_tests.js         ← 14 cases
+│   │   │    ├── status_tests.js        ← 27 cases
+│   │   │    ├── mega_tests.js          ← 27 cases
+│   │   │    ├── coverage_tests.js      ← 9 cases
+│   │   │    ├── t9j8_tests.js          ← 47 cases (crit / flinch / abilities)
+│   │   │    ├── t9j9_tests.js          ← 24 cases (MOVE_CATEGORY / MOVE_BP)
+│   │   │    ├── t9j10_tests.js         ← ~16 cases (Team Preview bring-N-of-6)
+│   │   │    └── audit.js               ← 5070-battle regression sweep
+│   │   ├── COACHING_LAYER_SPEC.md      ← Phase 1-3 coaching spec (Sections 1-14)
+│   │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md ← Phase 4 adaptive coaching spec v2
+│   │   │                                  (state machine + threat response + policy audit)
+│   │   └── MASTER_PROMPT.md            ← **This file** (canonical copy)
 │   ├── DEVELOPMENT_RUNBOOK.md          ← Full dev history, architecture, QA log
 │   ├── CHAMPIONS_MECHANICS_SPEC.md     ← Authoritative mechanics reference
 │   ├── CHAMPIONS_VALIDATOR_FRAMEWORK.md ← Validator framework doc (T9j.8)
@@ -115,8 +118,11 @@ Pokemon-Champions-Sim-Planner/
 │   ├── SPREAD_DAMAGE_SPEC.md           ← Doubles spread damage spec
 │   ├── BATTLE_DAMAGE_DOCUMENT.md       ← Damage formula reference
 │   ├── GITHUB_ISSUES_TO_FILE.md        ← Backlog log
+│   ├── MASTER_PROMPT.md                ← stale root copy (tech debt — see note below)
 │   └── README.md                       ← Quickstart guide
 ```
+
+> ⚠️ **Two MASTER_PROMPT.md files exist.** The canonical one is `poke-sim/poke-sim/MASTER_PROMPT.md` (this file). The root-level `poke-sim/MASTER_PROMPT.md` is an older copy and should be either removed or git-symlinked to the canonical one in a future cleanup PR. All edits must go to the canonical (inner) copy.
 
 ---
 
@@ -124,13 +130,19 @@ Pokemon-Champions-Sim-Planner/
 
 Phases 1 and 2 of #95 are **COMPLETE**.
 
-| Version | Tag | Ships with | Commit | Status |
-|---------|-----|-----------|--------|--------|
+| Version | Tag | Ships with | Commit / PR | Status |
+|---------|-----|-----------|-------------|--------|
 | `champions-sim-v1` | — | Foundation | — | Retired |
 | `champions-sim-v2` | — | T9j.1–T9j.6 | — | Retired |
 | `champions-sim-v3` | — | T9j.7–T9j.15 | `8977090` | Retired |
 | `champions-sim-v4-t9j16` | T9j.16 | Coaching engine | `944b405` | Retired |
-| `champions-sim-v5-phase3` | phase3 | Strategy tab + persistence (#106 #108) | `4053ea6` | **✅ Current** |
+| `champions-sim-v5-phase3` | phase3 | Strategy tab + persistence (#106 #108) | `2a01cce` | Retired |
+| `champions-sim-v5-phase4a` | phase4a | Sim log foundation + koEvents | PR #113 | Retired |
+| `champions-sim-v5-phase4b` | phase4b | Adaptive state machine + team_history + consistency | PR #115 | Retired |
+| `champions-sim-v5-pilotfix1` | pilotfix1 | Pilot Guide populates after every single sim | PR #118 | Retired |
+| `champions-sim-v5-recordbar1` | recordbar1 | Record bar total + per-archetype splits (sim counts 10/50/100/500) | PR #119 | Retired |
+| `champions-sim-v5-mirror1` | mirror1 | Both-sides sim log mirroring (opponent-only teams populate) | PR #120 | Retired |
+| `champions-sim-v5-emptystate1` | emptystate1 | Record bar legacy vs new empty-state guidance | PR #121 | **✅ Current (v2.1.8-emptystate.1)** |
 
 **#95 Remaining phases:**
 - ~~Phase 3: CI check enforces bump was not forgotten~~ ✅ COMPLETE (2026-04-25)
@@ -151,7 +163,9 @@ chmod +x tools/release.sh         # first time only
 
 `Simulator` | `Teams` | `Set Editor` | `Strategy` | `Replay Log` | `Sources` | `Pilot Guide`
 
-**Strategy tab** added in Phase 2 (PR #106). See `## COACHING LAYER ROLLOUT` below.
+**Strategy tab** added in Phase 2 (PR #106). Phase 4b now paints an **adaptive banner** (State 1/2/3) + a **Record bar** showing total W-L plus per-archetype splits, reading from the Phase 4 per-series sim log. See `## COACHING LAYER ROLLOUT` and `## PHASE 4 - ADAPTIVE COACHING` below.
+
+**Pilot Guide tab** upserts one card per opponent after every single sim (PR #118 — no longer requires Run All Matchups to appear).
 
 ---
 
@@ -394,27 +408,120 @@ A visible build chip lives in the header (`<span class="build-version">` in `ind
 - On phase merge to main: drop the suffix and bump the next phase prefix (e.g. `v2.0.0` → `v2.1.0-phase3.1`)
 - Tied to the CACHE_NAME bump — when the chip changes major/minor, `tools/release.sh <tag> --bump-major` should also fire.
 
+**Current chip:** `v2.1.8-emptystate.1` (PR #121, CACHE_NAME `champions-sim-v5-emptystate1`).
+
 ---
 
 ## COACHING LAYER ROLLOUT
 
-Multi-phase rollout for the Strategy tab + coaching engine. Tracked in `poke-sim/COACHING_LAYER_SPEC.md`.
+Multi-phase rollout for the Strategy tab + coaching engine. Tracked in `poke-sim/poke-sim/COACHING_LAYER_SPEC.md` (Phases 1–3) and `poke-sim/poke-sim/PHASE4_DYNAMIC_ADVICE_SPEC.md` (Phase 4 adaptive layer).
 
 | Phase | Scope | PRs / Issues | Status |
 |-------|-------|--------------|--------|
 | 1 | Spec doc | #105 / #50 | ✅ Merged |
 | 2 | Strategy tab + theory engine (12 sections, 22 teams, V2 adapters) | #106 / #46 #49 | ✅ Merged (`f584a15`) |
 | 3 | Per-team report persistence (localStorage Section 7 schema) | #108 / #51 | ✅ Merged (`98ffa69`) |
-| 4 | Trend Analysis hook (post-Run-All overlay) | pending / #52 #53 #54 #55 | Open |
+| 4a | Sim log foundation — `champions_sim_log_v1` + per-game koEvents | #113 / #52 | ✅ Merged |
+| 4b | Adaptive state machine + `team_history` builder + consistency score + movesUsed / actionLog plumbing | #115 / #52 #53 | ✅ Merged |
+| 4b+ | Pilot Guide upsert after every single sim | #118 / #55 | ✅ Merged |
+| 4b+ | Record bar: total W-L + per-archetype splits + 10/50/100/500 sim presets | #119 / #53 #55 | ✅ Merged |
+| 4b+ | Both-sides sim log mirroring (opponent-only teams populate Strategy view) | #120 / #95 | ✅ Merged |
+| 4b+ | Record bar legacy vs new empty-state guidance | #121 / #53 #55 | ✅ Merged |
+| 4c | Detectors — dead moves, lead performance, common loss conditions, confidence badges | pending / #53 #54 | Open |
+| 4d | Threat Response System with Monte Carlo solver (200 sims/branch) | pending / #54 | Open |
+| 4e | Policy audit / player coaching + "same advice after 100 battles = failing" regression test | pending / #54 #55 | Open |
 | 5 | Source labels + Stress Test polish | pending | Open |
 
 **Storage keys in use:**
 - `champions_strategy_v1::<sig>` — legacy T9j.16 history (untouched, soft-migrated)
-- `champions_strategy_report_v1` — Phase 3 Section 7 schema (`{schema_version, reports: {<sig>: {team_key, theory_report, simulation_overlay, last_built_at, last_simmed_at}}}`)
+- `champions_strategy_report_v1` — Phase 3 Section 7 schema: `{schema_version, reports: {<sig>: {team_key, theory_report, simulation_overlay: {sample_size, ...}, last_built_at, last_simmed_at}}}`. Aggregate snapshots only — not decomposable into per-series W-L.
+- `champions_sim_log_v1` — **Phase 4a raw append-only per-series log** (independent of the Phase 3 key): `{schema_version: 1, entries: [{id, ts, playerKey, oppKey, format, bo, seriesResult, games: [{result, turns, leads, bring, playerSurvivors, oppSurvivors, winCondition, trTurns, twTurns, koEvents, movesUsed, protectStreakMax}]}]}`. Caps: 500 total entries, 100 per (player, opponent) pair, oldest-first eviction.
 - `champions_evidence_chips_visible` — Section 14 evidence toggle
 - `poke-sim:bring:v1` — T9j.10 bring picker selections
 
+> ⚠️ **Phase 3 and Phase 4 storage keys are independent.** Old Phase 3 aggregate snapshots do NOT retroactively populate the Phase 4 Record bar — the aggregates contain no per-series W-L and cannot be decomposed. This is why users who simmed before PR #119 see header "Sample: 700" but an empty Record bar until they run fresh sims. PR #121 adds clear empty-state guidance for this case.
+
 IndexedDB is explicitly deferred per Spec Section 11. v1 uses synchronous localStorage with QuotaExceededError purge of oldest 25%.
+
+---
+
+## PHASE 4 - ADAPTIVE COACHING (IN PROGRESS)
+
+Spec: `poke-sim/poke-sim/PHASE4_DYNAMIC_ADVICE_SPEC.md` v2 (adaptive state machine + threat response + policy audit).
+
+### Adaptive state machine — `computeTeamHistory(teamKey)` in `ui.js`
+
+| State | Condition | Coaching source | Banner copy |
+|-------|-----------|-----------------|-------------|
+| 1 | `total_battles === 0` | Archetype heuristics (theory-only) | "Theory-based coaching" |
+| 2 | `1 <= total_battles < 15` | Theory + partial sim data | "Early data — N more to reach mature confidence" |
+| 3 | `total_battles >= 15` | Full sim-driven recommendations | "Mature data" |
+
+Threshold constant: `CS_STATE_MATURE_THRESHOLD = 15` (ui.js line ~5704). Always read via the constant — never hard-code.
+
+### `team_history` output shape (consumed by banner + Record bar + future Phase 4c/d/e)
+
+```js
+{
+  total_battles, total_series,
+  state: 1 | 2 | 3,
+  win_rate, series_win_rate,
+  consistency_score: { label, variance, spread_gap, rng_dependency },
+    //   label in { 'insufficient_data', 'consistent', 'inconsistent', 'volatile' }
+  lead_performance: [...],           // Phase 4c will populate win rates per lead pair
+  matchup_failures:  [...],          // pair-level losing matchups
+  common_loss_conditions: [...],     // TR / speed / KO-pattern detectors (Phase 4c)
+  dead_moves:        [...],          // moves used <N times across sample (Phase 4c)
+  protect_peaks:     [...],          // Protect-spam hint
+  record_total: { n, w, l, win_rate },
+  record_by_archetype: [             // sorted by n desc, filtered n>0, draws excluded
+    { archetype, n, w, l, win_rate }
+  ],
+  player_behavior_patterns: []       // Phase 4e fills this
+}
+```
+
+### Both-sides sim log mirroring (PR #120)
+
+`csSimLogForTeamBothSides(teamKey)` returns every entry that involves `teamKey` on either side, normalized to its point of view:
+- Entries where `teamKey === playerKey` pass through unchanged.
+- Entries where `teamKey === oppKey` are returned with `seriesResult` + per-game `result` flipped (win↔loss, draw unchanged) and `playerKey`/`oppKey` swapped.
+
+This is what `computeTeamHistory` consumes, so any team that has ever been logged on either side populates the Record bar + Strategy view. Without this flip, user's "opponent" teams (e.g. `mega_altaria` when `player` was selected) would show empty.
+
+### Record bar empty-state guidance (PR #121)
+
+`_csRecordEmptyStateKind()` returns `'new' | 'legacy' | 'has_log'`. When `total.n === 0`, the Record bar appends a single muted hint line:
+- **legacy:** "Previous sim data was recorded before per-series tracking (added in v2.1.6). Run a fresh sim to start your record."
+- **new:** "Run a sim to start tracking your W-L by matchup."
+
+Zero impact on users with real per-series data (hint only renders when the pill would otherwise be empty).
+
+### Sim-count preset (PR #119)
+
+Dropdown: **10 / 50 / 100 / 500** (50 default). 500 is the hard ceiling — do not raise without a dedicated perf PR.
+
+### Hard invariants
+
+1. **No draws surfaced.** Per user directive ("there no draw in pokemon") — Pokemon has no draws, so Record bar + per-archetype splits exclude the draw bucket in surfaced output. Raw draws may still be stored in the sim log but must never render as a W-L-D triple.
+2. **"If the system gives the same advice after 100 battles, it is failing."** Phase 4e MUST ship a regression test that seeds a 100-series log with distinct loss patterns and asserts the advice surface delta is measurable. This test blocks Phase 4 closeout.
+3. **No data fabrication across storage keys.** Do not synthesize Phase 4 sim-log entries from Phase 3 aggregates — the aggregates lack per-series ground truth. Surface guidance instead (PR #121 pattern).
+
+### Remaining work
+
+- **4c** — Detectors: dead moves, lead performance win rates, common loss conditions, confidence badges per recommendation (`low` / `med` / `high` based on sample_size).
+- **4d** — Threat Response System: Monte Carlo solver runs 200 sims per candidate response branch against each opposing threat, ranks by win delta.
+- **4e** — Policy audit / player coaching layer + regression test (invariant #2 above).
+
+### Coaching ticket audit (post-PR #121 state)
+
+| Ticket | Title | Status |
+|--------|-------|--------|
+| #53 | Lead pair win-rate table | ✅ Data in `lead_performance`; UI pending Phase 4c — keep open |
+| #54 | Suboptimal decision flagger | Phase 4e scope — keep open |
+| #55 | Personal weakness dashboard | ✅ `record_by_archetype` + Record bar + mirroring cover the headline ask — consider closing after Phase 4c confidence badges ship |
+| #65 | Meta-Weighted Threat Radar | Not started — Phase 4d adjacent |
+| #72 | Trend Dashboard Mega Timing Heatmap | Not started |
 
 ---
 
