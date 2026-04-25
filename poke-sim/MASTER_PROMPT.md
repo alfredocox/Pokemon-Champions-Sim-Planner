@@ -72,14 +72,15 @@ Pokemon-Champions-Sim-Planner/
 │   └── release.sh                      ← #95 Phase 2: auto-bumps sw.js CACHE_NAME on release
 ├── .github/
 │   ├── workflows/
-│   │   └── cache-bump-check.yml        ← #95 Phase 3: CI fails PR if CACHE_NAME not bumped
+│   │   ├── cache-bump-check.yml        ← #95 Phase 3: CI fails PR if CACHE_NAME not bumped
+│   │   └── bundle-freshness-check.yml  ← #88 Phase 2: CI fails PR if bundle not rebuilt
 │   ├── ISSUE_TEMPLATE/
 │   └── pull_request_template.md
 ├── poke-sim/
 │   ├── tools/
-│   │   ├── build-bundle.py             ← #88: extracted rebuild script, shared by CI + humans
-│   │   ├── check-bundle.sh             ← #88: fails if bundle drifts from source files
-│   │   └── README.md                   ← #88: explains all tools + drift fix instructions
+│   │   ├── build-bundle.py             ← #88 Phase 1: canonical rebuild script (shared by CI + humans)
+│   │   ├── check-bundle.sh             ← #88 Phase 1: fails if bundle drifts from source files
+│   │   └── README.md                   ← #88 Phase 1: explains all tools + drift fix instructions
 │   ├── poke-sim/                       ← nested dev workspace (source of truth)
 │   │   ├── index.html                  ← App shell + tab structure + PWA meta
 │   │   ├── style.css                   ← Full dark theme, mobile-first
@@ -112,9 +113,8 @@ Pokemon-Champions-Sim-Planner/
 │   │   │    ├── t9j10_tests.js         ← ~16 cases (Team Preview bring-N-of-6)
 │   │   │    └── audit.js               ← 5070-battle regression sweep
 │   │   ├── COACHING_LAYER_SPEC.md      ← Phase 1-3 coaching spec (Sections 1-14)
-│   │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md ← Phase 4 adaptive coaching spec v2
-│   │   │                                  (state machine + threat response + policy audit)
-│   │   └── MASTER_PROMPT.md            ← **This file** (canonical copy)
+│   │   └── PHASE4_DYNAMIC_ADVICE_SPEC.md ← Phase 4 adaptive coaching spec v2
+│   │                                      (state machine + threat response + policy audit)
 │   ├── DEVELOPMENT_RUNBOOK.md          ← Full dev history, architecture, QA log
 │   ├── CHAMPIONS_MECHANICS_SPEC.md     ← Authoritative mechanics reference
 │   ├── CHAMPIONS_VALIDATOR_FRAMEWORK.md ← Validator framework doc (T9j.8)
@@ -122,17 +122,17 @@ Pokemon-Champions-Sim-Planner/
 │   ├── SPREAD_DAMAGE_SPEC.md           ← Doubles spread damage spec
 │   ├── BATTLE_DAMAGE_DOCUMENT.md       ← Damage formula reference
 │   ├── GITHUB_ISSUES_TO_FILE.md        ← Backlog log
-│   ├── MASTER_PROMPT.md                ← stale root copy (tech debt -- see note below)
+│   ├── MASTER_PROMPT.md                ← **This file** (single canonical copy)
 │   └── README.md                       ← Quickstart guide
 ```
 
-> ⚠️ **Two MASTER_PROMPT.md files exist.** The canonical one is `poke-sim/poke-sim/MASTER_PROMPT.md` (this file). The root-level `poke-sim/MASTER_PROMPT.md` is an older copy and should be either removed or git-symlinked to the canonical one in a future cleanup PR. All edits must go to the canonical (inner) copy.
+> ✅ **Single MASTER_PROMPT.md.** The only copy is `poke-sim/MASTER_PROMPT.md` (this file). The former inner duplicate at `poke-sim/poke-sim/MASTER_PROMPT.md` was deleted in the consolidation PR. All edits go here.
 
 ---
 
 ## SERVICE WORKER CACHE HISTORY (#95)
 
-Phases 1 and 2 of #95 are **COMPLETE**.
+All phases of #95 are **COMPLETE**.
 
 | Version | Tag | Ships with | Commit / PR | Status |
 |---------|-----|-----------|-------------|--------|
@@ -148,9 +148,6 @@ Phases 1 and 2 of #95 are **COMPLETE**.
 | `champions-sim-v5-mirror1` | mirror1 | Both-sides sim log mirroring (opponent-only teams populate) | PR #120 | Retired |
 | `champions-sim-v5-emptystate1` | emptystate1 | Record bar legacy vs new empty-state guidance | PR #121 | **✅ Current (v2.1.8-emptystate.1)** |
 
-**#95 Remaining phases:**
-- ~~Phase 3: CI check enforces bump was not forgotten~~ ✅ COMPLETE (2026-04-25)
-
 **CACHE_NAME bump rule:** Must be updated on every release that changes `engine.js`, `data.js`, `ui.js`, or `style.css`. Format: `champions-sim-v{major}-{release-tag}`.
 
 **How to run the release script:**
@@ -160,6 +157,35 @@ chmod +x tools/release.sh         # first time only
 ./tools/release.sh t9j17           # bump to next tag
 ./tools/release.sh t9j17 --bump-major  # also increment major version
 ```
+
+---
+
+## ISSUE #88 — BUNDLE FRESHNESS CHECK ✅ DONE
+
+**Title:** infra: Automated bundle-freshness check (fail PR on bundle drift)
+**Milestone:** M9 Observability & QA
+**Assigned:** @alfredocox
+
+### Phase 1 — poke-sim/tools/ scripts ✅ COMPLETE (PR #123, 2026-04-25)
+- `poke-sim/tools/build-bundle.py` added — canonical bundle builder extracted from MASTER_PROMPT inline one-liner
+- `poke-sim/tools/check-bundle.sh` added — sha256-compares fresh build vs committed bundle, exits 1 if stale
+- `poke-sim/tools/README.md` added — explains all tools + drift fix instructions
+- Run from `poke-sim/` directory: `python3 tools/build-bundle.py`
+- Check mode: `bash poke-sim/tools/check-bundle.sh` (from repo root)
+
+### Phase 2 — CI enforcement ✅ COMPLETE (2026-04-25)
+- `.github/workflows/bundle-freshness-check.yml` wires `check-bundle.sh` into every PR targeting `main`
+- Detects if `index.html`, `style.css`, `data.js`, `engine.js`, `ui.js`, or `strategy-injectable.js` changed
+- If yes: runs check, fails PR if bundle not rebuilt
+- Passes silently for docs/tests/infra-only PRs
+- Does NOT block direct pushes to main (hotfix escape hatch preserved)
+
+### Phase 3 — Branch Protection (action required: repo owner)
+- Required status check `Verify bundle is fresh` must be added to `main` branch protection rule
+- Go to: https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/settings/branches
+- Add `Verify bundle is fresh` alongside `Verify sw.js CACHE_NAME bumped` (#95)
+- Enable "Require branches to be up to date before merging"
+- ⚠️ Trigger the workflow first by opening a draft PR so the check name appears in the dropdown
 
 ---
 
@@ -323,40 +349,10 @@ The rebuild script inlines all source files into the single-file bundle. After a
 
 ---
 
-## ISSUE #95 — SERVICE WORKER CACHE AUTOMATION
-
-**Title:** infra: automate sw.js CACHE_NAME bump on release
-**Milestone:** M9 Observability & QA
-**Assigned:** @TheYfactora12
-
-### Phase 1 — Manual bump ✅ COMPLETE (commit `944b405`, 2026-04-25)
-- `CACHE_NAME` bumped from `champions-sim-v3` to `champions-sim-v4-t9j16`
-- Added comment block documenting the bump scheme
-- `SPRITE_CACHE` kept at `champions-sprites-v1` (no CDN changes)
-
-### Phase 2 — tools/release.sh ✅ COMPLETE (2026-04-25)
-- `tools/release.sh` added — auto-bumps `CACHE_NAME` in `poke-sim/sw.js`
-- Accepts explicit tag arg (`./tools/release.sh t9j17`) or auto-detects from CHANGELOG.md
-- Optional `--bump-major` flag for breaking engine changes
-- Guards against no-op (same tag) and failed sed rewrite
-- Cross-platform: handles BSD sed (macOS) and GNU sed (Linux)
-- Stages `sw.js` via `git add`, does NOT auto-commit — engineer reviews diff first
-- Prints exact `git commit` command with correct `Refs #95` message
-
-### Phase 3 — CI enforcement ✅ COMPLETE (2026-04-25)
-- `.github/workflows/cache-bump-check.yml` added
-- Triggers on every PR targeting `main`
-- Fails if engine.js/data.js/ui.js/style.css/strategy-injectable changed but sw.js did not
-- Prints exact `./tools/release.sh <tag>` fix command in the failure message
-- Passes silently when no app source files changed (docs, tests, infra-only PRs)
-- Does NOT block direct pushes to main (hotfix escape hatch preserved)
-
----
-
 ## RELEASE PROCEDURE (every engineer must follow this)
 
 This section defines the mandatory steps before merging any PR that touches app source files.
-The CI check (Phase 3) enforces step 3 — but the full procedure is the human contract.
+Both CI checks (#88 Phase 2 bundle-freshness, #95 Phase 3 cache-bump) enforce steps 2 and 3 — but the full procedure is the human contract.
 
 ### When to follow this
 Any PR that modifies one or more of:
@@ -365,33 +361,36 @@ Any PR that modifies one or more of:
 - `poke-sim/ui.js`
 - `poke-sim/style.css`
 - `poke-sim/strategy-injectable.js`
+- `poke-sim/index.html`
 
 ### Steps
 1. Finish your feature/fix on a branch
-2. Run the release script from repo root:
+2. Rebuild the bundle from the `poke-sim/` directory:
+     ```bash
+     cd poke-sim && python3 tools/build-bundle.py
+     ```
+3. Run the cache bump script from repo root:
      ```bash
      chmod +x tools/release.sh    # first time only
      ./tools/release.sh <tag>     # e.g. ./tools/release.sh t9j17
      ```
-3. Review the staged change:
+4. Review the staged changes:
      ```bash
+     git diff --cached poke-sim/poke-sim/pokemon-champion-2026.html
      git diff --cached poke-sim/sw.js
      ```
-4. Commit sw.js alongside your source changes:
+5. Commit both alongside your source changes:
      ```bash
-     git commit -m "infra: bump CACHE_NAME to champions-sim-v4-t9j17 - Refs #95"
+     git commit -m "feat: <description> - Refs #N"
      ```
-5. Rebuild the bundle if any source file changed:
-     ```bash
-     cd poke-sim && python3 tools/build-bundle.py
-     ```
-6. Update MASTER_PROMPT.md to reflect your change
-7. Open PR — the CI check will verify step 2 was done
+6. Update `poke-sim/MASTER_PROMPT.md` to reflect your change
+7. Open PR — both CI checks will verify steps 2 and 3 were done
 
 ### What happens if you skip step 2
-The `cache-bump-check` CI job will fail your PR with a clear message
-showing which files changed and the exact command to fix it.
-The PR cannot be merged until sw.js is updated.
+The `bundle-freshness-check` CI job will fail your PR with the exact command to fix it.
+
+### What happens if you skip step 3
+The `cache-bump-check` CI job will fail your PR with the exact command to fix it.
 
 ---
 
@@ -490,7 +489,7 @@ Threshold constant: `CS_STATE_MATURE_THRESHOLD = 15` (ui.js line ~5704). Always 
 - Entries where `teamKey === playerKey` pass through unchanged.
 - Entries where `teamKey === oppKey` are returned with `seriesResult` + per-game `result` flipped (win↔loss, draw unchanged) and `playerKey`/`oppKey` swapped.
 
-This is what `computeTeamHistory` consumes, so any team that has ever been logged on either side populates the Record bar + Strategy view. Without this flip, user's "opponent" teams (e.g. `mega_altaria` when `player` was selected) would show empty.
+This is what `computeTeamHistory` consumes, so any team that has ever been logged on either side populates the Record bar + Strategy view.
 
 ### Record bar empty-state guidance (PR #121)
 
@@ -498,15 +497,13 @@ This is what `computeTeamHistory` consumes, so any team that has ever been logge
 - **legacy:** "Previous sim data was recorded before per-series tracking (added in v2.1.6). Run a fresh sim to start your record."
 - **new:** "Run a sim to start tracking your W-L by matchup."
 
-Zero impact on users with real per-series data (hint only renders when the pill would otherwise be empty).
-
 ### Sim-count preset (PR #119)
 
 Dropdown: **10 / 50 / 100 / 500** (50 default). 500 is the hard ceiling — do not raise without a dedicated perf PR.
 
 ### Hard invariants
 
-1. **No draws surfaced.** Per user directive ("there no draw in pokemon") — Pokemon has no draws, so Record bar + per-archetype splits exclude the draw bucket in surfaced output. Raw draws may still be stored in the sim log but must never render as a W-L-D triple.
+1. **No draws surfaced.** Per user directive — Pokemon has no draws, so Record bar + per-archetype splits exclude the draw bucket. Raw draws may still be stored but must never render as a W-L-D triple.
 2. **"If the system gives the same advice after 100 battles, it is failing."** Phase 4e MUST ship a regression test that seeds a 100-series log with distinct loss patterns and asserts the advice surface delta is measurable. This test blocks Phase 4 closeout.
 3. **No data fabrication across storage keys.** Do not synthesize Phase 4 sim-log entries from Phase 3 aggregates — the aggregates lack per-series ground truth. Surface guidance instead (PR #121 pattern).
 
@@ -556,6 +553,6 @@ Dropdown: **10 / 50 / 100 / 500** (50 default). 500 is the hard ceiling — do n
 - M6 Polish & Launch (v2.0) — pending M1-M5 and M7-M10 close
 - M7 Architecture & Modularity (v2.1) — #77-#80
 - M8 Profile & Sync (v2.2) — #81-#86 (headline ask)
-- M9 Observability & QA (v2.3) — #87-#91 | **#95 ALL 3 PHASES DONE** | **#88 DONE**
+- M9 Observability & QA (v2.3) — #87-#91 | **#95 ALL 3 PHASES DONE** | **#88 ALL PHASES DONE**
 - M10 Performance & Quality (v2.4) — #92-#96
 - M11 Advanced Features (v2.5) — #97-#99 plus deferred #7 Tera
