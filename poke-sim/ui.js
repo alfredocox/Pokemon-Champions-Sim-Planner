@@ -5621,6 +5621,45 @@ function csSimLogGetAll() { return _csSimLogRead().entries.slice(); }
 function csSimLogForTeam(teamKey) {
   return _csSimLogRead().entries.filter(function(e){ return e.playerKey === teamKey; });
 }
+// Refs #95 - return every entry that involves teamKey on EITHER side, normalized
+// to teamKey's point-of-view. Entries where teamKey was the opponent are returned
+// with seriesResult + per-game result fields flipped (win<->loss, draw unchanged)
+// and playerKey/oppKey swapped so downstream code can treat them uniformly. This
+// is what the Record bar and team_history consume so a team that was only simmed
+// as an opponent still populates its Strategy view (user request: "data should
+// pull in showing win loss against each category of teams").
+function _flipResult(r) {
+  return r === 'win' ? 'loss' : r === 'loss' ? 'win' : r;
+}
+function csSimLogForTeamBothSides(teamKey) {
+  var all = _csSimLogRead().entries;
+  var out = [];
+  for (var i = 0; i < all.length; i++) {
+    var e = all[i];
+    if (e.playerKey === teamKey) {
+      // Shallow copy - downstream iterates games, so keep games refs.
+      out.push(e);
+    } else if (e.oppKey === teamKey) {
+      var flippedGames = (e.games || []).map(function(g){
+        var ng = {};
+        for (var k in g) if (Object.prototype.hasOwnProperty.call(g, k)) ng[k] = g[k];
+        ng.result = _flipResult(g.result);
+        return ng;
+      });
+      out.push({
+        ts: e.ts,
+        playerKey: teamKey,       // normalize to viewer POV
+        oppKey:    e.playerKey,   // the ORIGINAL player is the opponent we faced
+        format:    e.format,
+        bo:        e.bo,
+        games:     flippedGames,
+        seriesResult: _flipResult(e.seriesResult),
+        _mirrored: true
+      });
+    }
+  }
+  return out;
+}
 function csSimLogForMatchup(playerKey, oppKey) {
   return _csSimLogRead().entries.filter(function(e){
     return e.playerKey === playerKey && e.oppKey === oppKey;
@@ -5640,6 +5679,7 @@ try {
   window.csSimLogAppendSeries = csSimLogAppendSeries;
   window.csSimLogGetAll       = csSimLogGetAll;
   window.csSimLogForTeam      = csSimLogForTeam;
+  window.csSimLogForTeamBothSides = csSimLogForTeamBothSides;
   window.csSimLogForMatchup   = csSimLogForMatchup;
   window.csSimLogClearTeam    = csSimLogClearTeam;
   window.csSimLogClearAll     = csSimLogClearAll;
@@ -5670,7 +5710,14 @@ function computeTeamHistory(teamKey) {
   if (cached && (Date.now() - cached.ts) < CS_HISTORY_TTL_MS) {
     return cached.history;
   }
-  var entries = (typeof csSimLogForTeam === 'function') ? csSimLogForTeam(teamKey) : [];
+  // Refs #95 - Use both-sides view so teams that were only simmed as the
+  // opponent still get a populated Record bar and state machine (results are
+  // mirrored to teamKey's POV). Previously this used csSimLogForTeam which
+  // only returned entries where teamKey was the pilot, which is why a team
+  // you'd simmed against but never piloted showed "no games yet".
+  var entries = (typeof csSimLogForTeamBothSides === 'function')
+    ? csSimLogForTeamBothSides(teamKey)
+    : ((typeof csSimLogForTeam === 'function') ? csSimLogForTeam(teamKey) : []);
   var games = [];
   entries.forEach(function(e){ if (e.games) games = games.concat(e.games); });
 
