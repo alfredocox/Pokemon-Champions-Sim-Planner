@@ -1221,7 +1221,7 @@ table{border-collapse:collapse;width:100%}
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-        <h1 class="site-title">Poke-e-Sim Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.4-adaptive.2</span></h1>
+        <h1 class="site-title">Poke-e-Sim Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.4-adaptive.3</span></h1>
         <p class="site-sub">April 2026 Meta · VGC Doubles Simulator</p>
       </div>
     </div>
@@ -13146,8 +13146,15 @@ function csMoveLines(team, identity, leadGuide) {
   var spreadUser = members.find(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
   var intimUser = members.find(function(m){ return (m.ability||'') === 'Intimidate'; });
 
+  // Deduplicate picks: if a and b resolve to the same mon (e.g. Incineroar has
+  // both Fake Out and Intimidate, so foUser and intimUser can be the same),
+  // drop the duplicate and backfill from the remaining team so we never show
+  // a lead pair like "Incineroar + Incineroar". Refs #116.
   function pick2(a, b) {
-    var picks = [a, b].filter(Boolean).map(function(m){ return m.name; });
+    var picks = [];
+    [a, b].forEach(function(m){
+      if (m && m.name && picks.indexOf(m.name) < 0) picks.push(m.name);
+    });
     if (picks.length < 2) {
       members.forEach(function(m){ if (picks.length < 2 && picks.indexOf(m.name) < 0) picks.push(m.name); });
     }

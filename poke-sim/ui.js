@@ -4542,8 +4542,15 @@ function csMoveLines(team, identity, leadGuide) {
   var spreadUser = members.find(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
   var intimUser = members.find(function(m){ return (m.ability||'') === 'Intimidate'; });
 
+  // Deduplicate picks: if a and b resolve to the same mon (e.g. Incineroar has
+  // both Fake Out and Intimidate, so foUser and intimUser can be the same),
+  // drop the duplicate and backfill from the remaining team so we never show
+  // a lead pair like "Incineroar + Incineroar". Refs #116.
   function pick2(a, b) {
-    var picks = [a, b].filter(Boolean).map(function(m){ return m.name; });
+    var picks = [];
+    [a, b].forEach(function(m){
+      if (m && m.name && picks.indexOf(m.name) < 0) picks.push(m.name);
+    });
     if (picks.length < 2) {
       members.forEach(function(m){ if (picks.length < 2 && picks.indexOf(m.name) < 0) picks.push(m.name); });
     }
