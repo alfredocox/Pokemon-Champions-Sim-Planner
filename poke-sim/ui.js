@@ -1554,6 +1554,45 @@ function displayResults(res, oppKey) {
 
   // Auto-show inline pilot card after every single sim
   showInlinePilotCard(oppKey, res);
+
+  // PDF progressive reveal (Refs #57) - after ANY single sim, stash the
+  // result so the PDF button can build a fresh packet. Each new sim either
+  // adds a new matchup entry or replaces the prior one for the same
+  // opponent, so the button always regenerates from the latest data.
+  if (!window.lastSimResults) window.lastSimResults = {};
+  window.lastSimResults[oppKey] = res;
+  revealPdfButton();
+}
+
+// PDF progressive reveal (Refs #57) - show the Download PDF Report button
+// as soon as there is at least one matchup in lastSimResults, and relabel
+// it so users know how many matchups the next PDF click will include.
+function revealPdfButton() {
+  var btn = document.getElementById('pdf-report-btn');
+  if (!btn) return;
+  var count = Object.keys(window.lastSimResults || {}).length;
+  if (count < 1) return;
+  btn.style.display = '';
+  var label = btn.querySelector('.pdf-btn-label');
+  if (!label) {
+    // First reveal - wrap the text node so we can update the count later
+    // without clobbering the icon SVG.
+    var textNode = Array.from(btn.childNodes).find(function(n){
+      return n.nodeType === 3 && n.textContent.trim().length > 0;
+    });
+    if (textNode) {
+      label = document.createElement('span');
+      label.className = 'pdf-btn-label';
+      label.textContent = textNode.textContent.trim();
+      btn.replaceChild(label, textNode);
+    }
+  }
+  if (label) {
+    label.textContent = count === 1
+      ? 'Download PDF Report (1 matchup)'
+      : 'Download PDF Report (' + count + ' matchups)';
+  }
+  btn.title = 'Generates a fresh PDF packet from the latest simulation data (' + count + ' matchup' + (count === 1 ? '' : 's') + ' included). Run another sim to refresh.';
 }
 
 // ============================================================
@@ -1965,8 +2004,9 @@ document.getElementById('run-all-btn')?.addEventListener('click', async function
   });
 
   document.getElementById('progress-wrap').style.display='none';
-  const pdfBtn = document.getElementById('pdf-report-btn');
-  if (pdfBtn) pdfBtn.style.display = '';
+  // Refs #57 - progressive reveal helper relabels with the correct matchup
+  // count and binds the tooltip. Replaces the old hardcoded display='' line.
+  revealPdfButton();
   // T9j.16 (Refs #65) - auto-save Strategy Report after Run All Matchups completes.
   // Persists to localStorage keyed on teamSignature so any imported team gets continuity.
   try { if (typeof t9j16AutoSave === 'function') t9j16AutoSave(); } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
