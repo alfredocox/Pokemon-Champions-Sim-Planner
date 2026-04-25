@@ -1,0 +1,57 @@
+name: Bundle Freshness Check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-bundle-fresh:
+    name: Verify bundle is fresh
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Check if app source files changed
+        id: app_changed
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          APP_CHANGED=$(echo "$CHANGED" | grep -E \
+            'poke-sim/poke-sim/(engine|data|ui|style|strategy-injectable|index)\.(js|css|html)' \
+            | grep -v 'pokemon-champion-2026\.html' || true)
+
+          if [ -n "$APP_CHANGED" ]; then
+            echo "app_changed=true" >> $GITHUB_OUTPUT
+            echo "app_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$APP_CHANGED" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "app_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify bundle is fresh
+        if: steps.app_changed.outputs.app_changed == 'true'
+        env:
+          CHANGED_SOURCE_FILES: ${{ steps.app_changed.outputs.app_files }}
+        run: |
+          echo "App source files changed in this PR:"
+          echo "$CHANGED_SOURCE_FILES"
+          echo ""
+          echo "Running bundle freshness check..."
+          python3 tools/build.py --check
+
+      - name: No app changes detected
+        if: steps.app_changed.outputs.app_changed == 'false'
+        run: |
+          echo "✅  No app source files changed — bundle rebuild not required."

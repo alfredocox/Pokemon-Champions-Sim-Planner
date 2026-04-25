@@ -34,6 +34,7 @@ Refs #
 - [ ] `poke-sim/style.css`
 - [ ] `poke-sim/index.html`
 - [ ] `poke-sim/legality.js`
+- [ ] `poke-sim/strategy-injectable.js`
 - [ ] `poke-sim/pokemon-champion-2026.html` (rebuilt bundle)
 - [ ] Root-level spec / doc (`CHAMPIONS_MECHANICS_SPEC.md`, etc.)
 
@@ -44,7 +45,8 @@ Refs #
 - [ ] Syntax check: `node -c data.js engine.js ui.js` passes
 - [ ] Coverage tests: `/tmp/coverage_tests.js` = N/N
 - [ ] Audit run: `/tmp/audit.js` = 0 JS errors, XXXX battles, Ys elapsed
-- [ ] Bundle rebuilt and size recorded: `pokemon-champion-2026.html` = NNN KB
+- [ ] Bundle rebuilt: `python3 tools/build.py` ran from repo root, size recorded: `pokemon-champion-2026.html` = NNN KB
+- [ ] Bundle freshness CI check passes (green checkmark on this PR)
 
 ```
 <!-- paste key test output here -->
@@ -60,6 +62,6 @@ Refs #
 - [ ] No em-dashes in commit messages
 - [ ] New globals referenced during init use `var` (TDZ-safe)
 - [ ] Updated `CHAMPIONS_MECHANICS_SPEC.md` if mechanic behavior changed
-- [ ] Bundle rebuilt and committed alongside source changes
+- [ ] If `engine.js`, `data.js`, `ui.js`, `style.css`, `index.html`, or `strategy-injectable.js` changed: ran `python3 tools/build.py` and committed `pokemon-champion-2026.html`
 - [ ] If `engine.js`, `data.js`, `ui.js`, `style.css` changed: ran `./tools/release.sh <tag>` and committed `sw.js`
 - [ ] Updated `MASTER_PROMPT.md` to reflect this change (new feature, ticket, or infra update)
