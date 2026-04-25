@@ -1147,7 +1147,7 @@ table{border-collapse:collapse;width:100%}
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-        <h1 class="site-title">Pokémon Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.2-fakeout.1</span></h1>
+        <h1 class="site-title">Pokémon Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.3-simlog.1</span></h1>
         <p class="site-sub">April 2026 Meta · VGC Doubles Simulator</p>
       </div>
     </div>
@@ -7513,6 +7513,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         if (attacker.hp === 0) {
           attacker.alive = false;
           log.push(`${attacker.name} fainted from Struggle recoil!`);
+          _recordKO(attacker, { move: 'Struggle', attacker: attacker, reason: 'recoil' });
         }
         return;
       }
@@ -7828,7 +7829,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (berryMsg) log.push(berryMsg);
     // Multiscale: deactivate after first hit
     target.multiscaleActive = false;
-    if (target.hp === 0) { target.alive = false; log.push(`${target.name} fainted!`); }
+    if (target.hp === 0) { target.alive = false; log.push(`${target.name} fainted!`); _recordKO(target, { move: move, attacker: attacker, reason: 'attack' }); }
     // T9j.8 (Refs #30) onDamageTaken hook: Spicy Spray burns attacker.
     // Fires only if target still alive AND damage > 0.
     if (target.alive && finalDmg > 0) {
@@ -7844,6 +7845,26 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   // MAIN BATTLE LOOP
   // ============================================================
   let turn = 0;
+  // Phase 4a (Refs #52) — structured KO event log for dynamic coaching.
+  // Populated at every faint site below. UI reads this instead of parsing
+  // log strings (fragile). Shape:
+  //   { turn, victim, side: 'player'|'opp', byMove, byAttacker, reason }
+  // reason: 'attack' | 'recoil' | 'sandstorm' | 'burn' | 'frostbite'
+  //       | 'poison' | 'toxic'
+  const koEvents = [];
+  const _recordKO = function(mon, cause) {
+    try {
+      const side = (playerPokemon.indexOf(mon) >= 0) ? 'player' : 'opp';
+      koEvents.push({
+        turn: turn,
+        victim: mon.name,
+        side: side,
+        byMove: (cause && cause.move) || null,
+        byAttacker: (cause && cause.attacker) ? cause.attacker.name : null,
+        reason: (cause && cause.reason) || 'unknown'
+      });
+    } catch (_e) { /* never let logging kill the sim */ }
+  };
   // T9j.3 (#39): raised from 25 → 30 so timer-draw (28-turn budget at 15s/turn)
   // can actually resolve before the hard cap. Stall mirrors will now reach timer.
   const MAX_TURNS = 30;
@@ -7988,7 +8009,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           const sandDmg = Math.floor(mon.maxHp / 16);
           mon.hp = Math.max(0, mon.hp - sandDmg);
           log.push(`${mon.name} is buffeted by the sandstorm! [${sandDmg} dmg]`);
-          if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+          if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'sandstorm' }); }
         }
       }
     }
@@ -7998,7 +8019,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const burnDmg = Math.floor(mon.maxHp / 16);
       mon.hp = Math.max(0, mon.hp - burnDmg);
       log.push(`${mon.name} is hurt by its burn! [${burnDmg} dmg]`);
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'burn' }); }
     }
 
     // T9j.17 (Refs #101) -- Frostbite residual (1/16 max HP). Mirrors burn chip.
@@ -8009,7 +8030,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const frostDmg = Math.max(1, Math.floor(mon.maxHp / 16));
       mon.hp = Math.max(0, mon.hp - frostDmg);
       log.push(`${mon.name} is hurt by frostbite! [${frostDmg} dmg]`);
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'frostbite' }); }
     }
 
     // T9j.4 (#41) — Poison residual (1/8 max HP). Cite: Bulbapedia Status; Spec §1.6.
@@ -8017,7 +8038,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const poisonDmg = Math.max(1, Math.floor(mon.maxHp / 8));
       mon.hp = Math.max(0, mon.hp - poisonDmg);
       log.push(`${mon.name} is hurt by poison! [${poisonDmg} dmg]`);
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'poison' }); }
     }
 
     // T9j.4 (#41) — Toxic residual (N/16 escalating, cap N=15; counter increments post-tick).
@@ -8029,7 +8050,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       mon.hp = Math.max(0, mon.hp - toxicDmg);
       log.push(`${mon.name} is hurt by toxic! [${toxicDmg} dmg] (tick ${n}/16)`);
       mon.toxicCounter++;
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'toxic' }); }
     }
     // Note: Snow intentionally has no chip damage (Champions Gen-IX). Hail is absent.
 
@@ -8170,7 +8191,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       opponent: oppPokemon.slice(0,    field._format === 'singles' ? 3 : 4).map(p => p.name)
     },
     // #5 — attach legality verdict so UI can surface warnings on team/match cards.
-    legality: { player: playerLegality, opp: oppLegality }
+    legality: { player: playerLegality, opp: oppLegality },
+    // Phase 4a (Refs #52) — structured KO event log. See _recordKO site above.
+    koEvents: koEvents
   };
 }
 
@@ -10351,6 +10374,10 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
       const playerBring   = manualPlayerBring   || randomBringFor(playerTeamKey);
       const opponentBring = manualOpponentBring || randomBringFor(oppTeamKey);
 
+      // Phase 4a (Refs #52) — capture every game of this series so we can
+      // append one sim-log entry per series at the end.
+      const seriesBattles = [];
+
       while (seriesW<gamesNeeded && seriesL<gamesNeeded && gamesPlayed<bo) {
         const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey], { format: currentFormat, playerBring, opponentBring });
         if (battle.result==='win') seriesW++;
@@ -10362,6 +10389,7 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
         results.turnDist[battle.turns]=(results.turnDist[battle.turns]||0)+1;
         if (battle.winCondition) results.winConditions[battle.winCondition]=(results.winConditions[battle.winCondition]||0)+1;
         if (results.allLogs.length<50) results.allLogs.push({...battle, oppKey:oppTeamKey});
+        seriesBattles.push(battle);
       }
 
       const seriesResult = seriesW>seriesL?'wins':seriesW<seriesL?'losses':'draws';
@@ -10370,6 +10398,27 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
       if (seriesResult==='losses') liveL++;
       results.totalTurns += seriesTurns/gamesPlayed;
       results.totalTrTurns += seriesTrTurns/gamesPlayed;
+
+      // Phase 4a — append one entry per series to the sim log. Wrapped in
+      // try so a storage failure never kills the sim run.
+      try {
+        if (typeof csSimLogAppendSeries === 'function') {
+          // Map plural 'wins'/'losses'/'draws' to singular for storage.
+          const srOut = seriesResult === 'wins' ? 'win'
+                      : seriesResult === 'losses' ? 'loss'
+                      : 'draw';
+          csSimLogAppendSeries({
+            playerKey: playerTeamKey,
+            oppKey: oppTeamKey,
+            format: currentFormat,
+            bo: bo,
+            battleResults: seriesBattles,
+            seriesResult: srOut
+          });
+        }
+      } catch (e) {
+        console.warn('[Phase4a] simlog append in runBoSeries failed:', e && e.message);
+      }
     }
     if (onProgress) onProgress(i+bSize, numSeries, liveW, liveL);
     await new Promise(r=>setTimeout(r,0));
@@ -13874,6 +13923,172 @@ function csClearReport(teamKey) {
 function csClearAllReports() {
   return _csPersistWrite({ schema_version: CS_PERSIST_SCHEMA, reports: {} });
 }
+
+// =========================================================================
+// Phase 4a (Refs #52) — Sim Log: raw append-only history of series results.
+// Lives in its own storage key (champions_sim_log_v1) so it can evolve
+// independently from the Phase 3 strategy snapshot store.
+//
+// Why separate key:
+//  - Strategy reports are COMPUTED / snapshot data (re-derivable)
+//  - Sim log is RAW event history (source of truth for Phase 4 analytics)
+//
+// Caps:
+//  - 500 entries total (LRU evict oldest)
+//  - 100 entries per (playerKey, oppKey) pair (prevents one heavy matchup
+//    from crowding others out)
+//
+// QuotaExceededError fallback: purge oldest 25%, retry once. Mirrors
+// Phase 3's recovery pattern.
+// =========================================================================
+var CS_SIMLOG_KEY = 'champions_sim_log_v1';
+var CS_SIMLOG_SCHEMA = 1;
+var CS_SIMLOG_MAX_TOTAL = 500;
+var CS_SIMLOG_MAX_PER_PAIR = 100;
+
+function _csSimLogRead() {
+  try {
+    var raw = localStorage.getItem(CS_SIMLOG_KEY);
+    if (!raw) return { schema_version: CS_SIMLOG_SCHEMA, entries: [] };
+    var parsed = JSON.parse(raw);
+    if (!parsed || parsed.schema_version !== CS_SIMLOG_SCHEMA) {
+      return { schema_version: CS_SIMLOG_SCHEMA, entries: [] };
+    }
+    if (!Array.isArray(parsed.entries)) parsed.entries = [];
+    return parsed;
+  } catch (e) {
+    console.warn('[Phase4a] simlog read failed, resetting:', e && e.message);
+    return { schema_version: CS_SIMLOG_SCHEMA, entries: [] };
+  }
+}
+
+function _csSimLogWrite(store) {
+  try {
+    localStorage.setItem(CS_SIMLOG_KEY, JSON.stringify(store));
+    return true;
+  } catch (e) {
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      // Purge oldest 25% and retry once.
+      try {
+        var cut = Math.floor(store.entries.length * 0.25);
+        if (cut > 0) store.entries = store.entries.slice(cut);
+        localStorage.setItem(CS_SIMLOG_KEY, JSON.stringify(store));
+        console.warn('[Phase4a] simlog: purged oldest 25% after quota error');
+        return true;
+      } catch (e2) {
+        console.error('[Phase4a] simlog write failed even after purge:', e2 && e2.message);
+        return false;
+      }
+    }
+    console.warn('[Phase4a] simlog write failed:', e && e.message);
+    return false;
+  }
+}
+
+// Shape a single simulateBattle result into the compact sim-log game form.
+// Keeps the essentials (result/turns/leads/bring/survivors/winCondition
+// /TR+TW turns/koEvents). Drops the big "log" string array — not needed
+// for analytics and blows up storage.
+function _csGameFromBattle(battle) {
+  if (!battle) return null;
+  return {
+    result: battle.result || null,
+    turns: battle.turns || 0,
+    leads: battle.leads || { player: [], opponent: [] },
+    bring: battle.bring || { player: [], opponent: [] },
+    playerSurvivors: (typeof battle.playerSurvivors === 'number') ? battle.playerSurvivors : null,
+    oppSurvivors:    (typeof battle.oppSurvivors === 'number')    ? battle.oppSurvivors    : null,
+    winCondition: battle.winCondition || null,
+    trTurns: battle.trTurns || 0,
+    twTurns: battle.twTurns || 0,
+    koEvents: Array.isArray(battle.koEvents) ? battle.koEvents : []
+  };
+}
+
+// Apply the 100-per-pair cap to `entries` (newest kept).
+function _csSimLogCapPerPair(entries) {
+  var buckets = {};
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var key = (e.playerKey || '?') + '::' + (e.oppKey || '?');
+    if (!buckets[key]) buckets[key] = [];
+    buckets[key].push(i);
+  }
+  var drop = {};
+  Object.keys(buckets).forEach(function(k){
+    var idxs = buckets[k];
+    if (idxs.length > CS_SIMLOG_MAX_PER_PAIR) {
+      // entries are append-ordered so lowest indices = oldest. Drop oldest.
+      var overflow = idxs.length - CS_SIMLOG_MAX_PER_PAIR;
+      for (var j = 0; j < overflow; j++) drop[idxs[j]] = true;
+    }
+  });
+  return entries.filter(function(_, i){ return !drop[i]; });
+}
+
+// Append a series entry.
+//   playerKey, oppKey: TEAMS keys
+//   format: 'doubles' | 'singles'
+//   bo: 1/3/5/10
+//   battleResults: array of simulateBattle return objects from the series
+//   seriesResult: 'win' | 'loss' | 'draw' (series-level outcome)
+function csSimLogAppendSeries(opts) {
+  try {
+    if (!opts || !opts.playerKey || !opts.oppKey) return false;
+    var battles = Array.isArray(opts.battleResults) ? opts.battleResults : [];
+    var entry = {
+      id: 'sim_' + Date.now() + '_' + Math.floor(Math.random() * 1e6).toString(36),
+      ts: Date.now(),
+      playerKey: opts.playerKey,
+      oppKey:    opts.oppKey,
+      format:    opts.format || 'doubles',
+      bo:        opts.bo || 1,
+      games:     battles.map(_csGameFromBattle).filter(Boolean),
+      seriesResult: opts.seriesResult || null
+    };
+    var store = _csSimLogRead();
+    store.entries.push(entry);
+    // Apply per-pair cap first (usually the tighter of the two).
+    store.entries = _csSimLogCapPerPair(store.entries);
+    // Then the total cap.
+    if (store.entries.length > CS_SIMLOG_MAX_TOTAL) {
+      store.entries = store.entries.slice(store.entries.length - CS_SIMLOG_MAX_TOTAL);
+    }
+    return _csSimLogWrite(store);
+  } catch (e) {
+    console.warn('[Phase4a] simlog append failed:', e && e.message);
+    return false;
+  }
+}
+
+// Read helpers for Phase 4b/c/d.
+function csSimLogGetAll() { return _csSimLogRead().entries.slice(); }
+function csSimLogForTeam(teamKey) {
+  return _csSimLogRead().entries.filter(function(e){ return e.playerKey === teamKey; });
+}
+function csSimLogForMatchup(playerKey, oppKey) {
+  return _csSimLogRead().entries.filter(function(e){
+    return e.playerKey === playerKey && e.oppKey === oppKey;
+  });
+}
+function csSimLogClearTeam(teamKey) {
+  var store = _csSimLogRead();
+  store.entries = store.entries.filter(function(e){ return e.playerKey !== teamKey; });
+  return _csSimLogWrite(store);
+}
+function csSimLogClearAll() {
+  return _csSimLogWrite({ schema_version: CS_SIMLOG_SCHEMA, entries: [] });
+}
+
+// Expose to window so console/debug and Phase 4b/c/d code can reach them.
+try {
+  window.csSimLogAppendSeries = csSimLogAppendSeries;
+  window.csSimLogGetAll       = csSimLogGetAll;
+  window.csSimLogForTeam      = csSimLogForTeam;
+  window.csSimLogForMatchup   = csSimLogForMatchup;
+  window.csSimLogClearTeam    = csSimLogClearTeam;
+  window.csSimLogClearAll     = csSimLogClearAll;
+} catch (_e) { /* non-browser env (node --check) */ }
 
 // Paint cached report immediately if available. Used as the fast-path on
 // team-select change so the user never sees a blank tab between switches.

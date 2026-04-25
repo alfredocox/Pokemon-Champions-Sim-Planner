@@ -1521,6 +1521,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         if (attacker.hp === 0) {
           attacker.alive = false;
           log.push(`${attacker.name} fainted from Struggle recoil!`);
+          _recordKO(attacker, { move: 'Struggle', attacker: attacker, reason: 'recoil' });
         }
         return;
       }
@@ -1836,7 +1837,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (berryMsg) log.push(berryMsg);
     // Multiscale: deactivate after first hit
     target.multiscaleActive = false;
-    if (target.hp === 0) { target.alive = false; log.push(`${target.name} fainted!`); }
+    if (target.hp === 0) { target.alive = false; log.push(`${target.name} fainted!`); _recordKO(target, { move: move, attacker: attacker, reason: 'attack' }); }
     // T9j.8 (Refs #30) onDamageTaken hook: Spicy Spray burns attacker.
     // Fires only if target still alive AND damage > 0.
     if (target.alive && finalDmg > 0) {
@@ -1852,6 +1853,26 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
   // MAIN BATTLE LOOP
   // ============================================================
   let turn = 0;
+  // Phase 4a (Refs #52) — structured KO event log for dynamic coaching.
+  // Populated at every faint site below. UI reads this instead of parsing
+  // log strings (fragile). Shape:
+  //   { turn, victim, side: 'player'|'opp', byMove, byAttacker, reason }
+  // reason: 'attack' | 'recoil' | 'sandstorm' | 'burn' | 'frostbite'
+  //       | 'poison' | 'toxic'
+  const koEvents = [];
+  const _recordKO = function(mon, cause) {
+    try {
+      const side = (playerPokemon.indexOf(mon) >= 0) ? 'player' : 'opp';
+      koEvents.push({
+        turn: turn,
+        victim: mon.name,
+        side: side,
+        byMove: (cause && cause.move) || null,
+        byAttacker: (cause && cause.attacker) ? cause.attacker.name : null,
+        reason: (cause && cause.reason) || 'unknown'
+      });
+    } catch (_e) { /* never let logging kill the sim */ }
+  };
   // T9j.3 (#39): raised from 25 → 30 so timer-draw (28-turn budget at 15s/turn)
   // can actually resolve before the hard cap. Stall mirrors will now reach timer.
   const MAX_TURNS = 30;
@@ -1996,7 +2017,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           const sandDmg = Math.floor(mon.maxHp / 16);
           mon.hp = Math.max(0, mon.hp - sandDmg);
           log.push(`${mon.name} is buffeted by the sandstorm! [${sandDmg} dmg]`);
-          if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+          if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'sandstorm' }); }
         }
       }
     }
@@ -2006,7 +2027,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const burnDmg = Math.floor(mon.maxHp / 16);
       mon.hp = Math.max(0, mon.hp - burnDmg);
       log.push(`${mon.name} is hurt by its burn! [${burnDmg} dmg]`);
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'burn' }); }
     }
 
     // T9j.17 (Refs #101) -- Frostbite residual (1/16 max HP). Mirrors burn chip.
@@ -2017,7 +2038,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const frostDmg = Math.max(1, Math.floor(mon.maxHp / 16));
       mon.hp = Math.max(0, mon.hp - frostDmg);
       log.push(`${mon.name} is hurt by frostbite! [${frostDmg} dmg]`);
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'frostbite' }); }
     }
 
     // T9j.4 (#41) — Poison residual (1/8 max HP). Cite: Bulbapedia Status; Spec §1.6.
@@ -2025,7 +2046,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       const poisonDmg = Math.max(1, Math.floor(mon.maxHp / 8));
       mon.hp = Math.max(0, mon.hp - poisonDmg);
       log.push(`${mon.name} is hurt by poison! [${poisonDmg} dmg]`);
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'poison' }); }
     }
 
     // T9j.4 (#41) — Toxic residual (N/16 escalating, cap N=15; counter increments post-tick).
@@ -2037,7 +2058,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       mon.hp = Math.max(0, mon.hp - toxicDmg);
       log.push(`${mon.name} is hurt by toxic! [${toxicDmg} dmg] (tick ${n}/16)`);
       mon.toxicCounter++;
-      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); }
+      if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'toxic' }); }
     }
     // Note: Snow intentionally has no chip damage (Champions Gen-IX). Hail is absent.
 
@@ -2178,7 +2199,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       opponent: oppPokemon.slice(0,    field._format === 'singles' ? 3 : 4).map(p => p.name)
     },
     // #5 — attach legality verdict so UI can surface warnings on team/match cards.
-    legality: { player: playerLegality, opp: oppLegality }
+    legality: { player: playerLegality, opp: oppLegality },
+    // Phase 4a (Refs #52) — structured KO event log. See _recordKO site above.
+    koEvents: koEvents
   };
 }
 
