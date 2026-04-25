@@ -443,16 +443,16 @@ Multi-phase rollout for the Strategy tab + coaching engine. Tracked in `poke-sim
 | 4b+ | Record bar: total W-L + per-archetype splits + 10/50/100/500 sim presets | #119 / #53 #55 | ✅ Merged |
 | 4b+ | Both-sides sim log mirroring (opponent-only teams populate Strategy view) | #120 / #95 | ✅ Merged |
 | 4b+ | Record bar legacy vs new empty-state guidance | #121 / #53 #55 | ✅ Merged |
-| 4c | Detectors — dead moves, lead performance, common loss conditions, confidence badges (`PHASE4C_DETECTORS_SPEC.md`) | pending / #53 #54 | **Spec ready for review** |
-| 4d | Threat Response System with Monte Carlo solver, 200 sims/branch × 4 branches, line classification v1 (`PHASE4D_THREAT_RESPONSE_SPEC.md`) | pending / #54 | **Spec ready for review** |
-| 4e | Policy audit / player coaching + "same advice after 100 battles = failing" regression test (`PHASE4E_POLICY_AUDIT_SPEC.md`) | pending / #54 #55 | **Spec ready for review** |
+| 4c | Detectors — dead moves, lead performance, common loss conditions, confidence badges (`PHASE4C_DETECTORS_SPEC.md`) | pending / #53 #54 | **Spec locked, ready for implementation** |
+| 4d | Threat Response System with Monte Carlo solver, 200 sims/branch × 4 branches, line classification v1 (`PHASE4D_THREAT_RESPONSE_SPEC.md`) | pending / #54 | **Spec locked, ready for implementation** |
+| 4e | Policy audit / player coaching + "same advice after 100 battles = failing" regression test (`PHASE4E_POLICY_AUDIT_SPEC.md`) | pending / #54 #55 | **Spec locked, ready for implementation** |
 | **5a** | **Structured `turnLog: Turn[]` capture in `simulateBattle` (engine refactor, backwards-compat `log: string[]` derived view)** | spec drafted / N§2 | **Drafted** |
 | **5b** | **`positionScore(state)` heuristic + `position_path` + `turning_point` + cause taxonomy** | spec drafted / N§4 N§10 | **Drafted** |
 | **5c** | **Opt-in `winProbabilityDelta` micro-rollouts + Deep Coach toggle** | spec drafted / N§5 N§7 | **Drafted** |
-| **6** | **Coaching voice + per-match output templates (PRE/IN/POST). RNG blame gated on `consistency_score.rng_dependency > 0.6`** (`PHASE6_COACHING_VOICE_SPEC.md`) | spec drafted / N§11 N§12 | **Spec ready for review** |
+| **6** | **Coaching voice + per-match output templates (PRE/IN/POST). RNG blame gated on `consistency_score.rng_dependency > 0.6`** (`PHASE6_COACHING_VOICE_SPEC.md`) | spec drafted / N§11 N§12 | **Spec locked, ready for implementation** |
 | 7 | Source labels + Stress Test polish | pending | Open |
 
-> N§X references = north-star spec section in `COACHING_NORTH_STAR.md` Section 2 (validation matrix). All upcoming phases now have ready-for-review specs:
+> N§X references = north-star spec section in `COACHING_NORTH_STAR.md` Section 2 (validation matrix). All upcoming phases now have **locked specs** (PR #127, 2026-04-25 review answered all 19 open questions):
 > - `PHASE4C_DETECTORS_SPEC.md` (detectors + confidence badges)
 > - `PHASE4D_THREAT_RESPONSE_SPEC.md` (MC solver, 4 branches @ 200 sims, line classification)
 > - `PHASE4E_POLICY_AUDIT_SPEC.md` (fake-good detector, **same-advice regression test = closeout blocker**)
