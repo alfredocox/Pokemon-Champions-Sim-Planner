@@ -113,8 +113,12 @@ Pokemon-Champions-Sim-Planner/
 │   │   │    ├── t9j10_tests.js         ← ~16 cases (Team Preview bring-N-of-6)
 │   │   │    └── audit.js               ← 5070-battle regression sweep
 │   │   ├── COACHING_LAYER_SPEC.md      ← Phase 1-3 coaching spec (Sections 1-14)
-│   │   └── PHASE4_DYNAMIC_ADVICE_SPEC.md ← Phase 4 adaptive coaching spec v2
-│   │                                      (state machine + threat response + policy audit)
+│   │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md ← Phase 4 adaptive coaching spec v2
+│   │   │                                  (state machine + threat response + policy audit)
+│   │   ├── COACHING_NORTH_STAR.md      ← Standing brief: top-1%-sim spec +
+│   │   │                                  validation matrix + acceptance criteria
+│   │   └── PHASE5_TURN_LOG_SPEC_DRAFT.md ← Phase 5 DRAFT: structured turnLog,
+│   │                                      positionScore, winProbabilityDelta
 │   ├── DEVELOPMENT_RUNBOOK.md          ← Full dev history, architecture, QA log
 │   ├── CHAMPIONS_MECHANICS_SPEC.md     ← Authoritative mechanics reference
 │   ├── CHAMPIONS_VALIDATOR_FRAMEWORK.md ← Validator framework doc (T9j.8)
@@ -430,9 +434,15 @@ Multi-phase rollout for the Strategy tab + coaching engine. Tracked in `poke-sim
 | 4b+ | Both-sides sim log mirroring (opponent-only teams populate Strategy view) | #120 / #95 | ✅ Merged |
 | 4b+ | Record bar legacy vs new empty-state guidance | #121 / #53 #55 | ✅ Merged |
 | 4c | Detectors — dead moves, lead performance, common loss conditions, confidence badges | pending / #53 #54 | Open |
-| 4d | Threat Response System with Monte Carlo solver (200 sims/branch) | pending / #54 | Open |
+| 4d | Threat Response System with Monte Carlo solver (200 sims/branch × 4 branches) | pending / #54 | Open |
 | 4e | Policy audit / player coaching + "same advice after 100 battles = failing" regression test | pending / #54 #55 | Open |
-| 5 | Source labels + Stress Test polish | pending | Open |
+| **5a** | **Structured `turnLog: Turn[]` capture in `simulateBattle` (engine refactor, backwards-compat `log: string[]` derived view)** | spec drafted / N§2 | **Drafted** |
+| **5b** | **`positionScore(state)` heuristic + `position_path` + `turning_point` + cause taxonomy** | spec drafted / N§4 N§10 | **Drafted** |
+| **5c** | **Opt-in `winProbabilityDelta` micro-rollouts + Deep Coach toggle** | spec drafted / N§5 N§7 | **Drafted** |
+| **6** | **Coaching voice + per-match output templates (PRE/IN/POST). RNG blame gated on `consistency_score.rng_dependency > 0.6`** | spec TBD post-Phase-5 / N§11 N§12 | **Open** |
+| 7 | Source labels + Stress Test polish | pending | Open |
+
+> N§X references = north-star spec section in `COACHING_NORTH_STAR.md` Section 2 (validation matrix). Phase 5 sub-phases drafted in `PHASE5_TURN_LOG_SPEC_DRAFT.md`. Phase 6 spec deferred until Phase 5 lands.
 
 **Storage keys in use:**
 - `champions_strategy_v1::<sig>` — legacy T9j.16 history (untouched, soft-migrated)
@@ -512,6 +522,23 @@ Dropdown: **10 / 50 / 100 / 500** (50 default). 500 is the hard ceiling — do n
 - **4c** — Detectors: dead moves, lead performance win rates, common loss conditions, confidence badges per recommendation (`low` / `med` / `high` based on sample_size).
 - **4d** — Threat Response System: Monte Carlo solver runs 200 sims per candidate response branch against each opposing threat, ranks by win delta.
 - **4e** — Policy audit / player coaching layer + regression test (invariant #2 above).
+
+### Phase 5 + 6 north-star coverage (validated 2026-04-25)
+
+User-supplied "top 1% sim" coaching spec validated against current `engine.js` (single-line greedy `selectMove` AI, unstructured `log: string[]`, no position score) and `ui.js` sim-log writer. Conclusion: ~15% already done, ~25% achievable as plumbing on Phase 4 data, ~60% requires `engine.js` changes — hence Phase 5.
+
+Full validation matrix, acceptance criteria, and original spec preserved verbatim in `COACHING_NORTH_STAR.md`. Every coaching-layer PR description must answer:
+1. Which numbered demand from N§2 does this advance?
+2. Which acceptance criterion (1–6) does it move?
+3. Plumbing or refactor? (Plumbing PRs do not need north-star coverage.)
+4. Headless test that proves it.
+
+**Decisions locked (do not re-debate without ADR):**
+- Stage Phase 4c → 4d → 4e → 5 → 6. No long-lived parallel branches.
+- Phase 4d budget: 200 sims/branch × 4 branches/matchup. Run All ~1–2 min on average HW.
+- Coaching voice: direct + grounded + evidence-backed. RNG blame gated on `consistency_score.rng_dependency > 0.6`.
+- `turnLog` is **memory-only**, never persisted to localStorage. Only summary fields (`turning_point`, `position_path`) get stored.
+- Phase 5 spec is **DRAFT**. Approval gate is *after Phase 4c lands* so we have evidence which detectors actually need turn-level data.
 
 ### Coaching ticket audit (post-PR #121 state)
 
