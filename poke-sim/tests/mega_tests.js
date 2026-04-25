@@ -23,6 +23,7 @@ function check(name, cond, detail) {
   else      { console.log(`FAIL: ${name}${detail ? ' — ' + detail : ''}`); fail++; }
 }
 
+// adding comments for testing purposes
 // -- TEST 1: Pre-trigger stats are base form --
 const dragData = { name: 'Dragonite-Mega', item: 'Dragoninite', ability: 'Multiscale',
                    nature: 'Jolly', evs: { hp:0, atk:252, def:0, spa:0, spd:4, spe:252 },
