@@ -5,8 +5,13 @@
 **Owner:** Alfredo Cox (`@alfredocox`)
 **Established:** 2026-04-25 (this conversation)
 **Related specs:**
-- `PHASE4_DYNAMIC_ADVICE_SPEC.md` (state machine + threat response + policy audit)
+- `PHASE4_DYNAMIC_ADVICE_SPEC.md` (state machine + threat response + policy audit - parent spec)
+- `PHASE4C_DETECTORS_SPEC.md` (dead moves, lead perf, loss conditions, confidence badges) **[NEW]**
+- `PHASE4D_THREAT_RESPONSE_SPEC.md` (4-branch MC solver, line classification v1) **[NEW]**
+- `PHASE4E_POLICY_AUDIT_SPEC.md` (fake-good detector + same-advice regression test) **[NEW]**
 - `PHASE5_TURN_LOG_SPEC_DRAFT.md` (structured turn log + position score + win-prob delta)
+- `PHASE6_COACHING_VOICE_SPEC.md` (PRE/IN/POST templates + RNG-blame gating + banned phrasings) **[NEW]**
+- `PHASE_ROLLOUT_REVIEW.md` (master index: side-by-side, effort, dependencies, go/no-go gates) **[NEW]**
 - `MASTER_PROMPT.md` (rollout table)
 
 ---
