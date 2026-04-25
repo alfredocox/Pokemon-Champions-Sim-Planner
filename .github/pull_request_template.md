@@ -61,3 +61,5 @@ Refs #
 - [ ] New globals referenced during init use `var` (TDZ-safe)
 - [ ] Updated `CHAMPIONS_MECHANICS_SPEC.md` if mechanic behavior changed
 - [ ] Bundle rebuilt and committed alongside source changes
+- [ ] If `engine.js`, `data.js`, `ui.js`, `style.css` changed: ran `./tools/release.sh <tag>` and committed `sw.js`
+- [ ] Updated `MASTER_PROMPT.md` to reflect this change (new feature, ticket, or infra update)

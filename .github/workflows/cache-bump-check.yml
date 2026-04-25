@@ -1,0 +1,64 @@
+name: Cache Bump Check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-sw-cache-bump:
+    name: Verify sw.js CACHE_NAME bumped
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if app source files changed
+        id: app_changed
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          APP_CHANGED=$(echo "$CHANGED" | grep -E \
+            'poke-sim/poke-sim/(engine|data|ui|style|strategy-injectable)\.(js|css)' || true)
+
+          if [ -n "$APP_CHANGED" ]; then
+            echo "app_changed=true" >> $GITHUB_OUTPUT
+            echo "app_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$APP_CHANGED" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "app_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify CACHE_NAME was bumped
+        if: steps.app_changed.outputs.app_changed == 'true'
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+          SW_CHANGED=$(echo "$CHANGED" | grep 'poke-sim/poke-sim/sw.js' || true)
+
+          if [ -z "$SW_CHANGED" ]; then
+            echo ""
+            echo "\u274c  App source files changed in this PR:"
+            echo "${{ steps.app_changed.outputs.app_files }}"
+            echo ""
+            echo "    But poke-sim/sw.js was NOT updated."
+            echo "    PWA users will receive stale cached files if this merges."
+            echo ""
+            echo "    Fix: run the following from the repo root, then push sw.js:"
+            echo "      chmod +x tools/release.sh"
+            echo "      ./tools/release.sh <tag>"
+            echo ""
+            echo "    See MASTER_PROMPT.md > RELEASE PROCEDURE for full steps."
+            exit 1
+          fi
+
+          echo "\u2705  sw.js CACHE_NAME bumped \u2014 PWA cache is fresh. Good to merge."
+
+      - name: No app changes detected
+        if: steps.app_changed.outputs.app_changed == 'false'
+        run: |
+          echo "\u2705  No app source files changed \u2014 sw.js bump not required."
