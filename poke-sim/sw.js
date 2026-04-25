@@ -4,7 +4,7 @@
 // MUST be bumped on every release that changes engine.js, data.js, ui.js, or style.css
 // Phase 2 automation tracked in #95 (tools/release.sh)
 
-const CACHE_NAME = 'champions-sim-v5-phase3';
+const CACHE_NAME = 'champions-sim-v5-sprite1';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [
