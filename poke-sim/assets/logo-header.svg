@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" role="img" aria-label="Champions Sim">
+  <title>Champions Sim</title>
+  <defs>
+    <linearGradient id="hHex" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+    <linearGradient id="hBolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a5f3fc"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hex frame (pointy-top), tightly fit to viewBox -->
+  <polygon points="18,2 32,10 32,26 18,34 4,26 4,10"
+           fill="#0b1f2e"
+           stroke="url(#hHex)"
+           stroke-width="2"
+           stroke-linejoin="round"/>
+
+  <!-- Crimson accent on bottom edge -->
+  <polyline points="4,26 18,34 32,26"
+            fill="none"
+            stroke="#ef4444"
+            stroke-width="1"
+            stroke-linejoin="round"
+            opacity="0.85"/>
+
+  <!-- Arena ring -->
+  <ellipse cx="18" cy="20" rx="9" ry="2.6" fill="none" stroke="#22d3ee" stroke-width="0.9" opacity="0.85"/>
+  <ellipse cx="18" cy="20" rx="6" ry="1.6" fill="none" stroke="#67e8f9" stroke-width="0.6" opacity="0.6"/>
+
+  <!-- Lightning bolt -->
+  <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z"
+        fill="url(#hBolt)"
+        stroke="#ecfeff"
+        stroke-width="0.5"
+        stroke-linejoin="round"/>
+</svg>

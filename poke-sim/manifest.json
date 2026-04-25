@@ -4,8 +4,8 @@
   "description": "Pokémon VGC competitive team simulator for Champions 2026",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#4f46e5",
+  "background_color": "#0b1220",
+  "theme_color": "#22d3ee",
   "orientation": "any",
   "scope": "./",
   "icons": [
