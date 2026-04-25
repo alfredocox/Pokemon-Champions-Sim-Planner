@@ -1990,6 +1990,12 @@ document.getElementById('run-sim-btn')?.addEventListener('click', async function
 
   document.getElementById('progress-wrap').style.display='none';
   displayResults(res, oppKey);
+  // Refs #95 - also populate the Pilot Guide tab after a single sim so the
+  // tab isn't stuck on its empty-state message. generatePilotGuide is
+  // upsert-by-oppKey, so re-running the same matchup replaces its card.
+  try { generatePilotGuide(oppKey, res); } catch (e) { console.warn('[PilotGuide] single-sim populate failed:', e && e.message); }
+  // Cache for Run All parity - keeps PDF builder and strategy rebuild in sync.
+  try { if (window.lastSimResults) window.lastSimResults[oppKey] = res; } catch(_){}
   simRunning=false; this.disabled=false; document.getElementById('run-all-btn').disabled=false;
 });
 
@@ -2123,6 +2129,9 @@ function generatePilotGuide(oppKey, results) {
 
   const card = document.createElement('div');
   card.className = 'pilot-card';
+  // Refs #95 - tag the card with its opponent key so we can upsert instead of
+  // duplicating when the same matchup is re-simulated from the single-sim path.
+  card.dataset.oppKey = oppKey;
   card.innerHTML = `
     <div class="pilot-card-header">
       <div class="pilot-card-title">${teamName}</div>
@@ -2149,7 +2158,15 @@ function generatePilotGuide(oppKey, results) {
         ${megaTriggerHtml}
       </div>
     </div>`;
-  el.appendChild(card);
+  // Refs #95 - if a card for this opponent already exists (from a prior sim
+  // of the same matchup, or from Run All), replace it in place. Keeps the tab
+  // incremental when the user runs a single sim and prevents duplicate cards.
+  const existing = el.querySelector('.pilot-card[data-opp-key="' + (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(oppKey) : oppKey) + '"]');
+  if (existing) {
+    el.replaceChild(card, existing);
+  } else {
+    el.appendChild(card);
+  }
 }
 
 // ============================================================
