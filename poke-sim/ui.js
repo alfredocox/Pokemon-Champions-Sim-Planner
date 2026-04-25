@@ -412,6 +412,8 @@ document.getElementById('player-select').addEventListener('change', function() {
     if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
     // T9j.12 (Refs #74): refresh sim-side bring picker after active-team change.
     if (typeof renderSimBringPickers === 'function') renderSimBringPickers();
+    // Phase 2 (Refs #46 #49) - rebuild Strategy tab when player switches teams.
+    if (typeof csScheduleStrategyRebuild === 'function') csScheduleStrategyRebuild();
   }
 });
 
@@ -2010,6 +2012,8 @@ document.getElementById('run-all-btn')?.addEventListener('click', async function
   // T9j.16 (Refs #65) - auto-save Strategy Report after Run All Matchups completes.
   // Persists to localStorage keyed on teamSignature so any imported team gets continuity.
   try { if (typeof t9j16AutoSave === 'function') t9j16AutoSave(); } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
+  // Phase 2 (Refs #46 #49) - rebuild Strategy tab now that fresh sim data is available.
+  try { if (typeof csScheduleStrategyRebuild === 'function') csScheduleStrategyRebuild(); } catch(e) { console.warn('[Phase2] strategy rebuild skipped:', e && e.message); }
   simRunning=false; this.disabled=false; document.getElementById('run-sim-btn').disabled=false;
 });
 
@@ -3889,6 +3893,1355 @@ function t9j16AutoSave() {
     var fmt = (typeof currentFormat !== 'undefined') ? currentFormat : 'doubles';
     evolveReport(currentPlayerKey, window.lastSimResults, fmt);
   } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
+}
+
+
+// =====================================================================
+// PHASE 2 - COACHING LAYER ADAPTER
+// =====================================================================
+// Wraps existing T9j.16 buildStrategyReport with spec-compliant generators.
+// See COACHING_LAYER_SPEC.md sections 3-12.
+//
+// Public surface:
+//   csBuildStrategyReportV2(teamKey, results, fmt) -> StrategyReport (Section 3)
+//   renderStrategyTab(teamKey)                     -> paints #strategy-content
+//   csScheduleStrategyRebuild()                    -> debounced 500ms rebuild
+//
+// All cs* helpers are pure and side-effect free. Only renderStrategyTab
+// touches the DOM.
+//
+// NO em-dashes in this file (commit-message rule applies to comments too
+// for consistency).
+// ---------------------------------------------------------------------
+
+// ---- Source labels (Section 3.13) -----------------------------------
+// Every claim must declare its provenance so the Evidence toggle has
+// something to show. Citations point to the spec's primary sources.
+var CS_SOURCES = {
+  smogon_vgc:    { name: 'Smogon VGC 2026',     url: 'https://www.smogon.com/dex/sv/formats/vgc2026/' },
+  serebii_dex:   { name: 'Serebii Pokedex',      url: 'https://www.serebii.net/pokedex-sv/' },
+  bulbapedia:    { name: 'Bulbapedia',           url: 'https://bulbapedia.bulbagarden.net/wiki/Main_Page' },
+  game8_vgc:     { name: 'Game8 VGC',            url: 'https://game8.co/games/Pokemon-Scarlet-Violet/archives/410708' },
+  victory_road:  { name: 'Victory Road',         url: 'https://victoryroadvgc.com/' },
+  pokepaste:     { name: 'pokepast.es',          url: 'https://pokepast.es' }
+};
+function csLabel(kind, citationKeys) {
+  var cites = (citationKeys || []).map(function(k){ return CS_SOURCES[k]; }).filter(Boolean);
+  return { kind: kind, citations: cites };
+}
+function csLabelInferred(citationKeys)   { return csLabel('inferred_strategy', citationKeys || ['smogon_vgc','serebii_dex']); }
+function csLabelVerified(citationKeys)   { return csLabel('verified_champions_source', citationKeys || ['victory_road','pokepaste']); }
+function csLabelSim()                    { return csLabel('simulation_data', []); }
+function csLabelUnknown()                { return csLabel('unknown', []); }
+
+// ---- Tier mapping (Section 4.1) -------------------------------------
+function csScoreToTier(s) {
+  if (s >= 90) return 'S';
+  if (s >= 75) return 'A';
+  if (s >= 55) return 'B';
+  if (s >= 35) return 'C';
+  return 'D';
+}
+
+// ---- Scoring rubric (Section 4.2) -----------------------------------
+// 14 categories. Each scored 0-10. Weights sum to 100.
+var CS_WEIGHTS = {
+  legality_confidence:          12,
+  win_condition_clarity:        12,
+  role_balance:                  9,
+  lead_flexibility:              7,
+  speed_control:                 7,
+  damage_coverage:               7,
+  defensive_coverage:            7,
+  pivot_switch_options:          5,
+  format_fit:                    5,
+  move_quality:                  6,
+  item_quality:                  5,
+  ability_synergy:               6,
+  matchup_coverage:              6,
+  simulation_trend_performance:  6
+};
+
+// Score one team across all 14 categories. Returns { scores, hardCaps[] }.
+function csScoreCategories(team, identity, leadSystem, gaps, results, sample) {
+  var members = (team && team.members) || [];
+  var scores = {};
+  var hardCaps = []; // strings tagging which Section 4.3 cap fires
+
+  // 1. legality_confidence - pulled from team.legality_status or provenance
+  var lc = 8;
+  if (team && team.legality_status === 'illegal') lc = 0;
+  else if (team && team.legality_status === 'unknown') { lc = 4; hardCaps.push('legality_uncertainty'); }
+  else if (team && team.legality_status === 'legal')   lc = 10;
+  scores.legality_confidence = lc;
+
+  // 2. win_condition_clarity - identity.primary_win_condition + synergy
+  var winClarity = 5;
+  if (identity && identity.primary_win_condition && identity.primary_win_condition !== 'unclear') winClarity += 3;
+  if (identity && identity.synergy_core && identity.synergy_core[0] !== 'no clear synergy core') winClarity += 2;
+  if (winClarity >= 10) winClarity = 10;
+  if (!identity || identity.primary_win_condition === 'unclear') hardCaps.push('no_win_condition');
+  scores.win_condition_clarity = winClarity;
+
+  // 3. role_balance - count distinct roles
+  var roles = {};
+  members.forEach(function(m){ roles[inferRole(m)] = true; });
+  var roleCount = Object.keys(roles).length;
+  scores.role_balance = Math.min(10, Math.round(roleCount * 1.8));
+
+  // 4. lead_flexibility - count of populated lead categories
+  var leadCats = ['safe','speed','pressure','punish'].filter(function(k){ return leadSystem && leadSystem[k]; }).length;
+  scores.lead_flexibility = leadCats >= 3 ? 10 : leadCats >= 2 ? 7 : leadCats >= 1 ? 5 : 2;
+
+  // 5. speed_control - Tailwind / TR / Scarf / priority
+  var hasTW = members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND); });
+  var hasTR = members.some(function(m){ return _pdfHasAny(m, PDF_TRICK_ROOM); });
+  var hasScarf = members.some(function(m){ return /Scarf/i.test(m.item || ''); });
+  var hasPrio = members.some(function(m){ return _pdfHasAny(m, PDF_PRIORITY); });
+  var sc = (hasTW?3:0) + (hasTR?3:0) + (hasScarf?2:0) + (hasPrio?2:0);
+  scores.speed_control = Math.min(10, sc);
+
+  // 6. damage_coverage - distinct attacking types across members' offensive moves
+  var attackTypes = {};
+  members.forEach(function(m){
+    (m.moves || []).forEach(function(mv){
+      var t = (typeof MOVE_TYPES !== 'undefined' && MOVE_TYPES[mv]) ? MOVE_TYPES[mv] : null;
+      if (t) attackTypes[t] = true;
+    });
+  });
+  var atkCount = Object.keys(attackTypes).length;
+  scores.damage_coverage = Math.min(10, Math.round(atkCount * 1.0));
+
+  // 7. defensive_coverage - inverse of coverage gaps count
+  var gapPenalty = (gaps || []).length;
+  scores.defensive_coverage = Math.max(0, 10 - gapPenalty * 2);
+
+  // 8. pivot_switch_options
+  var pivots = members.filter(function(m){
+    return _pdfHasAny(m, PDF_FAKE_OUT) ||
+      /U-turn|Volt Switch|Flip Turn|Parting Shot|Teleport/.test((m.moves||[]).join(','));
+  }).length;
+  scores.pivot_switch_options = Math.min(10, pivots * 3);
+
+  // 9. format_fit - identity.format_viability vs current format
+  var ff = 7;
+  if (identity && identity.format_viability) {
+    if (identity.format_viability === 'both') ff = 9;
+    else if (identity.format_viability === 'doubles-favored') ff = 9;
+    else if (identity.format_viability === 'singles-favored') ff = 6;
+  }
+  scores.format_fit = ff;
+
+  // 10. move_quality - penalize missing or empty move slots
+  var movesOk = 0, movesTot = 0;
+  members.forEach(function(m){
+    (m.moves || []).forEach(function(mv){ movesTot++; if (mv && mv.length) movesOk++; });
+  });
+  scores.move_quality = movesTot ? Math.round((movesOk / movesTot) * 10) : 5;
+  if (movesTot < 4 * members.length) hardCaps.push('missing_move_metadata');
+
+  // 11. item_quality - count members with non-empty items
+  var itemsOk = members.filter(function(m){ return m.item && m.item.length; }).length;
+  scores.item_quality = members.length ? Math.round((itemsOk / members.length) * 10) : 5;
+
+  // 12. ability_synergy - bonus per recognised synergy ability
+  var synergyAbs = ['Intimidate','Drought','Drizzle','Sand Stream','Snow Warning',
+    'Orichalcum Pulse','Hadron Engine','Friend Guard','Sweet Veil','Telepathy',
+    'Inner Focus','Own Tempo','Aroma Veil','Defiant','Competitive'];
+  var synAb = members.filter(function(m){ return synergyAbs.indexOf(m.ability||'') >= 0; }).length;
+  scores.ability_synergy = Math.min(10, 4 + synAb * 2);
+
+  // 13. matchup_coverage - based on sim WR variance and median if available
+  if (sample > 0) {
+    var wrs = Object.values(results || {}).map(function(r){
+      var t = (r.wins||0) + (r.losses||0) + (r.draws||0);
+      return t ? r.wins / t : 0;
+    });
+    if (wrs.length) {
+      var mean = wrs.reduce(function(a,b){ return a+b; }, 0) / wrs.length;
+      var goodMatchups = wrs.filter(function(w){ return w >= 0.5; }).length;
+      scores.matchup_coverage = Math.min(10, Math.round(mean * 8) + Math.min(2, goodMatchups));
+    } else {
+      scores.matchup_coverage = 5;
+    }
+  } else {
+    scores.matchup_coverage = 5;
+  }
+
+  // 14. simulation_trend_performance - null if no sims
+  if (sample === 0) {
+    scores.simulation_trend_performance = null;
+  } else if (sample < 30) {
+    scores.simulation_trend_performance = 5;
+  } else {
+    var totalW = 0, totalG = 0;
+    Object.values(results || {}).forEach(function(r){
+      totalW += r.wins || 0;
+      totalG += (r.wins||0) + (r.losses||0) + (r.draws||0);
+    });
+    var winrate = totalG ? totalW / totalG : 0;
+    scores.simulation_trend_performance = Math.round(winrate * 10);
+  }
+
+  return { scores: scores, hardCaps: hardCaps };
+}
+
+// Confidence ladder (Section 4.4)
+function csConfidence(sample) {
+  if (sample >= 100) return 'high';
+  if (sample >= 30)  return 'medium';
+  return 'low';
+}
+
+// Risk level derived from hard caps + score
+function csRiskLevel(score, hardCaps) {
+  if (hardCaps.indexOf('legality_uncertainty') >= 0) return 'extreme';
+  if (hardCaps.indexOf('no_win_condition') >= 0) return 'high';
+  if (score < 35) return 'high';
+  if (score < 55) return 'moderate';
+  return 'low';
+}
+
+// ---- Generator: csTierAndScore (Section 5.1) ------------------------
+// Returns full TeamReportCard. Applies all hard caps from Section 4.3.
+function csTierAndScore(team, identity, leadSystem, gaps, results, sample) {
+  var graded = csScoreCategories(team, identity, leadSystem, gaps, results, sample);
+  var scores = graded.scores;
+  var hardCaps = graded.hardCaps;
+
+  // Weighted total - exclude null categories from both numerator and weight base
+  var total = 0, weightBase = 0;
+  Object.keys(CS_WEIGHTS).forEach(function(k){
+    var v = scores[k];
+    if (v === null || v === undefined) return;
+    total += v * CS_WEIGHTS[k];
+    weightBase += CS_WEIGHTS[k];
+  });
+  // Normalise to 0..100 against the weights actually used
+  var normScore = weightBase ? Math.round(total / weightBase * 10) : 0;
+  var score = normScore;
+
+  // Apply hard caps
+  if (hardCaps.indexOf('no_win_condition') >= 0)        score = Math.min(score, 74);
+  if (hardCaps.indexOf('legality_uncertainty') >= 0)    score = Math.min(score, 54);
+  if (hardCaps.indexOf('missing_move_metadata') >= 0)   score = Math.min(score, 54);
+
+  var risk = csRiskLevel(score, hardCaps);
+  if (risk === 'high' && sample === 0) score = Math.min(score, 89);
+
+  var confidence = csConfidence(sample);
+
+  // Battle Ready badge (Section 14, decision 2)
+  var battle_ready = (csScoreToTier(score) === 'S')
+    && sample >= 100
+    && scores.legality_confidence === 10
+    && risk !== 'extreme';
+
+  // Short explanation - top-2 strengths and top risk
+  var sortedCats = Object.entries(scores)
+    .filter(function(p){ return p[1] !== null && p[1] !== undefined; })
+    .sort(function(a,b){ return b[1] - a[1]; });
+  var top1 = sortedCats[0] ? sortedCats[0][0].replace(/_/g,' ') : 'unclear';
+  var top2 = sortedCats[1] ? sortedCats[1][0].replace(/_/g,' ') : 'unclear';
+  var bottom = sortedCats[sortedCats.length - 1] ? sortedCats[sortedCats.length - 1][0].replace(/_/g,' ') : 'unclear';
+  var shortExp = 'Strong on ' + top1 + ' and ' + top2 + '. Weakest area: ' + bottom + '.';
+  if (hardCaps.length) shortExp += ' Cap applied: ' + hardCaps.join(', ') + '.';
+
+  return {
+    tier: csScoreToTier(score),
+    battle_ready: battle_ready,
+    score: score,
+    confidence: confidence,
+    risk_level: risk,
+    short_explanation: shortExp,
+    category_scores: scores
+  };
+}
+
+// ---- Generator: csTeamIdentityV2 (Section 5.2) ----------------------
+// Wraps existing inferTeamIdentity, adds closer / support_core / format_fit
+// shape fields the spec requires. When sim data is missing, derives a
+// primary_win_condition from team composition so the report is useful
+// in theory mode (no sims yet).
+function csTeamIdentityV2(team, results, fmt) {
+  var members = (team && team.members) || [];
+  var inner = inferTeamIdentity(team, results, fmt);
+
+  // Closer = highest base attack stat with a damaging move
+  var closer = members.slice().sort(function(a,b){
+    var ba = (typeof BASE_STATS !== 'undefined' && BASE_STATS[a.name]) ? Math.max(BASE_STATS[a.name].atk||0, BASE_STATS[a.name].spa||0) : 0;
+    var bb = (typeof BASE_STATS !== 'undefined' && BASE_STATS[b.name]) ? Math.max(BASE_STATS[b.name].atk||0, BASE_STATS[b.name].spa||0) : 0;
+    return bb - ba;
+  })[0];
+
+  // Support core = Fake Out / Redirect / Intimidate users
+  var supportCore = members.filter(function(m){
+    return _pdfHasAny(m, PDF_FAKE_OUT)
+        || _pdfHasAny(m, PDF_REDIRECT)
+        || (m.ability || '') === 'Intimidate';
+  }).map(function(m){ return m.name; }).slice(0, 3);
+
+  // Format fit
+  var formatFit = 'both';
+  if (inner.format_viability === 'doubles-favored') formatFit = 'doubles';
+  else if (inner.format_viability === 'singles-favored') formatFit = 'singles';
+
+  // Theory-mode win condition (Section 5.2 fallback when sims absent).
+  // Derived from team composition: weather > TR > Tailwind > Trap > Closer.
+  var primary = inner.primary_win_condition;
+  var secondary = inner.secondary_win_condition;
+  if (!primary || primary === 'unclear') {
+    var weatherSetter = members.find(function(m){ return PDF_WEATHER_ABILITIES.indexOf(m.ability||'') >= 0; });
+    var trUser = members.find(function(m){ return _pdfHasAny(m, PDF_TRICK_ROOM); });
+    var twUser = members.find(function(m){ return _pdfHasAny(m, PDF_TAILWIND); });
+    var trapper = members.find(function(m){ return PDF_TRAP_ABILITIES.indexOf(m.ability||'') >= 0; });
+    var prio = members.find(function(m){ return _pdfHasAny(m, PDF_PRIORITY); });
+    if (weatherSetter)      primary = weatherSetter.ability + ' boost into ' + (closer ? closer.name : 'closer');
+    else if (trUser)        primary = 'Trick Room into slow attackers';
+    else if (twUser)        primary = 'Tailwind into ' + (closer ? closer.name : 'fast closer');
+    else if (trapper)        primary = 'Trap and remove key threat with ' + trapper.name;
+    else if (prio)           primary = 'Priority cleanup with ' + prio.name;
+    else if (closer)         primary = 'Damage trade into ' + closer.name + ' closer';
+    else                     primary = 'Damage output via active core';
+  }
+  if (!secondary || secondary === 'none observed') {
+    if (members.some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); })) secondary = 'Redirection + bulky pivot';
+    else if (members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); })) secondary = 'Fake Out tempo into pivot';
+    else if (members.some(function(m){ return /Setup|Swords Dance|Nasty Plot|Calm Mind|Dragon Dance|Bulk Up|Iron Defense/i.test((m.moves||[]).join(',')); })) secondary = 'Setup sweep';
+    else                                                                       secondary = 'Trade for board control';
+  }
+
+  return {
+    playstyle: inner.playstyle,
+    primary_win_condition: primary,
+    secondary_win_condition: secondary,
+    closer: closer ? closer.name : '-',
+    support_core: supportCore,
+    format_fit: formatFit,
+    source_label: csLabelInferred(['smogon_vgc','serebii_dex'])
+  };
+}
+
+// ---- Generator: csTop3Leads (Section 5.3) ---------------------------
+// Returns LeadGuide with exactly 3 ranked recommendations.
+// Closes #46 - top-3 lead pairs with purpose / T1 / T2 / risk.
+function csTop3Leads(team, identity, results, fmt) {
+  var members = (team && team.members) || [];
+  var format = fmt || 'doubles';
+  var n = members.length;
+  if (n === 0) return { format: format, recommendations: [] };
+
+  // Generate candidate pairs (doubles) or singles
+  var candidates = [];
+  if (format === 'singles' || n < 2) {
+    members.forEach(function(m){ candidates.push({ lead: [m.name], mons: [m] }); });
+  } else {
+    for (var i = 0; i < n; i++) {
+      for (var j = i+1; j < n; j++) {
+        candidates.push({ lead: [members[i].name, members[j].name], mons: [members[i], members[j]] });
+      }
+    }
+  }
+
+  // Score each candidate
+  candidates.forEach(function(c){
+    var s = 0;
+    var hasFO = c.mons.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+    var hasSpeed = c.mons.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM); });
+    var hasRedirect = c.mons.some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); });
+    var hasPrio = c.mons.some(function(m){ return _pdfHasAny(m, PDF_PRIORITY); });
+    var hasIntim = c.mons.some(function(m){ return (m.ability||'') === 'Intimidate'; });
+    var hasSpread = c.mons.some(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
+    if (hasFO) s += 4;
+    if (hasSpeed) s += 5;
+    if (hasRedirect) s += 4;
+    if (hasPrio) s += 2;
+    if (hasIntim) s += 3;
+    if (hasSpread && hasFO) s += 2; // FO + spread combo
+    if (hasFO && hasSpeed) s += 2;  // safe + tempo combo
+
+    // Sim WR blend (40% weight if available)
+    var pairKey = c.lead.slice().sort().join(' + ');
+    var pairWins = 0, pairTotal = 0;
+    Object.values(results || {}).forEach(function(r){
+      (r.allLogs || []).forEach(function(g){
+        var pl = (g.leads && g.leads.player) ? g.leads.player.slice().sort().join(' + ') : '';
+        if (pl === pairKey) {
+          pairTotal++;
+          if (g.result === 'win') pairWins++;
+        }
+      });
+    });
+    if (pairTotal >= 3) {
+      var wr = pairWins / pairTotal;
+      s = s * 0.6 + (wr * 10) * 0.4;
+      c.win_rate = Math.round(wr * 100) / 100;
+      c.sample_size = pairTotal;
+    } else {
+      c.win_rate = null;
+      c.sample_size = pairTotal;
+    }
+    c.score = s;
+
+    // Tags for purpose synthesis
+    c.tags = { hasFO: hasFO, hasSpeed: hasSpeed, hasRedirect: hasRedirect, hasPrio: hasPrio, hasIntim: hasIntim, hasSpread: hasSpread };
+  });
+
+  // Top 3
+  var top3 = candidates.sort(function(a,b){ return b.score - a.score; }).slice(0, 3);
+
+  // If we have fewer than 3 candidates (small teams), pad with the best available
+  while (top3.length < 3 && candidates.length > top3.length) {
+    top3.push(candidates[top3.length]);
+  }
+
+  // Build recommendations
+  return {
+    format: format,
+    recommendations: top3.map(function(c, idx){
+      // Purpose
+      var purpose = [];
+      if (c.tags.hasFO) purpose.push('Fake Out tempo');
+      if (c.tags.hasSpeed) purpose.push('speed control');
+      if (c.tags.hasRedirect) purpose.push('redirection');
+      if (c.tags.hasIntim) purpose.push('Intimidate pressure');
+      if (c.tags.hasSpread) purpose.push('spread damage');
+      if (c.tags.hasPrio) purpose.push('priority threat');
+      if (!purpose.length) purpose.push('general offensive lead');
+
+      // Turn 1 line
+      var t1 = '';
+      if (c.tags.hasFO && c.tags.hasSpeed) t1 = 'Fake Out the bigger threat. Set ' + (c.mons.find(function(m){ return _pdfHasAny(m, PDF_TAILWIND); }) ? 'Tailwind' : 'Trick Room') + ' with the partner.';
+      else if (c.tags.hasFO) t1 = 'Fake Out the priority threat, click damage with the partner if range is clean.';
+      else if (c.tags.hasSpeed) t1 = 'Set speed control immediately. Partner clicks the highest-EV damage move.';
+      else if (c.tags.hasRedirect) t1 = 'Click redirection. Partner sets up or fires the strongest spread.';
+      else if (c.tags.hasIntim) t1 = 'Drop Intimidate, then click coverage on the bulkier opposing slot.';
+      else t1 = 'Open with strongest spread or coverage move that can KO into the most likely lead.';
+
+      // Turn 2 line
+      var t2 = '';
+      if (c.tags.hasSpeed) t2 = 'Trade with speed advantage. Threaten KOs to force Protect, then bring the closer.';
+      else if (c.tags.hasFO) t2 = 'Pivot to your damage core. Fake Out user goes back in only to disrupt setup.';
+      else if (c.tags.hasRedirect) t2 = 'Sustain redirector with bulky berry. Stack damage from behind it.';
+      else t2 = 'Reassess. If lead pair is exhausted, double-switch to your closer + support to pivot.';
+
+      // Risk warning
+      var risk = '';
+      if (c.tags.hasSpeed && !c.tags.hasFO) risk = 'No Fake Out means setup turn is exposed. A faster Taunt or Encore breaks the line.';
+      else if (c.tags.hasFO && !c.tags.hasSpeed) risk = 'No speed control on this pair. Versus Tailwind teams you fall behind by turn 2.';
+      else if (c.tags.hasRedirect) risk = 'Redirector folds to spread + status. Avoid leading into Will-O-Wisp users.';
+      else risk = 'Lead pair is offensive only. Versus disrupt or Trick Room, swap to a safer recovery lead.';
+
+      return {
+        rank: idx + 1,
+        lead: c.lead,
+        purpose: purpose.join(' + '),
+        best_matchups: [],
+        bad_matchups: [],
+        turn_1_line: t1,
+        turn_2_line: t2,
+        risk_warning: risk,
+        win_rate: c.win_rate,
+        sample_size: c.sample_size,
+        source_label: c.win_rate !== null ? csLabelSim() : csLabelInferred(['smogon_vgc'])
+      };
+    })
+  };
+}
+
+// ---- Generator: csMistakes (Section 5.5) ----------------------------
+// Returns 3-7 entries (Section 14, decision 4: cap min 3, max 7).
+// Each: { mistake, why_it_loses, correction }. Severity-sorted.
+// Closes #49 - mistakes-to-avoid generator.
+function csMistakes(team, identity, format) {
+  var members = (team && team.members) || [];
+  var rules = [];
+
+  // Lead-trap rules (highest severity)
+  var fragileLeaders = members.filter(function(m){
+    var stats = (typeof BASE_STATS !== 'undefined' && BASE_STATS[m.name]) ? BASE_STATS[m.name] : null;
+    if (!stats) return false;
+    var bulk = (stats.hp||0) * Math.max(stats.def||0, stats.spd||0);
+    return bulk < 12000;
+  });
+  if (fragileLeaders.length && members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); })) {
+    rules.push({
+      severity: 100,
+      mistake: 'Do not lead ' + fragileLeaders[0].name + ' into Fake Out pressure',
+      why_it_loses: fragileLeaders[0].name + ' is fragile (bulk product < 12k). A Fake Out + spread combo on turn 1 removes your damage core before you set up.',
+      correction: 'Lead a Fake Out user or bulky pivot first. Bring ' + fragileLeaders[0].name + ' in after the support core has eaten the priority pressure.'
+    });
+  }
+
+  // Single wincon
+  var damagers = members.filter(function(m){
+    return (m.moves || []).some(function(mv){ return PDF_SPREAD.indexOf(mv) >= 0 || _pdfHasAny(m, PDF_PRIORITY); });
+  });
+  if (damagers.length <= 2) {
+    rules.push({
+      severity: 95,
+      mistake: 'Burning Protect on your closer ends games',
+      why_it_loses: 'You only have ' + damagers.length + ' true damage wincon(s). Once ' + (identity && identity.closer) + ' is gone, you cannot close.',
+      correction: 'Save Protect for the turn after speed control runs out. Do not click it on the same turn the opponent already committed to a non-damaging move.'
+    });
+  }
+
+  // TR setter on a fast team
+  var hasTR = members.some(function(m){ return _pdfHasAny(m, PDF_TRICK_ROOM); });
+  var avgSpeed = members.reduce(function(s,m){
+    var bs = (typeof BASE_STATS !== 'undefined' && BASE_STATS[m.name]) ? BASE_STATS[m.name].spe || 0 : 0;
+    return s + bs;
+  }, 0) / Math.max(1, members.length);
+  if (hasTR && avgSpeed > 80) {
+    rules.push({
+      severity: 90,
+      mistake: 'Setting Trick Room flips your own speed advantage',
+      why_it_loses: 'Average team Speed is ' + Math.round(avgSpeed) + '. Under TR your fast attackers move last and your TR setter eats a setup-punish move.',
+      correction: 'Only set TR when 3+ of your active mons are slower than 60 base, or skip TR entirely and lean on Tailwind / priority.'
+    });
+  }
+
+  // Choice Scarf with overlapping coverage
+  var scarfers = members.filter(function(m){ return /Scarf/i.test(m.item || ''); });
+  scarfers.forEach(function(s){
+    var types = (s.moves || []).map(function(mv){
+      return (typeof MOVE_TYPES !== 'undefined' && MOVE_TYPES[mv]) ? MOVE_TYPES[mv] : null;
+    }).filter(Boolean);
+    var unique = {};
+    types.forEach(function(t){ unique[t] = (unique[t]||0) + 1; });
+    var dupes = Object.keys(unique).filter(function(k){ return unique[k] > 1; });
+    if (dupes.length) {
+      rules.push({
+        severity: 85,
+        mistake: 'Locking ' + s.name + ' into the wrong type',
+        why_it_loses: s.name + ' has multiple ' + dupes.join(', ') + ' moves. Lock-in early and you have no answer to a switch-in that resists that type.',
+        correction: 'Click the lower-priority coverage move first to scout, or save Scarf reveal until you can KO without locking yourself out.'
+      });
+    }
+  });
+
+  // Spread move + low-HP ally
+  var hasSpread = members.some(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
+  if (hasSpread && format === 'doubles') {
+    rules.push({
+      severity: 70,
+      mistake: 'Do not click spread when ally is below 50%',
+      why_it_loses: 'Spread chip into a fragile ally folds your own pivot. The opponent can Protect + KO your weak side on the same turn.',
+      correction: 'Use single-target damage or Protect the low-HP ally. Save spread for after the wounded slot has rotated out.'
+    });
+  }
+
+  // No pivot moves
+  var pivotMoves = members.filter(function(m){
+    return _pdfHasAny(m, PDF_FAKE_OUT) ||
+      /U-turn|Volt Switch|Flip Turn|Parting Shot|Teleport/.test((m.moves||[]).join(','));
+  });
+  if (pivotMoves.length === 0) {
+    rules.push({
+      severity: 60,
+      mistake: 'Switching aggressively without a safe pivot leaks tempo',
+      why_it_loses: 'No pivot moves on the team. Every switch eats a free turn for the opponent.',
+      correction: 'Add U-turn, Volt Switch, Flip Turn, or Parting Shot somewhere on the team. Until then, only switch on a guaranteed free turn (Protect or KO).'
+    });
+  }
+
+  // Redirector with no spread
+  var hasRedirect = members.some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); });
+  if (hasRedirect && !hasSpread) {
+    rules.push({
+      severity: 55,
+      mistake: 'Redirector wasted without spread damage',
+      why_it_loses: 'Follow Me / Rage Powder shines when your partner clicks spread. Without it, you are paying a slot for marginal value.',
+      correction: 'Add a spread move (Earthquake, Heat Wave, Hyper Voice, Make It Rain) to a partner or rotate the redirector for a Fake Out user.'
+    });
+  }
+
+  // Sort by severity (descending), keep 3 minimum, 7 maximum
+  rules.sort(function(a,b){ return b.severity - a.severity; });
+  if (rules.length === 0) {
+    rules.push({
+      severity: 0,
+      mistake: 'Auto-piloting turn 1 without a read',
+      why_it_loses: 'Even a clean team loses to a strong opening read. Most losses come from clicking the same lead pair every game.',
+      correction: 'Cycle through your top-3 leads matchup-by-matchup. Predict at least one line ahead.'
+    });
+  }
+  while (rules.length < 3) {
+    rules.push({
+      severity: 0,
+      mistake: 'Underusing Protect',
+      why_it_loses: 'Protect on the wrong turn wastes a slot. Skipping it on the right turn loses a mon.',
+      correction: 'Click Protect when you have a 50/50 read on a KO move and a free pivot is set up the next turn.'
+    });
+  }
+  return rules.slice(0, 7).map(function(r){
+    return { mistake: r.mistake, why_it_loses: r.why_it_loses, correction: r.correction };
+  });
+}
+
+// ---- Generator: csMoveLines (Section 5.4) ---------------------------
+// Minimum 6 scenarios. Each: scenario, lead_recommendation, t1, t2, avoid, fallback.
+function csMoveLines(team, identity, leadGuide) {
+  var members = (team && team.members) || [];
+  var topLead = (leadGuide && leadGuide.recommendations[0]) ? leadGuide.recommendations[0].lead : (members.slice(0,2).map(function(m){ return m.name; }));
+
+  // Pick best lead per scenario type
+  var foUser = members.find(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+  var twUser = members.find(function(m){ return _pdfHasAny(m, PDF_TAILWIND); });
+  var trUser = members.find(function(m){ return _pdfHasAny(m, PDF_TRICK_ROOM); });
+  var redirUser = members.find(function(m){ return _pdfHasAny(m, PDF_REDIRECT); });
+  var prioUser = members.find(function(m){ return _pdfHasAny(m, PDF_PRIORITY); });
+  var spreadUser = members.find(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
+  var intimUser = members.find(function(m){ return (m.ability||'') === 'Intimidate'; });
+
+  function pick2(a, b) {
+    var picks = [a, b].filter(Boolean).map(function(m){ return m.name; });
+    if (picks.length < 2) {
+      members.forEach(function(m){ if (picks.length < 2 && picks.indexOf(m.name) < 0) picks.push(m.name); });
+    }
+    return picks.slice(0, 2);
+  }
+
+  var lines = [];
+
+  lines.push({
+    scenario: 'Into fast Tailwind offense',
+    lead_recommendation: pick2(foUser, twUser || prioUser),
+    turn_1: foUser ? ('Fake Out the offensive threat with ' + foUser.name + '. Set Tailwind or click priority with the partner.') : 'Set your own Tailwind immediately or click priority to deny their setup.',
+    turn_2: 'Pivot under Tailwind. Trade KOs while you are faster. Save Protect for when their Tailwind ends.',
+    what_to_avoid: 'Do not lead two slow attackers. They will be outsped on turn 1 and you lose tempo.',
+    fallback_plan: 'If Tailwind is denied, switch to a redirector + bulky pivot to grind the game past their Tailwind window.',
+    source_label: csLabelInferred(['smogon_vgc'])
+  });
+
+  lines.push({
+    scenario: 'Into Trick Room setters',
+    lead_recommendation: pick2(foUser || prioUser, intimUser),
+    turn_1: foUser ? ('Fake Out the TR setter with ' + foUser.name + '. Partner clicks Taunt or hardest-hitting move.') : 'Click Taunt or fastest damage move on the TR setter to prevent setup.',
+    turn_2: 'If TR is up, switch to slower attackers. If TR is denied, press the offensive advantage immediately.',
+    what_to_avoid: 'Do not click setup or pivot moves while TR is being set. Pressure the setter directly.',
+    fallback_plan: 'Stall TR turns with Protect + redirection. After TR ends, swap to your fast core.',
+    source_label: csLabelInferred(['smogon_vgc'])
+  });
+
+  lines.push({
+    scenario: 'Into Redirection (Follow Me / Rage Powder)',
+    lead_recommendation: pick2(spreadUser, foUser),
+    turn_1: 'Click spread damage to bypass redirection. Fake Out the partner if available to deny tempo.',
+    turn_2: 'Continue spread pressure. The redirector is the priority KO target.',
+    what_to_avoid: 'Single-target damage into the redirector wastes a turn. Do not click status either.',
+    fallback_plan: 'If you cannot KO the redirector quickly, switch to your TR setter or Choice Scarf user to apply different pressure.',
+    source_label: csLabelInferred(['smogon_vgc'])
+  });
+
+  lines.push({
+    scenario: 'Into Fake Out pressure',
+    lead_recommendation: pick2(intimUser || foUser, redirUser),
+    turn_1: 'Lead a bulkier Fake Out user yourself or an Inner Focus / Own Tempo mon. Click damage on their squishier slot.',
+    turn_2: 'Their Fake Out is gone. Press damage and force a switch.',
+    what_to_avoid: 'Do not lead your closer or setup mon. They eat the Fake Out and your turn 1 is wasted.',
+    fallback_plan: 'Bring out a Protect user to bait their second Fake Out, then pivot to closer.',
+    source_label: csLabelInferred(['smogon_vgc'])
+  });
+
+  lines.push({
+    scenario: 'Into Sun or Rain weather core',
+    lead_recommendation: pick2(twUser || prioUser, foUser),
+    turn_1: 'Click your own weather move if available, or use your strongest damage move on the weather setter.',
+    turn_2: 'Remove the weather setter. Their boost is gone.',
+    what_to_avoid: 'Do not click moves boosted by their weather (e.g. fire moves into their sun).',
+    fallback_plan: 'If you cannot remove weather, swap to a Choice Scarf or priority attacker that ignores weather.',
+    source_label: csLabelInferred(['smogon_vgc'])
+  });
+
+  lines.push({
+    scenario: 'Into Setup Sweepers',
+    lead_recommendation: pick2(foUser, prioUser),
+    turn_1: 'Fake Out the setup mon. Partner clicks priority or strongest damage to break the boost.',
+    turn_2: 'If they boosted, click Haze, Clear Smog, or trade with your priority finisher.',
+    what_to_avoid: 'Do not let setup mon get +2 with no answer. Always click first turn.',
+    fallback_plan: 'Save your Choice Scarf revenge killer if you have one. Sacrifice if needed to stop the sweep.',
+    source_label: csLabelInferred(['smogon_vgc'])
+  });
+
+  if (intimUser) {
+    lines.push({
+      scenario: 'Into Intimidate stack',
+      lead_recommendation: pick2(members.find(function(m){ return /Defiant|Competitive/.test(m.ability||''); }) || foUser, twUser),
+      turn_1: 'Lead a Defiant or Competitive ability if you have one. Otherwise, click special attacks to bypass Atk drops.',
+      turn_2: 'Force them to swap. Punish predictable Intimidate cycle with Taunt or status.',
+      what_to_avoid: 'Do not stack physical attackers. Their Intimidate cycle eats your damage.',
+      fallback_plan: 'Pivot to Assault Vest special attackers to ignore Intimidate.',
+      source_label: csLabelInferred(['smogon_vgc'])
+    });
+  }
+
+  return lines;
+}
+
+// ---- Generator: csSkillCoaching (Section 5.9) -----------------------
+function csSkillCoaching(team, identity, leadGuide) {
+  var members = (team && team.members) || [];
+  var closer = identity && identity.closer ? identity.closer : ((members[0] && members[0].name) || 'your closer');
+  var support = (identity && identity.support_core && identity.support_core[0]) || 'your pivot';
+  var topLead = (leadGuide && leadGuide.recommendations[0]) ? leadGuide.recommendations[0].lead : [support, closer];
+
+  var safeMove = (function(){
+    var foUser = members.find(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+    if (foUser) return 'Fake Out';
+    var twUser = members.find(function(m){ return _pdfHasAny(m, PDF_TAILWIND); });
+    if (twUser) return 'Tailwind';
+    return 'your strongest single-target damage move';
+  })();
+
+  return {
+    beginner: {
+      how_team_wins: closer + ' closes after ' + support + ' sets the tempo with ' + safeMove + '.',
+      safest_lead: topLead,
+      safest_first_turn: 'Click ' + safeMove + ' to control the turn. Do not click setup or pivot moves yet.',
+      do_not_click: ['setup moves on turn 1', 'risky 80%-accuracy moves', 'damage into a redirector']
+    },
+    intermediate: {
+      when_to_switch: 'Switch ' + closer + ' out only when its KO range is gone. Otherwise keep pressure on.',
+      when_to_protect: 'Protect when speed control is about to run out, or when the opponent has a guaranteed KO move on your active mon.',
+      tempo_management: 'Each Fake Out is one free turn. Spend that turn on speed control, not damage.',
+      preserve_wincon: 'Do not lead ' + closer + ' into priority threats. Bring it after support has eaten Fake Out and Intimidate.'
+    },
+    advanced: {
+      bait_and_punish: [
+        'Bait Protect by clicking spread damage, then double-switch to ' + closer + '.',
+        'Bait Trick Room by leading slow, then reveal Tailwind or Taunt.',
+        'Bait their priority by leading a bulky pivot, then bring ' + closer + ' on a Protect turn.'
+      ],
+      double_switch_logic: 'Double-switch when you can predict their pivot move. Bring a Pokemon that resists their next likely lead.',
+      win_path_compression: 'Force the game to end by turn 6. Long games favor the bulkier team. Pressure spread + speed control.',
+      risk_reward_adjustments: 'Lock-in moves are worth 90% confidence trades. Status moves are worth 70%. Adjust your line based on the opponent\'s remaining team.',
+      opponent_prediction: 'If they have not revealed their item by turn 3, assume Choice Scarf. If they Protected turn 1, expect setup turn 2.'
+    }
+  };
+}
+
+// ---- Generator: csStressTest (Section 5.7) --------------------------
+function csStressTest(team, identity, results, scoreCard) {
+  var members = (team && team.members) || [];
+  var hasTW = members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND); });
+  var hasTR = members.some(function(m){ return _pdfHasAny(m, PDF_TRICK_ROOM); });
+  var hasScarf = members.some(function(m){ return /Scarf/i.test(m.item || ''); });
+  var hasPrio = members.some(function(m){ return _pdfHasAny(m, PDF_PRIORITY); });
+  var hasSpeed = hasTW || hasTR || hasScarf || hasPrio;
+  var hasFO = members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); });
+
+  var breakPoints = [];
+  if (!hasSpeed) breakPoints.push('Speed control denied -> slow exposed team');
+  if (!hasFO) breakPoints.push('No Fake Out -> turn 1 setup vulnerable to faster pressure');
+  var damagers = members.filter(function(m){
+    return (m.moves || []).some(function(mv){ return PDF_SPREAD.indexOf(mv) >= 0; }) ||
+           _pdfHasAny(m, PDF_PRIORITY);
+  });
+  if (damagers.length <= 2) breakPoints.push('Closer removed early -> late game collapses');
+  if (members.length < 6) breakPoints.push('Roster slots short -> matchup volatility increases');
+
+  var punishWindows = [];
+  if (hasTW && hasFO) punishWindows.push('Trick Room counter teams break Tailwind tempo on turn 2');
+  if (members.some(function(m){ return /Reflect|Light Screen|Aurora Veil/.test((m.moves||[]).join(',')); })) {
+    punishWindows.push('Brick Break or Defog removes screens and exposes setup turn');
+  }
+  if (!punishWindows.length) punishWindows.push('Predictable lead choices give opponent free read on turn 1');
+
+  // Worst matchups from sim data
+  var worstMatchups = [];
+  var failureScenarios = [];
+  Object.entries(results || {}).forEach(function(p){
+    var k = p[0], r = p[1];
+    var t = (r.wins||0) + (r.losses||0) + (r.draws||0);
+    if (t >= 3 && r.wins / t < 0.30) worstMatchups.push(k);
+  });
+  worstMatchups = worstMatchups.slice(0, 3);
+
+  if (hasTR) failureScenarios.push('Trick Room blocked by Taunt before T2');
+  if (members.some(function(m){ return /Mega/i.test(m.item||''); })) failureScenarios.push('Mega blocked from evolving on critical turn');
+  if (members.some(function(m){ return (m.ability||'') === 'Intimidate'; })) failureScenarios.push('Intimidate stacked into your physical attackers');
+  if (!failureScenarios.length) failureScenarios.push('Lead read trivially predicted, punish window opens turn 1');
+
+  var consistency = 'moderate';
+  if (scoreCard && scoreCard.confidence === 'high' && scoreCard.tier === 'S') consistency = 'high';
+  else if (!scoreCard || scoreCard.tier === 'C' || scoreCard.tier === 'D') consistency = 'low';
+
+  var champPov = 'A top player would respect ' + (identity && identity.playstyle || 'this team') + ' for ' +
+    (hasFO ? 'Fake Out tempo' : 'its core damage') +
+    ' but would attack the ' + (breakPoints[0] || 'predictable lead') +
+    ' on turn 1. ' + (worstMatchups.length ? 'They would target the ' + worstMatchups[0] + ' archetype to maximise expected value.' : 'Without sim data, the safe call is to scout the lead before committing setup.');
+
+  return {
+    break_points: breakPoints,
+    punish_windows: punishWindows,
+    worst_matchups: worstMatchups,
+    failure_scenarios: failureScenarios,
+    consistency_rating: consistency,
+    champion_perspective: champPov
+  };
+}
+
+// ---- Generator: csWhatWorks / csWhatIsWeak / csTopThreats ----------
+function csWhatWorks(team, identity, leadGuide) {
+  var members = (team && team.members) || [];
+  var top = leadGuide && leadGuide.recommendations[0];
+  return {
+    best_synergy: {
+      description: identity.synergy_core && identity.synergy_core[0] !== 'no clear synergy core'
+        ? identity.synergy_core.join(' + ')
+        : 'No dominant synergy core, plays as flexible balance',
+      members: (identity.support_core || []).concat(identity.closer ? [identity.closer] : []),
+      source_label: csLabelInferred(['smogon_vgc'])
+    },
+    strongest_leads: (leadGuide.recommendations || []).slice(0, 2).map(function(rec){
+      return { lead_pair: rec.lead, reason: rec.purpose, source_label: rec.source_label };
+    }),
+    best_damage_plan: {
+      description: 'Lead with ' + (top ? top.lead.join(' + ') : 'support core') + ', stack spread + priority on turn 2 to compress the game.',
+      source_label: csLabelInferred(['smogon_vgc'])
+    },
+    best_defensive_plan: {
+      description: members.some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); })
+        ? 'Use redirection to soak status and spread, then pivot the wincon in safely.'
+        : 'Use Protect + double-switch to preserve the closer until cleanup turn.',
+      source_label: csLabelInferred(['smogon_vgc'])
+    },
+    strongest_win_path: {
+      description: identity.primary_win_condition || 'Damage output via closer',
+      source_label: csLabelInferred(['smogon_vgc'])
+    }
+  };
+}
+
+function csWhatIsWeak(team, identity, gaps, results) {
+  var members = (team && team.members) || [];
+  var missing = [];
+  if (!members.some(function(m){ return _pdfHasAny(m, PDF_FAKE_OUT); })) missing.push('no Fake Out user');
+  if (!members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM); })) missing.push('no speed control');
+  if (!members.some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); })) missing.push('no redirection');
+
+  var bad = [];
+  Object.entries(results || {}).forEach(function(p){
+    var t = (p[1].wins||0) + (p[1].losses||0) + (p[1].draws||0);
+    if (t >= 3 && (p[1].wins / t) < 0.40) bad.push(p[0]);
+  });
+
+  var fragile = members.filter(function(m){
+    var s = (typeof BASE_STATS !== 'undefined' && BASE_STATS[m.name]) ? BASE_STATS[m.name] : null;
+    if (!s) return false;
+    return (s.hp||0) * Math.max(s.def||0, s.spd||0) < 12000;
+  }).map(function(m){ return m.name; });
+
+  var damagers = members.filter(function(m){
+    return (m.moves || []).some(function(mv){ return PDF_SPREAD.indexOf(mv) >= 0; }) ||
+           _pdfHasAny(m, PDF_PRIORITY);
+  });
+  var overreliance = damagers.length === 1 ? damagers[0].name : null;
+
+  return {
+    missing_roles: missing,
+    bad_matchups: bad.slice(0, 5),
+    coverage_gaps: gaps || [],
+    speed_issues: !members.some(function(m){ return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM); })
+      ? 'No active speed control - reliant on natural Speed and Choice Scarf'
+      : 'Speed control present',
+    fragile_leads: fragile,
+    overreliance: overreliance,
+    poor_choices: []
+  };
+}
+
+function csTopThreats(team) {
+  // Reuse existing META_THREATS list from ui.js. Cap at 5 most relevant.
+  if (typeof META_THREATS === 'undefined') return [];
+  return META_THREATS.slice(0, 5).map(function(t){
+    return {
+      pokemon: t.name || t.pokemon || '-',
+      why_dangerous: t.why || t.why_dangerous || 'High meta usage and damage ceiling',
+      threatens: t.threatens || [],
+      problem_kit: t.problem_kit || { moves: [], items: [], abilities: [] },
+      play_around: t.play_around || 'Lead a Fake Out user or priority attacker to neutralise turn 1.',
+      team_fixes: t.team_fixes || [],
+      source_label: csLabelInferred(['smogon_vgc','victory_road'])
+    };
+  });
+}
+
+function csRiskProfile(team, scoreCard) {
+  var members = (team && team.members) || [];
+  var risks = [];
+
+  var lowAccMoves = members.reduce(function(c, m){
+    return c + (m.moves || []).filter(function(mv){
+      return /Hypnosis|Focus Blast|Stone Edge|Thunder|Fire Blast|Hurricane/.test(mv);
+    }).length;
+  }, 0);
+  if (lowAccMoves >= 2) risks.push({
+    category: 'RNG', severity: lowAccMoves >= 4 ? 'high' : 'moderate',
+    why_it_matters: lowAccMoves + ' moves with sub-90 accuracy or status hit chance. Misses lose games.',
+    how_to_reduce: 'Replace lowest-accuracy filler with consistent 100% coverage where possible.'
+  });
+
+  var fragile = members.filter(function(m){
+    var s = (typeof BASE_STATS !== 'undefined' && BASE_STATS[m.name]) ? BASE_STATS[m.name] : null;
+    if (!s) return false;
+    return (s.hp||0) * Math.max(s.def||0, s.spd||0) < 12000;
+  }).length;
+  if (fragile >= 2) risks.push({
+    category: 'lead_fragility', severity: fragile >= 3 ? 'high' : 'moderate',
+    why_it_matters: fragile + ' lead candidates have low bulk product and die to Fake Out + spread.',
+    how_to_reduce: 'Invest more EVs in HP/Def or Sp.Def on at least one lead, or add a bulky pivot.'
+  });
+
+  var damagers = members.filter(function(m){
+    return (m.moves || []).some(function(mv){ return PDF_SPREAD.indexOf(mv) >= 0; }) ||
+           _pdfHasAny(m, PDF_PRIORITY);
+  }).length;
+  if (damagers <= 1) risks.push({
+    category: 'single_wincon', severity: damagers === 0 ? 'extreme' : 'high',
+    why_it_matters: 'Only ' + damagers + ' true wincon. Once removed, the team cannot close.',
+    how_to_reduce: 'Add a secondary closer or a setup sweeper as redundancy.'
+  });
+
+  var hasSpeed = members.some(function(m){
+    return _pdfHasAny(m, PDF_TAILWIND) || _pdfHasAny(m, PDF_TRICK_ROOM) || /Scarf/i.test(m.item||'') || _pdfHasAny(m, PDF_PRIORITY);
+  });
+  if (!hasSpeed) risks.push({
+    category: 'speed_control', severity: 'high',
+    why_it_matters: 'No Tailwind, Trick Room, Choice Scarf, or priority. You are at the mercy of natural Speed.',
+    how_to_reduce: 'Add at least one of: Tailwind setter, Choice Scarf user, or strong priority attacker.'
+  });
+
+  var pivots = members.filter(function(m){
+    return _pdfHasAny(m, PDF_FAKE_OUT) || /U-turn|Volt Switch|Flip Turn|Parting Shot|Teleport/.test((m.moves||[]).join(','));
+  }).length;
+  if (pivots === 0) risks.push({
+    category: 'positioning', severity: 'moderate',
+    why_it_matters: 'No pivot moves. Every switch costs you a free turn.',
+    how_to_reduce: 'Add U-turn, Volt Switch, or Parting Shot to a flexible slot.'
+  });
+
+  return risks;
+}
+
+function csTrendAnalysisV2(team, results) {
+  var members = (team && team.members) || [];
+  var totalGames = 0;
+  Object.values(results || {}).forEach(function(r){ totalGames += (r.wins||0) + (r.losses||0) + (r.draws||0); });
+
+  if (totalGames === 0) {
+    return {
+      has_data: false,
+      sample_size: 0,
+      best_lead: null,
+      worst_lead: null,
+      most_common_loss_cause: null,
+      avg_first_ko_turn: null,
+      dead_moves: [],
+      failed_matchups: [],
+      best_win_path: null,
+      trend_direction: null,
+      message_if_no_data: 'insufficient trend data - keep simulating'
+    };
+  }
+
+  // Best/worst lead by aggregated WR
+  var leadStats = {};
+  Object.values(results).forEach(function(r){
+    (r.allLogs || []).forEach(function(g){
+      if (!g.leads || !g.leads.player) return;
+      var k = g.leads.player.slice().sort().join(' + ');
+      leadStats[k] = leadStats[k] || { w: 0, t: 0, lead: g.leads.player };
+      leadStats[k].t++;
+      if (g.result === 'win') leadStats[k].w++;
+    });
+  });
+  var leadEntries = Object.values(leadStats).filter(function(s){ return s.t >= 3; });
+  leadEntries.sort(function(a,b){ return (b.w/b.t) - (a.w/a.t); });
+  var best = leadEntries[0];
+  var worst = leadEntries[leadEntries.length - 1];
+
+  var dead = findDeadMoves(results, members).map(function(d){ return d.pokemon + ' - ' + d.move; });
+
+  var failed = [];
+  Object.entries(results).forEach(function(p){
+    var t = (p[1].wins||0) + (p[1].losses||0) + (p[1].draws||0);
+    if (t >= 3 && (p[1].wins / t) < 0.30) failed.push(p[0]);
+  });
+
+  var trends = analyzeLossTrends(results, members);
+
+  return {
+    has_data: true,
+    sample_size: totalGames,
+    best_lead: best ? { lead: best.lead, win_rate: Math.round(best.w/best.t*100)/100, sample: best.t } : null,
+    worst_lead: worst && worst !== best ? { lead: worst.lead, win_rate: Math.round(worst.w/worst.t*100)/100, sample: worst.t } : null,
+    most_common_loss_cause: (trends.topOppFinishers && trends.topOppFinishers[0]) || null,
+    avg_first_ko_turn: trends.avgFirstKoTurn || null,
+    dead_moves: dead,
+    failed_matchups: failed,
+    best_win_path: null,
+    trend_direction: 'stable',
+    message_if_no_data: ''
+  };
+}
+
+// ---- Top-level adapter ----------------------------------------------
+// Builds the spec-shaped StrategyReport from the existing T9j.16 engine
+// plus the Phase 2 generators above.
+function csBuildStrategyReportV2(teamKey, results, fmt) {
+  var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+  if (!team) return null;
+  var format = fmt || (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles');
+  results = results || {};
+
+  var members = team.members || [];
+  var sample = 0;
+  Object.values(results).forEach(function(r){ sample += (r.wins||0) + (r.losses||0) + (r.draws||0); });
+
+  var identity = csTeamIdentityV2(team, results, format);
+  var leadSystem = buildLeadSystem(results, members);
+  var gaps = findCoverageGaps(members);
+  var leadGuide = csTop3Leads(team, identity, results, format);
+  var report_card = csTierAndScore(team, identity, leadSystem, gaps, results, sample);
+  var moveLines = csMoveLines(team, identity, leadGuide);
+  var mistakes = csMistakes(team, identity, format);
+  var skill = csSkillCoaching(team, identity, leadGuide);
+  var stress = csStressTest(team, identity, results, report_card);
+  var whatWorks = csWhatWorks(team, identity, leadGuide);
+  var whatWeak = csWhatIsWeak(team, identity, gaps, results);
+  var threats = csTopThreats(team);
+  var risk = csRiskProfile(team, report_card);
+  var trend = csTrendAnalysisV2(team, results);
+
+  var summary = report_card.tier + '-tier ' + identity.playstyle + '. ' +
+    'Win path: ' + identity.primary_win_condition + '. ' +
+    (mistakes[0] ? 'Top mistake to fix: ' + mistakes[0].mistake + '.' : '');
+
+  return {
+    schema_version: 1,
+    team_signature: teamSignature(team),
+    team_key: teamKey,
+    format: format,
+    generated_at: new Date().toISOString(),
+    sim_data_version: sample,
+
+    team_report_card: report_card,
+    team_identity: identity,
+    what_works: whatWorks,
+    what_is_weak: whatWeak,
+    top_threats: threats,
+    lead_guide: leadGuide,
+    move_lines: moveLines,
+    mistakes_to_avoid: mistakes,
+    risk_profile: risk,
+    trend_analysis: trend,
+    skill_coaching: skill,
+    stress_test: stress,
+    coaching_summary: summary
+  };
+}
+
+// ---- Renderer --------------------------------------------------------
+// Paints #strategy-content with all 12 sections from the spec report.
+function _csEsc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function _csChip(label, opts) {
+  opts = opts || {};
+  return '<span class="cs-chip cs-chip-' + (opts.kind || 'default') + '">' + _csEsc(label) + '</span>';
+}
+function _csSourceChip(sourceLabel) {
+  if (!sourceLabel) return '';
+  var k = sourceLabel.kind || 'unknown';
+  var labelMap = {
+    verified_champions_source: 'verified',
+    simulation_data: 'sim data',
+    inferred_strategy: 'inferred',
+    unknown: 'unknown'
+  };
+  var citationsHtml = (sourceLabel.citations || []).map(function(c){
+    return '<a class="cs-cite" href="' + _csEsc(c.url) + '" target="_blank" rel="noopener">' + _csEsc(c.name) + '</a>';
+  }).join(' ');
+  return '<span class="cs-source cs-source-' + k + '" data-evidence>' +
+    '<span class="cs-source-label">' + labelMap[k] + '</span>' +
+    citationsHtml +
+    '</span>';
+}
+
+function renderStrategyTab(teamKey) {
+  var host = document.getElementById('strategy-content');
+  if (!host) return;
+  var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+  if (!team) {
+    host.innerHTML = '<div class="strategy-empty">Select a team to generate the coaching report.</div>';
+    return;
+  }
+  var results = (typeof window !== 'undefined' && window.lastSimResults) ? window.lastSimResults : {};
+  var report = csBuildStrategyReportV2(teamKey, results, (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles'));
+  if (!report) {
+    host.innerHTML = '<div class="strategy-empty">Could not generate report for this team.</div>';
+    return;
+  }
+  // Stash for tests / inspection
+  if (typeof window !== 'undefined') window._lastStrategyReport = report;
+
+  var rc = report.team_report_card;
+  var id = report.team_identity;
+  var lg = report.lead_guide;
+
+  var html = '';
+  html += '<div class="cs-summary-bar">';
+  html +=   '<div class="cs-tier-badge cs-tier-' + rc.tier + '">' + rc.tier + '</div>';
+  html +=   '<div class="cs-score">' + rc.score + '<span class="cs-score-suffix">/100</span></div>';
+  html +=   '<div class="cs-meta">';
+  html +=     '<div><strong>' + _csEsc(team.name || teamKey) + '</strong> ' + _csChip(id.playstyle, {kind:'playstyle'}) + '</div>';
+  html +=     '<div class="cs-meta-line">Confidence: ' + rc.confidence + ' &middot; Risk: ' + rc.risk_level + ' &middot; Sample: ' + report.sim_data_version + ' games</div>';
+  html +=     (rc.battle_ready ? '<div class="cs-battle-ready">BATTLE READY</div>' : '');
+  html +=   '</div>';
+  html += '</div>';
+
+  html += '<p class="cs-summary-line">' + _csEsc(report.coaching_summary) + '</p>';
+
+  // Section 1: Team report card
+  html += '<section class="cs-section"><h3 class="cs-h3">Team Report Card ' + _csSourceChip(csLabelSim()) + '</h3>';
+  html += '<p class="cs-explain">' + _csEsc(rc.short_explanation) + '</p>';
+  html += '<div class="cs-cat-grid">';
+  Object.keys(CS_WEIGHTS).forEach(function(k){
+    var v = rc.category_scores[k];
+    html += '<div class="cs-cat"><div class="cs-cat-label">' + k.replace(/_/g,' ') + '</div>';
+    html += '<div class="cs-cat-score">' + (v === null ? 'n/a' : v + '/10') + '</div></div>';
+  });
+  html += '</div></section>';
+
+  // Section 2: Team identity
+  html += '<section class="cs-section"><h3 class="cs-h3">Team Identity ' + _csSourceChip(id.source_label) + '</h3>';
+  html += '<ul class="cs-list">';
+  html += '<li><strong>Playstyle:</strong> ' + _csEsc(id.playstyle) + '</li>';
+  html += '<li><strong>Win condition:</strong> ' + _csEsc(id.primary_win_condition) + '</li>';
+  html += '<li><strong>Closer:</strong> ' + _csEsc(id.closer) + '</li>';
+  html += '<li><strong>Support core:</strong> ' + _csEsc((id.support_core||[]).join(', ') || '-') + '</li>';
+  html += '<li><strong>Format fit:</strong> ' + _csEsc(id.format_fit) + '</li>';
+  html += '</ul></section>';
+
+  // Section 3: What works
+  var ww = report.what_works;
+  html += '<section class="cs-section"><h3 class="cs-h3">What Works</h3>';
+  html += '<p><strong>Best synergy:</strong> ' + _csEsc(ww.best_synergy.description) + ' ' + _csSourceChip(ww.best_synergy.source_label) + '</p>';
+  html += '<p><strong>Damage plan:</strong> ' + _csEsc(ww.best_damage_plan.description) + ' ' + _csSourceChip(ww.best_damage_plan.source_label) + '</p>';
+  html += '<p><strong>Defensive plan:</strong> ' + _csEsc(ww.best_defensive_plan.description) + ' ' + _csSourceChip(ww.best_defensive_plan.source_label) + '</p>';
+  html += '<p><strong>Strongest win path:</strong> ' + _csEsc(ww.strongest_win_path.description) + ' ' + _csSourceChip(ww.strongest_win_path.source_label) + '</p>';
+  html += '</section>';
+
+  // Section 4: What is weak
+  var wk = report.what_is_weak;
+  html += '<section class="cs-section"><h3 class="cs-h3">What Is Weak</h3>';
+  if (wk.missing_roles.length) html += '<p><strong>Missing:</strong> ' + _csEsc(wk.missing_roles.join(', ')) + '</p>';
+  if (wk.bad_matchups.length)  html += '<p><strong>Bad matchups:</strong> ' + _csEsc(wk.bad_matchups.join(', ')) + '</p>';
+  if (wk.coverage_gaps.length) html += '<p><strong>Coverage gaps:</strong> ' + _csEsc(wk.coverage_gaps.join(', ')) + '</p>';
+  if (wk.fragile_leads.length) html += '<p><strong>Fragile lead candidates:</strong> ' + _csEsc(wk.fragile_leads.join(', ')) + '</p>';
+  if (wk.overreliance)         html += '<p><strong>Overreliance on:</strong> ' + _csEsc(wk.overreliance) + '</p>';
+  html += '<p><strong>Speed control:</strong> ' + _csEsc(wk.speed_issues) + '</p>';
+  html += '</section>';
+
+  // Section 5: Top threats
+  if (report.top_threats.length) {
+    html += '<section class="cs-section"><h3 class="cs-h3">Top Threats</h3><div class="cs-threat-grid">';
+    report.top_threats.forEach(function(t){
+      html += '<div class="cs-threat-card"><div class="cs-threat-name">' + _csEsc(t.pokemon) + ' ' + _csSourceChip(t.source_label) + '</div>';
+      html += '<div class="cs-threat-why">' + _csEsc(t.why_dangerous) + '</div>';
+      html += '<div class="cs-threat-play"><strong>Play around:</strong> ' + _csEsc(t.play_around) + '</div></div>';
+    });
+    html += '</div></section>';
+  }
+
+  // Section 6: Lead guide (top 3)
+  html += '<section class="cs-section"><h3 class="cs-h3">Top 3 Leads (' + lg.format + ')</h3>';
+  html += '<div class="cs-lead-grid">';
+  (lg.recommendations || []).forEach(function(rec){
+    html += '<div class="cs-lead-card">';
+    html += '<div class="cs-lead-rank">#' + rec.rank + '</div>';
+    html += '<div class="cs-lead-pair">' + _csEsc((rec.lead || []).join(' + ')) + '</div>';
+    html += '<div class="cs-lead-purpose">' + _csEsc(rec.purpose) + ' ' + _csSourceChip(rec.source_label) + '</div>';
+    html += '<div class="cs-lead-line"><strong>T1:</strong> ' + _csEsc(rec.turn_1_line) + '</div>';
+    html += '<div class="cs-lead-line"><strong>T2:</strong> ' + _csEsc(rec.turn_2_line) + '</div>';
+    html += '<div class="cs-lead-risk"><strong>Risk:</strong> ' + _csEsc(rec.risk_warning) + '</div>';
+    if (rec.win_rate !== null) {
+      html += '<div class="cs-lead-wr">Sim WR: ' + Math.round(rec.win_rate * 100) + '% (' + rec.sample_size + ' games)</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div></section>';
+
+  // Section 7: Move lines
+  html += '<section class="cs-section"><h3 class="cs-h3">Move Lines (' + report.move_lines.length + ' scenarios)</h3>';
+  html += '<div class="cs-moveline-grid">';
+  report.move_lines.forEach(function(ml){
+    html += '<div class="cs-moveline-card">';
+    html += '<div class="cs-moveline-scenario">' + _csEsc(ml.scenario) + ' ' + _csSourceChip(ml.source_label) + '</div>';
+    html += '<div class="cs-moveline-lead">Lead: ' + _csEsc((ml.lead_recommendation||[]).join(' + ')) + '</div>';
+    html += '<div><strong>T1:</strong> ' + _csEsc(ml.turn_1) + '</div>';
+    html += '<div><strong>T2:</strong> ' + _csEsc(ml.turn_2) + '</div>';
+    html += '<div class="cs-avoid"><strong>Avoid:</strong> ' + _csEsc(ml.what_to_avoid) + '</div>';
+    html += '<div class="cs-fallback"><strong>Fallback:</strong> ' + _csEsc(ml.fallback_plan) + '</div>';
+    html += '</div>';
+  });
+  html += '</div></section>';
+
+  // Section 8: Mistakes
+  html += '<section class="cs-section"><h3 class="cs-h3">Mistakes to Avoid (' + report.mistakes_to_avoid.length + ')</h3>';
+  html += '<div class="cs-mistake-list">';
+  report.mistakes_to_avoid.forEach(function(m, i){
+    html += '<div class="cs-mistake">';
+    html += '<div class="cs-mistake-head"><span class="cs-mistake-num">' + (i+1) + '</span> ' + _csEsc(m.mistake) + '</div>';
+    html += '<div class="cs-mistake-why"><strong>Why:</strong> ' + _csEsc(m.why_it_loses) + '</div>';
+    html += '<div class="cs-mistake-fix"><strong>Fix:</strong> ' + _csEsc(m.correction) + '</div>';
+    html += '</div>';
+  });
+  html += '</div></section>';
+
+  // Section 9: Risk profile
+  if (report.risk_profile.length) {
+    html += '<section class="cs-section"><h3 class="cs-h3">Risk Profile</h3><div class="cs-risk-grid">';
+    report.risk_profile.forEach(function(r){
+      html += '<div class="cs-risk-card cs-risk-' + r.severity + '">';
+      html += '<div class="cs-risk-cat">' + _csEsc(r.category.replace(/_/g,' ')) + ' &middot; ' + r.severity + '</div>';
+      html += '<div>' + _csEsc(r.why_it_matters) + '</div>';
+      html += '<div class="cs-risk-fix"><strong>Reduce by:</strong> ' + _csEsc(r.how_to_reduce) + '</div>';
+      html += '</div>';
+    });
+    html += '</div></section>';
+  }
+
+  // Section 10: Trend analysis
+  var ta = report.trend_analysis;
+  html += '<section class="cs-section"><h3 class="cs-h3">Trend Analysis</h3>';
+  if (!ta.has_data) {
+    html += '<p class="cs-no-data">' + _csEsc(ta.message_if_no_data) + '</p>';
+  } else {
+    html += '<ul class="cs-list">';
+    if (ta.best_lead)  html += '<li><strong>Best lead:</strong> ' + _csEsc(ta.best_lead.lead.join(' + ')) + ' (' + Math.round(ta.best_lead.win_rate*100) + '% over ' + ta.best_lead.sample + ')</li>';
+    if (ta.worst_lead) html += '<li><strong>Worst lead:</strong> ' + _csEsc(ta.worst_lead.lead.join(' + ')) + ' (' + Math.round(ta.worst_lead.win_rate*100) + '% over ' + ta.worst_lead.sample + ')</li>';
+    if (ta.most_common_loss_cause) html += '<li><strong>Most common loss cause:</strong> ' + _csEsc(ta.most_common_loss_cause) + '</li>';
+    if (ta.avg_first_ko_turn) html += '<li><strong>Avg first KO turn:</strong> ' + ta.avg_first_ko_turn + '</li>';
+    if (ta.dead_moves.length) html += '<li><strong>Dead moves:</strong> ' + _csEsc(ta.dead_moves.join(', ')) + '</li>';
+    if (ta.failed_matchups.length) html += '<li><strong>Failed matchups:</strong> ' + _csEsc(ta.failed_matchups.join(', ')) + '</li>';
+    html += '</ul>';
+  }
+  html += '</section>';
+
+  // Section 11: Skill coaching
+  var sk = report.skill_coaching;
+  html += '<section class="cs-section"><h3 class="cs-h3">Skill Coaching</h3><div class="cs-skill-grid">';
+  html += '<div class="cs-skill-card"><h4>Beginner</h4>';
+  html += '<p><strong>How team wins:</strong> ' + _csEsc(sk.beginner.how_team_wins) + '</p>';
+  html += '<p><strong>Safest lead:</strong> ' + _csEsc(sk.beginner.safest_lead.join(' + ')) + '</p>';
+  html += '<p><strong>Safe T1:</strong> ' + _csEsc(sk.beginner.safest_first_turn) + '</p>';
+  html += '<p><strong>Do not click:</strong> ' + _csEsc(sk.beginner.do_not_click.join(', ')) + '</p></div>';
+  html += '<div class="cs-skill-card"><h4>Intermediate</h4>';
+  html += '<p><strong>When to switch:</strong> ' + _csEsc(sk.intermediate.when_to_switch) + '</p>';
+  html += '<p><strong>When to Protect:</strong> ' + _csEsc(sk.intermediate.when_to_protect) + '</p>';
+  html += '<p><strong>Tempo:</strong> ' + _csEsc(sk.intermediate.tempo_management) + '</p>';
+  html += '<p><strong>Preserve wincon:</strong> ' + _csEsc(sk.intermediate.preserve_wincon) + '</p></div>';
+  html += '<div class="cs-skill-card"><h4>Advanced</h4>';
+  html += '<p><strong>Bait & punish:</strong></p><ul class="cs-list">';
+  sk.advanced.bait_and_punish.forEach(function(x){ html += '<li>' + _csEsc(x) + '</li>'; });
+  html += '</ul>';
+  html += '<p><strong>Double-switch logic:</strong> ' + _csEsc(sk.advanced.double_switch_logic) + '</p>';
+  html += '<p><strong>Win path compression:</strong> ' + _csEsc(sk.advanced.win_path_compression) + '</p>';
+  html += '<p><strong>Risk vs reward:</strong> ' + _csEsc(sk.advanced.risk_reward_adjustments) + '</p>';
+  html += '<p><strong>Opponent prediction:</strong> ' + _csEsc(sk.advanced.opponent_prediction) + '</p></div>';
+  html += '</div></section>';
+
+  // Section 12: Stress test
+  var st = report.stress_test;
+  html += '<section class="cs-section"><h3 class="cs-h3">Stress Test &middot; Consistency: ' + st.consistency_rating + '</h3>';
+  if (st.break_points.length) {
+    html += '<p><strong>Break points:</strong></p><ul class="cs-list">';
+    st.break_points.forEach(function(x){ html += '<li>' + _csEsc(x) + '</li>'; });
+    html += '</ul>';
+  }
+  if (st.punish_windows.length) {
+    html += '<p><strong>Punish windows:</strong></p><ul class="cs-list">';
+    st.punish_windows.forEach(function(x){ html += '<li>' + _csEsc(x) + '</li>'; });
+    html += '</ul>';
+  }
+  if (st.worst_matchups.length) html += '<p><strong>Worst matchups:</strong> ' + _csEsc(st.worst_matchups.join(', ')) + '</p>';
+  if (st.failure_scenarios.length) {
+    html += '<p><strong>Failure scenarios:</strong></p><ul class="cs-list">';
+    st.failure_scenarios.forEach(function(x){ html += '<li>' + _csEsc(x) + '</li>'; });
+    html += '</ul>';
+  }
+  html += '<p class="cs-champ-pov"><strong>Champion POV:</strong> ' + _csEsc(st.champion_perspective) + '</p>';
+  html += '</section>';
+
+  host.innerHTML = html;
+
+  // Apply Evidence toggle state on initial paint
+  _csApplyEvidenceVisibility();
+}
+
+// ---- Evidence toggle (Section 14, decision 3) -----------------------
+var CS_EVIDENCE_KEY = 'champions_evidence_chips_visible';
+function _csApplyEvidenceVisibility() {
+  try {
+    var on = localStorage.getItem(CS_EVIDENCE_KEY) === '1';
+    var t = document.getElementById('strategy-evidence-toggle');
+    if (t) t.checked = on;
+    document.querySelectorAll('[data-evidence]').forEach(function(el){
+      el.style.display = on ? '' : 'none';
+    });
+  } catch(e) { /* no-op if storage blocked */ }
+}
+function _csInitEvidenceToggle() {
+  var t = document.getElementById('strategy-evidence-toggle');
+  if (!t) return;
+  t.addEventListener('change', function(){
+    try { localStorage.setItem(CS_EVIDENCE_KEY, t.checked ? '1' : '0'); } catch(e) {}
+    _csApplyEvidenceVisibility();
+  });
+  _csApplyEvidenceVisibility();
+}
+
+// ---- Auto-rebuild (Section 14, decision 1) --------------------------
+// Debounced 500ms. Triggered by team select / import / sim complete.
+var _csRebuildTimer = null;
+function csScheduleStrategyRebuild() {
+  if (_csRebuildTimer) clearTimeout(_csRebuildTimer);
+  _csRebuildTimer = setTimeout(function(){
+    _csRebuildTimer = null;
+    try {
+      var key = (typeof currentPlayerKey !== 'undefined') ? currentPlayerKey : null;
+      if (key) renderStrategyTab(key);
+    } catch(e) { console.warn('[Phase2] strategy rebuild failed:', e && e.message); }
+  }, 500);
+}
+
+// ---- Wire-up on DOMContentLoaded ------------------------------------
+if (typeof window !== 'undefined') {
+  window.csBuildStrategyReportV2 = csBuildStrategyReportV2;
+  window.renderStrategyTab = renderStrategyTab;
+  window.csScheduleStrategyRebuild = csScheduleStrategyRebuild;
+
+  // Hook the existing tab-nav click and player-select change after DOM is ready
+  document.addEventListener('DOMContentLoaded', function(){
+    _csInitEvidenceToggle();
+
+    // Render when Strategy tab is opened
+    document.querySelectorAll('.tab-btn[data-tab="strategy"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        try { renderStrategyTab(currentPlayerKey); } catch(e) {}
+      });
+    });
+
+    // Auto-rebuild on player-select change
+    var sel = document.getElementById('player-select');
+    if (sel) sel.addEventListener('change', function(){ csScheduleStrategyRebuild(); });
+  });
 }
 
 // Expose for tests

@@ -43,7 +43,7 @@
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-        <h1 class="site-title">Pokémon Champion 2026</h1>
+        <h1 class="site-title">Pokémon Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.0.0-phase2.2</span></h1>
         <p class="site-sub">April 2026 Meta · VGC Doubles Simulator</p>
       </div>
     </div>
@@ -87,6 +87,7 @@
   <button class="tab-btn active" role="tab" data-tab="simulator">Simulator</button>
   <button class="tab-btn" role="tab" data-tab="teams">Teams</button>
   <button class="tab-btn" role="tab" data-tab="editor">Set Editor</button>
+  <button class="tab-btn" role="tab" data-tab="strategy">Strategy</button>
   <button class="tab-btn" role="tab" data-tab="replays">Replay Log</button>
   <button class="tab-btn" role="tab" data-tab="sources">Sources</button>
   <button class="tab-btn" role="tab" data-tab="pilot">Pilot Guide</button>
@@ -338,6 +339,28 @@
         <p>Select a Pokémon to edit</p>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ===== STRATEGY (Phase 2: Coaching Layer) ===== -->
+<!-- Adapter wraps existing T9j.16 buildStrategyReport with spec-compliant generators.
+     Painted by renderStrategyTab(currentPlayerKey). Auto-rebuilds 500ms after team
+     select / import / sim complete. See COACHING_LAYER_SPEC.md sections 4-12. -->
+<section class="tab-panel" id="tab-strategy">
+  <div class="strategy-header">
+    <div class="strategy-header-row">
+      <h2 class="section-heading">Strategy &amp; Coaching</h2>
+      <div class="strategy-controls">
+        <label class="strategy-toggle" title="Show source-label chips (Serebii / Smogon / Bulbapedia / etc.) on every claim">
+          <input type="checkbox" id="strategy-evidence-toggle" />
+          <span>Evidence</span>
+        </label>
+      </div>
+    </div>
+    <p class="editor-hint" id="strategy-subtitle">Pick a team. The coach grades it, ranks the top 3 leads, lists mistakes to avoid, and walks you through move lines for every common scenario.</p>
+  </div>
+  <div id="strategy-content">
+    <div class="strategy-empty">Select a team to generate the coaching report.</div>
   </div>
 </section>
 

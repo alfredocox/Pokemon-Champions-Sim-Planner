@@ -771,3 +771,331 @@ table{border-collapse:collapse;width:100%}
   .mega-trigger-table td { border-bottom: 1px solid #999 !important; }
   .mt-bar { background: #000 !important; }
 }
+
+/* ===================================================================
+   PHASE 2 - COACHING LAYER (Strategy tab)
+   See COACHING_LAYER_SPEC.md sections 8 (rendering rules) + 14
+   =================================================================== */
+
+/* Build version chip in header title */
+.build-version {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(34, 211, 238, 0.12);
+  color: #67e8f9;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 4px;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+}
+
+/* Strategy tab header */
+.strategy-header { margin-bottom: 16px; }
+.strategy-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.strategy-controls { display: flex; gap: 12px; align-items: center; }
+.strategy-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-2, #94a3b8);
+  cursor: pointer; user-select: none;
+}
+.strategy-toggle input { accent-color: #22d3ee; }
+.strategy-empty {
+  padding: 32px; text-align: center; color: var(--text-2, #94a3b8);
+  background: var(--surface-1, #0f172a); border: 1px dashed #334155;
+  border-radius: 8px;
+}
+
+/* Summary bar (tier + score + meta) */
+.cs-summary-bar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 16px; background: var(--surface-1, #0f172a);
+  border: 1px solid #1e293b; border-radius: 10px;
+  margin-bottom: 16px;
+}
+.cs-tier-badge {
+  width: 56px; height: 56px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 28px; font-weight: 900; color: #0b1120;
+  border-radius: 10px;
+}
+.cs-tier-S { background: linear-gradient(135deg, #22d3ee, #0e7490); color: #ecfeff; }
+.cs-tier-A { background: linear-gradient(135deg, #4ade80, #15803d); color: #f0fdf4; }
+.cs-tier-B { background: linear-gradient(135deg, #facc15, #a16207); color: #fefce8; }
+.cs-tier-C { background: linear-gradient(135deg, #fb923c, #c2410c); color: #fff7ed; }
+.cs-tier-D { background: linear-gradient(135deg, #f87171, #b91c1c); color: #fef2f2; }
+
+.cs-score {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 36px; font-weight: 900; line-height: 1;
+  color: var(--text-1, #e2e8f0);
+}
+.cs-score-suffix {
+  font-size: 14px; font-weight: 500; opacity: 0.6;
+  margin-left: 2px;
+}
+.cs-meta { flex: 1; }
+.cs-meta strong { color: var(--text-1, #e2e8f0); }
+.cs-meta-line {
+  font-size: 12px; color: var(--text-2, #94a3b8);
+  margin-top: 4px;
+}
+.cs-battle-ready {
+  display: inline-block; margin-top: 6px;
+  padding: 3px 10px;
+  background: linear-gradient(135deg, #22d3ee, #0e7490);
+  color: #0b1120; font-weight: 800; font-size: 10px;
+  letter-spacing: 0.08em; border-radius: 4px;
+}
+.cs-summary-line {
+  font-size: 14px; line-height: 1.5;
+  color: var(--text-1, #e2e8f0);
+  margin: 0 0 16px;
+}
+
+/* Section blocks */
+.cs-section {
+  background: var(--surface-1, #0f172a);
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 16px; margin-bottom: 12px;
+}
+.cs-h3 {
+  font-size: 14px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: #67e8f9;
+  margin: 0 0 12px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.cs-explain {
+  font-size: 13px; color: var(--text-2, #94a3b8);
+  margin: 0 0 12px;
+}
+.cs-list { margin: 0; padding: 0 0 0 18px; }
+.cs-list li { font-size: 13px; color: var(--text-1, #e2e8f0); margin-bottom: 4px; line-height: 1.5; }
+.cs-section p { font-size: 13px; line-height: 1.5; margin: 6px 0; color: var(--text-1, #e2e8f0); }
+
+/* 14-category score grid */
+.cs-cat-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.cs-cat {
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+}
+.cs-cat-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-2, #94a3b8);
+}
+.cs-cat-score {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px; font-weight: 600;
+  color: #67e8f9; margin-top: 2px;
+}
+
+/* Chips */
+.cs-chip {
+  display: inline-block; padding: 2px 8px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  background: rgba(103, 232, 249, 0.12);
+  color: #67e8f9;
+  border-radius: 4px; text-transform: uppercase;
+}
+.cs-chip-playstyle { background: rgba(168, 85, 247, 0.15); color: #c4b5fd; }
+
+/* Source label chips (Evidence toggle) */
+.cs-source {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid #334155;
+}
+.cs-source-label {
+  text-transform: uppercase; letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.cs-source-verified_champions_source { color: #4ade80; }
+.cs-source-verified_champions_source .cs-source-label { color: #4ade80; }
+.cs-source-simulation_data { color: #67e8f9; }
+.cs-source-simulation_data .cs-source-label { color: #67e8f9; }
+.cs-source-inferred_strategy { color: #fbbf24; }
+.cs-source-inferred_strategy .cs-source-label { color: #fbbf24; }
+.cs-source-unknown { color: #94a3b8; }
+.cs-cite {
+  color: inherit; opacity: 0.85; text-decoration: underline;
+}
+.cs-cite:hover { opacity: 1; }
+
+/* Lead cards (top 3) */
+.cs-lead-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+.cs-lead-card {
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b; border-left: 3px solid #22d3ee;
+  border-radius: 8px;
+}
+.cs-lead-rank {
+  display: inline-block; padding: 2px 8px;
+  background: #22d3ee; color: #0b1120;
+  font-weight: 800; font-size: 11px;
+  border-radius: 4px; margin-bottom: 8px;
+}
+.cs-lead-pair {
+  font-weight: 700; font-size: 14px;
+  color: var(--text-1, #e2e8f0); margin-bottom: 4px;
+}
+.cs-lead-purpose {
+  font-size: 12px; color: var(--text-2, #94a3b8);
+  margin-bottom: 8px;
+}
+.cs-lead-line, .cs-lead-risk {
+  font-size: 12px; line-height: 1.5;
+  margin-bottom: 4px; color: var(--text-1, #e2e8f0);
+}
+.cs-lead-risk { color: #fbbf24; }
+.cs-lead-wr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #4ade80;
+  margin-top: 6px;
+}
+
+/* Move lines */
+.cs-moveline-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+.cs-moveline-card {
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  font-size: 12px; line-height: 1.5;
+}
+.cs-moveline-scenario {
+  font-weight: 700; color: #c4b5fd;
+  margin-bottom: 6px;
+}
+.cs-moveline-lead {
+  font-size: 11px; color: var(--text-2, #94a3b8);
+  margin-bottom: 6px;
+}
+.cs-avoid { color: #fbbf24; margin-top: 4px; }
+.cs-fallback { color: #94a3b8; margin-top: 4px; }
+
+/* Mistakes */
+.cs-mistake-list { display: flex; flex-direction: column; gap: 8px; }
+.cs-mistake {
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border-left: 3px solid #f87171;
+  border-radius: 6px;
+}
+.cs-mistake-head {
+  font-weight: 700; color: var(--text-1, #e2e8f0);
+  margin-bottom: 4px;
+}
+.cs-mistake-num {
+  display: inline-block; width: 20px; height: 20px;
+  line-height: 20px; text-align: center;
+  background: #f87171; color: #0b1120;
+  border-radius: 50%; font-size: 11px; font-weight: 800;
+  margin-right: 6px;
+}
+.cs-mistake-why, .cs-mistake-fix {
+  font-size: 12px; line-height: 1.5;
+  color: var(--text-1, #e2e8f0); margin-top: 2px;
+}
+.cs-mistake-fix { color: #4ade80; }
+
+/* Risk grid */
+.cs-risk-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.cs-risk-card {
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border-left: 3px solid #94a3b8;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.cs-risk-low      { border-left-color: #4ade80; }
+.cs-risk-moderate { border-left-color: #facc15; }
+.cs-risk-high     { border-left-color: #fb923c; }
+.cs-risk-extreme  { border-left-color: #f87171; }
+.cs-risk-cat {
+  font-weight: 700; text-transform: capitalize;
+  margin-bottom: 4px; color: var(--text-1, #e2e8f0);
+}
+.cs-risk-fix { color: #4ade80; margin-top: 4px; }
+
+/* Skill coaching grid */
+.cs-skill-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+.cs-skill-card {
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b; border-radius: 8px;
+}
+.cs-skill-card h4 {
+  margin: 0 0 8px;
+  color: #67e8f9; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+/* Threats */
+.cs-threat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.cs-threat-card {
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+}
+.cs-threat-name {
+  font-weight: 700; color: #f87171;
+  margin-bottom: 4px;
+}
+.cs-threat-why, .cs-threat-play {
+  font-size: 12px; line-height: 1.5;
+  color: var(--text-1, #e2e8f0); margin-top: 2px;
+}
+
+.cs-no-data {
+  padding: 16px; text-align: center;
+  color: var(--text-2, #94a3b8);
+  font-style: italic;
+}
+
+.cs-champ-pov {
+  background: rgba(34, 211, 238, 0.06);
+  border-left: 3px solid #22d3ee;
+  padding: 10px 12px;
+  margin-top: 12px;
+  font-size: 13px; line-height: 1.5;
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .cs-summary-bar { flex-wrap: wrap; }
+  .cs-tier-badge { width: 48px; height: 48px; font-size: 22px; }
+  .cs-score { font-size: 28px; }
+}
