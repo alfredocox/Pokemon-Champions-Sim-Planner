@@ -1,7 +1,7 @@
-# MASTER PROMPT — Poke-e-Sim Champion 2026
+# MASTER PROMPT — Pokémon Champion 2026
 
 > **(c) 2026 Alfredo Cox (@alfredocox) and Kevin Medeiros (@TheYfactora12). All Rights Reserved.**
-> **Proprietary - see `LICENSE`. Pokemon IP attribution: see `NOTICE.md`.**
+> **Proprietary — see `LICENSE`. Pokémon IP attribution: see `NOTICE.md`.**
 > **Canonical product tagline: "Battle-tested. Always evolving."**
 >
 > **HOW TO USE:** Copy everything from the `--- COPY FROM HERE ---` line to the very end of this file.
@@ -16,56 +16,135 @@ You are continuing development of **Pokémon Champion 2026**, a production-grade
 
 **GitHub repo:** https://github.com/alfredocox/Pokemon-Champions-Sim-Planner
 **Default branch:** `main`
-**Active dev branch:** `main` (fix/champions-sp-and-legality was merged; all work goes to main)
+**Active dev branch:** `fix/engine-gauntlet-11bugs` (all engine fixes go here; merge to main when tests pass)
 **Space name:** Pokesim (use this context for all Space-based chats)
 **Owner / committer identity:** `user.email=5zyxn9yrnt@privaterelay.appleid.com user.name=TheYfactora12`
 **All new feature tickets:** assigned to `@TheYfactora12`
 
 ---
 
-## LIVE APP — HOW TO ACCESS
+## ⚡ SESSION STARTUP CHECKLIST
 
-> ⚠️ **htmlpreview.github.io does NOT work** for the multi-file dev version (`poke-sim/index.html`). It works fine for the self-contained bundle.
+Run this mentally at the start of **every** new session before writing a single line of code:
 
-### ✅ Working ways to open the app
-
-**Option 1 — htmlpreview bundle link (easiest, no setup):**
-```
-https://htmlpreview.github.io/?https://raw.githubusercontent.com/alfredocox/Pokemon-Champions-Sim-Planner/main/poke-sim/pokemon-champion-2026.html
-```
-
-**Option 2 — GitHub Pages (same bundle, auto-deploys on push):**
-```
-https://alfredocox.github.io/Pokemon-Champions-Sim-Planner/
-```
-
-**Option 3 — Clone and open locally:**
-```bash
-git clone https://github.com/alfredocox/Pokemon-Champions-Sim-Planner.git
-cd Pokemon-Champions-Sim-Planner/poke-sim
-open pokemon-champion-2026.html   # macOS
-start pokemon-champion-2026.html  # Windows
-```
-
-**Option 4 — Local dev server (full PWA, service worker active):**
-```bash
-cd poke-sim
-npx serve .
-# Open: http://localhost:3000
-```
-
-**Option 5 — Perplexity Space deploy (preview URL only visible to owner):**
-Space instruction `deploy_website(project_path="poke-sim/poke-sim", site_name="Champions Sim", entry_point="index.html", should_validate=False)`
-
-> **Why htmlpreview works for the bundle but not index.html:** The bundle (`pokemon-champion-2026.html`) is fully self-contained — all CSS/JS inlined. htmlpreview works fine for it. The multi-file `index.html` loads `data.js`, `engine.js`, `ui.js`, `style.css` as separate files which fail cross-origin.
-
-> ⚠️ **The live bundle filename is `pokemon-champion-2026.html`.** There is no `-FINAL` variant in the repo. Do not use `pokemon-champion-2026-FINAL.html` — that file does not exist and will 404.
+1. **Confirm the active branch.** Work target: `fix/engine-gauntlet-11bugs`. Do not code against `main` directly.
+2. **Check Space file vs GitHub sync.** Space files (data.js, engine.js, ui.js) may lag behind the repo. If unsure, read the file from GitHub before editing.
+3. **Confirm active milestone/issue.** Current work = T9j.17 engine fixes (see Resume Next below). Check open issues labelled `sprint-1` before starting anything new.
+4. **Verify latest test evidence** before touching engine.js. The 5,070-battle audit + test suites must pass green before any PR merges.
+5. **Only then code or modify prompts.**
 
 ---
 
-## WHAT THIS PROJECT IS
+## 🎯 PRODUCT PURPOSE
 
-A browser-only VGC doubles team simulator for April 2026 meta (Regulation M-A, Scarlet/Violet Series 3 with Mega Evolutions via Alfredo's custom Champions 2026 format). No server. No build tools required. Works 100% offline from a single HTML file.
+A browser-only VGC doubles team simulator for the April 2026 meta (Regulation M-A, Scarlet/Violet Series 3 with Mega Evolutions via the custom Champions 2026 format). No server. No build tools required. Works 100% offline from a single HTML file.
+
+**What it is not:** not a Smogon damage calculator replacement; not a live-data meta scraper (yet); not a multiplayer tool.
+
+---
+
+## 👥 OWNERSHIP
+
+| Role | GitHub handle | Responsibilities |
+|---|---|---|
+| Engineering / refactor / infra / perf / security | @alfredocox | Source code, build tooling, CI, architecture |
+| Product / feature / testing / coaching validation / stress testing | @TheYfactora12 (Kevin Medeiros) | Feature scoping, rule design, user decisions, QA ownership |
+| Testing + a11y | @Jdoutt38 | All testing issues, NVDA/VoiceOver, axe-core |
+| Product signoff (launch) | @alfredocox + @TheYfactora12 | Both must approve before M6 ship gate |
+
+---
+
+## 🔴 KNOWN BLOCKERS / CURRENT LIMITATIONS
+
+> These are active constraints, not future ideas. Do not ignore them.
+
+| ID | Blocker | Impact | Fix status |
+|----|---------|--------|------------|
+| Space file lag | Space instructions mirror the GitHub repo but require manual re-upload. Edits to source files in Space may not reflect the latest commit. | Stale context risk on every session | Workaround: always read file from GitHub first |
+| COVERAGE_CHECKS TDZ | Must be `var` in ui.js — see Critical Bug section. Cannot be `const`/`let` until #80 (lazy init) lands | App hard-breaks on load if changed | Issue #80 is the fix; Sprint 2 |
+| No direct remove-team UI | Imported teams can only be cleared by overwriting the slot with another import; no one-click remove | Minor UX friction | Not yet ticketed |
+| Tera activation broken | `teraActivated` always false; no active Tera trigger in engine | All sim results ignore Tera coverage | Deferred — issue #7; Champions format does not use Tera |
+| Phase 4e regression test | "Same advice after 100 battles = failing" regression test does not exist yet | Phase 4 closeout blocked | Issue #54 scope; Phase 4e |
+| CI not yet enforced | #87 (GitHub Actions) is in Sprint 1 queue but not yet merged | PRs can merge without automated test pass | Sprint 1 item #1 |
+| Golurk-Mega sprite blank | Custom mega form not in PokeAPI dex; renders blank | Visual gap in trick_room_golurk team | Low priority; sprite gap fix PR pending |
+
+---
+
+## ✅ VALIDATION GATES (ship criteria)
+
+A PR touching `engine.js` or `data.js` must pass ALL of the following before merge:
+
+| Gate | Tool | Pass criteria |
+|------|------|---------------|
+| Syntax check | `node --check poke-sim/engine.js` | Zero errors |
+| Unit tests — items | `node tests/items_tests.js` | 14/14 pass |
+| Unit tests — status | `node tests/status_tests.js` | 27/27 pass |
+| Unit tests — mega | `node tests/mega_tests.js` | 27/27 pass |
+| Unit tests — coverage | `node tests/coverage_tests.js` | 9/9 pass |
+| Unit tests — crits/flinch/abilities | `node tests/t9j8_tests.js` | 47/47 pass |
+| Unit tests — move data | `node tests/t9j9_tests.js` | 24/24 pass |
+| Unit tests — team preview | `node tests/t9j10_tests.js` | ~16/16 pass |
+| 5,070-battle audit | `node tests/audit.js` | 0 JS errors, 0 crashes |
+| Bundle freshness | `bash poke-sim/tools/check-bundle.sh` | No drift vs source |
+| CACHE_NAME bump | `tools/release.sh <tag>` | sw.js bumped |
+
+> **Total test floor: 343+ assertions.** Any PR that drops the count is rejected.
+
+A PR touching `ui.js` only (no engine/data changes) may skip audit.js but must still pass all unit tests and bundle check.
+
+---
+
+## ▶️ RESUME NEXT
+
+**Current active work:** T9j.17 engine mechanics — branch `fix/engine-gauntlet-11bugs`
+
+**What T9j.17 adds (all in engine.js):**
+- Frostbite status condition (1/16 chip, SpA halved, no action skip, Ice-type immune)
+- Fake Out hard-gate (cannot be selected past first turn out; flag resets on switch-in)
+- Piercing Drill rewrite: 25% miss chance on every move (not Protect bypass — previous impl was wrong)
+- Expanding Force × Psychic Terrain: spread to all foes + 1.5× BP when grounded on Psychic Terrain
+- Terrain Seeds: Grassy/Electric +1 Def, Psychic/Misty +1 SpD on switch-in to matching terrain
+- Iron Head flinch nerf: 30% → 20% in Champions
+
+**First verification step before touching any file:**
+```bash
+cd poke-sim/poke-sim
+node --check engine.js          # must be clean
+node tests/t9j8_tests.js        # 47 must pass
+node tests/status_tests.js      # 27 must pass
+```
+
+**Then check the open issues on this branch:**
+https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues?q=is%3Aopen+label%3Asprint-1
+
+---
+
+## 🌐 LIVE APP — HOW TO ACCESS
+
+> ⚠️ **htmlpreview.github.io does NOT work** for the multi-file dev version (`poke-sim/index.html`). It works fine for the self-contained bundle.
+
+| Method | URL / Command |
+|--------|---------------|
+| htmlpreview bundle (easiest) | `https://htmlpreview.github.io/?https://raw.githubusercontent.com/alfredocox/Pokemon-Champions-Sim-Planner/main/poke-sim/pokemon-champion-2026.html` |
+| GitHub Pages (auto-deploys) | `https://alfredocox.github.io/Pokemon-Champions-Sim-Planner/` |
+| Clone + open locally | `git clone ... && open poke-sim/pokemon-champion-2026.html` |
+| Local dev server (PWA active) | `cd poke-sim && npx serve .` → `http://localhost:3000` |
+| Perplexity Space deploy | `deploy_website(project_path="poke-sim/poke-sim", site_name="Champions Sim", entry_point="index.html", should_validate=False)` |
+
+> **Bundle filename is `pokemon-champion-2026.html`.** No `-FINAL` variant exists in the repo.
+
+---
+
+## SOURCE OF TRUTH RULES
+
+| Asset | Canonical source | Do not edit directly |
+|-------|-----------------|----------------------|
+| Source files | `poke-sim/poke-sim/` in GitHub repo | — |
+| Bundle | Rebuilt from source via `python3 tools/build-bundle.py` | `pokemon-champion-2026.html` |
+| Space files | Mirror of GitHub; may lag. **Always read from GitHub first.** | — |
+| Test evidence | `tests/` directory in GitHub | — |
+| Issue tracker | GitHub Issues | — |
+| This document | `poke-sim/MASTER_PROMPT.md` (single copy) | All edits go here |
 
 ---
 
@@ -74,7 +153,7 @@ A browser-only VGC doubles team simulator for April 2026 meta (Regulation M-A, S
 ```
 Pokemon-Champions-Sim-Planner/
 ├── tools/
-│   └── release.sh                      ← #95 Phase 2: auto-bumps sw.js CACHE_NAME on release
+│   └── release.sh                      ← #95: auto-bumps sw.js CACHE_NAME on release
 ├── .github/
 │   ├── workflows/
 │   │   ├── cache-bump-check.yml        ← #95 Phase 3: CI fails PR if CACHE_NAME not bumped
@@ -83,31 +162,31 @@ Pokemon-Champions-Sim-Planner/
 │   └── pull_request_template.md
 ├── poke-sim/
 │   ├── tools/
-│   │   ├── build-bundle.py             ← #88 Phase 1: canonical rebuild script (shared by CI + humans)
-│   │   ├── check-bundle.sh             ← #88 Phase 1: fails if bundle drifts from source files
-│   │   └── README.md                   ← #88 Phase 1: explains all tools + drift fix instructions
+│   │   ├── build-bundle.py             ← #88 Phase 1: canonical rebuild script
+│   │   ├── check-bundle.sh             ← #88 Phase 1: fails if bundle drifts from source
+│   │   └── README.md
 │   ├── poke-sim/                       ← nested dev workspace (source of truth)
 │   │   ├── index.html                  ← App shell + tab structure + PWA meta
 │   │   ├── style.css                   ← Full dark theme, mobile-first
 │   │   ├── data.js                     ← BASE_STATS, POKEMON_TYPES_DB, DEX_NUM_MAP,
-│   │   │                                  TEAMS (22 teams: 13 tournament + 9 imported), MOVE_TYPES,
-│   │   │                                  MOVE_CATEGORY (104 entries, T9j.9),
-│   │   │                                  MOVE_BP (110+ entries, T9j.9),
+│   │   │                                  TEAMS (22 teams), MOVE_TYPES,
+│   │   │                                  MOVE_CATEGORY (104 entries), MOVE_BP (110+ entries),
 │   │   │                                  getSpriteUrl()
 │   │   ├── engine.js                   ← Pokemon class, Field class, simulateBattle(),
-│   │   │                                  runSimulation() (Monte Carlo), runAllMatchups(),
+│   │   │                                  runSimulation(), runAllMatchups(),
 │   │   │                                  crit + flinch (T9j.8), 6 champion abilities (T9j.8),
-│   │   │                                  Team Preview bring-N-of-6 (T9j.10)
+│   │   │                                  Team Preview bring-N-of-6 (T9j.10),
+│   │   │                                  T9j.17 mechanics (frostbite, fake-out gate,
+│   │   │                                  Piercing Drill 25% miss, terrain seeds, Expanding Force)
 │   │   ├── ui.js                       ← All UI logic: tabs, team selects, import/export,
 │   │   │                                  pilot guide, PDF report, speed tiers, meta radar,
 │   │   │                                  coverage checker, strategy tab,
 │   │   │                                  bring-picker slot layout + drag/tap (T9j.10)
 │   │   ├── strategy-injectable.js      ← TEAM_META knowledge base
 │   │   ├── manifest.json               ← PWA manifest
-│   │   ├── sw.js                       ← Service worker (cache-first) -- CACHE_NAME: see SW CACHE HISTORY table
-│   │   ├── icon-192.png                ← PWA icon
-│   │   ├── icon-512.png                ← PWA icon
-│   │   ├── pokemon-champion-2026.html  ← Self-contained single-file bundle (~685 KB)
+│   │   ├── sw.js                       ← Service worker (cache-first)
+│   │   ├── icon-192.png + icon-512.png ← PWA icons
+│   │   ├── pokemon-champion-2026.html  ← Self-contained bundle (~685 KB) — REBUILT ARTIFACT
 │   │   ├── tests/
 │   │   │    ├── items_tests.js         ← 14 cases
 │   │   │    ├── status_tests.js        ← 27 cases
@@ -117,112 +196,119 @@ Pokemon-Champions-Sim-Planner/
 │   │   │    ├── t9j9_tests.js          ← 24 cases (MOVE_CATEGORY / MOVE_BP)
 │   │   │    ├── t9j10_tests.js         ← ~16 cases (Team Preview bring-N-of-6)
 │   │   │    └── audit.js               ← 5070-battle regression sweep
-│   │   ├── COACHING_LAYER_SPEC.md      ← Phase 1-3 coaching spec (Sections 1-14)
-│   │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md ← Phase 4 adaptive coaching spec v2
-│   │   │                                  (state machine + threat response + policy audit)
-│   │   ├── PHASE4C_DETECTORS_SPEC.md   ← Phase 4c: dead moves, lead perf,
-│   │   │                                  loss conditions, confidence badges
-│   │   ├── PHASE4D_THREAT_RESPONSE_SPEC.md ← Phase 4d: 4-branch MC solver,
-│   │   │                                      line classification v1, 200x4 budget
-│   │   ├── PHASE4E_POLICY_AUDIT_SPEC.md ← Phase 4e: fake-good detector,
-│   │   │                                   same-advice regression test (BLOCKER)
-│   │   ├── PHASE5_TURN_LOG_SPEC_DRAFT.md ← Phase 5 DRAFT: structured turnLog,
-│   │   │                                   positionScore, winProbabilityDelta
-│   │   ├── PHASE6_COACHING_VOICE_SPEC.md ← Phase 6: PRE/IN/POST templates,
-│   │   │                                   RNG-blame gating, banned-phrasings linter
-│   │   ├── PHASE_ROLLOUT_REVIEW.md     ← Master index: side-by-side, effort,
-│   │   │                                  dependencies, go/no-go gates
-│   │   └── COACHING_NORTH_STAR.md      ← Standing brief: top-1%-sim spec +
-│   │                                      validation matrix + acceptance criteria
-│   ├── DEVELOPMENT_RUNBOOK.md          ← Full dev history, architecture, QA log
-│   ├── CHAMPIONS_MECHANICS_SPEC.md     ← Authoritative mechanics reference
-│   ├── CHAMPIONS_VALIDATOR_FRAMEWORK.md ← Validator framework doc (T9j.8)
-│   ├── STATUS_STACKING_RULES.md        ← Status conditions spec
-│   ├── SPREAD_DAMAGE_SPEC.md           ← Doubles spread damage spec
-│   ├── BATTLE_DAMAGE_DOCUMENT.md       ← Damage formula reference
-│   ├── GITHUB_ISSUES_TO_FILE.md        ← Backlog log
-│   ├── MASTER_PROMPT.md                ← **This file** (single canonical copy)
-│   └── README.md                       ← Quickstart guide
+│   │   ├── COACHING_LAYER_SPEC.md
+│   │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md
+│   │   ├── PHASE4C_DETECTORS_SPEC.md
+│   │   ├── PHASE4D_THREAT_RESPONSE_SPEC.md
+│   │   ├── PHASE4E_POLICY_AUDIT_SPEC.md
+│   │   ├── PHASE5_TURN_LOG_SPEC_DRAFT.md
+│   │   ├── PHASE6_COACHING_VOICE_SPEC.md
+│   │   ├── PHASE_ROLLOUT_REVIEW.md
+│   │   └── COACHING_NORTH_STAR.md
+│   ├── DEVELOPMENT_RUNBOOK.md
+│   ├── CHAMPIONS_MECHANICS_SPEC.md
+│   ├── CHAMPIONS_VALIDATOR_FRAMEWORK.md
+│   ├── STATUS_STACKING_RULES.md
+│   ├── SPREAD_DAMAGE_SPEC.md
+│   ├── BATTLE_DAMAGE_DOCUMENT.md
+│   ├── GITHUB_ISSUES_TO_FILE.md
+│   ├── MASTER_PROMPT.md                ← This file (single canonical copy)
+│   └── README.md
 ```
-
-> ✅ **Single MASTER_PROMPT.md.** The only copy is `poke-sim/MASTER_PROMPT.md` (this file). The former inner duplicate at `poke-sim/poke-sim/MASTER_PROMPT.md` was deleted in the consolidation PR. All edits go here.
 
 ---
 
-## SERVICE WORKER CACHE HISTORY (#95)
+## 🚨 CRITICAL BUG — DO NOT CHANGE THIS
 
-All phases of #95 are **COMPLETE**.
+```javascript
+// In ui.js — MUST be declared as var, NOT const or let
+var COVERAGE_CHECKS = [...];
+```
 
-| Version | Tag | Ships with | Commit / PR | Status |
-|---------|-----|-----------|-------------|--------|
-| `champions-sim-v1` | — | Foundation | — | Retired |
-| `champions-sim-v2` | — | T9j.1–T9j.6 | — | Retired |
-| `champions-sim-v3` | — | T9j.7–T9j.15 | `8977090` | Retired |
-| `champions-sim-v4-t9j16` | T9j.16 | Coaching engine | `944b405` | Retired |
-| `champions-sim-v5-phase3` | phase3 | Strategy tab + persistence (#106 #108) | `2a01cce` | Retired |
-| `champions-sim-v5-phase4a` | phase4a | Sim log foundation + koEvents | PR #113 | Retired |
-| `champions-sim-v5-phase4b` | phase4b | Adaptive state machine + team_history + consistency | PR #115 | Retired |
-| `champions-sim-v5-pilotfix1` | pilotfix1 | Pilot Guide populates after every single sim | PR #118 | Retired |
-| `champions-sim-v5-recordbar1` | recordbar1 | Record bar total + per-archetype splits (sim counts 10/50/100/500) | PR #119 | Retired |
-| `champions-sim-v5-mirror1` | mirror1 | Both-sides sim log mirroring (opponent-only teams populate) | PR #120 | Retired |
-| `champions-sim-v5-emptystate1` | emptystate1 | Record bar legacy vs new empty-state guidance | PR #121 | **✅ Current (v2.1.8-emptystate.1)** |
+Referenced during initialization before its declaration line is reached.  
+`const`/`let` throws a Temporal Dead Zone (TDZ) ReferenceError and breaks the entire app on load.  
+**Fix path:** Issue #80 (lazy init pattern). Do not touch without first completing #80.  
+Every rebuild must verify `var` is preserved.
 
-**CACHE_NAME bump rule:** Must be updated on every release that changes `engine.js`, `data.js`, `ui.js`, or `style.css`. Format: `champions-sim-v{major}-{release-tag}`.
+---
 
-**How to run the release script:**
+## ⚠️ REBUILD WARNING
+
+The bundle is a **rebuilt artifact**, not an editable file.
+
 ```bash
-# From repo root
-chmod +x tools/release.sh         # first time only
-./tools/release.sh t9j17           # bump to next tag
-./tools/release.sh t9j17 --bump-major  # also increment major version
+# From poke-sim/ directory — run after ANY source file change
+cd poke-sim && python3 tools/build-bundle.py
 ```
 
----
-
-## ISSUE #88 — BUNDLE FRESHNESS CHECK ✅ DONE
-
-**Title:** infra: Automated bundle-freshness check (fail PR on bundle drift)
-**Milestone:** M9 Observability & QA
-**Assigned:** @alfredocox
-
-### Phase 1 — poke-sim/tools/ scripts ✅ COMPLETE (PR #123, 2026-04-25)
-- `poke-sim/tools/build-bundle.py` added — canonical bundle builder extracted from MASTER_PROMPT inline one-liner
-- `poke-sim/tools/check-bundle.sh` added — sha256-compares fresh build vs committed bundle, exits 1 if stale
-- `poke-sim/tools/README.md` added — explains all tools + drift fix instructions
-- Run from `poke-sim/` directory: `python3 tools/build-bundle.py`
-- Check mode: `bash poke-sim/tools/check-bundle.sh` (from repo root)
-
-### Phase 2 — CI enforcement ✅ COMPLETE (2026-04-25)
-- `.github/workflows/bundle-freshness-check.yml` wires `check-bundle.sh` into every PR targeting `main`
-- Detects if `index.html`, `style.css`, `data.js`, `engine.js`, `ui.js`, or `strategy-injectable.js` changed
-- If yes: runs check, fails PR if bundle not rebuilt
-- Passes silently for docs/tests/infra-only PRs
-- Does NOT block direct pushes to main (hotfix escape hatch preserved)
-
-### Phase 3 — Branch Protection (action required: repo owner)
-- Required status check `Verify bundle is fresh` must be added to `main` branch protection rule
-- Go to: https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/settings/branches
-- Add `Verify bundle is fresh` alongside `Verify sw.js CACHE_NAME bumped` (#95)
-- Enable "Require branches to be up to date before merging"
-- ⚠️ Trigger the workflow first by opening a draft PR so the check name appears in the dropdown
+`sw.js` is NOT inlined. It is standalone — only active via local dev server or GitHub Pages.
 
 ---
 
-## TABS
+## RELEASE PROCEDURE
 
-`Simulator` | `Teams` | `Set Editor` | `Strategy` | `Replay Log` | `Sources` | `Pilot Guide`
+Mandatory steps before merging any PR that touches `engine.js`, `data.js`, `ui.js`, `style.css`, `strategy-injectable.js`, or `index.html`:
 
-**Strategy tab** added in Phase 2 (PR #106). Phase 4b now paints an **adaptive banner** (State 1/2/3) + a **Record bar** showing total W-L plus per-archetype splits, reading from the Phase 4 per-series sim log. See `## COACHING LAYER ROLLOUT` and `## PHASE 4 - ADAPTIVE COACHING` below.
+1. Finish feature/fix on branch
+2. `cd poke-sim && python3 tools/build-bundle.py`
+3. `chmod +x tools/release.sh && ./tools/release.sh <tag>`
+4. `git diff --cached poke-sim/poke-sim/pokemon-champion-2026.html`
+5. `git diff --cached poke-sim/sw.js`
+6. `git commit -m "feat: <description> - Refs #N"`
+7. Update `MASTER_PROMPT.md` to reflect the change
+8. Open PR — CI checks verify steps 2 and 3
 
-**Pilot Guide tab** upserts one card per opponent after every single sim (PR #118 — no longer requires Run All Matchups to appear).
+---
+
+## ARCHITECTURE OVERVIEW
+
+### Key state variables (ui.js)
+```javascript
+let currentPlayerKey = 'player';       // active player team key
+let currentFormat    = 'doubles';      // 'doubles' | 'singles'
+let currentBo        = 1;              // 1 | 3 | 5 | 10
+let lastAllResults   = null;           // cached Run All results
+var BRING_SELECTION  = {};             // teamKey -> ordered array of mon names
+var BRING_MODE       = {};             // teamKey -> 'manual' | 'random'
+```
+
+### Engine entry points (engine.js)
+```javascript
+runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress)   // single matchup
+runAllMatchups(numBattles, onProgress, onMatchupDone)              // all 12 opponents
+// simulateBattle opts: format, playerBring, opponentBring, playerLeads, opponentLeads, seed, strict
+```
+
+### Damage formula
+```
+baseDmg = floor((floor((2*50/5+2) * BP * Atk / Def) / 50) + 2)
+crit    = rng() < critChance(stage)          // T9j.8 seeded PRNG
+roll    = 0.85 + rng() * 0.15               // seeded PRNG
+total   = floor(baseDmg * STAB * typeEff * spreadMult * screenMod * critMod * roll)
+```
+
+### Move data (T9j.9)
+- `MOVE_CATEGORY` (104 entries) — `'physical' | 'special' | 'status'`
+- `MOVE_BP` (110+ entries) — base power integer
+- Both in `data.js`; engine reads them first, falls back to heuristics with `console.warn`
+
+### Format rules (T9j.10 — Team Preview bring-N-of-6)
+| Format | Team size | Bring | Leads | Bench |
+|--------|-----------|-------|-------|-------|
+| Doubles | 6 | 4 of 6 | 2 | 2 |
+| Singles | 6 | 3 of 6 | 1 | 2 |
+
+### Sprites
+`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{dex_num}.png`  
+Known sprite gap: `Golurk-Mega` (custom mega, no PokeAPI entry — renders blank).
 
 ---
 
 ## 22 LOADED TEAMS
 
 ### Tournament + custom (13)
-| Key | Team Description |
-|-----|-----------------|
+| Key | Team |
+|-----|------|
 | `player` | TR Counter Squad — Incineroar / Arcanine / Garchomp / Whimsicott / Rotom-Wash / Garchomp-Scarf |
 | `mega_altaria` | Mega Altaria — pokepaste dfdfa66d317cf9d7 |
 | `mega_dragonite` | Mega Dragonite — pokepaste dd101585183c9ed6 |
@@ -234,16 +320,16 @@ chmod +x tools/release.sh         # first time only
 | `champions_arena_2nd` | Jorge Tabuyo — Champions Arena Finalist |
 | `champions_arena_3rd` | Juan Benítez — Champions Arena Top 3 |
 | `chuppa_balance` | Chuppa Cross IV — Pittsburgh Champion |
-| `aurora_veil_froslass` | Aurora Veil Froslass team |
+| `aurora_veil_froslass` | Aurora Veil Froslass |
 | `kingambit_sneasler` | Kingambit + Sneasler Core |
 
 ### Imported / archetype (9)
-| Key | Team Description |
-|-----|-----------------|
-| `custom_1776995210260` | User-imported custom team |
+| Key | Team |
+|-----|------|
+| `custom_1776995210260` | User-imported custom |
 | `perish_trap_gengar` | Perish Trap Gengar |
 | `rain_offense` | Rain Offense |
-| `trick_room_golurk` | TR Golurk-Mega (sprite gap: custom mega form, see Sprite Gaps section) |
+| `trick_room_golurk` | TR Golurk-Mega (sprite gap) |
 | `sun_offense_charizard` | Sun Offense Charizard |
 | `z2r_feitosa_mega_floette` | Feitosa Mega Floette |
 | `benny_v_mega_froslass` | Benny V Mega Froslass |
@@ -252,366 +338,145 @@ chmod +x tools/release.sh         # first time only
 
 ---
 
-## FORMAT RULES (Team Preview bring-N-of-6 — T9j.10)
+## TABS
 
-| Format  | Team size | Bring | Leads | Bench |
-|---------|-----------|-------|-------|-------|
-| Doubles | 6         | 4 of 6| 2     | 2     |
-| Singles | 6         | 3 of 6| 1     | 2     |
+`Simulator` | `Teams` | `Set Editor` | `Strategy` | `Replay Log` | `Sources` | `Pilot Guide`
 
-- Cite: https://bulbapedia.bulbagarden.net/wiki/Team_Preview
-- Cite: https://bulbapedia.bulbagarden.net/wiki/VGC
-- Cite: https://bulbapedia.bulbagarden.net/wiki/Lead_Pok%C3%A9mon
+- **Strategy tab** — Phase 2 (PR #106). Adaptive banner (State 1/2/3) + Record bar (total W-L + per-archetype splits).
+- **Pilot Guide** — upserts one card per opponent after every single sim (PR #118); does not require Run All.
 
 ---
 
-## ARCHITECTURE OVERVIEW
+## SERVICE WORKER CACHE HISTORY
 
-### State Variables (ui.js)
-```javascript
-let currentPlayerKey = 'player';       // active player team key
-let currentFormat    = 'doubles';      // 'doubles' | 'singles'
-let currentBo        = 1;              // 1 | 3 | 5 | 10
-let lastAllResults   = null;           // cached Run All results
+**Current:** `champions-sim-v5-emptystate1` (v2.1.8-emptystate.1, PR #121)
 
-// T9j.10 — Team Preview bring-N-of-6 state
-var BRING_SELECTION = {};  // teamKey -> ordered array of mon names (length = bring count)
-var BRING_MODE      = {};  // teamKey -> 'manual' | 'random' (default random for non-player)
-// Persisted to localStorage under key 'poke-sim:bring:v1'
-```
+| Version | Ships with | Status |
+|---------|-----------|--------|
+| `champions-sim-v1` | Foundation | Retired |
+| `champions-sim-v2` | T9j.1–T9j.6 | Retired |
+| `champions-sim-v3` | T9j.7–T9j.15 | Retired |
+| `champions-sim-v4-t9j16` | Coaching engine | Retired |
+| `champions-sim-v5-phase3` | Strategy tab + persistence | Retired |
+| `champions-sim-v5-phase4a` | Sim log + koEvents | Retired |
+| `champions-sim-v5-phase4b` | Adaptive state machine | Retired |
+| `champions-sim-v5-pilotfix1` | Pilot Guide after every sim | Retired |
+| `champions-sim-v5-recordbar1` | Record bar + sim presets | Retired |
+| `champions-sim-v5-mirror1` | Both-sides sim log mirroring | Retired |
+| `champions-sim-v5-emptystate1` | Record bar empty-state guidance | **✅ Current** |
 
-### Engine Entry Points (engine.js)
-```javascript
-// Single matchup — returns Promise<results>
-runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress)
-
-// All matchups — iterates all 12 opponents
-runAllMatchups(numBattles, onProgress, onMatchupDone)
-
-// simulateBattle() accepts opts:
-//   opts.format          'doubles' | 'singles'
-//   opts.playerBring     array of mon names (T9j.10, preferred)
-//   opts.opponentBring   array of mon names (T9j.10, preferred)
-//   opts.playerLeads     legacy — leads-only override (kept for back-compat)
-//   opts.opponentLeads   legacy — leads-only override (kept for back-compat)
-```
-
-### Battle Result Contract (T9j.10)
-```javascript
-{
-  result, turns, trTurns, pHpSum, oHpSum,
-  leads:   { player, opponent },  // 2 names doubles / 1 singles
-  bring:   { player, opponent },  // 4 names doubles / 3 singles
-  legality:{ player, opp },
-  log, winCondition, seed, ...
-}
-```
-All UI code reads `battle.leads.player` and `battle.bring.player` directly — no log-string parsing.
-
-### Damage Formula
-```
-baseDmg = floor((floor((2*50/5+2) * BP * Atk / Def) / 50) + 2)
-crit    = rng() < critChance(stage)                 ← T9j.8 (Serebii crit stages)
-roll    = 0.85 + Math.random() * 0.15               ← NON-DETERMINISTIC
-total   = floor(baseDmg * STAB * typeEff * spreadMult * multiscale * crit * roll)
-```
-Engine is confirmed non-deterministic. Bo10 results differ from Bo1 as expected.
-
-### Move Data (T9j.9 — MOVE_CATEGORY + MOVE_BP)
-- `data.js` ships two authoritative tables:
-  - `MOVE_CATEGORY` (104 entries) — `'physical' | 'special' | 'status'`
-  - `MOVE_BP` (110+ entries) — base power integer
-- `isPhysical(move)` in `engine.js` is **data-driven** — consults `MOVE_CATEGORY` first, falls back to name heuristics with `console.warn` on miss
-- Cite: https://www.serebii.net/attackdex-sv/
-
-### Trick Room
-- TR lasts exactly 5 turns (`field.trickRoomTurns` increments each `endOfTurn()`)
-- Speed is inverted via `getEffSpeed()`: `if (field.trickRoom) spe = 10000 - spe`
-- TR is toggled on/off correctly — re-using Trick Room while active cancels it
-
-### Weather
-- Weather lasts 8 turns (or permanent for Sand Stream)
-- Entry abilities (Drought, Drizzle, Sand Stream) fire on switch-in via `processEntryAbilities()`
-- **KNOWN ISSUE (P3 #8):** When both teams have weather setters, last switch-in wins but mid-game weather override priority is not fully modeled.
-
-### Sprites
-```
-https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{dex_num}.png
-```
+**Bump rule:** update on every release touching `engine.js`, `data.js`, `ui.js`, or `style.css`.  
+**How:** `./tools/release.sh <tag>` from repo root.
 
 ---
 
-## CRITICAL BUG — DO NOT CHANGE THIS
+## ISSUE #88 + #95 STATUS
 
-```javascript
-// In ui.js — MUST be declared as var, NOT const or let
-var COVERAGE_CHECKS = [...];
-```
+Both fully complete. CI enforces:
+- `Verify bundle is fresh` — fails PR if bundle drifts from source
+- `Verify sw.js CACHE_NAME bumped` — fails PR if cache not bumped
 
-This is referenced during initialization before its declaration line is reached.
-`const`/`let` would throw a Temporal Dead Zone (TDZ) ReferenceError and break the app completely on load.
-This is a known architectural limitation — do not "fix" it without restructuring initialization order. Every rebuild must verify `var` is preserved.
-
----
-
-## ⚠️ REBUILD WARNING — READ BEFORE TOUCHING SOURCE FILES
-
-The bundle (`pokemon-champion-2026.html`) is the rebuilt artifact — generated from the source files (`index.html`, `style.css`, `data.js`, `engine.js`, `ui.js`, `strategy-injectable.js`). It is **not** edited directly.
-
-**Rebuild procedure (from `poke-sim/` directory):**
-```bash
-cd poke-sim && python3 tools/build-bundle.py
-```
-The rebuild script inlines all source files into the single-file bundle. After any source file edit, the bundle must be rebuilt and committed together with the source changes.
-
-**sw.js is NOT inlined into the bundle.** It is a standalone file served by the PWA runtime — only active when the app is loaded via a local dev server or GitHub Pages, never via htmlpreview. Changes to `sw.js` do not require a bundle rebuild.
-
----
-
-## RELEASE PROCEDURE (every engineer must follow this)
-
-This section defines the mandatory steps before merging any PR that touches app source files.
-Both CI checks (#88 Phase 2 bundle-freshness, #95 Phase 3 cache-bump) enforce steps 2 and 3 — but the full procedure is the human contract.
-
-### When to follow this
-Any PR that modifies one or more of:
-- `poke-sim/engine.js`
-- `poke-sim/data.js`
-- `poke-sim/ui.js`
-- `poke-sim/style.css`
-- `poke-sim/strategy-injectable.js`
-- `poke-sim/index.html`
-
-### Steps
-1. Finish your feature/fix on a branch
-2. Rebuild the bundle from the `poke-sim/` directory:
-     ```bash
-     cd poke-sim && python3 tools/build-bundle.py
-     ```
-3. Run the cache bump script from repo root:
-     ```bash
-     chmod +x tools/release.sh    # first time only
-     ./tools/release.sh <tag>     # e.g. ./tools/release.sh t9j17
-     ```
-4. Review the staged changes:
-     ```bash
-     git diff --cached poke-sim/poke-sim/pokemon-champion-2026.html
-     git diff --cached poke-sim/sw.js
-     ```
-5. Commit both alongside your source changes:
-     ```bash
-     git commit -m "feat: <description> - Refs #N"
-     ```
-6. Update `poke-sim/MASTER_PROMPT.md` to reflect your change
-7. Open PR — both CI checks will verify steps 2 and 3 were done
-
-### What happens if you skip step 2
-The `bundle-freshness-check` CI job will fail your PR with the exact command to fix it.
-
-### What happens if you skip step 3
-The `cache-bump-check` CI job will fail your PR with the exact command to fix it.
+**Remaining action (repo owner only):** Enable branch protection required checks at  
+https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/settings/branches
 
 ---
 
 ## COMMIT CONVENTIONS
 
 - **ASCII hyphens only** in commit messages — no em-dashes
-- Format: `type: description - Refs #N` (use `Refs`, not `Fixes` — close is explicit via PR merge)
+- Format: `type: description - Refs #N` (`Refs` not `Fixes`)
 - Types: `feat`, `fix`, `infra`, `docs`, `test`, `revert`
-- Assignment policy:
-  - TheYfactora12 — product / feature scoping, rule design, user-facing decisions
-  - alfredocox — engineering refactors, infra, perf, security
-  - Jdoutt38 — testing + a11y
+- Build chip in `index.html` `<span class="build-version">`: bump on every commit
 
-### Build version chip
-A visible build chip lives in the header (`<span class="build-version">` in `index.html`). Bump on every commit so testers can confirm which build they are on:
-- During an active phase: `vMAJOR.MINOR.0-phaseN.M` where M increments per commit (e.g. `v2.0.0-phase2.1`, `v2.0.0-phase2.2`)
-- On phase merge to main: drop the suffix and bump the next phase prefix (e.g. `v2.0.0` → `v2.1.0-phase3.1`)
-- Tied to the CACHE_NAME bump — when the chip changes major/minor, `tools/release.sh <tag> --bump-major` should also fire.
-
-**Current chip:** `v2.1.8-emptystate.1` (PR #121, CACHE_NAME `champions-sim-v5-emptystate1`).
+**Current chip:** `v2.1.8-emptystate.1`
 
 ---
 
 ## COACHING LAYER ROLLOUT
 
-Multi-phase rollout for the Strategy tab + coaching engine. Tracked in `poke-sim/poke-sim/COACHING_LAYER_SPEC.md` (Phases 1–3) and `poke-sim/poke-sim/PHASE4_DYNAMIC_ADVICE_SPEC.md` (Phase 4 adaptive layer).
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Spec doc | ✅ Merged |
+| 2 | Strategy tab + theory engine | ✅ Merged |
+| 3 | Per-team report persistence | ✅ Merged |
+| 4a | Sim log foundation + koEvents | ✅ Merged |
+| 4b | Adaptive state machine + consistency score | ✅ Merged |
+| 4b+ | Pilot Guide after every single sim | ✅ Merged |
+| 4b+ | Record bar + sim presets (10/50/100/500) | ✅ Merged |
+| 4b+ | Both-sides sim log mirroring | ✅ Merged |
+| 4b+ | Record bar empty-state guidance | ✅ Merged |
+| **4c** | **Detectors: dead moves, lead perf, loss conditions, confidence badges** | **Spec locked — ready for implementation** |
+| **4d** | **Threat Response: MC solver 200 sims × 4 branches, line classification** | **Spec locked — ready for implementation** |
+| **4e** | **Policy audit + "same advice after 100 battles = failing" regression test (PHASE CLOSEOUT BLOCKER)** | **Spec locked — ready for implementation** |
+| 5a-c | Structured turnLog, positionScore, winProbabilityDelta | Draft |
+| 6 | Coaching voice + PRE/IN/POST templates, RNG blame, banned-phrasings linter | Spec locked |
+| 7 | Source labels + stress test polish | Open |
 
-| Phase | Scope | PRs / Issues | Status |
-|-------|-------|--------------|--------|
-| 1 | Spec doc | #105 / #50 | ✅ Merged |
-| 2 | Strategy tab + theory engine (12 sections, 22 teams, V2 adapters) | #106 / #46 #49 | ✅ Merged (`f584a15`) |
-| 3 | Per-team report persistence (localStorage Section 7 schema) | #108 / #51 | ✅ Merged (`98ffa69`) |
-| 4a | Sim log foundation — `champions_sim_log_v1` + per-game koEvents | #113 / #52 | ✅ Merged |
-| 4b | Adaptive state machine + `team_history` builder + consistency score + movesUsed / actionLog plumbing | #115 / #52 #53 | ✅ Merged |
-| 4b+ | Pilot Guide upsert after every single sim | #118 / #55 | ✅ Merged |
-| 4b+ | Record bar: total W-L + per-archetype splits + 10/50/100/500 sim presets | #119 / #53 #55 | ✅ Merged |
-| 4b+ | Both-sides sim log mirroring (opponent-only teams populate Strategy view) | #120 / #95 | ✅ Merged |
-| 4b+ | Record bar legacy vs new empty-state guidance | #121 / #53 #55 | ✅ Merged |
-| 4c | Detectors — dead moves, lead performance, common loss conditions, confidence badges (`PHASE4C_DETECTORS_SPEC.md`) | pending / #53 #54 | **Spec locked, ready for implementation** |
-| 4d | Threat Response System with Monte Carlo solver, 200 sims/branch × 4 branches, line classification v1 (`PHASE4D_THREAT_RESPONSE_SPEC.md`) | pending / #54 | **Spec locked, ready for implementation** |
-| 4e | Policy audit / player coaching + "same advice after 100 battles = failing" regression test (`PHASE4E_POLICY_AUDIT_SPEC.md`) | pending / #54 #55 | **Spec locked, ready for implementation** |
-| **5a** | **Structured `turnLog: Turn[]` capture in `simulateBattle` (engine refactor, backwards-compat `log: string[]` derived view)** | spec drafted / N§2 | **Drafted** |
-| **5b** | **`positionScore(state)` heuristic + `position_path` + `turning_point` + cause taxonomy** | spec drafted / N§4 N§10 | **Drafted** |
-| **5c** | **Opt-in `winProbabilityDelta` micro-rollouts + Deep Coach toggle** | spec drafted / N§5 N§7 | **Drafted** |
-| **6** | **Coaching voice + per-match output templates (PRE/IN/POST). RNG blame gated on `consistency_score.rng_dependency > 0.6`** (`PHASE6_COACHING_VOICE_SPEC.md`) | spec drafted / N§11 N§12 | **Spec locked, ready for implementation** |
-| 7 | Source labels + Stress Test polish | pending | Open |
+**Coaching hard invariants (never violate):**
+1. No draws surfaced in UI
+2. "Same advice after 100 battles = failing" — Phase 4e regression test blocks closeout
+3. No data fabrication across storage keys (Phase 3 aggregates ≠ Phase 4 per-series log)
+4. Population qualifier within one sentence of every `%` shown to users
+5. Banned phrasings: `tournament-grade`, `tournament-tested` (without stage qualifier), `pro-approved`, `meta-proven`, `world's #1`
+6. Surface candidates, not directives — use "consider" / "best candidate" / "first option to try"
 
-> N§X references = north-star spec section in `COACHING_NORTH_STAR.md` Section 2 (validation matrix). All upcoming phases now have **locked specs** (PR #127, 2026-04-25 review answered all 19 open questions):
-> - `PHASE4C_DETECTORS_SPEC.md` (detectors + confidence badges)
-> - `PHASE4D_THREAT_RESPONSE_SPEC.md` (MC solver, 4 branches @ 200 sims, line classification)
-> - `PHASE4E_POLICY_AUDIT_SPEC.md` (fake-good detector, **same-advice regression test = closeout blocker**)
-> - `PHASE5_TURN_LOG_SPEC_DRAFT.md` (turnLog struct, positionScore, winProbabilityDelta)
-> - `PHASE6_COACHING_VOICE_SPEC.md` (PRE/IN/POST templates, RNG-blame gating, banned-phrasings linter)
-> - `PHASE_ROLLOUT_REVIEW.md` (master index: side-by-side, effort, dependencies, go/no-go gates)
+---
 
-**Storage keys in use:**
-- `champions_strategy_v1::<sig>` — legacy T9j.16 history (untouched, soft-migrated)
-- `champions_strategy_report_v1` — Phase 3 Section 7 schema: `{schema_version, reports: {<sig>: {team_key, theory_report, simulation_overlay: {sample_size, ...}, last_built_at, last_simmed_at}}}`. Aggregate snapshots only — not decomposable into per-series W-L.
-- `champions_sim_log_v1` — **Phase 4a raw append-only per-series log** (independent of the Phase 3 key): `{schema_version: 1, entries: [{id, ts, playerKey, oppKey, format, bo, seriesResult, games: [{result, turns, leads, bring, playerSurvivors, oppSurvivors, winCondition, trTurns, twTurns, koEvents, movesUsed, protectStreakMax}]}]}`. Caps: 500 total entries, 100 per (player, opponent) pair, oldest-first eviction.
-- `champions_evidence_chips_visible` — Section 14 evidence toggle
+## PHASE 4 ADAPTIVE STATE MACHINE
+
+| State | Condition | Banner |
+|-------|-----------|--------|
+| 1 | `total_battles === 0` | "Theory-based coaching" |
+| 2 | `1 <= total_battles < 15` | "Early data — N more to reach mature confidence" |
+| 3 | `total_battles >= 15` | "Mature data" |
+
+`CS_STATE_MATURE_THRESHOLD = 15` — always read via constant; never hard-code.
+
+**Storage keys:**
+- `champions_sim_log_v1` — Phase 4 raw per-series log (append-only, 500 cap, 100/pair)
+- `champions_strategy_report_v1` — Phase 3 aggregate snapshots (not decomposable into per-series W-L)
 - `poke-sim:bring:v1` — T9j.10 bring picker selections
+- `champions_evidence_chips_visible` — Section 14 evidence toggle
 
-> ⚠️ **Phase 3 and Phase 4 storage keys are independent.** Old Phase 3 aggregate snapshots do NOT retroactively populate the Phase 4 Record bar — the aggregates contain no per-series W-L and cannot be decomposed. This is why users who simmed before PR #119 see header "Sample: 700" but an empty Record bar until they run fresh sims. PR #121 adds clear empty-state guidance for this case.
-
-IndexedDB is explicitly deferred per Spec Section 11. v1 uses synchronous localStorage with QuotaExceededError purge of oldest 25%.
-
----
-
-## PHASE 4 - ADAPTIVE COACHING (IN PROGRESS)
-
-Spec: `poke-sim/poke-sim/PHASE4_DYNAMIC_ADVICE_SPEC.md` v2 (adaptive state machine + threat response + policy audit).
-
-### Adaptive state machine — `computeTeamHistory(teamKey)` in `ui.js`
-
-| State | Condition | Coaching source | Banner copy |
-|-------|-----------|-----------------|-------------|
-| 1 | `total_battles === 0` | Archetype heuristics (theory-only) | "Theory-based coaching" |
-| 2 | `1 <= total_battles < 15` | Theory + partial sim data | "Early data — N more to reach mature confidence" |
-| 3 | `total_battles >= 15` | Full sim-driven recommendations | "Mature data" |
-
-Threshold constant: `CS_STATE_MATURE_THRESHOLD = 15` (ui.js line ~5704). Always read via the constant — never hard-code.
-
-### `team_history` output shape (consumed by banner + Record bar + future Phase 4c/d/e)
-
-```js
-{
-  total_battles, total_series,
-  state: 1 | 2 | 3,
-  win_rate, series_win_rate,
-  consistency_score: { label, variance, spread_gap, rng_dependency },
-    //   label in { 'insufficient_data', 'consistent', 'inconsistent', 'volatile' }
-  lead_performance: [...],           // Phase 4c will populate win rates per lead pair
-  matchup_failures:  [...],          // pair-level losing matchups
-  common_loss_conditions: [...],     // TR / speed / KO-pattern detectors (Phase 4c)
-  dead_moves:        [...],          // moves used <N times across sample (Phase 4c)
-  protect_peaks:     [...],          // Protect-spam hint
-  record_total: { n, w, l, win_rate },
-  record_by_archetype: [             // sorted by n desc, filtered n>0, draws excluded
-    { archetype, n, w, l, win_rate }
-  ],
-  player_behavior_patterns: []       // Phase 4e fills this
-}
-```
-
-### Both-sides sim log mirroring (PR #120)
-
-`csSimLogForTeamBothSides(teamKey)` returns every entry that involves `teamKey` on either side, normalized to its point of view:
-- Entries where `teamKey === playerKey` pass through unchanged.
-- Entries where `teamKey === oppKey` are returned with `seriesResult` + per-game `result` flipped (win↔loss, draw unchanged) and `playerKey`/`oppKey` swapped.
-
-This is what `computeTeamHistory` consumes, so any team that has ever been logged on either side populates the Record bar + Strategy view.
-
-### Record bar empty-state guidance (PR #121)
-
-`_csRecordEmptyStateKind()` returns `'new' | 'legacy' | 'has_log'`. When `total.n === 0`, the Record bar appends a single muted hint line:
-- **legacy:** "Previous sim data was recorded before per-series tracking (added in v2.1.6). Run a fresh sim to start your record."
-- **new:** "Run a sim to start tracking your W-L by matchup."
-
-### Sim-count preset (PR #119)
-
-Dropdown: **10 / 50 / 100 / 500** (50 default). 500 is the hard ceiling — do not raise without a dedicated perf PR.
-
-### Hard invariants
-
-1. **No draws surfaced.** Per user directive — Pokemon has no draws, so Record bar + per-archetype splits exclude the draw bucket. Raw draws may still be stored but must never render as a W-L-D triple.
-2. **"If the system gives the same advice after 100 battles, it is failing."** Phase 4e MUST ship a regression test that seeds a 100-series log with distinct loss patterns and asserts the advice surface delta is measurable. This test blocks Phase 4 closeout.
-3. **No data fabrication across storage keys.** Do not synthesize Phase 4 sim-log entries from Phase 3 aggregates — the aggregates lack per-series ground truth. Surface guidance instead (PR #121 pattern).
-4. **Population qualifier within one sentence of every percentage.** Every `%` rendered to a user (UI, PDF, README, marketing) ships next to the population it was measured against. v1 = "in simulated play" / "in N AI simulations". Stages 2-5 introduce upgraded qualifiers via `populationQualifier()` helper. Enforced by `PHASE6_COACHING_VOICE_SPEC.md` rule #5 + tests T7/T9.
-5. **Banned tournament-claim phrasings.** Until the Credibility Ladder advances (`COACHING_NORTH_STAR.md` Section 6), the following are forbidden in any user-facing surface: `tournament-grade`, `ladder-tested`, `meta-proven`, `competitive viable`, `tournament-tested` (without stage qualifier), `pro-approved`, `world's #1`. Enforced by `PHASE6_COACHING_VOICE_SPEC.md` rule #7 + regex test T7.
-6. **Surface candidates, not directives.** Recommendations use "consider" / "best candidate" / "first option to try". Inside a chosen line, action verbs are still required. We surface options; the player chooses. Enforced by `PHASE6_COACHING_VOICE_SPEC.md` rule #6.
-
-### Canonical product tagline
-
-**"Battle-tested. Always evolving."**
-
-This is the locked product tagline. It is honest at every Credibility Ladder stage because the population qualifier upgrades automatically. The tagline appears in: every PRE/POST template footer (Phase 6), README, marketing, social, packaging.
-
-**Tagline usage rule:** any percentage in the same surface must include a population qualifier within the same sentence (or the sentence immediately before/after). "Battle-tested in 47 simulations" is honest. "Battle-tested" alone is honest (qualitative claim about origin of advice). "Battle-tested - 73% win rate" is NOT honest unless followed by "in simulated play" or stronger.
-
-### Remaining work
-
-- **4c** — Detectors: dead moves, lead performance win rates, common loss conditions, confidence badges per recommendation (`low` / `med` / `high` based on sample_size).
-- **4d** — Threat Response System: Monte Carlo solver runs 200 sims per candidate response branch against each opposing threat, ranks by win delta.
-- **4e** — Policy audit / player coaching layer + regression test (invariant #2 above).
-
-### Phase 5 + 6 north-star coverage (validated 2026-04-25)
-
-User-supplied "top 1% sim" coaching spec validated against current `engine.js` (single-line greedy `selectMove` AI, unstructured `log: string[]`, no position score) and `ui.js` sim-log writer. Conclusion: ~15% already done, ~25% achievable as plumbing on Phase 4 data, ~60% requires `engine.js` changes — hence Phase 5.
-
-Full validation matrix, acceptance criteria, and original spec preserved verbatim in `COACHING_NORTH_STAR.md`. Every coaching-layer PR description must answer:
-1. Which numbered demand from N§2 does this advance?
-2. Which acceptance criterion (1–6) does it move?
-3. Plumbing or refactor? (Plumbing PRs do not need north-star coverage.)
-4. Headless test that proves it.
-
-**Decisions locked (do not re-debate without ADR):**
-- Stage Phase 4c → 4d → 4e → 5 → 6. No long-lived parallel branches.
-- Phase 4d budget: 200 sims/branch × 4 branches/matchup. Run All ~1–2 min on average HW.
-- Coaching voice: direct + grounded + evidence-backed. RNG blame gated on `consistency_score.rng_dependency > 0.6`.
-- `turnLog` is **memory-only**, never persisted to localStorage. Only summary fields (`turning_point`, `position_path`) get stored.
-- Phase 5 spec is **DRAFT**. Approval gate is *after Phase 4c lands* so we have evidence which detectors actually need turn-level data.
-
-### Coaching ticket audit (post-PR #121 state)
-
-| Ticket | Title | Status |
-|--------|-------|--------|
-| #53 | Lead pair win-rate table | ✅ Data in `lead_performance`; UI pending Phase 4c — keep open |
-| #54 | Suboptimal decision flagger | Phase 4e scope — keep open |
-| #55 | Personal weakness dashboard | ✅ `record_by_archetype` + Record bar + mirroring cover the headline ask — consider closing after Phase 4c confidence badges ship |
-| #65 | Meta-Weighted Threat Radar | Not started — Phase 4d adjacent |
-| #72 | Trend Dashboard Mega Timing Heatmap | Not started |
-
----
-
-## SPRITE GAPS — known
-
-`getSpriteUrl()` looks up `DEX_NUM_MAP` by exact form name. Custom mega/regional forms with no PokeAPI dex entry render blank. Confirmed misses:
-- `Golurk-Mega` (custom mega in `trick_room_golurk` team)
-
-**Planned fix (separate PR):**
-1. Strip known suffixes (`-Mega`, `-Mega-X/Y`, `-Alola`, `-Galar`, `-Hisui`, `-Paldea`) before dex lookup so custom megas fall back to base dex.
-2. Add `CUSTOM_FORM_SPRITES` override map for explicit team-specific art.
-3. Audit all 22 teams' members programmatically and log every blank sprite.
-
----
-
-## SHIP GATE
-
-40-case golden test floor per ticket (relaxed for small features), 5070-battle audit 0 JS errors, primary-source citations in comments.
+> Phase 3 and Phase 4 keys are **independent.** Old Phase 3 aggregates do NOT retroactively populate the Phase 4 Record bar.
 
 ---
 
 ## MILESTONES
 
-- M1 Engine Truth (v1.0) — 19/23 closed, T9j.17 pending to fully close
-- M2 Dynamic Strategy Coach (v1.1) — T9j.16 coaching engine shipped
-- M3 Piloting Analytics (v1.2) — partial (replay log live, trends pending)
-- M4 Tournament Ready PDF (v1.3) — T9j.14 + T9j.16 PDF sections shipped
-- M5 Meta Intelligence (v1.4) — pending external data source
-- M6 Polish & Launch (v2.0) — pending M1-M5 and M7-M10 close
-- M7 Architecture & Modularity (v2.1) — #77-#80
-- M8 Profile & Sync (v2.2) — #81-#86 (headline ask)
-- M9 Observability & QA (v2.3) — #87-#91 | **#95 ALL 3 PHASES DONE** | **#88 ALL PHASES DONE**
-- M10 Performance & Quality (v2.4) — #92-#96
-- M11 Advanced Features (v2.5) — #97-#99 plus deferred #7 Tera
+| Milestone | Version | Status |
+|-----------|---------|--------|
+| M1 Engine Truth | v1.0 | 19/23 closed; T9j.17 closes remainder |
+| M2 Dynamic Strategy Coach | v1.1 | ✅ Shipped |
+| M3 Piloting Analytics | v1.2 | Partial (replay log live; trends pending) |
+| M4 Tournament Ready PDF | v1.3 | ✅ Shipped |
+| M5 Meta Intelligence | v1.4 | Pending external data source |
+| M6 Polish & Launch | v2.0 | Pending M1-M5 + M7-M10 |
+| M7 Architecture & Modularity | v2.1 | #77-#80 |
+| M8 Profile & Sync | v2.2 | #81-#86 |
+| M9 Observability & QA | v2.3 | **#88 ✅ #95 ✅** — #87 CI still open |
+| M10 Performance & Quality | v2.4 | #92-#96 |
+| M11 Advanced Features | v2.5 | #97-#99 + deferred #7 Tera |
+
+---
+
+## SPRINT QUEUE (priority order)
+
+| Sprint | Items | Status |
+|--------|-------|--------|
+| Sprint 1 | #87 CI/GitHub Actions, #78 namespace, #79 storage adapter | 🏃 In queue |
+| Sprint 2 | #80 COVERAGE_CHECKS lazy init, #89 structured logger, #94 XSS hardening | Blocked on Sprint 1 CI green |
+| Sprint 3 | #77 ui.js file split, #90 analytics tests backfill | Blocked on Sprint 2 |
+| Sprint 4 | #84 schema versioning, #81 profile system, #82 export/import | Blocked on Sprint 1 storage adapter |
+
+---
+
+## COACHING TICKET AUDIT
+
+| Ticket | Title | Status |
+|--------|-------|--------|
+| #53 | Lead pair win-rate table | Data in `lead_performance`; UI pending Phase 4c |
+| #54 | Suboptimal decision flagger | Phase 4e scope |
+| #55 | Personal weakness dashboard | `record_by_archetype` covers headline; close after Phase 4c confidence badges |
+| #65 | Meta-Weighted Threat Radar | Not started — Phase 4d adjacent |
+| #72 | Trend Dashboard Mega Timing Heatmap | Not started |
