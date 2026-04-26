@@ -5693,6 +5693,325 @@ var _csHistoryCache = {};  // teamKey -> { ts, history }
 var CS_HISTORY_TTL_MS = 500;
 var CS_STATE_MATURE_THRESHOLD = 15;
 
+// =========================================================================
+// Phase 4c (Refs PHASE4C_DETECTORS_SPEC.md) - Detectors + confidence badges.
+//
+// Four pure functions that read flat sim-log games and emit structured
+// findings. Plus a single confidence-tier assigner used everywhere a rate
+// gets surfaced. All thresholds are constants below; do not inline magic
+// numbers downstream.
+//
+// Hard invariants enforced here (see MASTER_PROMPT.md):
+//   - 'no draws' on the Pokemon side: draws are excluded from win/loss math.
+//   - 'same advice after 100 battles = failing': covered by Fixture C in
+//     tests/phase4c_detectors.js.
+//   - 'no fake-confident claims': effect-size guard in csConfidenceBadge.
+// =========================================================================
+var CS_PHASE4C = {
+  DEAD_MOVE_THRESHOLD:   0.15,  // avg calls per game (less than ~1 in ~7)
+  DEAD_MOVE_MIN_GAMES:   10,
+  DEAD_MOVE_HIGH_AVG:    0.05,
+  DEAD_MOVE_HIGH_GAMES:  25,
+  DEAD_MOVE_MED_AVG:     0.10,
+  DEAD_MOVE_MED_GAMES:   15,
+  LEAD_MIN_GAMES:        5,
+  LEAD_DISPLAY_TOP:      6,
+  LOSS_LIFT_THRESHOLD:   0.20,
+  LOSS_FREQ_THRESHOLD:   0.30,
+  LOSS_MIN_GAMES:        15,
+  CONF_LOW_MIN:          5,    // n >= 5 -> at least 'low'
+  CONF_MED_MIN:          15,   // n >= 15 -> 'med' (matches CS_STATE_MATURE_THRESHOLD)
+  CONF_HIGH_MIN:         50,   // n >= 50 -> 'high'
+  EFFECT_SIZE_Z:         1.96  // two-sided 95% CI
+};
+
+// csConfidenceBadge(n, winRate?) -> { tier, reason }
+//
+// tier in {'none','low','med','high','inconclusive'}.
+// 'inconclusive' fires only when winRate is supplied AND n is large enough
+// for the effect-size guard to apply (n >= CONF_HIGH_MIN). A 200-game lead
+// at 51% win rate is statistically a coin flip, so we surface that fact
+// instead of pretending it's high-confidence.
+function csConfidenceBadge(n, winRate) {
+  n = Math.max(0, n | 0);
+  var tier, reason;
+  if (n < CS_PHASE4C.CONF_LOW_MIN)        tier = 'none';
+  else if (n < CS_PHASE4C.CONF_MED_MIN)   tier = 'low';
+  else if (n < CS_PHASE4C.CONF_HIGH_MIN)  tier = 'med';
+  else                                    tier = 'high';
+
+  // Effect-size guard: only meaningful at high-n with a rate to test.
+  if (typeof winRate === 'number' && isFinite(winRate) && n >= CS_PHASE4C.CONF_HIGH_MIN) {
+    // z = (p - 0.5) / sqrt(0.25 / n)
+    var se = Math.sqrt(0.25 / n);
+    var z  = (winRate - 0.5) / se;
+    var az = Math.abs(z);
+    if (az < CS_PHASE4C.EFFECT_SIZE_Z) {
+      tier   = 'inconclusive';
+      reason = 'large sample, no detectable edge (|z|=' + az.toFixed(2) + ')';
+      return { tier: tier, reason: reason, z: z };
+    }
+    reason = 'n=' + n + ', winRate=' + Math.round(winRate * 100) + '% (|z|=' + az.toFixed(2) + ')';
+    return { tier: tier, reason: reason, z: z };
+  }
+  reason = (typeof winRate === 'number' && isFinite(winRate))
+    ? 'n=' + n + ', winRate=' + Math.round(winRate * 100) + '%'
+    : 'n=' + n;
+  return { tier: tier, reason: reason };
+}
+
+// csDetectDeadMoves(games, teamKey) -> array
+//
+// games is the flat array of per-game objects extracted from the sim log
+// (same shape consumed elsewhere in computeTeamHistory). Walks each owner's
+// declared movepool from TEAMS[teamKey] and flags moves whose average call
+// rate per game is below threshold. Count=0 moves are flagged at 'low'
+// severity once n >= DEAD_MOVE_HIGH_GAMES so users see them but don't get
+// flooded by stub data.
+function csDetectDeadMoves(games, teamKey) {
+  var out = [];
+  if (!Array.isArray(games) || !games.length) return out;
+  if (typeof TEAMS === 'undefined' || !TEAMS[teamKey]) return out;
+  var totalGames = games.length;
+  if (totalGames < CS_PHASE4C.DEAD_MOVE_MIN_GAMES) return out;
+
+  var members = TEAMS[teamKey].members || [];
+  // Aggregate calls per (mon, move).
+  var usage = {};
+  games.forEach(function(g){
+    var mu = g.movesUsed || {};
+    Object.keys(mu).forEach(function(mon){
+      if (!usage[mon]) usage[mon] = {};
+      var moves = mu[mon] || {};
+      Object.keys(moves).forEach(function(mv){
+        usage[mon][mv] = (usage[mon][mv] || 0) + (moves[mv] | 0);
+      });
+    });
+  });
+
+  members.forEach(function(m){
+    var owner = m && m.name;
+    if (!owner) return;
+    var pool = (m.moves || []).slice();
+    pool.forEach(function(mv){
+      var calls = (usage[owner] && usage[owner][mv]) || 0;
+      var avg = calls / totalGames;
+      // count=0 special case (Q2 locked decision): always flag if n >= HIGH_GAMES.
+      if (calls === 0) {
+        if (totalGames >= CS_PHASE4C.DEAD_MOVE_HIGH_GAMES) {
+          out.push({
+            pokemon: owner, move: mv,
+            avg_calls_per_game: 0, total_games: totalGames, calls: 0,
+            severity: 'low',
+            reason: 'AI never selected this move - check synergy or replace',
+            confidence: csConfidenceBadge(totalGames).tier
+          });
+        }
+        return;
+      }
+      if (avg >= CS_PHASE4C.DEAD_MOVE_THRESHOLD) return;
+      var sev = 'low';
+      if (avg < CS_PHASE4C.DEAD_MOVE_HIGH_AVG && totalGames >= CS_PHASE4C.DEAD_MOVE_HIGH_GAMES)      sev = 'high';
+      else if (avg < CS_PHASE4C.DEAD_MOVE_MED_AVG  && totalGames >= CS_PHASE4C.DEAD_MOVE_MED_GAMES)  sev = 'medium';
+      out.push({
+        pokemon: owner, move: mv,
+        avg_calls_per_game: avg, total_games: totalGames, calls: calls,
+        severity: sev,
+        reason: 'Below dead-move threshold across sampled games',
+        confidence: csConfidenceBadge(totalGames).tier
+      });
+    });
+  });
+  // Highest severity first, then lowest avg.
+  var sevRank = { high: 3, medium: 2, low: 1 };
+  out.sort(function(a, b){
+    var sa = sevRank[a.severity] || 0;
+    var sb = sevRank[b.severity] || 0;
+    if (sa !== sb) return sb - sa;
+    return a.avg_calls_per_game - b.avg_calls_per_game;
+  });
+  return out;
+}
+
+// csComputeLeadPerformance(games) -> array
+//
+// Per-lead-pair W/L from the player POV. Draws are excluded entirely (not
+// surfaced anywhere - hard invariant). Filters n < LEAD_MIN_GAMES, sorts
+// by n desc then win_rate desc, caps at LEAD_DISPLAY_TOP.
+function csComputeLeadPerformance(games) {
+  if (!Array.isArray(games) || !games.length) return [];
+  var byLead = {};
+  games.forEach(function(g){
+    var lp = (g.leads && Array.isArray(g.leads.player)) ? g.leads.player.slice() : null;
+    if (!lp || !lp.length) return;
+    lp.sort();
+    var key = lp.join('|');
+    if (!byLead[key]) byLead[key] = { lead: lp.slice(), n: 0, w: 0, l: 0 };
+    if (g.result === 'win')       { byLead[key].n++; byLead[key].w++; }
+    else if (g.result === 'loss') { byLead[key].n++; byLead[key].l++; }
+    // draws excluded
+  });
+  var rows = Object.keys(byLead).map(function(k){
+    var b = byLead[k];
+    var wr = b.n > 0 ? b.w / b.n : 0;
+    var conf = csConfidenceBadge(b.n, wr);
+    return {
+      lead: b.lead, n: b.n, w: b.w, l: b.l,
+      win_rate: wr,
+      confidence: conf.tier,
+      confidence_reason: conf.reason
+    };
+  }).filter(function(r){ return r.n >= CS_PHASE4C.LEAD_MIN_GAMES; });
+  rows.sort(function(a, b){
+    if (b.n !== a.n) return b.n - a.n;
+    return b.win_rate - a.win_rate;
+  });
+  return rows.slice(0, CS_PHASE4C.LEAD_DISPLAY_TOP);
+}
+
+// csDetectLossConditions(games, teamKey) -> array
+//
+// Surfaces conditions that show up disproportionately in losses. Lift =
+// loss_freq - win_freq. Hides flags below LIFT/FREQ thresholds; surfaces
+// inconclusive when the sample is large but signal is weak (epistemic
+// honesty rule from spec section 3.4.1).
+function csDetectLossConditions(games, teamKey) {
+  var out = [];
+  if (!Array.isArray(games) || !games.length) return out;
+  // Partition once.
+  var wins = [], losses = [];
+  games.forEach(function(g){
+    if (g.result === 'win')       wins.push(g);
+    else if (g.result === 'loss') losses.push(g);
+  });
+  var nW = wins.length, nL = losses.length, nTotal = nW + nL;
+  if (nTotal < CS_PHASE4C.LOSS_MIN_GAMES) return out;
+
+  // Pull archetype label so we can fire the 'slow_no_tr' check.
+  var archetype = null;
+  try {
+    if (typeof TEAMS !== 'undefined' && TEAMS[teamKey] && typeof inferPlaystyle === 'function') {
+      archetype = inferPlaystyle(TEAMS[teamKey].members || []) || null;
+    }
+  } catch (_e) { archetype = null; }
+
+  // Pull TEAM_META win-condition mon if present.
+  var winConMon = null;
+  try {
+    if (typeof TEAM_META !== 'undefined' && TEAM_META[teamKey] && typeof TEAM_META[teamKey].guide === 'string') {
+      var m = TEAM_META[teamKey].guide.match(/WIN CONDITIONS?:[^\n]*?([A-Z][a-z]+(?:-[A-Za-z]+)?)/);
+      if (m) winConMon = m[1];
+    }
+  } catch (_e) { winConMon = null; }
+
+  function teamUsedTrickRoom(g) {
+    var mu = g.movesUsed || {};
+    var owners = Object.keys(mu);
+    for (var i = 0; i < owners.length; i++) {
+      if ((mu[owners[i]] || {})['Trick Room']) return true;
+    }
+    return false;
+  }
+  function maxProtectStreak(g) {
+    var ps = g.protectStreakMax || {};
+    var keys = Object.keys(ps);
+    var max = 0;
+    for (var i = 0; i < keys.length; i++) if (ps[keys[i]] > max) max = ps[keys[i]];
+    return max;
+  }
+  function earlyDoubleKO(g) {
+    var kos = (g.koEvents || []).filter(function(k){ return k.side === 'player' && (k.turn || 0) < 4; });
+    return kos.length >= 2;
+  }
+  function winConLostEarly(g) {
+    if (!winConMon) return false;
+    var kos = (g.koEvents || []).filter(function(k){
+      return k.side === 'player' && k.victim === winConMon && (k.turn || 0) < 5;
+    });
+    return kos.length >= 1;
+  }
+  function twExpiredLoss(g) {
+    if (!g || (g.twTurns || 0) <= 0) return false;
+    // Heuristic: TW was active and the game ended within a couple of turns.
+    // Sim log keeps cumulative TW turns + total turns; if they nearly match
+    // (within 2), treat as 'collapsed when TW dropped'.
+    return (g.turns || 0) - (g.twTurns || 0) <= 2;
+  }
+
+  var defs = [
+    { id: 'tr_unanswered',
+      desc: 'Opponent set Trick Room and we never answered with our own',
+      test: function(g){ return (g.trTurns || 0) >= 4 && !teamUsedTrickRoom(g); } },
+    { id: 'tw_expired_loss',
+      desc: 'We collapsed the turn opponent\'s Tailwind expired',
+      test: twExpiredLoss },
+    { id: 'early_double_ko',
+      desc: 'Two of our mons KO\'d before turn 4',
+      test: earlyDoubleKO },
+    { id: 'protect_overuse_loss',
+      desc: 'One of our mons used Protect 3+ turns in a row',
+      test: function(g){ return maxProtectStreak(g) >= 3; } },
+    { id: 'wincon_lost_early',
+      desc: 'Win-condition mon KO\'d before turn 5',
+      test: winConLostEarly },
+    { id: 'slow_no_tr',
+      desc: 'Trick Room team never set Trick Room',
+      test: function(g){ return archetype === 'Trick Room Offense' && !teamUsedTrickRoom(g); } }
+  ];
+
+  defs.forEach(function(d){
+    var lossHit = 0, winHit = 0;
+    losses.forEach(function(g){ if (d.test(g)) lossHit++; });
+    wins.forEach(function(g){   if (d.test(g)) winHit++; });
+    var lossFreq = nL > 0 ? lossHit / nL : 0;
+    var winFreq  = nW > 0 ? winHit  / nW : 0;
+    var lift = lossFreq - winFreq;
+    var sev = (lift >= 0.30) ? 'high' : (lift >= 0.20) ? 'medium' : 'low';
+    var hits = lossHit + winHit;
+    var conf = csConfidenceBadge(hits);
+    var passes = (lift >= CS_PHASE4C.LOSS_LIFT_THRESHOLD) && (lossFreq >= CS_PHASE4C.LOSS_FREQ_THRESHOLD);
+    if (passes) {
+      out.push({
+        condition: d.id, description: d.desc,
+        loss_freq: lossFreq, win_freq: winFreq, lift: lift,
+        severity: sev, sample_size: hits, total_losses: nL,
+        confidence: conf.tier, confidence_reason: conf.reason
+      });
+      return;
+    }
+    // Epistemic honesty: large sample with no detectable signal -> surface
+    // as inconclusive rather than silently dropping. Only when the team
+    // sample is mature AND this condition occurred at least once.
+    if (nTotal >= CS_PHASE4C.CONF_HIGH_MIN && hits >= 5 && lossHit >= 1) {
+      out.push({
+        condition: d.id, description: d.desc,
+        loss_freq: lossFreq, win_freq: winFreq, lift: lift,
+        severity: 'low', sample_size: hits, total_losses: nL,
+        confidence: 'inconclusive',
+        confidence_reason: 'no detectable lift over win baseline (lift=' + lift.toFixed(2) + ')'
+      });
+    }
+  });
+  // Sort: severity high -> low, then lift desc.
+  var sevRank = { high: 3, medium: 2, low: 1 };
+  out.sort(function(a, b){
+    var sa = sevRank[a.severity] || 0;
+    var sb = sevRank[b.severity] || 0;
+    if (sa !== sb) return sb - sa;
+    return b.lift - a.lift;
+  });
+  return out;
+}
+
+// Expose for tests + debug console.
+try {
+  window.csConfidenceBadge       = csConfidenceBadge;
+  window.csDetectDeadMoves       = csDetectDeadMoves;
+  window.csComputeLeadPerformance = csComputeLeadPerformance;
+  window.csDetectLossConditions  = csDetectLossConditions;
+  window.CS_PHASE4C              = CS_PHASE4C;
+} catch (_e) { /* non-browser env */ }
+
 function computeTeamHistory(teamKey) {
   if (!teamKey) return null;
   // Cache hit?
@@ -5898,6 +6217,18 @@ function computeTeamHistory(teamKey) {
   }).filter(function(r){ return r.n > 0; })
     .sort(function(a,b){ return b.n - a.n; });
 
+  // Phase 4c (Refs PHASE4C_DETECTORS_SPEC.md): structured detector outputs.
+  // Kept side-by-side with the legacy Phase 4b fields above so existing
+  // consumers (renderStrategyTab snippets, PDF builders) keep working while
+  // the new UI sections read the v2 fields.
+  var lead_performance_v2 = [];
+  var dead_moves_v2       = [];
+  var loss_conditions_v2  = [];
+  try { lead_performance_v2 = csComputeLeadPerformance(games); }       catch (_e) { lead_performance_v2 = []; }
+  try { dead_moves_v2       = csDetectDeadMoves(games, teamKey); }     catch (_e) { dead_moves_v2 = []; }
+  try { loss_conditions_v2  = csDetectLossConditions(games, teamKey); } catch (_e) { loss_conditions_v2 = []; }
+  var team_confidence_v2 = csConfidenceBadge(total_battles, win_rate);
+
   var history = {
     total_battles: total_battles,
     total_series: total_series,
@@ -5917,7 +6248,12 @@ function computeTeamHistory(teamKey) {
     protect_peaks: protectPeaks,
     record_total: record_total,
     record_by_archetype: record_by_archetype_arr,
-    player_behavior_patterns: []  // Phase 4e fills this
+    player_behavior_patterns: [],  // Phase 4e fills this
+    // Phase 4c additions (additive, no replace).
+    lead_performance_v2: lead_performance_v2,
+    dead_moves_v2:       dead_moves_v2,
+    loss_conditions_v2:  loss_conditions_v2,
+    team_confidence_v2:  team_confidence_v2
   };
 
   _csHistoryCache[teamKey] = { ts: Date.now(), history: history };
