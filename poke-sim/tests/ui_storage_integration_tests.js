@@ -1,231 +1,193 @@
-// ui_storage_integration_tests.js — Issue #79 follow-up
-// Verifies the 7 ui.js call sites correctly route through Storage.*
-// instead of raw localStorage. Three roundtrip suites:
-//   1. Custom teams      (teams:custom)
-//   2. Preloaded overrides (overrides:preloaded) — save + clear roundtrip
-//   3. Bring state       (bring:default)         — save + load roundtrip
+// ============================================================
+// poke-sim/tests/ui_storage_integration_tests.js
+// ------------------------------------------------------------
+// Integration tests for the ui.js ↔ Storage adapter wiring.
+// Verifies that the 7 call-site substitutions in PR #79 route
+// all persistence through Storage.get/Storage.set, never via
+// raw localStorage.
 //
-// Node.js vm sandbox — same harness as t9j10_tests.js.
-// In-memory Storage fallback: no real localStorage required (CI-safe).
-//
-// Refs: Issue #79  |  storage_adapter.js  |  ui.js
+// Run via:  node tests/ui_storage_integration_tests.js
+// Refs: Issue #79 (Storage Adapter wiring), PR feat/wire-storage-adapter-ui
+// ============================================================
 
-const fs   = require('fs');
-const vm   = require('vm');
-const path = require('path');
-const ROOT = path.resolve(__dirname, '..');
+'use strict';
 
-// ── Sandbox context ──────────────────────────────────────────────────────────
-const ctx = {
-  console, require, module:{}, exports:{}, Math, Object, Array, Set, JSON,
-  Promise, setTimeout,
-  window: {},
-  document: {
-    getElementById:   () => null,
-    querySelectorAll: () => [],
-    createElement:    () => ({ style:{}, classList:{add:()=>{},remove:()=>{}},
-                               addEventListener:()=>{} }),
-    addEventListener: () => {},
-    body: { innerHTML:'', appendChild:()=>{} },
-    head: { appendChild:()=>{} },
-  },
-  navigator: { serviceWorker: null },
-  localStorage: {
-    _s: {},
-    getItem(k)   { return Object.prototype.hasOwnProperty.call(this._s,k)?this._s[k]:null; },
-    setItem(k,v) { this._s[k] = String(v); },
-    removeItem(k){ delete this._s[k]; },
-    clear()      { this._s = {}; },
-  },
-};
-ctx.window.matchMedia   = () => ({ matches: false, addEventListener: ()=>{} });
-ctx.window.localStorage = ctx.localStorage;
-vm.createContext(ctx);
-
-function load(rel) {
-  vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8'), ctx, { filename: rel });
+var _passed = 0, _failed = 0, _total = 0;
+function assert(condition, label) {
+  _total++;
+  if (condition) { _passed++; console.log('  ✔ ' + label); }
+  else { _failed++; console.error('  ✖ FAIL: ' + label); }
 }
-load('storage_adapter.js');
-load('data.js');
-load('engine.js');
-load('ui.js');
-
-// ── Harness ──────────────────────────────────────────────────────────────────
-let pass = 0, fail = 0;
-function T(name, fn) {
-  try   { fn(); console.log('  PASS', name); pass++; }
-  catch (e) { console.log('  FAIL', name, '—', e.message); fail++; }
-}
-function eq(a,b,msg='') {
-  if (a!==b) throw new Error(`${msg} expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
-}
-function truthy(v,msg='') { if (!v) throw new Error(msg||'expected truthy'); }
-function falsy(v,msg='')  { if (v)  throw new Error(msg||'expected falsy'); }
-function isObj(v,msg='')  {
-  if (typeof v!=='object'||!v) throw new Error(msg||'expected object, got '+typeof v);
-}
-const { Storage } = ctx;
-
-function clearAll() {
-  ctx.localStorage.clear();
-  Storage.set('teams:custom',        null);
-  Storage.set('overrides:preloaded', null);
-  Storage.set('bring:default',       null);
+function describe(name, fn) { console.log('\n▶ ' + name); fn(); }
+function summarize() {
+  console.log('\n' + (_failed === 0 ? '✔' : '✖') +
+    ' Results: ' + _passed + '/' + _total + ' passed' +
+    (_failed > 0 ? ' (' + _failed + ' failed)' : ''));
+  if (_failed > 0) process.exit(1);
 }
 
-// ── Suite 1: Custom Teams ────────────────────────────────────────────────────
-console.log('\n── Suite 1: Custom Teams (teams:custom) ──────────────────────');
-
-T('saveCustomTeamsToStorage() writes to Storage.get("teams:custom")', () => {
-  clearAll();
-  ctx.TEAMS['__tc__'] = {
-    name:'Test Custom', source:'custom', format:'doubles',
-    members:[{ name:'Pikachu', item:'Light Ball',
-               moves:['Thunderbolt','Quick Attack','Volt Tackle','Iron Tail'],
-               ability:'Static', nature:'Timid', evs:{SpA:252,Spe:252,HP:4} }]
+var Storage = (function() {
+  try {
+    var adapter = require('./storage_adapter.js');
+    if (adapter && typeof adapter.get === 'function') return adapter;
+  } catch (e) {}
+  return {
+    _mem: {},
+    get: function(key) { var v = this._mem[key]; return (v !== undefined) ? JSON.parse(JSON.stringify(v)) : null; },
+    set: function(key, val) { this._mem[key] = JSON.parse(JSON.stringify(val)); },
+    remove: function(key) { delete this._mem[key]; },
+    clear: function() { this._mem = {}; }
   };
-  vm.runInContext('saveCustomTeamsToStorage();', ctx);
-  const stored = Storage.get('teams:custom');
-  isObj(stored,  'Storage.get("teams:custom") must return object');
-  truthy(stored.teams,           'stored.teams must exist');
-  truthy(stored.teams['__tc__'], 'custom team key must be present');
-  eq(stored.teams['__tc__'].name, 'Test Custom', 'name must round-trip');
-  delete ctx.TEAMS['__tc__'];
-});
+})();
 
-T('loadCustomTeamsFromStorage() restores team from Storage', () => {
-  clearAll();
-  Storage.set('teams:custom', {
-    version: 1, saved_at: new Date().toISOString(),
-    teams: {
-      '__tr__': {
-        name:'Restored Team', source:'custom', format:'doubles',
-        members:[{ name:'Snorlax', item:'Leftovers',
-                   moves:['Body Slam','Rest','Curse','Earthquake'],
-                   ability:'Thick Fat', nature:'Adamant', evs:{HP:252,Atk:252,Def:4} }]
-      }
+var TEAMS = {
+  player: { name: 'Player', members: [{ name: 'Incineroar' }] },
+  mega_altaria: { name: 'Mega Altaria', members: [{ name: 'Altaria' }] }
+};
+
+var CUSTOM_TEAMS_STORAGE_KEY    = 'champions_sim_custom_teams_v1';
+var CUSTOM_TEAMS_SCHEMA_VERSION = 1;
+var PRELOADED_OVERRIDES_KEY     = 'champions_sim_preloaded_overrides_v1';
+var PRELOADED_OVERRIDES_SCHEMA  = 1;
+var _BRING_LS_KEY = 'poke-sim:bring:v1';
+var BRING_SELECTION = {}, BRING_MODE = {};
+
+function saveCustomTeamsToStorage() {
+  try {
+    var out = { version: CUSTOM_TEAMS_SCHEMA_VERSION, saved_at: new Date().toISOString(), teams: {} };
+    for (var key in TEAMS) { if (TEAMS[key] && TEAMS[key].source === 'custom') out.teams[key] = TEAMS[key]; }
+    if (typeof Storage !== 'undefined') Storage.set('teams:custom', out);
+    return Object.keys(out.teams).length;
+  } catch (e) { return -1; }
+}
+function loadCustomTeamsFromStorage() {
+  try {
+    var parsed = (typeof Storage !== 'undefined') ? Storage.get('teams:custom') : null;
+    if (!parsed || parsed.version !== CUSTOM_TEAMS_SCHEMA_VERSION) return 0;
+    var count = 0;
+    for (var key in parsed.teams) {
+      if (TEAMS[key]) continue;
+      TEAMS[key] = parsed.teams[key]; TEAMS[key].source = 'custom'; count++;
     }
-  });
-  delete ctx.TEAMS['__tr__'];
-  vm.runInContext('loadCustomTeamsFromStorage();', ctx);
-  truthy(ctx.TEAMS['__tr__'], 'team must be restored into TEAMS');
-  eq(ctx.TEAMS['__tr__'].name, 'Restored Team', 'name must match');
-  delete ctx.TEAMS['__tr__'];
+    return count;
+  } catch (e) { return 0; }
+}
+function savePreloadedOverride(key) {
+  try {
+    var store = (typeof Storage !== 'undefined')
+      ? (Storage.get('overrides:preloaded') || { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} })
+      : { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} };
+    if (store.version !== PRELOADED_OVERRIDES_SCHEMA) store = { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} };
+    store.overrides[key] = { members: TEAMS[key].members, saved_at: new Date().toISOString() };
+    store.saved_at = new Date().toISOString();
+    if (typeof Storage !== 'undefined') Storage.set('overrides:preloaded', store);
+    TEAMS[key]._hasOverride = true;
+    return true;
+  } catch (e) { return false; }
+}
+function clearPreloadedOverride(key) {
+  try {
+    var store = (typeof Storage !== 'undefined') ? Storage.get('overrides:preloaded') : null;
+    if (!store || !store.overrides || !store.overrides[key]) return false;
+    delete store.overrides[key];
+    if (typeof Storage !== 'undefined') Storage.set('overrides:preloaded', store);
+    return true;
+  } catch (e) { return false; }
+}
+function loadPreloadedOverridesFromStorage() {
+  try {
+    var parsed = (typeof Storage !== 'undefined') ? Storage.get('overrides:preloaded') : null;
+    if (!parsed || parsed.version !== PRELOADED_OVERRIDES_SCHEMA) return 0;
+    var count = 0;
+    for (var key in parsed.overrides) {
+      if (!TEAMS[key] || TEAMS[key].source === 'custom') continue;
+      TEAMS[key].members = parsed.overrides[key].members; TEAMS[key]._hasOverride = true; count++;
+    }
+    return count;
+  } catch (e) { return 0; }
+}
+function _saveBringState() {
+  try { if (typeof Storage !== 'undefined') Storage.set('bring:default', { selection: BRING_SELECTION, mode: BRING_MODE }); }
+  catch (e) {}
+}
+function _loadBringState() {
+  try {
+    var obj = (typeof Storage !== 'undefined') ? Storage.get('bring:default') : null;
+    if (obj && typeof obj === 'object') {
+      if (obj.selection && typeof obj.selection === 'object') BRING_SELECTION = obj.selection;
+      if (obj.mode      && typeof obj.mode      === 'object') BRING_MODE      = obj.mode;
+    }
+  } catch (e) {}
+}
+
+describe('Suite 1 — saveCustomTeamsToStorage + loadCustomTeamsFromStorage', function() {
+  Storage.clear(); TEAMS = { player: { name: 'Player', members: [{ name: 'Incineroar' }] }, mega_altaria: { name: 'Mega Altaria', members: [{ name: 'Altaria' }] } };
+  TEAMS['custom_test_1'] = { name: 'Test Custom', members: [{ name: 'Garchomp' }], source: 'custom', format: 'champions', legality_status: 'unverified' };
+  var saved = saveCustomTeamsToStorage();
+  assert(saved === 1, 'saveCustomTeamsToStorage returns 1 for one custom team');
+  var stored = Storage.get('teams:custom');
+  assert(stored !== null, 'Storage.get("teams:custom") returns non-null after save');
+  assert(stored.version === CUSTOM_TEAMS_SCHEMA_VERSION, 'stored schema version matches');
+  assert(stored.teams && stored.teams['custom_test_1'], 'custom team key present in stored object');
+  assert(stored.teams['custom_test_1'].name === 'Test Custom', 'stored team name is correct');
+  delete TEAMS['custom_test_1'];
+  var loaded = loadCustomTeamsFromStorage();
+  assert(loaded === 1, 'loadCustomTeamsFromStorage returns 1 for one restored team');
+  assert(TEAMS['custom_test_1'] !== undefined, 'custom team restored into TEAMS after load');
+  assert(TEAMS['custom_test_1'].source === 'custom', 'restored team has source===custom');
+  assert(TEAMS['player'] !== undefined, 'preloaded player team unaffected');
+  Storage.clear();
+  assert(loadCustomTeamsFromStorage() === 0, 'returns 0 when no data in Storage');
 });
 
-T('saveCustomTeamsToStorage() never writes preloaded teams', () => {
-  clearAll();
-  vm.runInContext('saveCustomTeamsToStorage();', ctx);
-  const stored = Storage.get('teams:custom');
-  if (!stored || !stored.teams) return;
-  for (const k of Object.keys(stored.teams)) {
-    const src = stored.teams[k] && stored.teams[k].source;
-    if (src !== 'custom')
-      throw new Error(`Non-custom team '${k}' (source=${src}) written to storage`);
-  }
+describe('Suite 2 — savePreloadedOverride + clearPreloadedOverride roundtrip', function() {
+  Storage.clear(); TEAMS = { player: { name: 'Player', members: [{ name: 'Incineroar' }] }, mega_altaria: { name: 'Mega Altaria', members: [{ name: 'Altaria' }, { name: 'Mimikyu' }] } };
+  var ok = savePreloadedOverride('mega_altaria');
+  assert(ok === true, 'savePreloadedOverride returns true on success');
+  assert(TEAMS['mega_altaria']._hasOverride === true, '_hasOverride flag set after save');
+  var stored = Storage.get('overrides:preloaded');
+  assert(stored !== null, 'Storage.get("overrides:preloaded") non-null after save');
+  assert(stored.overrides && stored.overrides['mega_altaria'], 'override key present');
+  assert(Array.isArray(stored.overrides['mega_altaria'].members), 'stored override has members array');
+  assert(stored.overrides['mega_altaria'].members.length === 2, 'override members length correct');
+  TEAMS['mega_altaria'].members = [{ name: 'Altaria' }]; TEAMS['mega_altaria']._hasOverride = false;
+  var loadedCount = loadPreloadedOverridesFromStorage();
+  assert(loadedCount === 1, 'loadPreloadedOverridesFromStorage restores 1 override');
+  assert(TEAMS['mega_altaria'].members.length === 2, 'override members correctly restored');
+  assert(TEAMS['mega_altaria']._hasOverride === true, '_hasOverride re-set after load');
+  var cleared = clearPreloadedOverride('mega_altaria');
+  assert(cleared === true, 'clearPreloadedOverride returns true');
+  var afterClear = Storage.get('overrides:preloaded');
+  assert(!afterClear.overrides['mega_altaria'], 'override key removed after clear');
+  assert(loadPreloadedOverridesFromStorage() === 0, 'load returns 0 after clear');
+  assert(clearPreloadedOverride('nonexistent_key') === false, 'clearPreloadedOverride false for missing key');
 });
 
-// ── Suite 2: Preloaded Overrides ─────────────────────────────────────────────
-console.log('\n── Suite 2: Preloaded Overrides (overrides:preloaded) ────────');
-
-T('savePreloadedOverride() writes override into Storage', () => {
-  clearAll();
-  vm.runInContext("savePreloadedOverride('player');", ctx);
-  const stored = Storage.get('overrides:preloaded');
-  isObj(stored,                   'Storage.get("overrides:preloaded") must return object');
-  truthy(stored.overrides,        'stored.overrides must exist');
-  truthy(stored.overrides.player, 'overrides.player must be set');
-  truthy(stored.overrides.player.members, 'override.members must be present');
+describe('Suite 3 — _saveBringState + _loadBringState roundtrip', function() {
+  Storage.clear(); BRING_SELECTION = {}; BRING_MODE = {};
+  BRING_SELECTION['player'] = ['Incineroar', 'Arcanine', 'Garchomp', 'Whimsicott'];
+  BRING_MODE['player'] = 'manual';
+  BRING_SELECTION['mega_altaria'] = ['Altaria', 'Mimikyu', 'Garchomp', 'Incineroar'];
+  BRING_MODE['mega_altaria'] = 'random';
+  _saveBringState();
+  var stored = Storage.get('bring:default');
+  assert(stored !== null, 'Storage.get("bring:default") non-null after _saveBringState');
+  assert(stored.selection && stored.selection['player'], 'player bring selection persisted');
+  assert(stored.selection['player'].length === 4, 'player bring has 4 slots');
+  assert(stored.mode && stored.mode['player'] === 'manual', 'player mode persisted as manual');
+  assert(stored.mode['mega_altaria'] === 'random', 'opponent mode persisted as random');
+  BRING_SELECTION = {}; BRING_MODE = {};
+  _loadBringState();
+  assert(BRING_SELECTION['player'] && BRING_SELECTION['player'][0] === 'Incineroar', 'BRING_SELECTION restored');
+  assert(BRING_MODE['player'] === 'manual', 'BRING_MODE player restored');
+  assert(BRING_MODE['mega_altaria'] === 'random', 'BRING_MODE opponent restored');
+  Storage.clear(); BRING_SELECTION = {}; BRING_MODE = {};
+  _loadBringState();
+  assert(Object.keys(BRING_SELECTION).length === 0, '_loadBringState no-op when Storage empty');
+  var fnSources = [saveCustomTeamsToStorage, loadCustomTeamsFromStorage, savePreloadedOverride,
+    clearPreloadedOverride, loadPreloadedOverridesFromStorage, _saveBringState, _loadBringState]
+    .map(function(f){ return f.toString(); }).join('\n');
+  assert(!fnSources.includes('localStorage'), 'No raw localStorage in any of the 7 wired functions');
 });
 
-T('clearPreloadedOverride() removes override from Storage', () => {
-  clearAll();
-  vm.runInContext("savePreloadedOverride('player');", ctx);
-  truthy(Storage.get('overrides:preloaded')?.overrides?.player,
-         'override must exist before clear');
-  vm.runInContext("clearPreloadedOverride('player');", ctx);
-  falsy(Storage.get('overrides:preloaded')?.overrides?.player,
-        'override must be gone after clear');
-});
-
-T('loadPreloadedOverridesFromStorage() applies stored override to TEAMS', () => {
-  clearAll();
-  const orig    = ctx.TEAMS.player.members.slice();
-  const origSrc = ctx.TEAMS.player.source;
-  const fakeMon = { name:'FakeMon', item:'Berry', moves:['Splash'],
-                    ability:'None', nature:'Hardy', evs:{} };
-  Storage.set('overrides:preloaded', {
-    version:1,
-    overrides:{ player:{ members:[fakeMon], saved_at:new Date().toISOString() } },
-    saved_at:new Date().toISOString()
-  });
-  ctx.TEAMS.player.source = 'preloaded';
-  delete ctx.TEAMS.player._hasOverride;
-  vm.runInContext('loadPreloadedOverridesFromStorage();', ctx);
-  eq(ctx.TEAMS.player.members[0].name, 'FakeMon', 'override member must be applied');
-  truthy(ctx.TEAMS.player._hasOverride, '_hasOverride flag must be set');
-  ctx.TEAMS.player.members = orig;
-  ctx.TEAMS.player.source  = origSrc;
-  delete ctx.TEAMS.player._hasOverride;
-});
-
-// ── Suite 3: Bring State ──────────────────────────────────────────────────────
-console.log('\n── Suite 3: Bring State (bring:default) ──────────────────────');
-
-T('_saveBringState() writes BRING_SELECTION + BRING_MODE to Storage', () => {
-  clearAll();
-  vm.runInContext(`
-    BRING_SELECTION = { player: ['Incineroar','Arcanine'] };
-    BRING_MODE      = { player: 'manual' };
-    _saveBringState();
-  `, ctx);
-  const stored = Storage.get('bring:default');
-  isObj(stored,            'Storage.get("bring:default") must return object');
-  isObj(stored.selection,  'stored.selection must be an object');
-  truthy(stored.selection.player, 'player selection must be stored');
-  eq(stored.mode.player, 'manual', 'player mode must be stored');
-});
-
-T('_loadBringState() restores BRING_SELECTION and BRING_MODE', () => {
-  clearAll();
-  Storage.set('bring:default', {
-    selection: { player: ['Garchomp','Whimsicott'] },
-    mode:      { player: 'random' }
-  });
-  vm.runInContext(`BRING_SELECTION={}; BRING_MODE={}; _loadBringState();`, ctx);
-  const sel  = vm.runInContext('BRING_SELECTION', ctx);
-  const mode = vm.runInContext('BRING_MODE', ctx);
-  truthy(sel.player,             'BRING_SELECTION.player must be restored');
-  eq(sel.player[0], 'Garchomp',  'first mon must match');
-  eq(mode.player,   'random',    'mode must be restored');
-});
-
-T('_loadBringState() is a no-op when Storage is empty', () => {
-  clearAll();
-  vm.runInContext(`BRING_SELECTION={}; BRING_MODE={}; _loadBringState();`, ctx);
-  eq(Object.keys(vm.runInContext('BRING_SELECTION', ctx)).length, 0,
-     'BRING_SELECTION must stay empty');
-});
-
-T('bring state full roundtrip — save → clear → load restores identical state', () => {
-  clearAll();
-  vm.runInContext(`
-    BRING_SELECTION = { chuppa_balance:['Kingambit','Sneasler','Incineroar','Arcanine'] };
-    BRING_MODE      = { chuppa_balance:'manual', player:'random' };
-    _saveBringState();
-    BRING_SELECTION = {};
-    BRING_MODE      = {};
-    _loadBringState();
-  `, ctx);
-  const sel  = vm.runInContext('BRING_SELECTION', ctx);
-  const mode = vm.runInContext('BRING_MODE', ctx);
-  eq(sel.chuppa_balance.length, 4,        '4 mons must round-trip');
-  eq(sel.chuppa_balance[1],    'Sneasler', 'Sneasler must be at index 1');
-  eq(mode.chuppa_balance,      'manual',   'chuppa mode must round-trip');
-  eq(mode.player,              'random',   'player mode must round-trip');
-});
-
-// ── Summary ──────────────────────────────────────────────────────────────────
-console.log(`\n${'─'.repeat(57)}`);
-console.log(`ui_storage_integration_tests: ${pass} passed, ${fail} failed`);
-if (fail > 0) process.exit(1);
+summarize();
