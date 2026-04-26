@@ -5092,6 +5092,12 @@ function renderStrategyTab(teamKey) {
     var _history = (typeof computeTeamHistory === 'function') ? computeTeamHistory(teamKey) : null;
     if (_history) html += csRenderAdaptiveBanner(_history);
     if (_history) html += csRenderRecordBar(_history);
+    // Phase 4c (Refs PHASE4C_DETECTORS_SPEC.md): 5 collapsible detector
+    // sections under the Record bar. Renders inline/section confidence
+    // badges and 'insufficient data' placeholders when n < 5.
+    if (_history && typeof csRenderPhase4cSections === 'function') {
+      html += csRenderPhase4cSections(_history, teamKey, team);
+    }
   } catch (e) { console.warn('[Phase4b] banner render failed:', e && e.message); }
 
   // Section 1: Team report card
@@ -6329,6 +6335,175 @@ function _csRecordEmptyStateKind() {
     return 'new';
   }
 }
+
+// Phase 4c (Refs PHASE4C_DETECTORS_SPEC.md) - render 5 collapsible sections.
+// Empty-state when history.total_battles < CONF_LOW_MIN (5) for a section,
+// individual rows show inline confidence badges, section headers show the
+// dominant tier across rows.
+function csRenderPhase4cSections(history, teamKey, team) {
+  if (!history) return '';
+  var n = history.total_battles | 0;
+  var leadRows = history.lead_performance_v2 || [];
+  var deadRows = history.dead_moves_v2 || [];
+  var lossRows = history.loss_conditions_v2 || [];
+  var teamConf = history.team_confidence_v2 || { tier: 'none', reason: 'n=0' };
+  var members = (team && team.members) || [];
+
+  function _badgeHtml(tier, label) {
+    var t = tier || 'none';
+    var txtMap = {
+      none: 'insufficient data',
+      low:  'low confidence',
+      med:  'moderate',
+      high: 'high confidence',
+      inconclusive: 'inconclusive'
+    };
+    var text = label || txtMap[t] || t;
+    return '<span class="cs-confidence-badge cs-confidence-' + t + '">' + _csEsc(text) + '</span>';
+  }
+  function _dominantTier(rows) {
+    if (!rows || !rows.length) return 'none';
+    var rank = { high: 4, med: 3, low: 2, inconclusive: 1, none: 0 };
+    var best = 'none';
+    rows.forEach(function(r){
+      var t = r.confidence || 'none';
+      if ((rank[t] || 0) > (rank[best] || 0)) best = t;
+    });
+    return best;
+  }
+  function _emptyHtml(label) {
+    return '<div class="cs-detector-empty">' + _csEsc(label) + '</div>';
+  }
+  function _section(title, headerExtra, bodyHtml) {
+    var h = '';
+    h += '<details class="cs-detector-section" open>';
+    h +=   '<summary class="cs-detector-summary">';
+    h +=     '<span class="cs-detector-title">' + _csEsc(title) + '</span>';
+    h +=     headerExtra;
+    h +=   '</summary>';
+    h +=   '<div class="cs-detector-body">' + bodyHtml + '</div>';
+    h += '</details>';
+    return h;
+  }
+
+  var html = '';
+  html += '<div class="cs-phase4c-block">';
+
+  // ---- Section 1: Lead Performance --------------------------------------
+  var leadHeader = '';
+  var leadBody = '';
+  if (n < CS_PHASE4C.CONF_LOW_MIN) {
+    leadHeader = _badgeHtml('none');
+    leadBody = _emptyHtml('insufficient data - run 5+ sims');
+  } else if (!leadRows.length) {
+    leadHeader = _badgeHtml('none', 'no lead pairs with 5+ games');
+    leadBody = _emptyHtml('No lead pair has reached 5 games yet.');
+  } else {
+    leadHeader = '<span class="cs-detector-count">' + leadRows.length + ' tracked</span>' + _badgeHtml(_dominantTier(leadRows));
+    leadBody += '<div class="cs-detector-table">';
+    leadBody +=   '<div class="cs-detector-row cs-detector-head">';
+    leadBody +=     '<span>Lead</span><span>W-L</span><span>WR</span><span>Confidence</span>';
+    leadBody +=   '</div>';
+    leadRows.forEach(function(r){
+      leadBody += '<div class="cs-detector-row">';
+      leadBody +=   '<span class="cs-detector-cell-lead">' + _csEsc((r.lead || []).join(' + ')) + '</span>';
+      leadBody +=   '<span>' + r.w + '-' + r.l + '</span>';
+      leadBody +=   '<span>' + Math.round((r.win_rate || 0) * 100) + '%</span>';
+      leadBody +=   '<span title="' + _csEsc(r.confidence_reason || '') + '">' + _badgeHtml(r.confidence) + '</span>';
+      leadBody += '</div>';
+    });
+    leadBody += '</div>';
+  }
+  html += _section('Lead Performance', leadHeader, leadBody);
+
+  // ---- Section 2: Likely Loss Patterns ----------------------------------
+  var lossHeader = '';
+  var lossBody = '';
+  if (n < CS_PHASE4C.LOSS_MIN_GAMES) {
+    lossHeader = _badgeHtml('none', 'need ' + CS_PHASE4C.LOSS_MIN_GAMES + '+ games');
+    lossBody = _emptyHtml('Run ' + CS_PHASE4C.LOSS_MIN_GAMES + '+ sims to surface loss patterns.');
+  } else if (!lossRows.length) {
+    lossHeader = _badgeHtml('high', 'no patterns flagged');
+    lossBody = _emptyHtml('No loss pattern crossed the lift threshold. That is a good sign.');
+  } else {
+    lossHeader = '<span class="cs-detector-count">' + lossRows.length + ' detected</span>' + _badgeHtml(_dominantTier(lossRows));
+    lossBody += '<div class="cs-detector-table">';
+    lossRows.forEach(function(r){
+      lossBody += '<div class="cs-detector-row cs-detector-row-loss cs-severity-' + r.severity + '">';
+      lossBody +=   '<span class="cs-detector-cell-desc">' + _csEsc(r.description) + '</span>';
+      lossBody +=   '<span>' + Math.round((r.loss_freq || 0) * 100) + '% of losses</span>';
+      lossBody +=   '<span class="cs-severity-tag">' + _csEsc(r.severity) + ' severity</span>';
+      lossBody +=   '<span title="' + _csEsc(r.confidence_reason || '') + '">' + _badgeHtml(r.confidence) + '</span>';
+      lossBody += '</div>';
+    });
+    lossBody += '</div>';
+  }
+  html += _section('Likely Loss Patterns', lossHeader, lossBody);
+
+  // ---- Section 3: Dead Moves -------------------------------------------
+  var deadHeader = '';
+  var deadBody = '';
+  if (n < CS_PHASE4C.DEAD_MOVE_MIN_GAMES) {
+    deadHeader = _badgeHtml('none', 'need ' + CS_PHASE4C.DEAD_MOVE_MIN_GAMES + '+ games');
+    deadBody = _emptyHtml('Run ' + CS_PHASE4C.DEAD_MOVE_MIN_GAMES + '+ sims before flagging dead moves.');
+  } else if (!deadRows.length) {
+    deadHeader = _badgeHtml('high', 'no dead moves');
+    deadBody = _emptyHtml('Every move has been used at expected rates.');
+  } else {
+    deadHeader = '<span class="cs-detector-count">' + deadRows.length + ' flagged</span>' + _badgeHtml(_dominantTier(deadRows));
+    deadBody += '<div class="cs-detector-table">';
+    deadRows.forEach(function(r){
+      var avgLabel = (r.calls === 0)
+        ? '0 calls (count=0) over ' + r.total_games + ' games'
+        : (Math.round((r.avg_calls_per_game || 0) * 100) / 100) + ' avg/game over ' + r.total_games + ' games';
+      deadBody += '<div class="cs-detector-row cs-detector-row-dead cs-severity-' + r.severity + '">';
+      deadBody +=   '<span class="cs-detector-cell-desc"><strong>' + _csEsc(r.pokemon) + '</strong> - ' + _csEsc(r.move) + '</span>';
+      deadBody +=   '<span>' + _csEsc(avgLabel) + '</span>';
+      deadBody +=   '<span class="cs-severity-tag">' + _csEsc(r.severity) + ' severity</span>';
+      deadBody +=   '<span>' + _badgeHtml(r.confidence) + '</span>';
+      deadBody += '</div>';
+    });
+    deadBody += '</div>';
+  }
+  html += _section('Dead Moves', deadHeader, deadBody);
+
+  // ---- Section 4: Coverage and Roles (read-only TEAM_META summary) ------
+  var covHeader = _badgeHtml('high', 'team composition');
+  var covBody = '';
+  if (!members.length) {
+    covBody = _emptyHtml('No team members loaded.');
+  } else {
+    var archetype = '';
+    try { archetype = (typeof inferPlaystyle === 'function') ? (inferPlaystyle(members) || '') : ''; } catch (_e) { archetype = ''; }
+    covBody += '<ul class="cs-list cs-detector-roles">';
+    if (archetype) covBody += '<li><strong>Archetype:</strong> ' + _csEsc(archetype) + '</li>';
+    var roleLines = members.map(function(m){
+      var role = (m.item ? '@ ' + m.item : '') + (m.ability ? ' (' + m.ability + ')' : '');
+      return _csEsc(m.name + ' ' + role);
+    });
+    covBody += '<li><strong>Roster:</strong> ' + roleLines.join(', ') + '</li>';
+    covBody += '</ul>';
+  }
+  html += _section('Coverage and Roles', covHeader, covBody);
+
+  // ---- Section 5: Sample Confidence (team-level) ------------------------
+  var teamHeader = _badgeHtml(teamConf.tier);
+  var teamBody = '';
+  teamBody += '<div class="cs-detector-team-conf">';
+  teamBody +=   '<div><strong>Total games:</strong> ' + n + '</div>';
+  teamBody +=   '<div><strong>Win rate:</strong> ' + Math.round((history.win_rate || 0) * 100) + '%</div>';
+  teamBody +=   '<div><strong>Reason:</strong> ' + _csEsc(teamConf.reason || '') + '</div>';
+  teamBody += '</div>';
+  if (n < CS_PHASE4C.CONF_LOW_MIN) {
+    teamBody += _emptyHtml('Not enough data to draw conclusions yet.');
+  }
+  html += _section('Sample Confidence', teamHeader, teamBody);
+
+  html += '</div>';
+  return html;
+}
+
+try { window.csRenderPhase4cSections = csRenderPhase4cSections; } catch (_e) {}
 
 // Render the Record bar: overall W-L pill + per-archetype chips. Shown right
 // under the adaptive banner on the Strategy tab. No draws surfaced (per user:

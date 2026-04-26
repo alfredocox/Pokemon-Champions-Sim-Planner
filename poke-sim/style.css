@@ -1274,3 +1274,134 @@ table{border-collapse:collapse;width:100%}
   .cs-record-chip { font-size: 11px; padding: 3px 8px; }
   .cs-record-empty-hint { font-size: 11px; }
 }
+
+/* ============================================================
+ * Phase 4c (Refs PHASE4C_DETECTORS_SPEC.md) - detector sections.
+ * Five collapsible <details> blocks under the Record bar with
+ * inline confidence badges and section-summary badges.
+ * ============================================================ */
+.cs-phase4c-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 10px;
+}
+.cs-detector-section {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 0;
+  overflow: hidden;
+}
+.cs-detector-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.cs-detector-summary::-webkit-details-marker { display: none; }
+.cs-detector-summary::before {
+  content: "\25B8";
+  display: inline-block;
+  font-size: 10px;
+  color: #64748b;
+  width: 10px;
+  transition: transform 0.15s ease;
+}
+.cs-detector-section[open] > .cs-detector-summary::before { transform: rotate(90deg); }
+.cs-detector-title { flex: 1; }
+.cs-detector-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  background: #1e293b;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.cs-detector-body {
+  padding: 6px 14px 12px;
+  border-top: 1px solid #1e293b;
+}
+.cs-detector-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.cs-detector-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.4fr;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #0b1220;
+}
+.cs-detector-row-loss { grid-template-columns: 2.4fr 1.2fr 1fr 1.2fr; }
+.cs-detector-row-dead { grid-template-columns: 1.6fr 2fr 1fr 1fr; }
+.cs-detector-head {
+  background: transparent;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  padding-bottom: 0;
+}
+.cs-detector-cell-lead { font-weight: 600; color: #e2e8f0; }
+.cs-detector-cell-desc { color: #cbd5e1; }
+.cs-detector-empty {
+  padding: 10px 4px;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 13px;
+}
+.cs-detector-roles { margin: 4px 0; }
+.cs-detector-team-conf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+/* Confidence badges - 5 tiers (none/low/med/high/inconclusive) */
+.cs-confidence-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.cs-confidence-none         { background: #1e293b; color: #94a3b8; border-color: #334155; }
+.cs-confidence-low          { background: #3a2a05; color: #fbbf24; border-color: #78400b; }
+.cs-confidence-med          { background: #0c2a4a; color: #60a5fa; border-color: #1e4f8a; }
+.cs-confidence-high         { background: #0d3d28; color: #4ade80; border-color: #166534; }
+.cs-confidence-inconclusive { background: #1f2533; color: #cbd5e1; border-color: #475569; }
+
+.cs-severity-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+.cs-severity-high .cs-severity-tag { color: #f87171; font-weight: 600; }
+.cs-severity-medium .cs-severity-tag { color: #fbbf24; font-weight: 600; }
+.cs-severity-low .cs-severity-tag { color: #60a5fa; }
+
+@media (max-width: 640px) {
+  .cs-detector-row,
+  .cs-detector-row-loss,
+  .cs-detector-row-dead {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .cs-detector-head { display: none; }
+}
