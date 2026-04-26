@@ -64,21 +64,27 @@ Space instruction `deploy_website(project_path="poke-sim/poke-sim", site_name="C
 Any PR that modifies `poke-sim/engine.js`, `poke-sim/data.js`, `poke-sim/ui.js`, `poke-sim/style.css`, `poke-sim/strategy-injectable.js`, or `poke-sim/index.html` **must** complete these steps before merging:
 
 ### Step 1 — Rebuild the bundle
-```powershell
-# Windows PowerShell (from repo root)
-cd poke-sim\poke-sim
-python tools\build-bundle.py
-```
 ```bash
-# macOS / Linux / Git Bash (from repo root)
-cd poke-sim/poke-sim
+# From repo root (WSL / macOS / Linux)
+cd poke-sim
 python3 tools/build-bundle.py
 ```
+```powershell
+# Windows PowerShell (from repo root)
+cd poke-sim
+python tools\build-bundle.py
+```
+> ⚠️ **Always use `poke-sim/tools/build-bundle.py` — NOT `tools/build.py` at the repo root.** See the dual `tools/` warning below.
+
 > ⚠️ **Windows note:** Python must be installed. If `python` is not found, install via: `winget install Python.Python.3.12` then refresh PATH: `$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")`
 
 ### Step 2 — Bump CACHE_NAME in sw.js
 `sw.js` lives at `poke-sim/sw.js` (not `poke-sim/poke-sim/sw.js`).
 
+```bash
+# macOS / Linux / Git Bash (from repo root)
+bash tools/release.sh <new-tag>
+```
 ```powershell
 # Windows PowerShell — replace old tag with new tag
 (Get-Content poke-sim\sw.js) -replace 'champions-sim-v5-<old-tag>', 'champions-sim-v5-<new-tag>' | Set-Content poke-sim\sw.js
@@ -86,15 +92,11 @@ python3 tools/build-bundle.py
 # Verify
 Select-String "CACHE_NAME" poke-sim\sw.js
 ```
-```bash
-# macOS / Linux / Git Bash (from repo root)
-bash tools/release.sh <new-tag>
-```
-Format: `champions-sim-v{major}-{release-tag}`. Current after PR #135: `champions-sim-v5-wire-storage-adapter`.
+Format: `champions-sim-v{major}-{release-tag}`. Current after PR #137: `champions-sim-v6-wire-storage-adapter`.
 
 ### Step 3 — Commit and push both artifacts
 ```bash
-git add poke-sim/poke-sim/pokemon-champion-2026.html poke-sim/sw.js
+git add poke-sim/pokemon-champion-2026.html poke-sim/sw.js
 git commit -m "build: rebuild bundle + bump CACHE_NAME to <tag> - Refs #N"
 git push
 ```
@@ -105,6 +107,23 @@ Both checks must go green before merging:
 - **Verify sw.js CACHE_NAME bumped** — confirms `poke-sim/sw.js` was modified
 
 > ⚠️ **CI only runs the enforcement step if it detects source file changes.** If checks pass with "No app source files changed" but you DID change source files, the path pattern in the workflow may be wrong — file a bug immediately.
+
+---
+
+## DUAL `tools/` DIRECTORIES — ⚠️ CRITICAL WARNING
+
+There are **two separate `tools/` directories** in this repo. They serve different purposes and must never be confused.
+
+| Path | Files | Purpose |
+|---|---|---|
+| `tools/` (repo root) | `build.py`, `release.sh` | Root-level utilities — `release.sh` bumps `sw.js` CACHE_NAME; `build.py` is a legacy/alternate script |
+| `poke-sim/tools/` | `build-bundle.py`, `check-bundle.sh`, `README.md` | **Active sim build tools** — always use these |
+
+### Rules
+- **Always rebuild the bundle with:** `cd poke-sim && python3 tools/build-bundle.py`
+- **Always run the CI check locally with:** `bash poke-sim/tools/check-bundle.sh`
+- **Never run** `python3 tools/build.py` from the repo root expecting a bundle rebuild — it is a different script
+- Any instruction or AI suggestion that references `tools/build.py` for the bundle rebuild is **wrong** — correct it to `poke-sim/tools/build-bundle.py`
 
 ---
 
@@ -124,11 +143,13 @@ Both workflows live in `.github/workflows/`. Fixed in PRs #136 + #135 (2026-04-2
 
 ---
 
-## STORAGE ADAPTER WIRING — Issue #79 (ui.js) ✅ COMPLETE
+## STORAGE ADAPTER WIRING — Issue #79 ✅ COMPLETE
 
-**Status: shipped in PR #135 `feat/wire-storage-adapter-ui` — merged into main**
+### Phase 1 — `storage_adapter.js` created (PR #134)
+`storage_adapter.js` introduced the `Storage.get/set/remove/migrate()` API as a drop-in wrapper around `localStorage` with automatic JSON parse/stringify and silent-fail error handling.
 
-### 7 call-site swaps (ui.js)
+### Phase 2 — Core ui.js call sites replaced (PR #135 `feat/wire-storage-adapter-ui`)
+Shipped and merged into main. 7 call-site swaps in `ui.js`:
 
 | # | Function | Before | After |
 |---|---|---|---|
@@ -140,21 +161,34 @@ Both workflows live in `.github/workflows/`. Fixed in PRs #136 + #135 (2026-04-2
 | 6 | `_loadBringState` | `localStorage.getItem(_BRING_LS_KEY)` + `JSON.parse` | `Storage.get('bring:default')` |
 | 7 | `_saveBringState` | `typeof localStorage` guard + `setItem` | `Storage.set('bring:default', {...})` |
 
+### Phase 3 — Full wiring sweep (PR #137 `fix/wire-storage-adapter-ui-79`)
+Completed 2026-04-26. Remaining raw `localStorage` calls in `ui.js` replaced, `storage_adapter.js` injected into all entry points, `sw.js` bumped.
+
+**13 additional call-site swaps in `ui.js`:**
+
+| Function | Keys affected |
+|---|---|
+| `_t9j16_lsGet` / `_t9j16_lsSet` | `T9J16_STORAGE_KEY::*` |
+| `_csApplyEvidenceVisibility` / `_csInitEvidenceToggle` | `CS_EVIDENCE_KEY` |
+| `_csPersistRead` / `_csPersistWrite` (×2 write paths) | `CS_PERSIST_KEY` |
+| `_csSimLogRead` / `_csSimLogWrite` (×2 write paths) | `CS_SIMLOG_KEY` |
+
+**Supporting changes in PR #137:**
+- `storage_adapter.js` injected into `index.html` before `data.js` ✅
+- `storage_adapter.js` injected into `pokemon-champion-2026.html` before `legality.js` ✅
+- `storage_adapter.js` added to `sw.js` `APP_ASSETS` cache array ✅
+- `sw.js` CACHE_NAME bumped: `champions-sim-v5-wire-storage-adapter` → `champions-sim-v6-wire-storage-adapter` ✅
+
 ### Zero data loss
 `Storage.migrate()` (in `storage_adapter.js`) auto-migrates all 3 legacy keys on first load. No user data lost.
 
-### Integration tests added
+### Integration tests
 `poke-sim/tests/ui_storage_integration_tests.js` — **33 assertions**, 3 suites:
 - Suite 1 (10): custom teams save / load / schema version / no-preloaded-bleed / empty-storage no-op
 - Suite 2 (13): preloaded override save / clear / load roundtrip / `_hasOverride` flag / missing-key false return
 - Suite 3 (10): bring-state save / load / 4-slot bring / mode persistence / empty-storage no-op / static source check
 
 Run: `node poke-sim/tests/ui_storage_integration_tests.js`
-
-### No regressions
-- `engine.js` / `data.js` — untouched
-- `var COVERAGE_CHECKS` — untouched (TDZ-safe, must remain `var`)
-- CACHE_NAME after this PR: `champions-sim-v5-wire-storage-adapter`
 
 ---
 
@@ -169,6 +203,21 @@ This is referenced during initialization before its declaration line is reached.
 
 ---
 
+## WSL / WINDOWS DEVELOPMENT NOTES
+
+- **`sed -i` on `/mnt/c/` paths fails** with `Operation not permitted` — NTFS via DrvFs does not support Unix permission preservation. Use `python3 -c` or manual temp-file pattern instead:
+  ```bash
+  # Safe sed alternative for /mnt/c/ paths
+  python3 -c "
+  with open('file.html','r') as f: c=f.read()
+  c=c.replace('OLD','NEW')
+  with open('file.html','w') as f: f.write(c)
+  "
+  ```
+- **Always run build scripts from `poke-sim/` directory**, not from repo root or `poke-sim/poke-sim/` (does not exist).
+
+---
+
 ## FILE LOCATIONS — CANONICAL PATHS
 
 > ⚠️ Source files live at `poke-sim/` (one level). There is NO `poke-sim/poke-sim/` nesting for source files.
@@ -178,7 +227,8 @@ Pokemon-Champions-Sim-Planner/
 ├── .github/workflows/
 │   ├── bundle-freshness-check.yml
 │   └── cache-bump-check.yml
-├── tools/
+├── tools/                         ← ROOT tools (release.sh for sw.js bump; build.py = legacy)
+│   ├── build.py
 │   └── release.sh
 ├── poke-sim/
 │   ├── index.html
@@ -193,7 +243,7 @@ Pokemon-Champions-Sim-Planner/
 │   ├── icon-192.png
 │   ├── icon-512.png
 │   ├── pokemon-champion-2026.html ← rebuilt bundle (never edit directly)
-│   ├── tools/
+│   ├── tools/                    ← ACTIVE SIM BUILD TOOLS (always use these)
 │   │   ├── build-bundle.py       ← canonical rebuild script
 │   │   ├── check-bundle.sh       ← SHA compare for CI
 │   │   └── README.md
