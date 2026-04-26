@@ -1,19 +1,559 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pokémon Champion 2026</title>
-  <meta name="description" content="Poke-e-Sim Champion 2026 — VGC team simulator for April 2026 meta. Test your TR Counter squad against the top metagame teams with Bo1/Bo3/Bo5/Bo10 series."/>
-  <meta name="theme-color" content="#121212"/>
-  <meta name="mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="ChampSim"/>
-  <link rel="manifest" href="manifest.json"/>
-  <link rel="apple-touch-icon" href="icon-192.png"/>
-  <meta name="msapplication-TileImage" content="icon-192.png"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="color-scheme" content="dark light"/>
+<meta name="description" content="Poke-e-Sim Champion 2026 — VGC team simulator for April 2026 meta. Test your TR Counter squad against the top metagame teams with Bo1/Bo3/Bo5/Bo10 series."/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Poke-e-Sim"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#22d3ee"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Poke-e-Sim Champion 2026 — VGC Team Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo-block">
+      <svg class="logo-icon" width="36" height="36" viewBox="0 0 36 36" fill="none" role="img" aria-label="Champions Sim">
+        <title>Champions Sim</title>
+        <defs>
+          <linearGradient id="hHex" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#67e8f9"/>
+            <stop offset="1" stop-color="#0e7490"/>
+          </linearGradient>
+          <linearGradient id="hBolt" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#a5f3fc"/>
+            <stop offset="1" stop-color="#0891b2"/>
+          </linearGradient>
+        </defs>
+        <polygon points="18,2 32,10 32,26 18,34 4,26 4,10" fill="#0b1f2e" stroke="url(#hHex)" stroke-width="2" stroke-linejoin="round"/>
+        <polyline points="4,26 18,34 32,26" fill="none" stroke="#ef4444" stroke-width="1" stroke-linejoin="round" opacity="0.85"/>
+        <ellipse cx="18" cy="20" rx="9" ry="2.6" fill="none" stroke="#22d3ee" stroke-width="0.9" opacity="0.85"/>
+        <ellipse cx="18" cy="20" rx="6" ry="1.6" fill="none" stroke="#67e8f9" stroke-width="0.6" opacity="0.6"/>
+        <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <h1 class="site-title">Poke-e-Sim Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.8-emptystate.1</span></h1>
+        <p class="site-sub">April 2026 Meta · VGC Doubles Simulator</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="format-toggle" role="group" aria-label="Battle format">
+        <button class="fmt-btn active" data-fmt="doubles" id="fmt-doubles">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/></svg>
+          Doubles
+        </button>
+        <button class="fmt-btn" data-fmt="singles" id="fmt-singles">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="4"/></svg>
+          Singles
+        </button>
+      </div>
+      <button class="btn-icon" data-theme-toggle aria-label="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- FORMAT BANNER -->
+<div class="format-banner">
+  <div class="format-banner-inner">
+    <span class="fmt-indicator" id="fmt-indicator">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/></svg>
+      DOUBLES · 4v4 · Spread moves active
+    </span>
+    <span class="fmt-div">·</span>
+    <span class="fmt-source">Sources: <a href="https://pokepast.es" target="_blank" class="fmt-link">pokepast.es</a> · <a href="https://www.smogon.com/dex/sv/formats/vgc2026/" target="_blank" class="fmt-link">Smogon VGC 2026</a></span>
+    <span class="fmt-div">·</span>
+    <button class="fmt-pill-btn" id="open-import-modal">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import Team
+    </button>
+  </div>
+</div>
+
+<!-- TABS -->
+<nav class="tab-nav" role="tablist">
+  <button class="tab-btn active" role="tab" data-tab="simulator">Simulator</button>
+  <button class="tab-btn" role="tab" data-tab="teams">Teams</button>
+  <button class="tab-btn" role="tab" data-tab="editor">Set Editor</button>
+  <button class="tab-btn" role="tab" data-tab="strategy">Strategy</button>
+  <button class="tab-btn" role="tab" data-tab="replays">Replay Log</button>
+  <button class="tab-btn" role="tab" data-tab="sources">Sources</button>
+  <button class="tab-btn" role="tab" data-tab="pilot">Pilot Guide</button>
+</nav>
+
+<!-- ===== SIMULATOR ===== -->
+<section class="tab-panel active" id="tab-simulator">
+  <div class="sim-layout">
+
+    <div class="team-card player-card">
+      <div class="card-header">
+        <span class="badge badge-blue">YOUR TEAM</span>
+        <h2 class="card-title" id="player-team-name">TR Counter Squad</h2>
+        <button class="card-action-btn" id="export-player-btn" title="Export to Showdown format">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Export
+        </button>
+      </div>
+      <div class="control-block" style="margin:8px 0">
+        <label class="control-label">Your Team</label>
+        <select class="select-input" id="player-select"></select>
+      </div>
+      <div class="roster" id="player-roster"></div>
+      <!-- T9j.12 (Refs #74) inline bring picker, shared state with Teams tab.
+           Populated by renderSimBringPicker('player-bring-picker', currentPlayerKey). -->
+      <div class="sim-bring-picker" id="player-bring-picker"></div>
+    </div>
+
+    <div class="sim-controls">
+      <div class="vs-badge">VS</div>
+
+      <div class="coverage-widget" id="coverage-widget">
+        <div class="coverage-widget-title">Team Coverage</div>
+        <div id="coverage-items"></div>
+      </div>
+
+      <!-- T9d: Swap teams -->
+      <button class="btn-secondary" id="swap-teams-btn" style="margin:4px 0" title="Swap your team with opponent">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Swap Teams
+      </button>
+
+      <!-- Issue #T6: Ladder Mode toggle -->
+      <div class="control-block">
+        <label class="control-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <!-- T9h: default unchecked so all 22 preloaded + custom teams are swap-pickable -->
+          <input type="checkbox" id="ladder-mode-toggle"
+            style="width:16px;height:16px;cursor:pointer"/>
+          <span>Ladder Mode
+            <span style="color:var(--text-m);font-weight:400;font-size:11px">
+              (only Reg M-A legal opponents)
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <div class="control-block">
+        <label class="control-label">Opponent</label>
+        <select class="select-input" id="opponent-select">
+          <option value="mega_altaria">Mega Altaria (Hybrid Rainbow)</option>
+          <option value="mega_dragonite">Mega Dragonite (Hybrid Rainbow)</option>
+          <option value="mega_houndoom">Mega Houndoom (Hybrid Rainbow)</option>
+          <option value="rin_sand">Rin Sand</option>
+          <option value="suica_sun">Suica Sun</option>
+          <option value="cofagrigus_tr">Cofagrigus TR</option>
+          <option value="champions_arena_1st">1st Champions Arena (Hyungwoo Shin)</option>
+          <option value="champions_arena_2nd">2nd Champions Arena (Jorge Tabuyo)</option>
+          <option value="champions_arena_3rd">3rd Champions Arena (Juan Benítez)</option>
+          <option value="chuppa_balance">Pittsburgh Regional (Chuppa Cross IV)</option>
+          <option value="aurora_veil_froslass">Aurora Veil (Mega Froslass)</option>
+          <option value="kingambit_sneasler">Meta Core (Kingambit + Sneasler)</option>
+        </select>
+      </div>
+
+      <div class="control-block">
+        <label class="control-label">Series Format</label>
+        <div class="bo-picker" id="bo-picker" role="group">
+          <button class="bo-btn" data-bo="1">Bo1</button>
+          <button class="bo-btn active" data-bo="3">Bo3</button>
+          <button class="bo-btn" data-bo="5">Bo5</button>
+          <button class="bo-btn" data-bo="10">Bo10</button>
+        </div>
+      </div>
+
+      <div class="control-block">
+        <label class="control-label">Simulated Series</label>
+        <select class="select-input" id="sim-count">
+          <option value="10">10 series (fast)</option>
+          <option value="50" selected>50 series</option>
+          <option value="100">100 series</option>
+          <option value="500">500 series (max)</option>
+        </select>
+      </div>
+
+      <div class="control-block">
+        <label class="control-label">Lead Pair</label>
+        <select class="select-input" id="lead-select">
+          <option value="auto">Auto (optimal)</option>
+          <option value="incineroar_arcanine">Incineroar + Arcanine</option>
+          <option value="incineroar_garchomp">Incineroar + Garchomp</option>
+          <option value="arcanine_garchomp">Arcanine + Garchomp</option>
+        </select>
+      </div>
+
+      <button class="btn-primary" id="run-sim-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Run Simulation
+      </button>
+      <button class="btn-secondary" id="run-all-btn">Run All Matchups</button>
+      <button class="btn-secondary" id="pdf-report-btn" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Download PDF Report
+      </button>
+
+      <div class="progress-wrap" id="progress-wrap" style="display:none">
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+        <div class="live-tickers">
+          <span class="ticker-w" id="live-wins">0W</span>
+          <span class="ticker-l" id="live-losses">0L</span>
+          <span class="ticker-pct" id="live-pct">0%</span>
+        </div>
+        <p class="progress-label" id="progress-label">Running... 0 / 500</p>
+      </div>
+    </div>
+
+    <div class="team-card opp-card">
+      <div class="card-header">
+        <span class="badge badge-red">OPPONENT</span>
+        <h2 class="card-title" id="opp-team-name">Mega Altaria</h2>
+        <button class="card-action-btn" id="export-opp-btn" title="Export to Showdown format">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Export
+        </button>
+      </div>
+      <div class="roster" id="opp-roster"></div>
+      <!-- T9j.12 (Refs #74) inline bring picker, shared state with Teams tab. -->
+      <div class="sim-bring-picker" id="opp-bring-picker"></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-section" id="results-section" style="display:none">
+    <div class="results-header">
+      <div>
+        <h2 class="results-title" id="results-title">Results</h2>
+        <p class="results-sub" id="results-sub"></p>
+      </div>
+      <div class="win-display">
+        <div class="win-circle" id="win-circle">
+          <span class="win-pct" id="win-pct">--%</span>
+          <span class="win-label">Series W%</span>
+        </div>
+        <div class="result-stats">
+          <div class="stat-row"><span class="stat-name">Series Wins</span><span class="stat-val green" id="stat-wins">0</span></div>
+          <div class="stat-row"><span class="stat-name">Series Losses</span><span class="stat-val red" id="stat-losses">0</span></div>
+          <div class="stat-row"><span class="stat-name">Draws</span><span class="stat-val muted" id="stat-draws">0</span></div>
+          <div class="stat-row"><span class="stat-name">Games/Series</span><span class="stat-val" id="stat-turns">0</span></div>
+          <div class="stat-row"><span class="stat-name">Avg TR Turns</span><span class="stat-val" id="stat-tr-turns">0</span></div>
+          <div class="stat-row"><span class="stat-name">Avg Tailwind Turns</span><span class="stat-val" id="stat-tw-turns">0</span></div>
+          <div class="stat-row"><span class="stat-name">Timer Draws</span><span class="stat-val muted" id="stat-timer-draws">0</span></div>
+          <div class="stat-row"><span class="stat-name">Mode</span><span class="stat-val primary" id="stat-format">—</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="breakdown-grid">
+      <div class="breakdown-card">
+        <h3 class="breakdown-title">Win Conditions</h3>
+        <div id="win-conditions"></div>
+      </div>
+      <div class="breakdown-card">
+        <h3 class="breakdown-title">Series Outcome Split</h3>
+        <canvas id="ko-chart" width="300" height="180"></canvas>
+      </div>
+      <div class="breakdown-card">
+        <h3 class="breakdown-title">Game Length</h3>
+        <canvas id="turns-chart" width="300" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Matchup Matrix -->
+  <div class="matchup-table-wrap" id="matchup-table-wrap" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
+      <h2 class="section-heading" style="margin:0">Full Matchup Matrix</h2>
+      <span class="matrix-badge" id="matrix-badge">Doubles · Bo3 · 500 series</span>
+    </div>
+    <div class="table-scroll">
+      <table class="matchup-table">
+        <thead><tr>
+          <th>Opponent</th><th>Series W%</th><th>Wins</th><th>Losses</th>
+          <th>Games/Series</th><th>Avg TR</th><th>Assessment</th>
+        </tr></thead>
+        <tbody id="matchup-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TEAMS ===== -->
+<section class="tab-panel" id="tab-teams">
+  <div class="teams-actions">
+    <button class="btn-secondary" id="import-team-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import New Team
+    </button>
+    <!-- T9j.11 (Refs #73) bulk file import accepting .json (round-trip schema)
+         and .txt (multi-team pokepaste split on === name === or double blank). -->
+    <button class="btn-secondary" id="bulk-import-btn" title="Import a file with one or many teams (.json from this app, or .txt pokepaste)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import File
+    </button>
+    <input type="file" id="bulk-import-file" accept=".json,.txt,application/json,text/plain" style="display:none"/>
+    <button class="btn-secondary" id="bulk-export-json-btn" title="Download all custom teams as a JSON file (round-trip)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export All Custom (JSON)
+    </button>
+    <button class="btn-secondary" id="bulk-export-showdown-btn" title="Download all custom teams as a Showdown multi-team .txt">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export as Showdown
+    </button>
+  </div>
+  <!-- T9j.11 persistence verification banner + filter chips -->
+  <div class="teams-persistence-banner" id="teams-persistence-banner" style="display:none"></div>
+  <div class="teams-filter-row" id="teams-filter-row"></div>
+  <div class="teams-grid" id="teams-grid"></div>
+</section>
+
+<!-- ===== EDITOR ===== -->
+<section class="tab-panel" id="tab-editor">
+  <div class="editor-layout">
+    <div class="editor-sidebar">
+      <h2 class="section-heading">Edit Your Team</h2>
+      <p class="editor-hint">Modify items, moves, EVs. Changes apply to all future simulations.</p>
+      <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-4)">
+        <button class="btn-secondary" style="flex:1;font-size:11px" id="export-team-editor">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Export Paste
+        </button>
+        <button class="btn-secondary" style="flex:1;font-size:11px" id="import-team-editor">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import Paste
+        </button>
+      </div>
+      <div class="editor-roster" id="editor-roster"></div>
+    </div>
+    <div class="editor-form" id="editor-form">
+      <div class="editor-placeholder">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-faint)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <p>Select a Pokémon to edit</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STRATEGY (Phase 2: Coaching Layer) ===== -->
+<!-- Adapter wraps existing T9j.16 buildStrategyReport with spec-compliant generators.
+     Painted by renderStrategyTab(currentPlayerKey). Auto-rebuilds 500ms after team
+     select / import / sim complete. See COACHING_LAYER_SPEC.md sections 4-12. -->
+<section class="tab-panel" id="tab-strategy">
+  <div class="strategy-header">
+    <div class="strategy-header-row">
+      <h2 class="section-heading">Strategy &amp; Coaching</h2>
+      <div class="strategy-controls">
+        <label class="strategy-toggle" title="Show source-label chips (Serebii / Smogon / Bulbapedia / etc.) on every claim">
+          <input type="checkbox" id="strategy-evidence-toggle" />
+          <span>Evidence</span>
+        </label>
+      </div>
+    </div>
+    <p class="editor-hint" id="strategy-subtitle">Pick a team. The coach grades it, ranks the top 3 leads, lists mistakes to avoid, and walks you through move lines for every common scenario.</p>
+  </div>
+  <div id="strategy-content">
+    <div class="strategy-empty">Select a team to generate the coaching report.</div>
+  </div>
+</section>
+
+<!-- ===== REPLAYS ===== -->
+<section class="tab-panel" id="tab-replays">
+  <div class="replay-header">
+    <h2 class="section-heading">Replay Log</h2>
+    <p class="editor-hint">Click any card to expand the full turn-by-turn log.</p>
+    <div class="replay-filters-row">
+      <div class="replay-filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="win">Wins</button>
+        <button class="filter-btn" data-filter="loss">Losses</button>
+        <button class="filter-btn" data-filter="clutch">Clutch (8+ turns)</button>
+      </div>
+      <button class="btn-secondary" id="replay-mode-toggle" style="font-size:11px;padding:4px 12px;min-height:32px">Series Summary</button>
+    </div>
+  </div>
+  <div class="replay-list" id="replay-list">
+    <div class="replay-empty">No replays yet — run a simulation first.</div>
+  </div>
+</section>
+
+<!-- ===== PILOT GUIDE ===== -->
+<section class="tab-panel" id="tab-pilot">
+  <div class="pilot-header">
+    <h2 class="section-heading">Pilot Guide</h2>
+    <p class="pilot-subtitle">Run simulations first to generate matchup-specific pilot advice.</p>
+  </div>
+  <div id="pilot-content">
+    <div class="pilot-empty">Run "Run All Matchups" to generate pilot guides for all opponents.</div>
+  </div>
+</section>
+
+<!-- ===== SOURCES ===== -->
+<section class="tab-panel" id="tab-sources">
+  <div class="about-wrap">
+    <div class="about-card">
+      <h2 class="section-heading">Data Sources</h2>
+      <div class="table-scroll">
+        <table class="source-table">
+          <thead><tr><th>Team</th><th>Pokepaste</th><th>Format</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Mega Altaria</strong></td><td><a href="https://pokepast.es/dfdfa66d317cf9d7" target="_blank" class="fmt-link">dfdfa66d317cf9d7</a></td><td class="mono">gen9championsvgc2026regma</td></tr>
+            <tr><td><strong>Mega Dragonite</strong></td><td><a href="https://pokepast.es/dd101585183c9ed6" target="_blank" class="fmt-link">dd101585183c9ed6</a></td><td class="mono">gen9championsvgc2026regma</td></tr>
+            <tr><td><strong>Mega Houndoom</strong></td><td><a href="https://pokepast.es/4a87b07998f6c0c4" target="_blank" class="fmt-link">4a87b07998f6c0c4</a></td><td class="mono">gen9championsvgc2026regma</td></tr>
+            <tr><td><strong>Rin Sand</strong></td><td><a href="https://pokepast.es/e97ac67f1ce79c33" target="_blank" class="fmt-link">e97ac67f1ce79c33</a></td><td class="mono">VGC 2026 Reg M</td></tr>
+            <tr><td><strong>Suica Sun</strong></td><td><a href="https://pokepast.es/cb48d8b06c73d33b" target="_blank" class="fmt-link">cb48d8b06c73d33b</a></td><td class="mono">VGC 2026 Reg M</td></tr>
+            <tr><td><strong>Cofagrigus TR</strong></td><td>Engine default</td><td class="mono">VGC 2026</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="about-sub">Update a Team in 3 Steps</h3>
+      <div class="steps-grid">
+        <div class="step"><div class="step-n">1</div><div>Copy a <a href="https://pokepast.es" target="_blank" class="fmt-link">pokepast.es</a> URL or paste raw Showdown text from <a href="https://play.pokemonshowdown.com/teambuilder" target="_blank" class="fmt-link">PS! Teambuilder</a></div></div>
+        <div class="step"><div class="step-n">2</div><div>Click <strong>Import Team</strong> in the banner, paste the text, choose the slot to replace</div></div>
+        <div class="step"><div class="step-n">3</div><div>Hit Load — team is live immediately. No reload or build step needed.</div></div>
+      </div>
+
+      <h3 class="about-sub">Meta Threat Radar</h3>
+      <p class="editor-hint" style="margin-bottom:var(--sp4)">Top 10 meta threats in Reg M-A. Green = your team handles this, Yellow = even, Red = weak.</p>
+      <div class="radar-grid" id="radar-grid"></div>
+
+      <h3 class="about-sub">Engine Spec</h3>
+      <div class="engine-grid">
+        <div class="engine-row"><b>Formats</b><span>Doubles 4v4 · Singles 3v3 (toggle in header)</span></div>
+        <div class="engine-row"><b>Series</b><span>Bo1 · Bo3 · Bo5 · Bo10</span></div>
+        <div class="engine-row"><b>Damage</b><span>Gen 9 formula · 0.85–1.0 random roll</span></div>
+        <div class="engine-row"><b>Weather</b><span>Sun · Rain · Sand (Drought / Drizzle / Sand Stream)</span></div>
+        <div class="engine-row"><b>Speed</b><span>TR inversion · Tailwind ×2 · Sand Rush ×2 · Unburden ×2 · Scarf ×1.5</span></div>
+        <div class="engine-row"><b>Abilities</b><span>Intimidate · Multiscale · Adaptability · Prankster · Solar Power · Hospitality · Cloud Nine · Sturdy · Sand Rush · Unburden · Armor Tail · Earth Eater</span></div>
+        <div class="engine-row"><b>Items</b><span>Sitrus Berry · Focus Sash · Life Orb · Leftovers · Rocky Helmet · Eviolite · Mental Herb · White Herb · Choice Scarf · Haban Berry · Colbur Berry · Chople Berry</span></div>
+        <div class="engine-row"><b>Status</b><span>Burn · Paralysis · Sleep · Poison with EOT chip</span></div>
+        <div class="engine-row"><b>Priority</b><span>Fake Out P+3 · Protect P+4 · Trick Room P−7 · Extreme Speed P+2 · Aqua Jet P+1</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== T9h: CONFIRM MODAL (window.confirm is blocked in sandboxed iframes) ===== -->
+<div class="modal-overlay" id="confirm-modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="confirm-title">Confirm</h2>
+      <button class="modal-close" id="confirm-close" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="modal-hint" id="confirm-body" style="margin-top:8px;white-space:pre-wrap"></p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="confirm-ok" style="background:var(--red,#d94545)">Confirm</button>
+      <button class="btn-secondary" id="confirm-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== IMPORT MODAL ===== -->
+<div class="modal-overlay" id="import-modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title">Import Team from Showdown Paste</h2>
+      <button class="modal-close" id="close-import">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="modal-hint">Paste Showdown-format text directly from <strong>PS! Teambuilder → Export</strong> or from a pokepast.es page. All 6 Pokémon will be parsed automatically.</p>
+
+    <div class="import-tabs">
+      <button class="import-tab active" data-itab="paste">Paste Text</button>
+      <button class="import-tab" data-itab="url">Pokepaste URL</button>
+    </div>
+
+    <div id="itab-paste">
+      <textarea class="paste-textarea" id="showdown-paste" placeholder="Incineroar @ Sitrus Berry&#10;Ability: Intimidate&#10;Level: 50&#10;EVs: 244 HP / 68 Atk / 36 SpD&#10;Adamant Nature&#10;- Fake Out&#10;- Flare Blitz&#10;- Parting Shot&#10;- Knock Off&#10;&#10;Arcanine @ Life Orb&#10;..." autocomplete="off" spellcheck="false"></textarea>
+    </div>
+    <div id="itab-url" style="display:none">
+      <input class="form-input" id="paste-url-input" placeholder="https://pokepast.es/abc123def456" style="width:100%;margin-bottom:8px"/>
+      <p class="modal-hint" style="margin:0">Enter a pokepast.es URL — the team will be fetched and parsed.</p>
+    </div>
+
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label">Load into slot</label>
+      <select class="select-input" id="import-slot">
+        <option value="__new__">➕ Add as New Team</option>
+        <option disabled>── Replace existing ──</option>
+        <option value="player">Your Team (TR Counter)</option>
+        <option value="mega_altaria">Mega Altaria</option>
+        <option value="mega_dragonite">Mega Dragonite</option>
+        <option value="mega_houndoom">Mega Houndoom</option>
+        <option value="rin_sand">Rin Sand</option>
+        <option value="suica_sun">Suica Sun</option>
+        <option value="cofagrigus_tr">Cofagrigus TR</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" id="do-import-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Load Team
+      </button>
+      <button class="btn-secondary" id="close-import-2">Cancel</button>
+    </div>
+    <p class="modal-status" id="import-status"></p>
+
+    <!-- Preview -->
+    <div id="import-preview" style="display:none;margin-top:16px">
+      <p class="form-label" id="import-preview-label" style="margin-bottom:8px">Preview</p>
+      <div class="preview-roster" id="preview-roster"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EXPORT MODAL ===== -->
+<div class="modal-overlay" id="export-modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title">Export to Showdown Format</h2>
+      <button class="modal-close" id="close-export">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="modal-hint">Copy this text and paste it directly into <a href="https://play.pokemonshowdown.com/teambuilder" target="_blank" class="fmt-link">PS! Teambuilder → Import</a> or share as a <a href="https://pokepast.es" target="_blank" class="fmt-link">pokepast.es</a> paste.</p>
+    <textarea class="paste-textarea" id="export-text" readonly style="height:260px" autocomplete="off" spellcheck="false"></textarea>
+    <div class="modal-actions">
+      <button class="btn-primary" id="copy-export-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy to Clipboard
+      </button>
+      <a class="btn-secondary" href="https://pokepast.es" target="_blank" style="display:inline-flex;align-items:center;gap:5px;text-decoration:none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Open pokepast.es
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- PDF Report Container (hidden, shown only during print) -->
+<div id="pdf-report-container"></div>
+
+<script src="storage_adapter.js"></script>
+<script src="data.js"></script>
+<script src="legality.js"></script>
+<script src="engine.js"></script>
+<script src="ui.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      console.log('[SW] Registered:', reg.scope);
+    }).catch(err => console.warn('[SW] Registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>
