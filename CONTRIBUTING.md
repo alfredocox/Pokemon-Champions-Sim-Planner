@@ -94,3 +94,10 @@ post evidence (test output, sample log, or commit SHA) in a comment first.
 ## Questions
 
 Open a GitHub Discussion or issue. Thanks for helping keep the sim accurate.
+
+
+---
+
+## Auto-generated contribution
+
+Added by bounty bot.
