@@ -343,9 +343,6 @@
 </section>
 
 <!-- ===== STRATEGY (Phase 2: Coaching Layer) ===== -->
-<!-- Adapter wraps existing T9j.16 buildStrategyReport with spec-compliant generators.
-     Painted by renderStrategyTab(currentPlayerKey). Auto-rebuilds 500ms after team
-     select / import / sim complete. See COACHING_LAYER_SPEC.md sections 4-12. -->
 <section class="tab-panel" id="tab-strategy">
   <div class="strategy-header">
     <div class="strategy-header-row">
@@ -441,7 +438,7 @@
   </div>
 </section>
 
-<!-- ===== T9h: CONFIRM MODAL (window.confirm is blocked in sandboxed iframes) ===== -->
+<!-- ===== T9h: CONFIRM MODAL ===== -->
 <div class="modal-overlay" id="confirm-modal" style="display:none" role="dialog" aria-modal="true">
   <div class="modal-box" style="max-width:440px">
     <div class="modal-header">
@@ -506,7 +503,6 @@
     </div>
     <p class="modal-status" id="import-status"></p>
 
-    <!-- Preview -->
     <div id="import-preview" style="display:none;margin-top:16px">
       <p class="form-label" id="import-preview-label" style="margin-bottom:8px">Preview</p>
       <div class="preview-roster" id="preview-roster"></div>
@@ -540,6 +536,44 @@
 
 <!-- PDF Report Container (hidden, shown only during print) -->
 <div id="pdf-report-container"></div>
+
+<!-- ===== SITE FOOTER ===== -->
+<!-- LEGAL NOTE: Wording intentionally tips the developers as individuals, not the project.
+     No Pokémon IP references in the donation CTA. Ko-fi = personal tip, not fundraising.
+     See: https://www.videogameschronicle.com/news/former-pokemon-lawyer-says-fundraising-and-press-coverage-lead-to-fan-project-takedowns -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-left">
+      <span class="footer-built">Built free by 3 devs on evenings &amp; weekends</span>
+      <span class="footer-dot">·</span>
+      <span class="footer-version">v2.1.8</span>
+      <span class="footer-dot">·</span>
+      <a href="https://github.com/alfredocox/Pokemon-Champions-Sim-Planner" target="_blank" rel="noopener noreferrer" class="footer-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+        GitHub
+      </a>
+    </div>
+    <div class="footer-right">
+      <a
+        href="https://ko-fi.com/alfredocox"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="kofi-btn"
+        aria-label="Support the developers on Ko-fi"
+      >
+        <!-- Ko-fi cup icon (SVG, no external image needed) -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+          <line x1="6" y1="1" x2="6" y2="4"/>
+          <line x1="10" y1="1" x2="10" y2="4"/>
+          <line x1="14" y1="1" x2="14" y2="4"/>
+        </svg>
+        Buy us a coffee
+      </a>
+    </div>
+  </div>
+</footer>
 
 <script src="storage_adapter.js"></script>
 <script src="data.js"></script>
