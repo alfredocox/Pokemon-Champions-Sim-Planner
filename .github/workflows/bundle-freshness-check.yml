@@ -28,7 +28,7 @@ jobs:
           echo "$CHANGED"
 
           APP_CHANGED=$(echo "$CHANGED" | grep -E \
-            'poke-sim/poke-sim/(engine|data|ui|style|strategy-injectable|index)\.(js|css|html)' \
+            'poke-sim/(engine|data|ui|style|strategy-injectable|index)\.(js|css|html)' \
             | grep -v 'pokemon-champion-2026\.html' || true)
 
           if [ -n "$APP_CHANGED" ]; then

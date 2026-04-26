@@ -23,7 +23,7 @@ jobs:
           echo "$CHANGED"
 
           APP_CHANGED=$(echo "$CHANGED" | grep -E \
-            'poke-sim/poke-sim/(engine|data|ui|style|strategy-injectable)\.(js|css)' || true)
+            'poke-sim/(engine|data|ui|style|strategy-injectable)\.(js|css)' || true)
 
           if [ -n "$APP_CHANGED" ]; then
             echo "app_changed=true" >> $GITHUB_OUTPUT
@@ -38,11 +38,11 @@ jobs:
         if: steps.app_changed.outputs.app_changed == 'true'
         run: |
           CHANGED=$(git diff --name-only origin/main...HEAD)
-          SW_CHANGED=$(echo "$CHANGED" | grep 'poke-sim/poke-sim/sw.js' || true)
+          SW_CHANGED=$(echo "$CHANGED" | grep 'poke-sim/sw.js' || true)
 
           if [ -z "$SW_CHANGED" ]; then
             echo ""
-            echo "\u274c  App source files changed in this PR:"
+            echo "❌  App source files changed in this PR:"
             echo "${{ steps.app_changed.outputs.app_files }}"
             echo ""
             echo "    But poke-sim/sw.js was NOT updated."
@@ -56,9 +56,9 @@ jobs:
             exit 1
           fi
 
-          echo "\u2705  sw.js CACHE_NAME bumped \u2014 PWA cache is fresh. Good to merge."
+          echo "✅  sw.js CACHE_NAME bumped — PWA cache is fresh. Good to merge."
 
       - name: No app changes detected
         if: steps.app_changed.outputs.app_changed == 'false'
         run: |
-          echo "\u2705  No app source files changed \u2014 sw.js bump not required."
+          echo "✅  No app source files changed — sw.js bump not required."
