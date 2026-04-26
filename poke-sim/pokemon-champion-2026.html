@@ -8704,7 +8704,7 @@ function runMegaTriggerSweep(teamA, teamB, bo, opts) {
 
 
 // ============================================================
-// CHAMPIONS SIM — UI CONTROLLER
+// POKE-E-SIM CHAMPION 2026 — UI CONTROLLER
 // ============================================================
 
 // ---- Theme Toggle ----
@@ -8914,9 +8914,7 @@ var CUSTOM_TEAMS_SCHEMA_VERSION = 1;
 
 function loadCustomTeamsFromStorage() {
   try {
-    var raw = localStorage.getItem(CUSTOM_TEAMS_STORAGE_KEY);
-    if (!raw) return 0;
-    var parsed = JSON.parse(raw);
+    var parsed = (typeof Storage !== 'undefined') ? Storage.get('teams:custom') : null;
     if (!parsed || parsed.version !== CUSTOM_TEAMS_SCHEMA_VERSION) return 0;
     var count = 0;
     for (var key in parsed.teams) {
@@ -8940,7 +8938,7 @@ function saveCustomTeamsToStorage() {
         out.teams[key] = TEAMS[key];
       }
     }
-    localStorage.setItem(CUSTOM_TEAMS_STORAGE_KEY, JSON.stringify(out));
+    if (typeof Storage !== 'undefined') Storage.set('teams:custom', out);
     return Object.keys(out.teams).length;
   } catch (e) {
     console.warn('[T9f] Failed to save custom teams (quota?):', e);
@@ -8959,9 +8957,7 @@ var PRELOADED_OVERRIDES_SCHEMA = 1;
 
 function loadPreloadedOverridesFromStorage() {
   try {
-    var raw = localStorage.getItem(PRELOADED_OVERRIDES_KEY);
-    if (!raw) return 0;
-    var parsed = JSON.parse(raw);
+    var parsed = (typeof Storage !== 'undefined') ? Storage.get('overrides:preloaded') : null;
     if (!parsed || parsed.version !== PRELOADED_OVERRIDES_SCHEMA) return 0;
     var count = 0;
     for (var key in parsed.overrides) {
@@ -8981,12 +8977,13 @@ function loadPreloadedOverridesFromStorage() {
 
 function savePreloadedOverride(key) {
   try {
-    var raw = localStorage.getItem(PRELOADED_OVERRIDES_KEY);
-    var store = (raw && JSON.parse(raw)) || { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} };
+    var store = (typeof Storage !== 'undefined')
+      ? (Storage.get('overrides:preloaded') || { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} })
+      : { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} };
     if (store.version !== PRELOADED_OVERRIDES_SCHEMA) store = { version: PRELOADED_OVERRIDES_SCHEMA, overrides: {} };
     store.overrides[key] = { members: TEAMS[key].members, saved_at: new Date().toISOString() };
     store.saved_at = new Date().toISOString();
-    localStorage.setItem(PRELOADED_OVERRIDES_KEY, JSON.stringify(store));
+    if (typeof Storage !== 'undefined') Storage.set('overrides:preloaded', store);
     TEAMS[key]._hasOverride = true;
     return true;
   } catch (e) {
@@ -8997,12 +8994,10 @@ function savePreloadedOverride(key) {
 
 function clearPreloadedOverride(key) {
   try {
-    var raw = localStorage.getItem(PRELOADED_OVERRIDES_KEY);
-    if (!raw) return false;
-    var store = JSON.parse(raw);
+    var store = (typeof Storage !== 'undefined') ? Storage.get('overrides:preloaded') : null;
     if (!store || !store.overrides || !store.overrides[key]) return false;
     delete store.overrides[key];
-    localStorage.setItem(PRELOADED_OVERRIDES_KEY, JSON.stringify(store));
+    if (typeof Storage !== 'undefined') Storage.set('overrides:preloaded', store);
     return true;
   } catch (e) {
     console.warn('[T9h] Failed to clear preloaded override:', e);
@@ -10461,9 +10456,7 @@ var BRING_MODE = {};
 const _BRING_LS_KEY = 'poke-sim:bring:v1';
 function _loadBringState() {
   try {
-    const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem(_BRING_LS_KEY) : null;
-    if (!raw) return;
-    const obj = JSON.parse(raw);
+    const obj = (typeof Storage !== 'undefined') ? Storage.get('bring:default') : null;
     if (obj && typeof obj === 'object') {
       if (obj.selection && typeof obj.selection === 'object') BRING_SELECTION = obj.selection;
       if (obj.mode      && typeof obj.mode      === 'object') BRING_MODE      = obj.mode;
@@ -10472,8 +10465,7 @@ function _loadBringState() {
 }
 function _saveBringState() {
   try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(_BRING_LS_KEY, JSON.stringify({ selection: BRING_SELECTION, mode: BRING_MODE }));
+    if (typeof Storage !== 'undefined') Storage.set('bring:default', { selection: BRING_SELECTION, mode: BRING_MODE });
   } catch (e) { /* quota / private mode — ignore */ }
 }
 _loadBringState();
