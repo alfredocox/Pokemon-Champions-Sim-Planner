@@ -1,8 +1,12 @@
 # Pokémon Champion 2026 — VGC Team Simulator
 
+[![Ko-fi](https://img.shields.io/badge/Buy%20us%20a%20coffee-ff5e3a?style=flat&logo=ko-fi&logoColor=white)](https://ko-fi.com/alfredocox)
+
 A production-grade VGC competitive team simulator for April 2026 meta play. Built as a fully offline-capable PWA with no server required.
 
 **Live single-file app:** [`pokemon-champion-2026.html`](./poke-sim/pokemon-champion-2026.html) — open in any browser, works offline.
+
+> ☕ Built free on evenings & weekends by 3 developers. If it helped your prep, [tip the devs on Ko-fi](https://ko-fi.com/alfredocox) — no Pokémon IP involved, just a personal thank-you to the team.
 
 ## Where the App Lives (Shareable URLs)
 
@@ -127,6 +131,16 @@ with open('pokemon-champion-2026.html','w') as f: f.write(html)
 print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
 "
 ```
+
+---
+
+## Support the Developers
+
+This tool is and always will be **free**. If it helped your tournament prep:
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/alfredocox)
+
+> Tips go to the individual developers — not to any Pokémon product or project. Ko-fi is a personal thank-you.
 
 ---
 
