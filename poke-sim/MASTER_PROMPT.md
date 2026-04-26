@@ -23,15 +23,60 @@ You are continuing development of **Pokémon Champion 2026**, a production-grade
 
 ---
 
+## 🤖 AGENT TEAM — STANDING COUNCIL
+
+> These agents are your permanent advisors. Invoke them by name at the start of any session or when you need their specific lens. They do not replace the human team — they amplify it.
+> **Default:** invoke ALL of them at session start. Each checks for their concerns before any code is written.
+
+| Agent | Role | When to invoke | What they check / produce |
+|-------|------|---------------|---------------------------|
+| **Architect** | System design + modularity | Before any new file, class, or module | File split plan, dependency graph, circular-import risk, namespace collisions. Blocks work that will cause tech debt. |
+| **Engine QA** | Battle mechanics correctness | Before any `engine.js` change | Checks: damage formula, status immunities, priority order, RNG seeding, doubles targeting rules. Writes or updates test assertions before the fix. |
+| **Test Sentinel** | Test coverage + CI gate | After every code change | Confirms: assertion count did not drop, new feature has test coverage, audit.js still runs clean, gate table in MASTER_PROMPT updated. |
+| **UX Coach** | UI/UX + coaching output quality | Before any `ui.js` or panel change | Checks: mobile 375px layout, touch targets ≥44px, coaching language (no banned phrasings), stat panel completeness, lead selector mode logic. |
+| **Security Guard** | XSS + input sanitization | Before any `innerHTML` assignment or pokepaste parser change | Audits: `innerHTML` delta vs `_escapeHtml` call count, user-controlled strings in DOM, pokepaste import injection surface. |
+| **Sprint Lead** | Milestone + issue tracking | At session start and before PR open | Reads open issues by label, confirms active sprint items, checks blockers, updates MASTER_PROMPT milestone table after any merge. |
+| **Coaching Validator** | Coaching hard invariants | Before any pilot guide, strategy report, or commentary change | Enforces: no fabricated stats, population qualifier present, no banned phrases, surface candidates not directives, "same advice = failing" rule. |
+
+### Agent Invocation Protocol
+
+```
+Session start:
+  1. Sprint Lead → confirms active sprint, open blockers, current branch
+  2. Architect   → confirms no modularity regressions in planned work
+  3. Engine QA   → confirms test baseline before any engine touch
+  4. All others  → invoked as needed per work area
+
+Before every commit:
+  1. Test Sentinel → assertion count ≥ previous floor, gate table current
+  2. Security Guard → if any innerHTML or import parser touched
+  3. Sprint Lead → issue refs present in commit message
+
+Before every PR:
+  1. All agents → run their checklist
+  2. Sprint Lead → milestone table in MASTER_PROMPT updated
+  3. Coaching Validator → if pilot guide or strategy output changed
+```
+
+### Agent Hard Rules
+- Agents **never fabricate** pass/fail results. If a test cannot be run in the current environment, they say so.
+- Agents **block** work that violates a hard invariant — they do not just warn.
+- Agents **write the fix outline** when they flag a problem, not just the problem.
+- Agents **cite the issue number** when referencing known problems.
+- Agents speak in the voice of a **senior engineer on a tournament-deadline project** — precise, direct, no filler.
+
+---
+
 ## ⚡ SESSION STARTUP CHECKLIST
 
 Run this mentally at the start of **every** new session before writing a single line of code:
 
-1. **Confirm the active branch.** Work target: `fix/engine-gauntlet-11bugs`. Do not code against `main` directly.
-2. **Check Space file vs GitHub sync.** Space files (data.js, engine.js, ui.js) may lag behind the repo. If unsure, read the file from GitHub before editing.
-3. **Confirm active milestone/issue.** Current work = T9j.17 engine fixes (see Resume Next below). Check open issues labelled `sprint-1` before starting anything new.
-4. **Verify latest test evidence** before touching engine.js. The 362-assertion suite + 5,070-battle audit must pass green before any PR merges.
-5. **Only then code or modify prompts.**
+1. **Agent Team activated.** Sprint Lead reads open issues. Architect confirms branch. Engine QA reads baseline.
+2. **Confirm the active branch.** Work target: `fix/engine-gauntlet-11bugs`. Do not code against `main` directly.
+3. **Check Space file vs GitHub sync.** Space files (data.js, engine.js, ui.js) may lag behind the repo. If unsure, read the file from GitHub before editing.
+4. **Confirm active milestone/issue.** Current work = T9j.19 role classifier + T9j.18 test hardening (see Sprint Queue below). Check open issues labelled `sprint-2` before starting anything new.
+5. **Verify latest test evidence** before touching engine.js. The 362-assertion suite + 5,070-battle audit must pass green before any PR merges.
+6. **Only then code or modify prompts.**
 
 ---
 
@@ -43,7 +88,7 @@ A browser-only VGC doubles team simulator for the April 2026 meta (Regulation M-
 
 ---
 
-## 👥 OWNERSHIP
+## 👥 HUMAN TEAM
 
 | Role | GitHub handle | Responsibilities |
 |---|---|---|
@@ -68,6 +113,7 @@ A browser-only VGC doubles team simulator for the April 2026 meta (Regulation M-
 | CI not yet enforced | #87 (GitHub Actions) is in Sprint 1 queue but not yet merged | PRs can merge without automated test pass | Sprint 1 item #1 |
 | Golurk-Mega sprite blank | Custom mega form not in PokeAPI dex; renders blank | Visual gap in trick_room_golurk team | Low priority; sprite gap fix PR pending |
 | Branch protection not set | Admin must enable required checks at repo Settings > Branches | Direct pushes to main unblocked | One-time action — see HANDOFF_2026-04-25.md |
+| classifyPokemon() missing | No shared role classifier exists | Stat panel, lead selector fix, sim integration all blocked | #141 — Sprint 2 P1 critical path |
 
 ---
 
@@ -95,11 +141,13 @@ A PR touching `engine.js` or `data.js` must pass ALL of the following before mer
 | Unit tests — mega trigger sweep | `node tests/t9j15_tests.js` | 22/22 pass |
 | Unit tests — PDF sections | `node tests/t9j16_tests.js` | 58/58 pass |
 | Unit tests — T9j.17 mechanics | `node tests/t9j17_tests.js` | 46/46 pass |
+| Unit tests — T9j.18 data guards + mirror + status | `node tests/t9j18_tests.js` | 21/21 pass |
+| Unit tests — T9j.19 role classifier + stat panel | `node tests/t9j19_tests.js` | 48/48 pass |
 | 5,070-battle audit | `node tests/audit.js` | 0 JS errors, 0 crashes |
 | Bundle freshness | `bash tools/check-bundle.sh` | No drift vs source |
 | CACHE_NAME bump | `../tools/release.sh <tag>` | sw.js bumped |
 
-> **Total test floor: 362 assertions across 14 test files.** Any PR that drops the count is rejected.
+> **Total test floor: 431 assertions across 17 test files.** Any PR that drops the count is rejected.
 > **Data completeness note:** zero BP=60 fallbacks, zero missing MOVE_CATEGORY warnings across all 22 teams as of 3ff2995.
 
 A PR touching `ui.js` only (no engine/data changes) may skip audit.js but must still pass all unit tests and bundle check.
@@ -108,20 +156,16 @@ A PR touching `ui.js` only (no engine/data changes) may skip audit.js but must s
 
 ## ▶️ RESUME NEXT
 
-**Current active work:** T9j.17 engine mechanics complete + 22-team data completeness — branch `fix/engine-gauntlet-11bugs`
+**Current active work:** T9j.19 role classifier + T9j.18 test hardening — branch `fix/engine-gauntlet-11bugs`
 
-**3 commits ahead of origin (not yet pushed — need auth):**
-1. `548a45a` — fix(data): add missing MOVE_CATEGORY/MOVE_BP/MOVE_TARGETS (Body Press, Quick Attack, Iron Tail, Volt Switch, Whirlwind, Tackle, Rest, Substitute, Endure, Frost Breath, Expanding Force)
-2. `089ec40` — fix(data): eliminate all MOVE_CATEGORY/MOVE_BP/MOVE_TARGETS fallback warnings
-3. `3ff2995` — data: fill 22 missing moves for all 22 teams (T9j.17 completeness)
-
-**What T9j.17 adds (all in engine.js):**
-- Frostbite status condition (1/16 chip, SpA halved, no action skip, Ice-type immune)
-- Fake Out hard-gate (cannot be selected past first turn out; flag resets on switch-in)
-- Piercing Drill rewrite: 25% miss chance on every move (not Protect bypass — previous impl was wrong)
-- Expanding Force × Psychic Terrain: spread to all foes + 1.5× BP when grounded on Psychic Terrain
-- Terrain Seeds: Grassy/Electric +1 Def, Psychic/Misty +1 SpD on switch-in to matching terrain
-- Iron Head flinch nerf: 30% → 20% in Champions
+**Critical path (Sprint 2 — in dependency order):**
+1. **#141** `classifyPokemon()` + `CANONICAL_ROLES` — P1 blocker for everything below
+2. **#143** Lead selector highlight bug — P1, unblocks T9j.19 Section D
+3. **#142** Stat panel UI (click-to-expand) — P1, depends on #141 output
+4. **#144** Simulator integration (roles → lead/move/commentary) — P2, blocked by #141
+5. **#140** `canInflictStatus` paralysis/poison gap — P2, Sprint 3
+6. **#139** Mirror-match entropy hard assertion in audit.js — P2, Sprint 3
+7. **#138** data.js placeholder guard — P1, Sprint 1 (wire into CI)
 
 **First verification step before touching any file:**
 ```bash
@@ -130,10 +174,11 @@ node --check engine.js          # must be clean
 node --check data.js            # must be clean
 node tests/t9j17_tests.js       # 46 must pass
 node tests/status_tests.js      # 27 must pass
+node tests/t9j19_tests.js       # 48 must pass (new)
 ```
 
 **Then check the open issues on this branch:**
-https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues?q=is%3Aopen+label%3Asprint-1
+https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues?q=is%3Aopen+label%3Asprint-2
 
 ---
 
@@ -196,12 +241,15 @@ Pokemon-Champions-Sim-Planner/
 │   │                                      Team Preview bring-N-of-6 (T9j.10),
 │   │                                      T9j.17 mechanics (frostbite, fake-out gate,
 │   │                                      Piercing Drill 25% miss, terrain seeds, Expanding Force)
+│   │                                      classifyPokemon() + CANONICAL_ROLES (#141 — in progress)
 │   │                                      ENGINE_VERSION = '1.1.0'
 │   ├── ui.js                           ← All UI logic: tabs (data-tab values below),
 │   │                                      team selects, import/export, pilot guide,
 │   │                                      PDF report, speed tiers, meta radar,
 │   │                                      coverage checker, strategy tab,
 │   │                                      bring-picker slot layout + drag/tap (T9j.10)
+│   │                                      stat panel (#142 — in progress)
+│   │                                      lead selector mode fix (#143 — in progress)
 │   ├── strategy-injectable.js          ← TEAM_META knowledge base
 │   ├── manifest.json                   ← PWA manifest
 │   ├── sw.js                           ← Service worker (cache-first)
@@ -223,6 +271,8 @@ Pokemon-Champions-Sim-Planner/
 │   │    ├── t9j15_tests.js             ← 22 cases (mega trigger sweep)
 │   │    ├── t9j16_tests.js             ← 58 cases (PDF sections)
 │   │    ├── t9j17_tests.js             ← 46 cases (T9j.17 mechanics)
+│   │    ├── t9j18_tests.js             ← 21 cases (data guards + mirror entropy + status immunity)
+│   │    ├── t9j19_tests.js             ← 48 cases (role classifier + stat panel + lead selector + sim integration)
 │   │    └── audit.js                   ← 5,070-battle regression sweep
 │   ├── COACHING_LAYER_SPEC.md
 │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md
@@ -284,7 +334,7 @@ Mandatory steps before merging any PR that touches `engine.js`, `data.js`, `ui.j
 4. `git diff --cached poke-sim/pokemon-champion-2026.html`
 5. `git diff --cached poke-sim/sw.js`
 6. `git commit -m "feat: <description> - Refs #N"`
-7. Update `MASTER_PROMPT.md` to reflect the change
+7. Update `MASTER_PROMPT.md` to reflect the change (Sprint Lead agent confirms)
 8. Open PR — CI checks verify steps 2 and 3
 
 ---
@@ -306,6 +356,7 @@ var BRING_MODE       = {};             // teamKey -> 'manual' | 'random'
 runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress)   // single matchup
 runAllMatchups(numBattles, onProgress, onMatchupDone)              // all opponents
 // simulateBattle opts: format, playerBring, opponentBring, playerLeads, opponentLeads, seed, strict
+// classifyPokemon(mon) → { roles[], stats{}, evs{}, ivs{}, nature, ability, item, moves[] } — #141
 ```
 
 ### Damage formula
@@ -328,6 +379,16 @@ total   = floor(baseDmg * STAB * typeEff * spreadMult * screenMod * critMod * ro
 |--------|-----------|-------|-------|-------|
 | Doubles | 6 | 4 of 6 | 2 | 2 |
 | Singles | 6 | 3 of 6 | 1 | 2 |
+
+### Role System (T9j.19 — in progress, #141)
+```javascript
+const CANONICAL_ROLES = [
+  'Sweeper','Wall','Tank','Speed Control','Pivot','Support','Weather Control'
+];
+// classifyPokemon(mon) → roles[1-4], stats, evs, ivs, nature, ability, item, moves
+// Multi-role: Incineroar holds Tank + Support + Pivot (≥3)
+// Whimsicott holds Speed Control + Support
+```
 
 ### Sprites
 `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{dex_num}.png`  
@@ -477,19 +538,20 @@ https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/settings/branches
 
 ## MILESTONES
 
-| Milestone | Version | Status |
-|-----------|---------|--------|
-| M1 Engine Truth | v1.0 | 19/23 closed; T9j.17 closes remainder |
-| M2 Dynamic Strategy Coach | v1.1 | ✅ Shipped |
-| M3 Piloting Analytics | v1.2 | Partial (replay log live; trends pending) |
-| M4 Tournament Ready PDF | v1.3 | ✅ Shipped |
-| M5 Meta Intelligence | v1.4 | Pending external data source |
-| M6 Polish & Launch | v2.0 | Pending M1-M5 + M7-M10 |
-| M7 Architecture & Modularity | v2.1 | #77-#80 |
-| M8 Profile & Sync | v2.2 | #81-#86 |
-| M9 Observability & QA | v2.3 | **#88 ✅ #95 ✅** — #87 CI still open |
-| M10 Performance & Quality | v2.4 | #92-#96 |
-| M11 Advanced Features | v2.5 | #97-#99 + deferred #7 Tera |
+| Milestone | Version | Status | Key open issues |
+|-----------|---------|--------|------------------|
+| M1 Engine Truth | v1.0 | 19/23 closed; T9j.17 closes remainder | — |
+| M2 Dynamic Strategy Coach | v1.1 | ✅ Shipped | — |
+| M3 Piloting Analytics | v1.2 | Partial (replay log live; trends pending) | — |
+| M4 Tournament Ready PDF | v1.3 | ✅ Shipped | — |
+| M5 Meta Intelligence | v1.4 | Pending external data source | — |
+| M6 Polish & Launch | v2.0 | Pending M1-M5 + M7-M10 | — |
+| M7 Architecture & Modularity | v2.1 | #77-#80 | #80 COVERAGE_CHECKS lazy init |
+| M8 Profile & Sync | v2.2 | #81-#86 | — |
+| M9 Observability & QA | v2.3 | **#88 ✅ #95 ✅** — #87 CI still open | #87 CI/GitHub Actions |
+| M10 Performance & Quality | v2.4 | #92-#96 | #94 XSS, #96 a11y |
+| M11 Advanced Features | v2.5 | #97-#99 + deferred #7 Tera | #97 replay share, #98 compare view, #99 fingerprinting |
+| **M12 Role System + Stat Panel** | **v2.6** | **🏃 In sprint** | **#141 classifier, #142 stat panel, #143 lead bug, #144 sim integration** |
 
 ---
 
@@ -497,10 +559,10 @@ https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/settings/branches
 
 | Sprint | Items | Status |
 |--------|-------|--------|
-| Sprint 1 | #87 CI/GitHub Actions, #78 namespace, #79 storage adapter | 🏃 In queue |
-| Sprint 2 | #80 COVERAGE_CHECKS lazy init, #89 structured logger, #94 XSS hardening | Blocked on Sprint 1 CI green |
-| Sprint 3 | #77 ui.js file split, #90 analytics tests backfill | Blocked on Sprint 2 |
-| Sprint 4 | #84 schema versioning, #81 profile system, #82 export/import | Blocked on Sprint 1 storage adapter |
+| Sprint 1 | #87 CI/GitHub Actions, #78 namespace, #79 storage adapter, #138 data guard | 🏃 In queue |
+| **Sprint 2** | **#141 classifyPokemon, #143 lead selector fix, #142 stat panel, #80 COVERAGE_CHECKS lazy init, #89 structured logger, #94 XSS hardening** | **🏃 Active — #141 is critical path** |
+| Sprint 3 | #77 ui.js file split, #90 analytics tests backfill, #139 mirror entropy assert, #140 status immunity coverage | Blocked on Sprint 2 |
+| Sprint 4 | #84 schema versioning, #81 profile system, #82 export/import, #144 sim integration | Blocked on Sprint 1 storage adapter + #141 |
 
 ---
 
