@@ -49,7 +49,7 @@ jobs:
           echo "$CHANGED_SOURCE_FILES"
           echo ""
           echo "Running bundle freshness check..."
-          python3 tools/build.py --check
+          bash poke-sim/tools/check-bundle.sh
 
       - name: No app changes detected
         if: steps.app_changed.outputs.app_changed == 'false'
