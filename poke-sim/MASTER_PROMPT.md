@@ -30,7 +30,7 @@ Run this mentally at the start of **every** new session before writing a single 
 1. **Confirm the active branch.** Work target: `fix/engine-gauntlet-11bugs`. Do not code against `main` directly.
 2. **Check Space file vs GitHub sync.** Space files (data.js, engine.js, ui.js) may lag behind the repo. If unsure, read the file from GitHub before editing.
 3. **Confirm active milestone/issue.** Current work = T9j.17 engine fixes (see Resume Next below). Check open issues labelled `sprint-1` before starting anything new.
-4. **Verify latest test evidence** before touching engine.js. The 5,070-battle audit + test suites must pass green before any PR merges.
+4. **Verify latest test evidence** before touching engine.js. The 362-assertion suite + 5,070-battle audit must pass green before any PR merges.
 5. **Only then code or modify prompts.**
 
 ---
@@ -61,34 +61,46 @@ A browser-only VGC doubles team simulator for the April 2026 meta (Regulation M-
 | ID | Blocker | Impact | Fix status |
 |----|---------|--------|------------|
 | Space file lag | Space instructions mirror the GitHub repo but require manual re-upload. Edits to source files in Space may not reflect the latest commit. | Stale context risk on every session | Workaround: always read file from GitHub first |
-| COVERAGE_CHECKS TDZ | Must be `var` in ui.js — see Critical Bug section. Cannot be `const`/`let` until #80 (lazy init) lands | App hard-breaks on load if changed | Issue #80 is the fix; Sprint 2 |
+| COVERAGE_CHECKS TDZ | Must be `var` in ui.js — cannot be `const`/`let` until #80 (lazy init) lands | App hard-breaks on load if changed | Issue #80 is the fix; Sprint 2 |
 | No direct remove-team UI | Imported teams can only be cleared by overwriting the slot with another import; no one-click remove | Minor UX friction | Not yet ticketed |
 | Tera activation broken | `teraActivated` always false; no active Tera trigger in engine | All sim results ignore Tera coverage | Deferred — issue #7; Champions format does not use Tera |
 | Phase 4e regression test | "Same advice after 100 battles = failing" regression test does not exist yet | Phase 4 closeout blocked | Issue #54 scope; Phase 4e |
 | CI not yet enforced | #87 (GitHub Actions) is in Sprint 1 queue but not yet merged | PRs can merge without automated test pass | Sprint 1 item #1 |
 | Golurk-Mega sprite blank | Custom mega form not in PokeAPI dex; renders blank | Visual gap in trick_room_golurk team | Low priority; sprite gap fix PR pending |
+| Branch protection not set | Admin must enable required checks at repo Settings > Branches | Direct pushes to main unblocked | One-time action — see HANDOFF_2026-04-25.md |
 
 ---
 
 ## ✅ VALIDATION GATES (ship criteria)
 
-A PR touching `engine.js` or `data.js` must pass ALL of the following before merge:
+A PR touching `engine.js` or `data.js` must pass ALL of the following before merge.
+**All test files live at `poke-sim/tests/` — run from the `poke-sim/` directory.**
 
-| Gate | Tool | Pass criteria |
-|------|------|---------------|
-| Syntax check | `node --check poke-sim/engine.js` | Zero errors |
+| Gate | Command | Pass criteria |
+|------|---------|---------------|
+| Syntax — engine | `node --check engine.js` | Zero errors |
+| Syntax — data | `node --check data.js` | Zero errors |
+| Syntax — ui | `node --check ui.js` | Zero errors |
 | Unit tests — items | `node tests/items_tests.js` | 14/14 pass |
 | Unit tests — status | `node tests/status_tests.js` | 27/27 pass |
 | Unit tests — mega | `node tests/mega_tests.js` | 27/27 pass |
 | Unit tests — coverage | `node tests/coverage_tests.js` | 9/9 pass |
 | Unit tests — crits/flinch/abilities | `node tests/t9j8_tests.js` | 47/47 pass |
 | Unit tests — move data | `node tests/t9j9_tests.js` | 24/24 pass |
-| Unit tests — team preview | `node tests/t9j10_tests.js` | ~16/16 pass |
+| Unit tests — team preview | `node tests/t9j10_tests.js` | 16/16 pass |
+| Unit tests — multi-import | `node tests/t9j11_tests.js` | 16/16 pass |
+| Unit tests — bring pickers | `node tests/t9j12_tests.js` | 11/11 pass |
+| Unit tests — matchup balance | `node tests/t9j13_tests.js` | 47/47 pass |
+| Unit tests — PDF report | `node tests/t9j14_tests.js` | 25/25 pass |
+| Unit tests — mega trigger sweep | `node tests/t9j15_tests.js` | 22/22 pass |
+| Unit tests — PDF sections | `node tests/t9j16_tests.js` | 58/58 pass |
+| Unit tests — T9j.17 mechanics | `node tests/t9j17_tests.js` | 46/46 pass |
 | 5,070-battle audit | `node tests/audit.js` | 0 JS errors, 0 crashes |
-| Bundle freshness | `bash poke-sim/tools/check-bundle.sh` | No drift vs source |
-| CACHE_NAME bump | `tools/release.sh <tag>` | sw.js bumped |
+| Bundle freshness | `bash tools/check-bundle.sh` | No drift vs source |
+| CACHE_NAME bump | `../tools/release.sh <tag>` | sw.js bumped |
 
-> **Total test floor: 343+ assertions.** Any PR that drops the count is rejected.
+> **Total test floor: 362 assertions across 14 test files.** Any PR that drops the count is rejected.
+> **Data completeness note:** zero BP=60 fallbacks, zero missing MOVE_CATEGORY warnings across all 22 teams as of 3ff2995.
 
 A PR touching `ui.js` only (no engine/data changes) may skip audit.js but must still pass all unit tests and bundle check.
 
@@ -96,7 +108,12 @@ A PR touching `ui.js` only (no engine/data changes) may skip audit.js but must s
 
 ## ▶️ RESUME NEXT
 
-**Current active work:** T9j.17 engine mechanics — branch `fix/engine-gauntlet-11bugs`
+**Current active work:** T9j.17 engine mechanics complete + 22-team data completeness — branch `fix/engine-gauntlet-11bugs`
+
+**3 commits ahead of origin (not yet pushed — need auth):**
+1. `548a45a` — fix(data): add missing MOVE_CATEGORY/MOVE_BP/MOVE_TARGETS (Body Press, Quick Attack, Iron Tail, Volt Switch, Whirlwind, Tackle, Rest, Substitute, Endure, Frost Breath, Expanding Force)
+2. `089ec40` — fix(data): eliminate all MOVE_CATEGORY/MOVE_BP/MOVE_TARGETS fallback warnings
+3. `3ff2995` — data: fill 22 missing moves for all 22 teams (T9j.17 completeness)
 
 **What T9j.17 adds (all in engine.js):**
 - Frostbite status condition (1/16 chip, SpA halved, no action skip, Ice-type immune)
@@ -108,9 +125,10 @@ A PR touching `ui.js` only (no engine/data changes) may skip audit.js but must s
 
 **First verification step before touching any file:**
 ```bash
-cd poke-sim/poke-sim
+cd poke-sim
 node --check engine.js          # must be clean
-node tests/t9j8_tests.js        # 47 must pass
+node --check data.js            # must be clean
+node tests/t9j17_tests.js       # 46 must pass
 node tests/status_tests.js      # 27 must pass
 ```
 
@@ -131,7 +149,7 @@ https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues?q=is%3Aopen+l
 | Local dev server (PWA active) | `cd poke-sim && npx serve .` → `http://localhost:3000` |
 | Perplexity Space deploy | `deploy_website(project_path="poke-sim/poke-sim", site_name="Champions Sim", entry_point="index.html", should_validate=False)` |
 
-> **Bundle filename is `pokemon-champion-2026.html`.** No `-FINAL` variant exists in the repo.
+> **Bundle filename is `pokemon-champion-2026.html`** (687 KB). No `-FINAL` variant exists in the repo.
 
 ---
 
@@ -139,10 +157,10 @@ https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues?q=is%3Aopen+l
 
 | Asset | Canonical source | Do not edit directly |
 |-------|-----------------|----------------------|
-| Source files | `poke-sim/poke-sim/` in GitHub repo | — |
+| Source files | `poke-sim/` in GitHub repo | — |
 | Bundle | Rebuilt from source via `python3 tools/build-bundle.py` | `pokemon-champion-2026.html` |
 | Space files | Mirror of GitHub; may lag. **Always read from GitHub first.** | — |
-| Test evidence | `tests/` directory in GitHub | — |
+| Test evidence | `poke-sim/tests/` directory in GitHub | — |
 | Issue tracker | GitHub Issues | — |
 | This document | `poke-sim/MASTER_PROMPT.md` (single copy) | All edits go here |
 
@@ -153,58 +171,68 @@ https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues?q=is%3Aopen+l
 ```
 Pokemon-Champions-Sim-Planner/
 ├── tools/
-│   └── release.sh                      ← #95: auto-bumps sw.js CACHE_NAME on release
+│   └── release.sh                      ← auto-bumps sw.js CACHE_NAME on release
 ├── .github/
 │   ├── workflows/
-│   │   ├── cache-bump-check.yml        ← #95 Phase 3: CI fails PR if CACHE_NAME not bumped
-│   │   └── bundle-freshness-check.yml  ← #88 Phase 2: CI fails PR if bundle not rebuilt
+│   │   ├── cache-bump-check.yml        ← CI fails PR if CACHE_NAME not bumped
+│   │   └── bundle-freshness-check.yml  ← CI fails PR if bundle not rebuilt
 │   ├── ISSUE_TEMPLATE/
 │   └── pull_request_template.md
-├── poke-sim/
+├── poke-sim/                           ← SOURCE OF TRUTH
 │   ├── tools/
-│   │   ├── build-bundle.py             ← #88 Phase 1: canonical rebuild script
-│   │   ├── check-bundle.sh             ← #88 Phase 1: fails if bundle drifts from source
+│   │   ├── build-bundle.py             ← canonical rebuild script
+│   │   ├── check-bundle.sh             ← fails if bundle drifts from source
 │   │   └── README.md
-│   ├── poke-sim/                       ← nested dev workspace (source of truth)
-│   │   ├── index.html                  ← App shell + tab structure + PWA meta
-│   │   ├── style.css                   ← Full dark theme, mobile-first
-│   │   ├── data.js                     ← BASE_STATS, POKEMON_TYPES_DB, DEX_NUM_MAP,
-│   │   │                                  TEAMS (22 teams), MOVE_TYPES,
-│   │   │                                  MOVE_CATEGORY (104 entries), MOVE_BP (110+ entries),
-│   │   │                                  getSpriteUrl()
-│   │   ├── engine.js                   ← Pokemon class, Field class, simulateBattle(),
-│   │   │                                  runSimulation(), runAllMatchups(),
-│   │   │                                  crit + flinch (T9j.8), 6 champion abilities (T9j.8),
-│   │   │                                  Team Preview bring-N-of-6 (T9j.10),
-│   │   │                                  T9j.17 mechanics (frostbite, fake-out gate,
-│   │   │                                  Piercing Drill 25% miss, terrain seeds, Expanding Force)
-│   │   ├── ui.js                       ← All UI logic: tabs, team selects, import/export,
-│   │   │                                  pilot guide, PDF report, speed tiers, meta radar,
-│   │   │                                  coverage checker, strategy tab,
-│   │   │                                  bring-picker slot layout + drag/tap (T9j.10)
-│   │   ├── strategy-injectable.js      ← TEAM_META knowledge base
-│   │   ├── manifest.json               ← PWA manifest
-│   │   ├── sw.js                       ← Service worker (cache-first)
-│   │   ├── icon-192.png + icon-512.png ← PWA icons
-│   │   ├── pokemon-champion-2026.html  ← Self-contained bundle (~685 KB) — REBUILT ARTIFACT
-│   │   ├── tests/
-│   │   │    ├── items_tests.js         ← 14 cases
-│   │   │    ├── status_tests.js        ← 27 cases
-│   │   │    ├── mega_tests.js          ← 27 cases
-│   │   │    ├── coverage_tests.js      ← 9 cases
-│   │   │    ├── t9j8_tests.js          ← 47 cases (crit / flinch / abilities)
-│   │   │    ├── t9j9_tests.js          ← 24 cases (MOVE_CATEGORY / MOVE_BP)
-│   │   │    ├── t9j10_tests.js         ← ~16 cases (Team Preview bring-N-of-6)
-│   │   │    └── audit.js               ← 5070-battle regression sweep
-│   │   ├── COACHING_LAYER_SPEC.md
-│   │   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md
-│   │   ├── PHASE4C_DETECTORS_SPEC.md
-│   │   ├── PHASE4D_THREAT_RESPONSE_SPEC.md
-│   │   ├── PHASE4E_POLICY_AUDIT_SPEC.md
-│   │   ├── PHASE5_TURN_LOG_SPEC_DRAFT.md
-│   │   ├── PHASE6_COACHING_VOICE_SPEC.md
-│   │   ├── PHASE_ROLLOUT_REVIEW.md
-│   │   └── COACHING_NORTH_STAR.md
+│   ├── index.html                      ← App shell + tab structure + PWA meta
+│   ├── style.css                       ← Full dark theme, mobile-first
+│   ├── data.js                         ← BASE_STATS, POKEMON_TYPES_DB (500+ mons),
+│   │                                      DEX_NUM_MAP (1025+), TEAMS (22 teams),
+│   │                                      MOVE_TYPES, MOVE_CATEGORY (150 entries),
+│   │                                      MOVE_BP (162 entries), MOVE_TARGETS (169 entries),
+│   │                                      getSpriteUrl()
+│   ├── engine.js                       ← Pokemon class, Field class, simulateBattle(),
+│   │                                      runSimulation(), runAllMatchups(),
+│   │                                      crit + flinch (T9j.8), 6 champion abilities (T9j.8),
+│   │                                      Team Preview bring-N-of-6 (T9j.10),
+│   │                                      T9j.17 mechanics (frostbite, fake-out gate,
+│   │                                      Piercing Drill 25% miss, terrain seeds, Expanding Force)
+│   │                                      ENGINE_VERSION = '1.1.0'
+│   ├── ui.js                           ← All UI logic: tabs (data-tab values below),
+│   │                                      team selects, import/export, pilot guide,
+│   │                                      PDF report, speed tiers, meta radar,
+│   │                                      coverage checker, strategy tab,
+│   │                                      bring-picker slot layout + drag/tap (T9j.10)
+│   ├── strategy-injectable.js          ← TEAM_META knowledge base
+│   ├── manifest.json                   ← PWA manifest
+│   ├── sw.js                           ← Service worker (cache-first)
+│   │                                      CACHE_NAME = 'champions-sim-v5-emptystate1'
+│   ├── icon-192.png + icon-512.png     ← PWA icons
+│   ├── pokemon-champion-2026.html      ← Self-contained bundle (687 KB) — REBUILT ARTIFACT
+│   ├── tests/
+│   │    ├── items_tests.js             ← 14 cases
+│   │    ├── status_tests.js            ← 27 cases
+│   │    ├── mega_tests.js              ← 27 cases
+│   │    ├── coverage_tests.js          ← 9 cases
+│   │    ├── t9j8_tests.js              ← 47 cases (crit / flinch / abilities)
+│   │    ├── t9j9_tests.js              ← 24 cases (MOVE_CATEGORY / MOVE_BP)
+│   │    ├── t9j10_tests.js             ← 16 cases (Team Preview bring-N-of-6)
+│   │    ├── t9j11_tests.js             ← 16 cases (multi-import)
+│   │    ├── t9j12_tests.js             ← 11 cases (bring pickers)
+│   │    ├── t9j13_tests.js             ← 47 cases (matchup balance)
+│   │    ├── t9j14_tests.js             ← 25 cases (PDF report)
+│   │    ├── t9j15_tests.js             ← 22 cases (mega trigger sweep)
+│   │    ├── t9j16_tests.js             ← 58 cases (PDF sections)
+│   │    ├── t9j17_tests.js             ← 46 cases (T9j.17 mechanics)
+│   │    └── audit.js                   ← 5,070-battle regression sweep
+│   ├── COACHING_LAYER_SPEC.md
+│   ├── PHASE4_DYNAMIC_ADVICE_SPEC.md
+│   ├── PHASE4C_DETECTORS_SPEC.md
+│   ├── PHASE4D_THREAT_RESPONSE_SPEC.md
+│   ├── PHASE4E_POLICY_AUDIT_SPEC.md
+│   ├── PHASE5_TURN_LOG_SPEC_DRAFT.md
+│   ├── PHASE6_COACHING_VOICE_SPEC.md
+│   ├── PHASE_ROLLOUT_REVIEW.md
+│   ├── COACHING_NORTH_STAR.md
 │   ├── DEVELOPMENT_RUNBOOK.md
 │   ├── CHAMPIONS_MECHANICS_SPEC.md
 │   ├── CHAMPIONS_VALIDATOR_FRAMEWORK.md
@@ -212,6 +240,7 @@ Pokemon-Champions-Sim-Planner/
 │   ├── SPREAD_DAMAGE_SPEC.md
 │   ├── BATTLE_DAMAGE_DOCUMENT.md
 │   ├── GITHUB_ISSUES_TO_FILE.md
+│   ├── HANDOFF_2026-04-25.md
 │   ├── MASTER_PROMPT.md                ← This file (single canonical copy)
 │   └── README.md
 ```
@@ -238,7 +267,7 @@ The bundle is a **rebuilt artifact**, not an editable file.
 
 ```bash
 # From poke-sim/ directory — run after ANY source file change
-cd poke-sim && python3 tools/build-bundle.py
+python3 tools/build-bundle.py
 ```
 
 `sw.js` is NOT inlined. It is standalone — only active via local dev server or GitHub Pages.
@@ -252,7 +281,7 @@ Mandatory steps before merging any PR that touches `engine.js`, `data.js`, `ui.j
 1. Finish feature/fix on branch
 2. `cd poke-sim && python3 tools/build-bundle.py`
 3. `chmod +x tools/release.sh && ./tools/release.sh <tag>`
-4. `git diff --cached poke-sim/poke-sim/pokemon-champion-2026.html`
+4. `git diff --cached poke-sim/pokemon-champion-2026.html`
 5. `git diff --cached poke-sim/sw.js`
 6. `git commit -m "feat: <description> - Refs #N"`
 7. Update `MASTER_PROMPT.md` to reflect the change
@@ -275,7 +304,7 @@ var BRING_MODE       = {};             // teamKey -> 'manual' | 'random'
 ### Engine entry points (engine.js)
 ```javascript
 runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress)   // single matchup
-runAllMatchups(numBattles, onProgress, onMatchupDone)              // all 12 opponents
+runAllMatchups(numBattles, onProgress, onMatchupDone)              // all opponents
 // simulateBattle opts: format, playerBring, opponentBring, playerLeads, opponentLeads, seed, strict
 ```
 
@@ -288,9 +317,11 @@ total   = floor(baseDmg * STAB * typeEff * spreadMult * screenMod * critMod * ro
 ```
 
 ### Move data (T9j.9)
-- `MOVE_CATEGORY` (104 entries) — `'physical' | 'special' | 'status'`
-- `MOVE_BP` (110+ entries) — base power integer
-- Both in `data.js`; engine reads them first, falls back to heuristics with `console.warn`
+- `MOVE_CATEGORY` (150 entries) — `'physical' | 'special' | 'status'`
+- `MOVE_BP` (162 entries) — base power integer
+- `MOVE_TARGETS` (169 entries) — `'single' | 'spread' | 'self' | 'ally'`
+- All in `data.js`; engine reads them first, falls back to heuristics with `console.warn`
+- **As of 3ff2995: zero fallback warnings across all 22 teams**
 
 ### Format rules (T9j.10 — Team Preview bring-N-of-6)
 | Format | Team size | Bring | Leads | Bench |
@@ -301,6 +332,17 @@ total   = floor(baseDmg * STAB * typeEff * spreadMult * screenMod * critMod * ro
 ### Sprites
 `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{dex_num}.png`  
 Known sprite gap: `Golurk-Mega` (custom mega, no PokeAPI entry — renders blank).
+
+---
+
+## TABS
+
+`Simulator` | `Teams` | `Set Editor` | `Strategy` | `Replay Log` | `Sources` | `Pilot Guide`
+
+**Tab `data-tab` values:** `simulator`, `teams`, `set-editor`, `strategy`, `replay`, `sources`, `pilot-guide`
+
+- **Strategy tab** — Phase 2 (PR #106). Adaptive banner (State 1/2/3) + Record bar (total W-L + per-archetype splits).
+- **Pilot Guide** — upserts one card per opponent after every single sim (PR #118); does not require Run All.
 
 ---
 
@@ -335,15 +377,6 @@ Known sprite gap: `Golurk-Mega` (custom mega, no PokeAPI entry — renders blank
 | `benny_v_mega_froslass` | Benny V Mega Froslass |
 | `lukasjoel1_sand_gengar` | Lukasjoel1 Sand Gengar |
 | `hiroto_imai_snow` | Hiroto Imai Snow |
-
----
-
-## TABS
-
-`Simulator` | `Teams` | `Set Editor` | `Strategy` | `Replay Log` | `Sources` | `Pilot Guide`
-
-- **Strategy tab** — Phase 2 (PR #106). Adaptive banner (State 1/2/3) + Record bar (total W-L + per-archetype splits).
-- **Pilot Guide** — upserts one card per opponent after every single sim (PR #118); does not require Run All.
 
 ---
 
