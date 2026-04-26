@@ -3342,13 +3342,13 @@ function teamSignature(team) {
 
 function _t9j16_lsGet(sig) {
   try {
-    var raw = localStorage.getItem(T9J16_STORAGE_KEY + '::' + sig);
-    return raw ? JSON.parse(raw) : null;
+    var raw = (typeof Storage !== 'undefined') ? Storage.get(T9J16_STORAGE_KEY + '::' + sig) : null;
+    return raw;
   } catch(e){ return null; }
 }
 
 function _t9j16_lsSet(sig, payload) {
-  try { localStorage.setItem(T9J16_STORAGE_KEY + '::' + sig, JSON.stringify(payload)); }
+  try { if (typeof Storage !== 'undefined') Storage.set(T9J16_STORAGE_KEY + '::' + sig, payload); }
   catch(e){ /* quota exceeded — silent skip */ }
 }
 
@@ -5276,7 +5276,7 @@ function renderStrategyTab(teamKey) {
 var CS_EVIDENCE_KEY = 'champions_evidence_chips_visible';
 function _csApplyEvidenceVisibility() {
   try {
-    var on = localStorage.getItem(CS_EVIDENCE_KEY) === '1';
+    var on = (typeof Storage !== 'undefined') ? Storage.get(CS_EVIDENCE_KEY) === '1' : false;
     var t = document.getElementById('strategy-evidence-toggle');
     if (t) t.checked = on;
     document.querySelectorAll('[data-evidence]').forEach(function(el){
@@ -5288,7 +5288,7 @@ function _csInitEvidenceToggle() {
   var t = document.getElementById('strategy-evidence-toggle');
   if (!t) return;
   t.addEventListener('change', function(){
-    try { localStorage.setItem(CS_EVIDENCE_KEY, t.checked ? '1' : '0'); } catch(e) {}
+    try { if (typeof Storage !== 'undefined') Storage.set(CS_EVIDENCE_KEY, t.checked ? '1' : '0'); } catch(e) {}
     _csApplyEvidenceVisibility();
   });
   _csApplyEvidenceVisibility();
@@ -5313,9 +5313,8 @@ var CS_PERSIST_SCHEMA = 1;
 // Read entire persistence store. Returns empty shape on first run or parse error.
 function _csPersistRead() {
   try {
-    var raw = localStorage.getItem(CS_PERSIST_KEY);
-    if (!raw) return { schema_version: CS_PERSIST_SCHEMA, reports: {} };
-    var parsed = JSON.parse(raw);
+    var parsed = (typeof Storage !== 'undefined') ? Storage.get(CS_PERSIST_KEY) : null;
+    if (!parsed) return { schema_version: CS_PERSIST_SCHEMA, reports: {} };
     if (!parsed || parsed.schema_version !== CS_PERSIST_SCHEMA) {
       // Future: migrate. For v1 just reset on schema mismatch.
       return { schema_version: CS_PERSIST_SCHEMA, reports: {} };
@@ -5331,7 +5330,7 @@ function _csPersistRead() {
 // Write store. Catches QuotaExceededError - if hit, drops oldest reports first.
 function _csPersistWrite(store) {
   try {
-    localStorage.setItem(CS_PERSIST_KEY, JSON.stringify(store));
+    if (typeof Storage !== 'undefined') Storage.set(CS_PERSIST_KEY, store);
     return true;
   } catch (e) {
     if (e && /Quota/i.test(e.name || e.message || '')) {
@@ -5343,7 +5342,7 @@ function _csPersistWrite(store) {
       var drop = Math.max(1, Math.floor(sigs.length * 0.25));
       sigs.slice(0, drop).forEach(function(s){ delete store.reports[s]; });
       try {
-        localStorage.setItem(CS_PERSIST_KEY, JSON.stringify(store));
+        if (typeof Storage !== 'undefined') Storage.set(CS_PERSIST_KEY, store);
         return true;
       } catch (e2) { console.warn('[Phase3] still over quota after purge:', e2 && e2.message); }
     } else {
@@ -5477,9 +5476,8 @@ var CS_SIMLOG_MAX_PER_PAIR = 100;
 
 function _csSimLogRead() {
   try {
-    var raw = localStorage.getItem(CS_SIMLOG_KEY);
-    if (!raw) return { schema_version: CS_SIMLOG_SCHEMA, entries: [] };
-    var parsed = JSON.parse(raw);
+    var parsed = (typeof Storage !== 'undefined') ? Storage.get(CS_SIMLOG_KEY) : null;
+    if (!parsed) return { schema_version: CS_SIMLOG_SCHEMA, entries: [] };
     if (!parsed || parsed.schema_version !== CS_SIMLOG_SCHEMA) {
       return { schema_version: CS_SIMLOG_SCHEMA, entries: [] };
     }
@@ -5493,7 +5491,7 @@ function _csSimLogRead() {
 
 function _csSimLogWrite(store) {
   try {
-    localStorage.setItem(CS_SIMLOG_KEY, JSON.stringify(store));
+    if (typeof Storage !== 'undefined') Storage.set(CS_SIMLOG_KEY, store);
     return true;
   } catch (e) {
     if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
@@ -5501,7 +5499,7 @@ function _csSimLogWrite(store) {
       try {
         var cut = Math.floor(store.entries.length * 0.25);
         if (cut > 0) store.entries = store.entries.slice(cut);
-        localStorage.setItem(CS_SIMLOG_KEY, JSON.stringify(store));
+        if (typeof Storage !== 'undefined') Storage.set(CS_SIMLOG_KEY, store);
         console.warn('[Phase4a] simlog: purged oldest 25% after quota error');
         return true;
       } catch (e2) {
