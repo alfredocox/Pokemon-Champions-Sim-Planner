@@ -1,150 +1,261 @@
-// storage_adapter.js — Supabase-backed adapter for Champions Sim
-// Replaces localStorage with Supabase `champions_kv` table.
+// storage_adapter.js — Supabase-backed storage adapter for Champions Sim
+// Project: ymlahqnshgiarpbgxehp.supabase.co
 //
-// Public API (unchanged from v1):
-//   Storage.get(logicalKey)        → Promise<value|null>
-//   Storage.set(logicalKey, value) → Promise<boolean>
-//   Storage.del(logicalKey)        → Promise<void>
-//   Storage.list(scope?)           → Promise<string[]>
-//   Storage.clearAll()             → Promise<void>
-//   Storage.migrate()              → Promise<void>
+// Architecture:
+//   • Primary store  → Supabase REST (anon key, kv_store table)
+//   • Fallback store → localStorage (champions:* key schema — unchanged from v1)
+//   • Write-through  → every set() writes localStorage AND Supabase
+//   • Async API:     Storage.get / .set / .del / .list / .clearAll return Promises
+//   • Sync shims:    Storage.getSync / .setSync  use localStorage only
+//                    (for legacy ui.js paths that cannot await)
 //
-// Supabase table expected (see db/schema_v1.sql):
-//   champions_kv(id uuid, key text UNIQUE, value jsonb, updated_at timestamptz)
+// Supabase table (see db/schema_v1.sql):
+//   kv_store(id uuid pk DEFAULT gen_random_uuid(),
+//            logical_key text UNIQUE NOT NULL,
+//            payload jsonb,
+//            updated_at timestamptz DEFAULT now())
 //
-// All methods return Promises. Callers that previously used synchronous
-// return values should await or .then() the result.
-//
-// Graceful degradation: if Supabase is unreachable, falls back silently
-// (get→null, set→false, del/list→empty).
+// Usage:
+//   await Storage.set('teams:custom', teamObj)   // upserts Supabase + LS cache
+//   await Storage.get('teams:custom')            // Supabase first, LS fallback
+//   await Storage.del('teams:custom')            // removes from both
+//   await Storage.list()                         // all logical keys from Supabase
+//   await Storage.list('teams')                  // keys starting with 'teams:'
+//   await Storage.clearAll()                     // all rows + all LS champions:*
+//   Storage.getSync('teams:custom')              // localStorage only (sync)
+//   Storage.setSync('teams:custom', obj)         // LS sync + fire-and-forget Supabase
+//   await Storage.migrate()                      // one-time LS → Supabase lift
+//   await Storage.ready                          // true when client confirmed live
 
 'use strict';
 
 (function (root) {
 
-  // ── Supabase config ────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Config
+  // ---------------------------------------------------------------------------
+
   var SUPABASE_URL  = 'https://ymlahqnshgiarpbgxehp.supabase.co';
   var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltbGFocW5zaGdpYXJwYmd4ZWhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzQ4MDksImV4cCI6MjA5MjgxMDgwOX0.umWnzknxpIAIudKFd5csxyDw_rukAL9qcxsVPXeifHo';
-  var TABLE         = 'champions_kv';
-  var PREFIX        = 'champions:';
 
-  // ── Low-level REST helper ──────────────────────────────────────────────────
+  // Generic key→value table.  Schema must have:
+  //   logical_key text UNIQUE, payload jsonb, updated_at timestamptz
+  // If you used a different table name in schema_v1.sql, change KV_TABLE here.
+  var KV_TABLE = 'kv_store';
 
-  function _headers() {
-    return {
+  var LS_PREFIX = 'champions:';
+
+  // ---------------------------------------------------------------------------
+  // Supabase REST helpers  (no SDK — pure fetch)
+  // ---------------------------------------------------------------------------
+
+  function _authHeaders(extra) {
+    var h = {
       'Content-Type':  'application/json',
       'apikey':        SUPABASE_ANON,
       'Authorization': 'Bearer ' + SUPABASE_ANON,
-      'Prefer':        'return=minimal',
     };
+    if (extra) Object.assign(h, extra);
+    return h;
   }
 
-  /**
-   * _rest(method, path, body?) → Promise<{ok, status, data}>
-   * Thin fetch wrapper around the Supabase REST endpoint.
-   */
-  function _rest(method, path, body) {
-    var url = SUPABASE_URL + '/rest/v1/' + path;
-    var opts = { method: method, headers: _headers() };
-    if (body !== undefined) opts.body = JSON.stringify(body);
-    return fetch(url, opts)
-      .then(function (res) {
-        if (res.status === 204 || res.status === 201) {
-          return { ok: true, status: res.status, data: null };
-        }
-        return res.json().then(function (data) {
-          return { ok: res.ok, status: res.status, data: data };
-        });
+  function _sbGet(logicalKey) {
+    var url = SUPABASE_URL + '/rest/v1/' + KV_TABLE
+            + '?logical_key=eq.' + encodeURIComponent(logicalKey)
+            + '&select=payload&limit=1';
+    return fetch(url, { method: 'GET', headers: _authHeaders() })
+      .then(function (res) { return res.ok ? res.json() : Promise.resolve([]); })
+      .then(function (rows) {
+        return (Array.isArray(rows) && rows.length > 0) ? rows[0].payload : null;
       })
-      .catch(function (err) {
-        console.warn('[Storage] network error:', err);
-        return { ok: false, status: 0, data: null };
-      });
+      .catch(function () { return null; });
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────
+  function _sbSet(logicalKey, value) {
+    var url = SUPABASE_URL + '/rest/v1/' + KV_TABLE;
+    var headers = _authHeaders({
+      'Prefer': 'resolution=merge-duplicates,return=minimal'
+    });
+    var body = JSON.stringify({
+      logical_key: logicalKey,
+      payload: value,
+      updated_at: new Date().toISOString()
+    });
+    return fetch(url, { method: 'POST', headers: headers, body: body })
+      .then(function (res) { return res.ok || res.status === 201 || res.status === 204; })
+      .catch(function () { return false; });
+  }
+
+  function _sbDel(logicalKey) {
+    var url = SUPABASE_URL + '/rest/v1/' + KV_TABLE
+            + '?logical_key=eq.' + encodeURIComponent(logicalKey);
+    return fetch(url, { method: 'DELETE', headers: _authHeaders({ 'Prefer': 'return=minimal' }) })
+      .then(function () {})
+      .catch(function () {});
+  }
+
+  function _sbList(scope) {
+    var pattern = scope ? (scope + ':%') : '%';
+    var url = SUPABASE_URL + '/rest/v1/' + KV_TABLE
+            + '?logical_key=like.' + encodeURIComponent(pattern)
+            + '&select=logical_key&order=logical_key';
+    return fetch(url, { method: 'GET', headers: _authHeaders() })
+      .then(function (res) { return res.ok ? res.json() : Promise.resolve([]); })
+      .then(function (rows) {
+        return Array.isArray(rows) ? rows.map(function (r) { return r.logical_key; }) : [];
+      })
+      .catch(function () { return []; });
+  }
+
+  function _sbClearAll() {
+    // Delete every row whose logical_key is not the empty string
+    var url = SUPABASE_URL + '/rest/v1/' + KV_TABLE
+            + '?logical_key=neq.';
+    return fetch(url, { method: 'DELETE', headers: _authHeaders({ 'Prefer': 'return=minimal' }) })
+      .then(function () {})
+      .catch(function () {});
+  }
+
+  // Connectivity probe — resolves true if Supabase is reachable
+  var _sbOnline = fetch(SUPABASE_URL + '/rest/v1/' + KV_TABLE + '?select=logical_key&limit=1', {
+    method: 'GET', headers: _authHeaders()
+  }).then(function (res) { return res.ok || res.status === 406; }) // 406 = no rows, still reachable
+    .catch(function () { return false; });
+
+  // ---------------------------------------------------------------------------
+  // localStorage helpers  (sync, unchanged from v1)
+  // ---------------------------------------------------------------------------
+
+  function _ls() {
+    try {
+      return (typeof localStorage !== 'undefined') ? localStorage
+           : (typeof global !== 'undefined' && global.localStorage ? global.localStorage : null);
+    } catch (e) { return null; }
+  }
+
+  function _lsGet(logicalKey) {
+    var ls = _ls();
+    if (!ls) return null;
+    try {
+      var raw = ls.getItem(LS_PREFIX + logicalKey);
+      return raw === null ? null : JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
+  function _lsSet(logicalKey, value) {
+    var ls = _ls();
+    if (!ls) return false;
+    try { ls.setItem(LS_PREFIX + logicalKey, JSON.stringify(value)); return true; }
+    catch (e) { return false; }
+  }
+
+  function _lsDel(logicalKey) {
+    var ls = _ls();
+    if (!ls) return;
+    try { ls.removeItem(LS_PREFIX + logicalKey); } catch (e) {}
+  }
+
+  function _lsList(scope) {
+    var ls = _ls();
+    if (!ls) return [];
+    var result = [];
+    var scopePrefix = scope ? (scope + ':') : null;
+    try {
+      for (var i = 0; i < ls.length; i++) {
+        var rawKey = ls.key(i);
+        if (!rawKey || rawKey.indexOf(LS_PREFIX) !== 0) continue;
+        var logical = rawKey.slice(LS_PREFIX.length);
+        if (scopePrefix && logical.indexOf(scopePrefix) !== 0) continue;
+        result.push(logical);
+      }
+    } catch (e) {}
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
 
   var Storage = {
 
-    PREFIX: PREFIX,
+    /** Resolves true when Supabase is confirmed reachable, false otherwise */
+    ready: _sbOnline,
+
+    /** Legacy prefix constant (unchanged from v1) */
+    PREFIX: LS_PREFIX,
 
     /**
      * get(logicalKey) → Promise<value|null>
-     * Reads champions:<logicalKey> from Supabase. Returns null on miss/error.
+     * Supabase first; localStorage fallback on error/miss.
      */
     get: function (logicalKey) {
-      var fullKey = PREFIX + logicalKey;
-      var path = TABLE + '?key=eq.' + encodeURIComponent(fullKey) + '&select=value&limit=1';
-      return _rest('GET', path).then(function (res) {
-        if (!res.ok || !Array.isArray(res.data) || res.data.length === 0) return null;
-        return res.data[0].value;   // Supabase returns jsonb as already-parsed JS object
+      return _sbGet(logicalKey).then(function (val) {
+        if (val !== null) return val;
+        return _lsGet(logicalKey); // Supabase miss → try LS cache
       });
     },
 
     /**
      * set(logicalKey, value) → Promise<boolean>
-     * Upserts champions:<logicalKey> = value. Returns true on success.
+     * Write-through: localStorage immediately, Supabase async.
      */
     set: function (logicalKey, value) {
-      var fullKey = PREFIX + logicalKey;
-      var url = SUPABASE_URL + '/rest/v1/' + TABLE;
-      var headers = _headers();
-      headers['Prefer'] = 'resolution=merge-duplicates,return=minimal';
-      var body = JSON.stringify({ key: fullKey, value: value });
-      return fetch(url, { method: 'POST', headers: headers, body: body })
-        .then(function (res) { return res.ok || res.status === 201 || res.status === 204; })
-        .catch(function (err) {
-          console.warn('[Storage] set error:', err);
-          return false;
-        });
+      _lsSet(logicalKey, value); // synchronous cache write
+      return _sbSet(logicalKey, value);
     },
 
     /**
      * del(logicalKey) → Promise<void>
-     * Deletes champions:<logicalKey> from Supabase. Silent on missing key.
      */
     del: function (logicalKey) {
-      var fullKey = PREFIX + logicalKey;
-      var path = TABLE + '?key=eq.' + encodeURIComponent(fullKey);
-      return _rest('DELETE', path).then(function () { /* void */ });
+      _lsDel(logicalKey);
+      return _sbDel(logicalKey);
     },
 
     /**
      * list(scope?) → Promise<string[]>
-     * Returns all logical keys (prefix stripped). Optional scope filter.
-     * e.g. list('teams') → ['teams:custom', 'teams:tournament']
+     * Returns logical keys from Supabase; LS fallback.
      */
     list: function (scope) {
-      var filter = 'key=like.' + encodeURIComponent(PREFIX + (scope ? scope + ':' : '') + '*');
-      var path = TABLE + '?' + filter + '&select=key&order=key';
-      return _rest('GET', path).then(function (res) {
-        if (!res.ok || !Array.isArray(res.data)) return [];
-        return res.data.map(function (row) {
-          return row.key.slice(PREFIX.length);
-        });
+      return _sbList(scope).then(function (keys) {
+        return keys.length > 0 ? keys : _lsList(scope);
       });
     },
 
     /**
      * clearAll() → Promise<void>
-     * Deletes every champions:* row from Supabase.
      */
     clearAll: function () {
-      var path = TABLE + '?key=like.' + encodeURIComponent(PREFIX + '*');
-      return _rest('DELETE', path).then(function () { /* void */ });
+      _lsList().forEach(function (k) { _lsDel(k); });
+      return _sbClearAll();
     },
+
+    // -------------------------------------------------------------------------
+    // Sync shims — localStorage only (for ui.js paths that cannot await)
+    // -------------------------------------------------------------------------
+
+    /** Sync read from localStorage cache only */
+    getSync: function (logicalKey) {
+      return _lsGet(logicalKey);
+    },
+
+    /** Sync write to localStorage; also fires async Supabase upsert */
+    setSync: function (logicalKey, value) {
+      _lsSet(logicalKey, value);
+      _sbSet(logicalKey, value).catch(function () {}); // fire-and-forget
+      return true;
+    },
+
+    // -------------------------------------------------------------------------
+    // Migration — one-time localStorage → Supabase lift
+    // -------------------------------------------------------------------------
 
     /**
      * migrate() → Promise<void>
-     * One-time migration: copies legacy localStorage keys into Supabase,
-     * then removes them from localStorage. Idempotent.
+     * Idempotent. Safe to call on every app init.
      */
     migrate: function () {
       var self = this;
-      var ls;
-      try { ls = typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { ls = null; }
-      if (!ls) return Promise.resolve();
-
       var MIGRATIONS = [
         { oldKey: 'champions_sim_custom_teams_v1',     newLogical: 'teams:custom'        },
         { oldKey: 'poke-sim:bring:v1',                 newLogical: 'bring:default'       },
@@ -152,36 +263,31 @@
         { oldKey: 'champions_sim_preloaded_overrides', newLogical: 'overrides:preloaded' },
       ];
 
+      var ls = _ls();
+      if (!ls) return Promise.resolve();
+
       var tasks = MIGRATIONS.map(function (m) {
         var raw = null;
-        try { raw = ls.getItem(m.oldKey); } catch (e) { /* sandbox-blocked */ }
+        try { raw = ls.getItem(m.oldKey); } catch (e) {}
         if (raw === null) return Promise.resolve();
 
         var parsed;
         try { parsed = JSON.parse(raw); } catch (e) { parsed = raw; }
 
         return self.get(m.newLogical).then(function (existing) {
-          try { ls.removeItem(m.oldKey); } catch (e) { /* swallow */ }
-          if (existing !== null) return;
+          try { ls.removeItem(m.oldKey); } catch (e) {}
+          if (existing !== null) return Promise.resolve(); // already migrated
           return self.set(m.newLogical, parsed);
         });
       });
 
-      return Promise.all(tasks).then(function () { /* void */ });
-    },
-
-    // ── Deprecated sync shims (backward-compat warnings) ──────────────────────
-    getSync: function () {
-      console.warn('[Storage] getSync() deprecated — use await Storage.get()');
-      return null;
-    },
-    setSync: function () {
-      console.warn('[Storage] setSync() deprecated — use await Storage.set()');
-      return false;
+      return Promise.all(tasks).then(function () {});
     },
   };
 
-  // ── Export ─────────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Export
+  // ---------------------------------------------------------------------------
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { Storage: Storage };
   } else {
