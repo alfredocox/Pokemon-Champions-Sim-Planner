@@ -1,192 +1,152 @@
-/**
- * supabase_adapter.js — Champions Sim v1
- *
- * Thin async layer over the existing Storage object.
- * - Reads teams/rulesets from Supabase on init (remote-first)
- * - Falls back to localStorage if offline or Supabase unavailable
- * - Writes analyses + win_conditions + logs to Supabase after every sim
- *
- * Usage:
- *   Load supabase-js CDN first, then this file.
- *   window.__SUPABASE_URL__ and window.__SUPABASE_ANON_KEY__ must be set
- *   before this script runs (inject via a <script> tag above this one).
- */
+// ============================================================
+// supabase_adapter.js — Champions Sim DB bridge v1
+// Sits on top of the existing localStorage layer.
+// Auto-saves every Bo run to Supabase analyses table.
+// Falls back silently if Supabase is unreachable.
+//
+// WIRE IN index.html — add BEFORE this script tag:
+//   <script>
+//     window.__SUPABASE_URL__ = 'https://YOUR-ID.supabase.co';
+//     window.__SUPABASE_KEY__ = 'your-anon-key';
+//   </script>
+//   <script src="supabase_adapter.js"></script>
+// ============================================================
 
 (function () {
   'use strict';
 
   const SUPABASE_URL = window.__SUPABASE_URL__ || '';
-  const SUPABASE_KEY = window.__SUPABASE_ANON_KEY__ || '';
+  const SUPABASE_KEY = window.__SUPABASE_KEY__ || '';
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.warn('[SupabaseAdapter] Missing URL or anon key — running in localStorage-only mode.');
-    return;
+    console.warn('[SupabaseAdapter] No credentials — localStorage-only mode.');
   }
 
-  // ── Client ────────────────────────────────────────────────────────────────
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function uuid() {
-    return crypto.randomUUID
-      ? crypto.randomUUID()
-      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-          const r = (Math.random() * 16) | 0;
-          return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-        });
-  }
-
-  // ── Remote reads (called once on page load) ───────────────────────────────
-
-  /**
-   * loadTeamsFromDB()
-   * Pulls teams + team_members from Supabase and merges into window.TEAMS.
-   * Existing TEAMS keys are preserved; remote rows win on conflict.
-   */
-  async function loadTeamsFromDB() {
-    try {
-      const { data: teams, error: tErr } = await sb.from('teams').select('*');
-      if (tErr) throw tErr;
-
-      const { data: members, error: mErr } = await sb.from('team_members').select('*').order('slot');
-      if (mErr) throw mErr;
-
-      if (!teams || teams.length === 0) return;
-
-      teams.forEach(team => {
-        const teamMembers = members
-          .filter(m => m.team_id === team.team_id)
-          .map(m => ({
-            species:  m.species,
-            item:     m.item     || '',
-            ability:  m.ability  || '',
-            nature:   m.nature   || '',
-            level:    m.level    || 50,
-            evs:      m.evs      || {},
-            moves:    m.moves    || [],
-            teraType: m.tera_type || '',
-            roleTag:  m.role_tag  || '',
-          }));
-
-        window.TEAMS[team.team_id] = {
-          name:        team.name,
-          label:       team.label,
-          mode:        team.mode,
-          source:      team.source,
-          description: team.description,
-          members:     teamMembers,
-        };
-      });
-
-      console.info(`[SupabaseAdapter] Loaded ${teams.length} teams from DB.`);
-
-      // Rebuild UI selects if the function exists
-      if (typeof window.rebuildTeamSelects === 'function') {
-        window.rebuildTeamSelects();
-      }
-    } catch (err) {
-      console.warn('[SupabaseAdapter] loadTeamsFromDB failed, using local data.', err);
+  // ----------------------------------------------------------
+  // Thin REST fetch helper — no SDK dependency needed
+  // ----------------------------------------------------------
+  async function sbFetch(path, method = 'GET', body = null) {
+    const url = `${SUPABASE_URL}/rest/v1/${path}`;
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=minimal' : 'return=representation'
+    };
+    const opts = { method, headers };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`${method} ${path} => ${res.status}: ${err}`);
     }
+    return method === 'GET' ? res.json() : null;
   }
 
-  // ── Remote writes (called after each simulation run) ──────────────────────
+  // ----------------------------------------------------------
+  // saveAnalysis — builds 3 related rows and inserts them
+  // ----------------------------------------------------------
+  async function saveAnalysis(result, playerKey, oppKey, bo) {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return;
 
-  /**
-   * saveAnalysis(payload)
-   *
-   * payload shape (mirrors the analyses table + child tables):
-   * {
-   *   engineVersion:    string,
-   *   rulesetId:        string,
-   *   playerTeamId:     string,
-   *   oppTeamId:        string,
-   *   policyModel:      string,
-   *   sampleSize:       number,
-   *   bo:               number,
-   *   winRate:          number,       // 0.0–1.0
-   *   wins:             number,
-   *   losses:           number,
-   *   draws:            number,
-   *   avgTurns:         number,
-   *   avgTrTurns:       number,
-   *   ciLow?:           number,
-   *   ciHigh?:          number,
-   *   hiddenInfoModel?: string,
-   *   analysisJson:     object,       // full result blob
-   *   winConditions?:   { label: string; count: number }[],
-   *   logs?:            { result: string; turns: number; trTurns: number; winCondition?: string; log: object }[],
-   * }
-   *
-   * Returns the inserted analysis_id (UUID) or null on failure.
-   */
-  async function saveAnalysis(payload) {
-    const analysisId = uuid();
+    const analysis_id = crypto.randomUUID();
+    const total = result.total || (result.wins + result.losses + (result.draws || 0)) || bo;
+
+    const row = {
+      analysis_id,
+      created_at:        new Date().toISOString(),
+      engine_version:    '1.0.0',
+      ruleset_id:        ((window.currentFormat || 'doubles') + '_reg_m_a'),
+      player_team_id:    playerKey,
+      opp_team_id:       oppKey,
+      prior_id:          null,
+      policy_model:      'random',
+      sample_size:       total,
+      bo,
+      win_rate:          total > 0 ? parseFloat((result.wins / total).toFixed(4)) : 0,
+      wins:              result.wins   || 0,
+      losses:            result.losses || 0,
+      draws:             result.draws  || 0,
+      avg_turns:         parseFloat((result.avgTurns   || 0).toFixed(2)),
+      avg_tr_turns:      parseFloat((result.avgTrTurns || 0).toFixed(2)),
+      ci_low:            result.ciLow  != null ? parseFloat(result.ciLow.toFixed(4))  : null,
+      ci_high:           result.ciHigh != null ? parseFloat(result.ciHigh.toFixed(4)) : null,
+      hidden_info_model: null,
+      analysis_json:     result
+    };
 
     try {
-      // 1. Insert parent row
-      const { error: aErr } = await sb.from('analyses').insert({
-        analysis_id:       analysisId,
-        engine_version:    payload.engineVersion    || 'unknown',
-        ruleset_id:        payload.rulesetId        || 'vgc2025regm',
-        player_team_id:    payload.playerTeamId,
-        opp_team_id:       payload.oppTeamId,
-        policy_model:      payload.policyModel      || 'random',
-        sample_size:       payload.sampleSize       || 1,
-        bo:                payload.bo               || 1,
-        win_rate:          payload.winRate          || 0,
-        wins:              payload.wins             || 0,
-        losses:            payload.losses           || 0,
-        draws:             payload.draws            || 0,
-        avg_turns:         payload.avgTurns         || 0,
-        avg_tr_turns:      payload.avgTrTurns       || 0,
-        ci_low:            payload.ciLow            ?? null,
-        ci_high:           payload.ciHigh           ?? null,
-        hidden_info_model: payload.hiddenInfoModel  || null,
-        analysis_json:     payload.analysisJson     || {},
-      });
-      if (aErr) throw aErr;
+      await sbFetch('analyses', 'POST', row);
+    } catch (e) {
+      console.warn('[SupabaseAdapter] analyses insert failed:', e.message);
+      return;
+    }
 
-      // 2. Insert win conditions (if any)
-      if (payload.winConditions && payload.winConditions.length > 0) {
-        const wcRows = payload.winConditions.map(wc => ({
-          analysis_id: analysisId,
-          label:       wc.label,
-          count:       wc.count,
-        }));
-        const { error: wcErr } = await sb.from('analysis_win_conditions').insert(wcRows);
-        if (wcErr) console.warn('[SupabaseAdapter] win_conditions insert partial failure:', wcErr);
-      }
+    // Win conditions
+    const wcs = result.winConditions || {};
+    const wcRows = Object.entries(wcs)
+      .filter(([, c]) => c > 0)
+      .map(([label, count]) => ({ analysis_id, label, count }));
+    if (wcRows.length) {
+      try { await sbFetch('analysis_win_conditions', 'POST', wcRows); }
+      catch (e) { console.warn('[SupabaseAdapter] win_conditions failed:', e.message); }
+    }
 
-      // 3. Insert logs (if any, capped at 50 to stay under payload limits)
-      if (payload.logs && payload.logs.length > 0) {
-        const logRows = payload.logs.slice(0, 50).map((l, i) => ({
-          analysis_id:   analysisId,
-          log_index:     i,
-          result:        l.result,
-          turns:         l.turns,
-          tr_turns:      l.trTurns || 0,
-          win_condition: l.winCondition || null,
-          log:           l.log || {},
-        }));
-        const { error: lErr } = await sb.from('analysis_logs').insert(logRows);
-        if (lErr) console.warn('[SupabaseAdapter] logs insert partial failure:', lErr);
-      }
+    // Battle logs (first 10 games only)
+    const games = (result.games || []).slice(0, 10);
+    if (games.length) {
+      const logRows = games.map((g, i) => ({
+        analysis_id,
+        log_index:     i,
+        result:        g.winner || 'draw',
+        turns:         g.turns    || 0,
+        tr_turns:      g.trTurns  || 0,
+        win_condition: g.winCondition || null,
+        log:           g
+      }));
+      try { await sbFetch('analysis_logs', 'POST', logRows); }
+      catch (e) { console.warn('[SupabaseAdapter] analysis_logs failed:', e.message); }
+    }
 
-      console.info(`[SupabaseAdapter] Analysis saved: ${analysisId}`);
-      return analysisId;
-    } catch (err) {
-      console.warn('[SupabaseAdapter] saveAnalysis failed:', err);
+    console.log(`[SupabaseAdapter] ✓ Saved ${analysis_id} (${playerKey} vs ${oppKey} Bo${bo})`);
+  }
+
+  // ----------------------------------------------------------
+  // loadTeams — pull teams + members from Supabase
+  // Returns null on failure so caller can fall back to TEAMS{}
+  // ----------------------------------------------------------
+  async function loadTeams() {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+    try {
+      const teams   = await sbFetch('teams?select=*');
+      const members = await sbFetch('team_members?select=*&order=team_id,slot');
+      const map = {};
+      teams.forEach(t => { map[t.team_id] = { ...t, members: [] }; });
+      members.forEach(m => { if (map[m.team_id]) map[m.team_id].members.push(m); });
+      return Object.values(map);
+    } catch (e) {
+      console.warn('[SupabaseAdapter] loadTeams failed — using in-memory TEAMS:', e.message);
       return null;
     }
   }
 
-  // ── Expose on window ──────────────────────────────────────────────────────
-  window.SupabaseAdapter = { loadTeamsFromDB, saveAnalysis };
-
-  // ── Auto-load on DOMContentLoaded ─────────────────────────────────────────
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadTeamsFromDB);
-  } else {
-    loadTeamsFromDB();
+  // ----------------------------------------------------------
+  // Monkey-patch runBoSeries to auto-save every result
+  // ----------------------------------------------------------
+  const _orig = window.runBoSeries;
+  if (typeof _orig === 'function') {
+    window.runBoSeries = function (n, playerKey, oppKey, bo) {
+      const result = _orig(n, playerKey, oppKey, bo);
+      if (result && typeof result.then === 'function') {
+        result.then(r => saveAnalysis(r, playerKey, oppKey, bo));
+      } else if (result) {
+        saveAnalysis(result, playerKey, oppKey, bo);
+      }
+      return result;
+    };
   }
+
+  // Expose for manual calls from ui.js
+  window.SupabaseAdapter = { saveAnalysis, loadTeams };
+
 })();
