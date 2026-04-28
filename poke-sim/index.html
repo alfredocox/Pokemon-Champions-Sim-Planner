@@ -343,9 +343,6 @@
 </section>
 
 <!-- ===== STRATEGY (Phase 2: Coaching Layer) ===== -->
-<!-- Adapter wraps existing T9j.16 buildStrategyReport with spec-compliant generators.
-     Painted by renderStrategyTab(currentPlayerKey). Auto-rebuilds 500ms after team
-     select / import / sim complete. See COACHING_LAYER_SPEC.md sections 4-12. -->
 <section class="tab-panel" id="tab-strategy">
   <div class="strategy-header">
     <div class="strategy-header-row">
@@ -541,7 +538,18 @@
 <!-- PDF Report Container (hidden, shown only during print) -->
 <div id="pdf-report-container"></div>
 
-<!-- Supabase CDN (must load before any other scripts) -->
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SUPABASE CREDENTIALS — injected at runtime, never hardcoded in adapter
+     Finding 4 fix (2026-04-27): credentials wired so SupabaseAdapter.saveAnalysis()
+     call site in ui.js can reach the live DB.
+     Project: ymlahqnshgiarpbgxehp  |  Region: us-east-1
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+  window.__SUPABASE_URL__ = 'https://ymlahqnshgiarpbgxehp.supabase.co';
+  window.__SUPABASE_KEY__ = 'sb_publishable_pMVX1GTnvONFtBC8T-cTqg_tqkxt7aJ';
+</script>
+
+<!-- Supabase CDN (synchronous, must load before storage_adapter and supabase_adapter) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="storage_adapter.js"></script>
 <script src="data.js"></script>
