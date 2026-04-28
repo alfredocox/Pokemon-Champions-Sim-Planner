@@ -159,6 +159,63 @@ Expected line on full success (mirrors the storage adapter precedent): `✅ all 
 - Re-build bundle with `tools/build-bundle.py` only — not the inline rebuild snippets from old plans.
 - Use `apply_migration` (Supabase MCP) for every DDL change going forward.
 
+### Runtime behavior — what works at each milestone
+
+**Core promise: the app remains fully functional at every stage of the DB rollout.** Contributors and end users can run any commit on `integration/poke-sim-db` without Supabase credentials and get the same experience as the pre-DB app. Adding credentials enables progressive enhancements; misconfiguring them never breaks the app.
+
+#### Without `SUPABASE_URL` / `SUPABASE_KEY` (default for every fork, contributor laptop, and prod deploy until creds are intentionally set)
+
+The adapter detects missing creds and disables itself:
+```js
+const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);  // false
+if (!ENABLED) console.info('[SupabaseAdapter] No credentials — running in local-only mode.');
+```
+
+Every public method early-returns:
+- `loadTeamsFromDB()` → `null`
+- `saveAnalysis(...)` → `null`
+- `loadRecentAnalyses()` → `[]`
+
+The auto-merge `DOMContentLoaded` listener is wrapped in `if (ENABLED) {...}`, so it never even registers. `TEAMS` stays whatever `data.js` provides (the 13 hardcoded teams).
+
+**Net effect:** identical to the pre-DB app + one harmless console line. Bo1/3/5/10 sim, Pilot Guide, Speed Tier, Coverage checker, PDF report, import/export, Replay Log, PWA offline mode — all work exactly as before.
+
+#### With creds set, but Supabase unreachable / RLS denying / schema drifted
+
+Every call is wrapped in `try/catch → console.warn → return null/[]`. Failures log a warning and the app falls back to local data. **No crash, no broken UI, no blank screen.** This is enforced by the M1 wiring tests (T-12, T-13, T-14).
+
+#### With creds set and Supabase healthy
+
+Behavior depends on which modules have shipped. Each module is **strictly additive** — none of them break behavior that worked at the previous milestone.
+
+| After… | What changes for users with creds | Users without creds |
+|---|---|---|
+| **M1** (this PR) | `window.SupabaseAdapter` is loaded but dormant unless creds are present. `enabled` flag is queryable. | Identical to pre-DB app. |
+| **M2** (POK-18) | DB has 22 seed teams + `metadata jsonb`. Still no UI difference until M3 reads them. | Identical. |
+| **M3** (POK-19) | App `await`s `loadTeamsFromDB()` on init; DB teams merge into the team selectors. **First user-visible DB feature.** | Identical. |
+| **M4** (POK-20) | Every Bo run persists to `analyses` table via `saveAnalysis`. | Identical (still uses local `storage_adapter.js`). |
+| **M5** (POK-21) | "Recent analyses" panel populated from DB. | Panel shows local-only history. |
+| **M6** (POK-22) | Pilot notes sync across devices. | Notes stay local. |
+| **M7** (POK-23) | Cross-session matchup history queries. | Single-session only. |
+| **M8** (POK-24) | Profile + multi-device sync + auth. | Single-device. |
+| **M9** (POK-25) | DB suites run in CI on every PR. | (Contributor-side improvement only.) |
+
+#### Recommended rollout for production
+
+1. **Merge M1 with no creds set.** Zero regression. Adapter loads dormant. This is safe to ship today.
+2. **Land M2 + M3 together** before turning on creds in production. M3 is when DB teams actually appear in the UI; without it, M2's seed data is invisible.
+3. **Add M4** for write-path persistence.
+4. **M5–M8 are incremental feature unlocks.** Ship in any order.
+5. **M9 last** — observability and CI hardening.
+
+#### Contributor TL;DR
+
+- **You do not need a Supabase project to develop on this repo.** Clone, `python3 tools/build-bundle.py`, open the bundle. Everything works.
+- **You do not need to land all 9 modules before merging M1.** M1 is independently safe.
+- **Never remove a fail-soft `try/catch` or early-return.** They are load-bearing — the entire "works offline" promise depends on them.
+- **If you set creds locally for testing,** use `.env.local` (gitignored) — never commit them.
+
+
 ---
 
 ## 13 LOADED TEAMS (keys in TEAMS object)
