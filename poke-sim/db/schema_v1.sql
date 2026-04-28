@@ -1,4 +1,5 @@
 -- Champions Sim DB schema v1
+-- Updated 2026-04-27: added metadata column to teams (Refs #158 Finding 1)
 
 -- RULESETS: formats / modes / rules
 CREATE TABLE rulesets (
@@ -19,7 +20,8 @@ CREATE TABLE teams (
   ruleset_id   TEXT REFERENCES rulesets(ruleset_id),
   source       TEXT NOT NULL,
   source_ref   TEXT,
-  description  TEXT NOT NULL
+  description  TEXT NOT NULL,
+  metadata     JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 -- TEAM_MEMBERS: individual Pokémon on teams
