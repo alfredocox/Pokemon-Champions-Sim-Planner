@@ -3,8 +3,11 @@
 // CACHE_NAME scheme: champions-sim-v{major}-{release-tag}
 // MUST be bumped on every release that changes engine.js, data.js, ui.js, or style.css
 // Phase 2 automation tracked in #95 (tools/release.sh)
+//
+// v8-supabase-live [2026-04-27] — Supabase DB fully wired (real URL + anon key in supabase_adapter.js)
+// v7-phase4c2      — previous
 
-const CACHE_NAME = 'champions-sim-v7-phase4c2';
+const CACHE_NAME = 'champions-sim-v8-supabase-live';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [
