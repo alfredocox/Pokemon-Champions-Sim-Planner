@@ -313,3 +313,7 @@ Referenced during init before declaration. `const`/`let` causes TDZ ReferenceErr
 3. **Open M3** ([POK-19](https://linear.app/poke-e-sim/issue/POK-19)) — `loadTeamsFromDB` becomes the awaited source of truth on init. Gate: `db_m3_init_tests.js` GREEN; offline fallback verified.
 4. **Open M4** ([POK-20](https://linear.app/poke-e-sim/issue/POK-20)) — persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis`. Gate: `db_m4_save_tests.js` GREEN; one row in `analyses` per Bo run.
 5. After M4 lands: fan out M5/M6/M7 in parallel; finish with M9 hardening. M8 stays deferred.
+1. **Owner runs 3 SQL files in Supabase SQL Editor** (schema → seed → rls) — unblocks DB backend
+2. **Owner provides Supabase Project URL + anon key** — AI wires into supabase_adapter.js and pushes
+3. **Wire saveAnalysis() call into ui.js** after `runBoSeries()` completes — Issue #82
+4. **Wire loadTeams() into init** to hydrate TEAMS from Supabase on startup — Issue #81
