@@ -5,6 +5,29 @@
 
 ---
 
+## 🗂️ SNAPSHOT — 2026-04-27
+
+> **Branch:** [`archive/snapshot-2026-04-27`](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/tree/archive/snapshot-2026-04-27)
+> **Commit:** `820cc0fc`
+> **Created:** April 27, 2026 — 10:33 PM EDT
+> **Why:** Frozen backup of `main` before Alfredo makes structural changes. If anything breaks, revert to this branch — it is the last known-good state.
+
+### How to restore from this snapshot
+```bash
+# Option 1 — check out the snapshot locally (read-only reference)
+git fetch origin
+git checkout archive/snapshot-2026-04-27
+
+# Option 2 — hard-reset main back to this point (nuclear, coordinate with team first)
+git checkout main
+git reset --hard origin/archive/snapshot-2026-04-27
+git push --force
+```
+
+> ⚠️ **Team note:** Do NOT delete `archive/snapshot-2026-04-27`. It is the safety net for the current dev cycle. Tag @TheYfactora12 before merging anything that restructures `poke-sim/` source files.
+
+---
+
 --- COPY FROM HERE ---
 
 You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator built as a static, offline-capable PWA.
