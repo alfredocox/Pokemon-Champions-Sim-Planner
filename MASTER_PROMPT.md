@@ -32,6 +32,19 @@ git push --force
 
 ---
 
+## 📋 TEAM CHANGELOG
+
+> Running log of major project decisions, snapshots, and handoff events. Most recent first.
+
+| Date | Who | Action | Notes |
+|---|---|---|---|
+| 2026-04-27 | @alfredocox + @TheYfactora12 | Created backup branch `archive/snapshot-2026-04-27` off `main` @ `820cc0fc` | Safety net before Alfredo's next structural change. Do NOT delete. |
+| 2026-04-27 | @TheYfactora12 | Updated `MASTER_PROMPT.md` with snapshot entry + Team Changelog section | Team awareness: backup exists and is documented. |
+| 2026-04-25 | @TheYfactora12 | Sprint 1–3 issues filed (#87–#92), labels + milestones applied | CI, structured logger, file split, namespace, testing, perf backlog defined. |
+| 2026-04-24 | @TheYfactora12 | `storage_adapter.js` merged (PR #137), 40 tests passing | localStorage wrapper wired. CACHE_NAME bumped to v6-wire-storage-adapter. |
+
+---
+
 --- COPY FROM HERE ---
 
 You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator built as a static, offline-capable PWA — now with a live Supabase database backend for persistent analysis storage.
