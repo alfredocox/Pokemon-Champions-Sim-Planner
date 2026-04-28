@@ -40,7 +40,7 @@ git push --force
 |---|---|---|---|
 | 2026-04-27 | @alfredocox + @TheYfactora12 | Created backup branch `archive/snapshot-2026-04-27` off `main` @ `820cc0fc` | Safety net before Alfredo's next structural change. Do NOT delete. |
 | 2026-04-27 | @TheYfactora12 | Updated `MASTER_PROMPT.md` with snapshot entry + Team Changelog section | Team awareness: backup exists and is documented. |
-| 2026-04-25 | @TheYfactora12 | Sprint 1–3 issues filed (#87–#92), labels + milestones applied | CI, structured logger, file split, namespace, testing, perf backlog defined. |
+| 2026-04-25 | @TheYfactora12 | Sprint 1-3 issues filed (#87-#92), labels + milestones applied | CI, structured logger, file split, namespace, testing, perf backlog defined. |
 | 2026-04-24 | @TheYfactora12 | `storage_adapter.js` merged (PR #137), 40 tests passing | localStorage wrapper wired. CACHE_NAME bumped to v6-wire-storage-adapter. |
 
 ---
@@ -96,7 +96,7 @@ Pokemon-Champions-Sim-Planner/
 │       ├── ui_storage_integration_tests.js  ← 33 cases
 │       ├── items_tests.js / status_tests.js / mega_tests.js
 │       ├── coverage_tests.js / audit.js
-│       └── t9j8–t9j10_tests.js
+│       └── t9j8-t9j10_tests.js
 └── MASTER_PROMPT.md
 ```
 
@@ -165,7 +165,7 @@ suica_sun           — Suica Sun (cb48d8b06c73d33b)
 cofagrigus_tr       — Cofagrigus TR
 champions_arena_1st — Hyungwoo Shin — Champions Arena Winner
 champions_arena_2nd — Jorge Tabuyo — Champions Arena Finalist
-champions_arena_3rd — Juan Benítez — Champions Arena Top 3
+champions_arena_3rd — Juan Benitez — Champions Arena Top 3
 chuppa_balance      — Chuppa Cross IV — Pittsburgh Champion
 aurora_veil_froslass — Aurora Veil Froslass team
 kingambit_sneasler  — Kingambit + Sneasler Core
