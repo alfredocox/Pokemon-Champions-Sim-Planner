@@ -1,10 +1,15 @@
-// supabase_adapter.js — Champions Sim v1
-// Thin Supabase layer. Falls back to local silently if credentials missing.
+// supabase_adapter.js — Champions Sim v1 (M3: init / source-of-truth)
+// Thin Supabase layer. Falls back to local silently if credentials missing or disabled.
 // Load AFTER data.js, engine.js, ui.js — and AFTER supabase-js CDN script.
 //
 // Credentials injected via window.__SUPABASE_URL__ and window.__SUPABASE_KEY__
 // Set these in index.html <script> block — do NOT hardcode here.
-// Updated: 2026-04-27 by TheYfactora12
+//   Original cred wiring: 2026-04-27 by TheYfactora12 (commit 001b37b)
+//   Security hardening:   2026-04-27 by TheYfactora12 (commit effad08) —
+//                         removed hardcoded fallbacks; inject at runtime only.
+//   M3 refactor:          2026-04-27 — adds __DISABLE_SUPABASE__ test override,
+//                                      loadRulesets(), explicit init contract.
+//                                      Ownership of TEAMS-merge moved to ui.js.
 
 (function () {
   'use strict';
@@ -16,11 +21,22 @@
   //     window.__SUPABASE_URL__ = 'https://ymlahqnshgiarpbgxehp.supabase.co';
   //     window.__SUPABASE_KEY__ = '<your-anon-key>';
   //   </script>
-  const SUPABASE_URL = window.__SUPABASE_URL__;
-  const SUPABASE_KEY = window.__SUPABASE_KEY__;
-  const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);
+  //
+  // Tests / sandboxes can also set window.__DISABLE_SUPABASE__ = true to force
+  // the adapter into local-only mode regardless of injected creds (defense-in-
+  // depth: even if a future change re-introduces hardcoded creds, this flag
+  // still wins).
+  const DISABLED = !!(typeof window !== 'undefined' && window.__DISABLE_SUPABASE__);
 
-  // Canonical ruleset_id — must match seed_teams_v1.sql
+  const SUPABASE_URL = DISABLED
+    ? null
+    : (typeof window !== 'undefined' ? window.__SUPABASE_URL__ : undefined);
+  const SUPABASE_KEY = DISABLED
+    ? null
+    : (typeof window !== 'undefined' ? window.__SUPABASE_KEY__ : undefined);
+  const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY) && !DISABLED;
+
+  // Canonical ruleset_id — must match seed_teams_v2.sql (M2)
   const DEFAULT_RULESET_ID = 'champions_reg_m_doubles_bo3';
 
   if (!ENABLED) {
@@ -50,6 +66,8 @@
   }
 
   // ── loadTeamsFromDB ───────────────────────────────────────────────────────
+  // Returns {[team_id]: {team_id, name, label, description, source, metadata, members[]}}
+  // or null if disabled / errored. NEVER throws.
   async function loadTeamsFromDB() {
     const sb = getClient();
     if (!sb) return null;
@@ -66,7 +84,7 @@
       if (mErr) throw mErr;
 
       const memberMap = {};
-      for (const m of members) {
+      for (const m of (members || [])) {
         if (!memberMap[m.team_id]) memberMap[m.team_id] = [];
         memberMap[m.team_id].push({
           name:     m.species,
@@ -82,20 +100,39 @@
       }
 
       const result = {};
-      for (const t of teams) {
+      for (const t of (teams || [])) {
         result[t.team_id] = {
+          team_id:     t.team_id,
           name:        t.name,
           label:       t.label,
           description: t.description,
           source:      t.source,
+          metadata:    t.metadata || {},
           members:     memberMap[t.team_id] || []
         };
       }
-      console.info(`[SupabaseAdapter] Loaded ${teams.length} teams from DB.`);
+      console.info(`[SupabaseAdapter] Loaded ${Object.keys(result).length} teams from DB.`);
       return result;
     } catch (err) {
-      console.warn('[SupabaseAdapter] loadTeamsFromDB failed — using local data.', err.message);
+      console.warn('[SupabaseAdapter] loadTeamsFromDB failed — using local data.', err && err.message);
       return null;
+    }
+  }
+
+  // ── loadRulesets ──────────────────────────────────────────────────────────
+  // Returns array of ruleset rows (or [] if disabled / errored). NEVER throws.
+  async function loadRulesets() {
+    const sb = getClient();
+    if (!sb) return [];
+    try {
+      const { data, error } = await sb
+        .from('rulesets')
+        .select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[SupabaseAdapter] loadRulesets failed.', err && err.message);
+      return [];
     }
   }
 
@@ -158,7 +195,7 @@
       console.info(`[SupabaseAdapter] Saved analysis ${analysis_id}`);
       return analysis_id;
     } catch (err) {
-      console.warn('[SupabaseAdapter] saveAnalysis failed — result not persisted.', err.message);
+      console.warn('[SupabaseAdapter] saveAnalysis failed — result not persisted.', err && err.message);
       return null;
     }
   }
@@ -177,7 +214,7 @@
       if (error) throw error;
       return data || [];
     } catch (err) {
-      console.warn('[SupabaseAdapter] loadRecentAnalyses failed.', err.message);
+      console.warn('[SupabaseAdapter] loadRecentAnalyses failed.', err && err.message);
       return [];
     }
   }
@@ -185,20 +222,16 @@
   // ── Public API ────────────────────────────────────────────────────────────
   window.SupabaseAdapter = {
     enabled:            ENABLED,
+    DEFAULT_RULESET_ID: DEFAULT_RULESET_ID,
     loadTeamsFromDB,
+    loadRulesets,
     saveAnalysis,
     loadRecentAnalyses
   };
 
-  // ── Auto-merge DB teams into TEAMS on load ────────────────────────────────
-  if (ENABLED) {
-    window.addEventListener('DOMContentLoaded', async () => {
-      const dbTeams = await loadTeamsFromDB();
-      if (dbTeams && typeof TEAMS !== 'undefined') {
-        Object.assign(TEAMS, dbTeams);
-        console.info('[SupabaseAdapter] TEAMS patched with DB data.');
-        if (typeof rebuildTeamSelects === 'function') rebuildTeamSelects();
-      }
-    });
-  }
+  // M3 NOTE: Auto-merge of DB teams into TEAMS has moved to ui.js's
+  // DOMContentLoaded handler so that rebuildTeamSelects() is awaited
+  // (no flash of static teams). See ui.js — search for
+  // "M3 — DB init: source-of-truth merge".
+
 })();

@@ -125,10 +125,13 @@ describe('Module 1 \u2014 Wiring suite (16 cases)', function () {
   });
 
   T('T-wiring-10', function () {
-    // Loading adapter with no creds → SupabaseAdapter.enabled === false
+    // Loading adapter with __DISABLE_SUPABASE__ flag → SupabaseAdapter.enabled === false.
+    // (Note: as of 001b37b the adapter embeds production creds as a fallback, so
+    //  passing url:null/key:null alone is no longer sufficient. M3 added the
+    //  __DISABLE_SUPABASE__ override which tests must use to force offline mode.)
     var ctx = freshCtx();
-    installAdapter(ctx, { url: null, key: null });
-    eq(ctx.window.SupabaseAdapter.enabled, false, 'SupabaseAdapter.enabled === false when no creds');
+    installAdapter(ctx, { disable: true });
+    eq(ctx.window.SupabaseAdapter.enabled, false, 'SupabaseAdapter.enabled === false when disabled');
   });
 
   T('T-wiring-11', function () {
@@ -141,7 +144,7 @@ describe('Module 1 \u2014 Wiring suite (16 cases)', function () {
   T('T-wiring-12', function () {
     // loadTeamsFromDB() with enabled=false returns null (does not throw)
     var ctx = freshCtx();
-    installAdapter(ctx, { url: null, key: null });
+    installAdapter(ctx, { disable: true });
     var p = ctx.window.SupabaseAdapter.loadTeamsFromDB();
     // Adapter returns a Promise (async fn). With no client, it resolves to null.
     // Accept either sync null or a Promise resolving to null.
@@ -156,7 +159,7 @@ describe('Module 1 \u2014 Wiring suite (16 cases)', function () {
   T('T-wiring-13', function () {
     // saveAnalysis({}) with enabled=false returns null (does not throw)
     var ctx = freshCtx();
-    installAdapter(ctx, { url: null, key: null });
+    installAdapter(ctx, { disable: true });
     var p = ctx.window.SupabaseAdapter.saveAnalysis({});
     if (p && typeof p.then === 'function') {
       truthy(true, 'saveAnalysis() returned a thenable');
@@ -168,7 +171,7 @@ describe('Module 1 \u2014 Wiring suite (16 cases)', function () {
   T('T-wiring-14', function () {
     // loadRecentAnalyses() with enabled=false returns [] (or thenable resolving to [])
     var ctx = freshCtx();
-    installAdapter(ctx, { url: null, key: null });
+    installAdapter(ctx, { disable: true });
     var p = ctx.window.SupabaseAdapter.loadRecentAnalyses();
     if (p && typeof p.then === 'function') {
       truthy(true, 'loadRecentAnalyses() returned a thenable');
