@@ -317,3 +317,72 @@ Referenced during init before declaration. `const`/`let` causes TDZ ReferenceErr
 2. **Owner provides Supabase Project URL + anon key** — AI wires into supabase_adapter.js and pushes
 3. **Wire saveAnalysis() call into ui.js** after `runBoSeries()` completes — Issue #82
 4. **Wire loadTeams() into init** to hydrate TEAMS from Supabase on startup — Issue #81
+
+---
+
+## SESSION LOG — 2026-04-27 (M1 landing)
+
+### Outcome
+- **PR #161 landed M1 GREEN** — `[db-integration/M1]: Module 1 of integrating poke-sim db`.
+- All 16 cases in `tests/db_m1_wiring_tests.js` pass on Linux, macOS, Codespaces, and Windows.
+- Both CI checks green: `Verify bundle is fresh` + `Verify sw.js CACHE_NAME bumped`.
+- Bundle: 913,888 bytes (was 725,750) — supabase-js v2 UMD inlined, no external CDN at runtime.
+
+### Commits on `integration/poke-sim-db` (chronological)
+| SHA | What | Why |
+|---|---|---|
+| `0bf9f2e` | docs: update MASTER_PROMPT with DB integration v2 + TDD plan | Captures the live status, M1–M9 mapping, TDD suite, run instructions. |
+| `a881ed6` | fix(tests): repair `_db_helpers.js` syntax + add `module.exports` | Inner `select()` chain was malformed; helpers were never exported. |
+| `e91ec72` | fix(tests): repair `db_m1_wiring_tests.js` scope + vm context bugs | `bundlePath` / `bundleContent` were defined inside one T() but referenced from later ones; `vm.runInContext` needs a contextified sandbox; T-9 looked for `.gitignore` in wrong dir; T-16 had unbalanced eval string. |
+| `4bfda50` | fix(build): inline supabase-js UMD, strip CDN script tag | Bundle was leaving `<script src="https://cdn.jsdelivr.net/...supabase">` instead of inlining — broke offline PWA promise and tripped T-4. |
+| `ce28f72` | fix(tests): give `freshCtx` fake window an `addEventListener` no-op | Adapter IIFE registers `DOMContentLoaded` when enabled; sandbox didn't have the method. |
+| `a0fddc9` | fix(build): force UTF-8 on all file I/O for Windows compatibility | Windows Python defaults to cp1252 — couldn't write UTF-8 bytes in supabase-js UMD (`UnicodeEncodeError` at position 185366). |
+| `5cb3b17` | (owner) rebuild bundle locally on Windows | Produced a degenerate bundle with empty `<script>` block because cache was 0 bytes from earlier failed run. |
+| `13e7029` | fix(build): validate vendored supabase-js cache, refuse empty bundle | Sanity floor (`MIN_UMD_BYTES = 100_000` + `createClient` substring check) — refetches and refuses to build if cache is corrupt. |
+| `(owner)` | rebuild bundle + commit `tools/vendor/supabase-js.umd.js` | Real ~196 KB UMD inlined. Vendored file makes CI hermetic. |
+| `42a6378` | fix(tests): raise bundle-size canary to 1 MB | T-6 threshold was 800 KB before inlining; lifted to 1 MB. Acts as bloat canary going forward. |
+
+### Lessons learned (apply to M2–M9)
+1. **TDD harness must be debugged with real implementation context.** Several test cases had `var`-scope bugs that only surfaced once the impl side was correct. Always run a written test against a known-good impl before merging it RED.
+2. **Cross-platform Python defaults are not safe.** Always pass `encoding='utf-8'` to `open()` and reconfigure stdout when targeting Windows.
+3. **Cache-validation is mandatory for vendored fetches.** A 0-byte cache from a crashed run is silent failure. Build scripts must validate before reusing.
+4. **`vm.runInContext` requires `vm.createContext(obj)`** — passing a plain object literal will not work.
+5. **CI freshness checks compare SHA against rebuilt output.** Any change to the build script means you must rebuild + commit the bundle in the same PR, or the freshness check fails.
+6. **Vendor critical CDN deps inside the repo** under `tools/vendor/` so CI is reproducible without network.
+
+### Files added/changed beyond the original M1 spec
+- `poke-sim/tools/vendor/supabase-js.umd.js` — vendored supabase-js v2 UMD (~196 KB), committed for hermetic CI builds.
+- `poke-sim/tools/build-bundle.py` — extended with UMD fetch + cache validation + UTF-8 forcing + CDN strip regex.
+- `poke-sim/tests/_db_helpers.js` — full rewrite with `vm.createContext` plumbing.
+
+### M1 acceptance criteria status (per POK-17)
+- [x] `window.SupabaseAdapter` is defined (T-2, T-7, T-10, T-11)
+- [x] App fails-soft when offline (T-12, T-13, T-14 — adapter returns null/[] when no creds)
+- [x] Bundle rebuilt via `tools/build-bundle.py` (T-15)
+- [x] Anon key only — no `service_role` in frontend (T-5)
+- [x] supabase-js inlined into bundle, no external CDN dependency (T-3, T-4)
+- [ ] `loadTeamsFromDB()` returns 3 seeded teams — covered in M2 (POK-18) once seed is queried live
+
+### Test verification commands (Codespaces, local Linux/macOS, or Windows PowerShell)
+```bash
+# Full DB ladder (all 8 suites)
+cd poke-sim && bash tests/_run_all_db.sh
+# Expected last line: ✅ all DB tests passed
+
+# M1 only (16 cases)
+cd poke-sim && python3 tools/build-bundle.py && node tests/db_m1_wiring_tests.js
+# Expected last line: ✅ All 16 db_m1 wiring tests GREEN
+
+# Live DB cases (gated, M2+ only)
+RUN_LIVE_DB=1 SUPABASE_URL='https://ymlahqnshgiarpbgxehp.supabase.co' SUPABASE_KEY='<anon>' \
+    node tests/db_m2_seed_tests.js
+```
+
+### Updated NEXT ACTIONS (as of 2026-04-27 22:19 EDT)
+1. ✅ **M1 landed** — PR #161 green, awaiting merge.
+2. **Move POK-17 → In Review → Done** in Linear once PR #161 merges.
+3. **Start M2 (POK-18)** — verify `seed_teams_v1.sql` loaded in Supabase (`ymlahqnshgiarpbgxehp`); run `db_m2_seed_tests.js` with `RUN_LIVE_DB=1` to flip RED → GREEN; backfill team seed 3 → 22; add `teams.metadata jsonb`.
+4. **M3 (POK-19)** — `loadTeamsFromDB` becomes awaited source of truth on init; offline fallback verified.
+5. **M4 (POK-20)** — persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis`.
+6. **M9 stretch** — wire `tests/_run_all_db.sh` into `.github/workflows/` so DB suites run on every PR (currently only bundle-freshness + cache-bump checks run).
+
