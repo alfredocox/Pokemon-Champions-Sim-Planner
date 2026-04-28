@@ -13,8 +13,7 @@
 
 > **Branch:** [`archive/snapshot-2026-04-27`](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/tree/archive/snapshot-2026-04-27)
 > **Commit:** `820cc0fc`
-> **Created:** April 27, 2026 — 10:33 PM EDT
-> **Why:** Frozen backup of `main` before Alfredo makes structural changes. If anything breaks, revert to this branch — it is the last known-good state.
+> **Created:** April 27, 2026 — last known-good state of `main` before Alfredo's structural changes.
 
 ### How to restore from this snapshot
 ```bash
@@ -28,7 +27,7 @@ git reset --hard origin/archive/snapshot-2026-04-27
 git push --force
 ```
 
-> ⚠️ **Team note:** Do NOT delete `archive/snapshot-2026-04-27`. It is the safety net for the current dev cycle. Tag @TheYfactora12 before merging anything that restructures `poke-sim/` source files.
+> ⚠️ **Team note:** Do NOT delete `archive/snapshot-2026-04-27`. Tag @TheYfactora12 before merging anything that restructures `poke-sim/` source files.
 
 ---
 
@@ -38,6 +37,7 @@ git push --force
 
 | Date | Who | Action | Notes |
 |---|---|---|---|
+| 2026-04-28 | @TheYfactora12 | Synced MASTER_PROMPT with current repo state | Corrected seed v2, open blockers, db file tree |
 | 2026-04-27 | @alfredocox + @TheYfactora12 | Created backup branch `archive/snapshot-2026-04-27` off `main` @ `820cc0fc` | Safety net before Alfredo's next structural change. Do NOT delete. |
 | 2026-04-27 | @TheYfactora12 | Updated `MASTER_PROMPT.md` with snapshot entry + Team Changelog section | Team awareness: backup exists and is documented. |
 | 2026-04-25 | @TheYfactora12 | Sprint 1-3 issues filed (#87-#92), labels + milestones applied | CI, structured logger, file split, namespace, testing, perf backlog defined. |
@@ -83,10 +83,12 @@ Pokemon-Champions-Sim-Planner/
 │   ├── icon-192.png / icon-512.png
 │   ├── pokemon-champion-2026.html  ← REBUILT BUNDLE (never edit directly — 710 KB)
 │   ├── db/
-│   │   ├── schema_v1.sql           ← 8-table Supabase schema (run first)
-│   │   ├── seed_teams_v1.sql       ← 13 tournament teams seed data (run second)
+│   │   ├── schema_v1.sql           ← 8-table Supabase schema (updated 2026-04-27: added metadata col)
+│   │   ├── seed_teams_v2.sql       ← ✅ USE THIS — 13 tournament teams, complete data (42 KB)
+│   │   ├── seed_teams_v1.sql       ← ⚠️ DEPRECATED — superseded by v2, do not use
 │   │   ├── rls_policies_v1.sql     ← Row Level Security policies (run third)
-│   │   └── README_DB.md
+│   │   ├── migrations/             ← migration scripts folder
+│   │   └── README_DB.md            ← full setup checklist + adapter API docs
 │   ├── tools/
 │   │   ├── build-bundle.py         ← canonical bundle rebuild (always use this)
 │   │   ├── check-bundle.sh         ← SHA compare for CI
@@ -124,32 +126,47 @@ cd poke-sim && npx serve .
 
 ## SUPABASE DATABASE LAYER — CURRENT STATUS
 
+> **P0 BLOCKER — Issue [#158](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues/158)**
+> Owner: @alfredocox. Supabase project not yet provisioned. Lina must accept collaborator invite first.
+
 ### What exists in the repo
+
 | File | Status |
 |---|---|
-| `poke-sim/db/schema_v1.sql` | ✅ In repo — 8 tables defined |
-| `poke-sim/db/seed_teams_v1.sql` | ✅ In repo — 13 tournament teams |
+| `poke-sim/db/schema_v1.sql` | ✅ In repo — 8 tables, `metadata` col added 2026-04-27 |
+| `poke-sim/db/seed_teams_v2.sql` | ✅ USE THIS — 13 tournament teams, complete (42 KB) |
+| `poke-sim/db/seed_teams_v1.sql` | ⚠️ DEPRECATED — do not use, v2 supersedes it |
 | `poke-sim/db/rls_policies_v1.sql` | ✅ In repo — RLS policies ready |
-| `poke-sim/supabase_adapter.js` | ✅ In repo — Supabase JS client, loadTeams / saveAnalysis / getMatchupHistory |
+| `poke-sim/supabase_adapter.js` | ✅ In repo — fully implemented, needs credentials + ui.js wire |
 
-### What still needs to happen (BLOCKING)
-The SQL files exist but have **NOT been executed** in Supabase yet. Tables do not exist until the owner runs:
-1. `schema_v1.sql` in Supabase SQL Editor → creates tables
-2. `seed_teams_v1.sql` → loads 13 teams
+### What still needs to happen (BLOCKING — Alfredo owns these)
+
+The SQL files exist but have **NOT been executed** in Supabase yet. Tables do not exist until:
+
+1. `schema_v1.sql` in Supabase SQL Editor → creates 8 tables
+2. `seed_teams_v2.sql` → loads 13 teams (verify 13 rows in Table Editor after)
 3. `rls_policies_v1.sql` → locks down public access
+4. Wire `window.__SUPABASE_URL__` and `window.__SUPABASE_KEY__` in `index.html`
+5. Wire `saveAnalysis()` call in `ui.js` after `runBoSeries()` completes ← **OPEN BUG**
+6. Confirm CDN `<script>` load order in `index.html` (Supabase JS must load before `supabase_adapter.js`) ← **OPEN BUG**
+
+> See `poke-sim/db/README_DB.md` for the full wiring guide, adapter API, and verification checklist.
 
 ### supabase_adapter.js — Architecture
+
 - **Supabase JS CDN** loaded in `index.html` before other scripts: `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`
 - **Key injection:** anon key delivered via `window.__SUPABASE_KEY__` — never hardcoded in source
 - **Offline fallback:** every method wraps in try/catch; on failure falls back silently to localStorage / in-memory TEAMS object
 - **Three methods:** `loadTeams()`, `saveAnalysis(playerKey, oppKey, result, bo)`, `getMatchupHistory(playerKey, oppKey)`
 - **Project URL placeholder:** `https://YOUR_PROJECT_REF.supabase.co` — owner must supply real ref
+- **Disable for tests:** `window.__DISABLE_SUPABASE__ = true;` (set before adapter loads)
 
 ### RLS Policy Summary (anon key)
+
 | Table | Read | Write |
 |---|---|---|
 | teams, team_members, pokemon, moves, rulesets, matchups | ✅ open | ❌ blocked |
-| analyses, analysis_logs | ✅ open | ✅ open (no auth required) |
+| analyses, analysis_logs | ✅ open | ✅ open (no auth required — accepted risk) |
 
 ---
 
