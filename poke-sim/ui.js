@@ -6608,8 +6608,45 @@ if (typeof window !== 'undefined') {
   window.csScheduleStrategyRebuild = csScheduleStrategyRebuild;
 
   // Hook the existing tab-nav click and player-select change after DOM is ready
-  document.addEventListener('DOMContentLoaded', function(){
+  document.addEventListener('DOMContentLoaded', async function(){
     _csInitEvidenceToggle();
+
+    // ── M3 — DB init: source-of-truth merge ────────────────────────────────
+    // Await loadTeamsFromDB BEFORE the first authoritative rebuildTeamSelects()
+    // so that there's no flash of static-only teams. DB rows win on collision.
+    // On failure / empty / disabled adapter, surface the [DB offline] chip and
+    // keep the bundled TEAMS fallback intact.
+    try {
+      var _adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+      if (_adapter && _adapter.enabled && typeof _adapter.loadTeamsFromDB === 'function') {
+        var dbTeams = await _adapter.loadTeamsFromDB();
+        if (dbTeams && Object.keys(dbTeams).length && typeof TEAMS !== 'undefined') {
+          Object.assign(TEAMS, dbTeams);
+          console.info('[UI] TEAMS patched with ' + Object.keys(dbTeams).length + ' DB teams.');
+          var _chip = document.getElementById('db-offline-chip');
+          if (_chip) _chip.style.display = 'none';
+        } else {
+          // null or empty → fall back to bundled TEAMS, surface chip
+          var _chipOff = document.getElementById('db-offline-chip');
+          if (_chipOff) _chipOff.style.display = 'inline-block';
+          console.info('[UI] DB returned no teams — using bundled TEAMS. [DB offline]');
+        }
+      } else {
+        // Adapter disabled (no creds / __DISABLE_SUPABASE__) → surface chip
+        var _chipDis = document.getElementById('db-offline-chip');
+        if (_chipDis) _chipDis.style.display = 'inline-block';
+        console.info('[UI] SupabaseAdapter disabled — using bundled TEAMS. [DB offline]');
+      }
+    } catch (_dbErr) {
+      var _chipErr = document.getElementById('db-offline-chip');
+      if (_chipErr) _chipErr.style.display = 'inline-block';
+      console.warn('[UI] loadTeamsFromDB threw — using bundled TEAMS. [DB offline]', _dbErr && _dbErr.message);
+    }
+
+    // Authoritative rebuild AFTER DB merge (or fallback) is settled.
+    if (typeof rebuildTeamSelects === 'function') {
+      try { rebuildTeamSelects(); } catch (_e) { /* fail-soft */ }
+    }
 
     // Render when Strategy tab is opened
     document.querySelectorAll('.tab-btn[data-tab="strategy"]').forEach(function(btn){

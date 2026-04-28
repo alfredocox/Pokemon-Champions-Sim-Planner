@@ -1453,7 +1453,7 @@ table{border-collapse:collapse;width:100%}
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-        <h1 class="site-title">Poke-e-Sim Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.9-phase4c.1</span></h1>
+        <h1 class="site-title">Poke-e-Sim Champion 2026 <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.9-phase4c.1</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
         <p class="site-sub">April 2026 Meta · VGC Doubles Simulator</p>
       </div>
     </div>
@@ -15456,8 +15456,45 @@ if (typeof window !== 'undefined') {
   window.csScheduleStrategyRebuild = csScheduleStrategyRebuild;
 
   // Hook the existing tab-nav click and player-select change after DOM is ready
-  document.addEventListener('DOMContentLoaded', function(){
+  document.addEventListener('DOMContentLoaded', async function(){
     _csInitEvidenceToggle();
+
+    // ── M3 — DB init: source-of-truth merge ────────────────────────────────
+    // Await loadTeamsFromDB BEFORE the first authoritative rebuildTeamSelects()
+    // so that there's no flash of static-only teams. DB rows win on collision.
+    // On failure / empty / disabled adapter, surface the [DB offline] chip and
+    // keep the bundled TEAMS fallback intact.
+    try {
+      var _adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+      if (_adapter && _adapter.enabled && typeof _adapter.loadTeamsFromDB === 'function') {
+        var dbTeams = await _adapter.loadTeamsFromDB();
+        if (dbTeams && Object.keys(dbTeams).length && typeof TEAMS !== 'undefined') {
+          Object.assign(TEAMS, dbTeams);
+          console.info('[UI] TEAMS patched with ' + Object.keys(dbTeams).length + ' DB teams.');
+          var _chip = document.getElementById('db-offline-chip');
+          if (_chip) _chip.style.display = 'none';
+        } else {
+          // null or empty → fall back to bundled TEAMS, surface chip
+          var _chipOff = document.getElementById('db-offline-chip');
+          if (_chipOff) _chipOff.style.display = 'inline-block';
+          console.info('[UI] DB returned no teams — using bundled TEAMS. [DB offline]');
+        }
+      } else {
+        // Adapter disabled (no creds / __DISABLE_SUPABASE__) → surface chip
+        var _chipDis = document.getElementById('db-offline-chip');
+        if (_chipDis) _chipDis.style.display = 'inline-block';
+        console.info('[UI] SupabaseAdapter disabled — using bundled TEAMS. [DB offline]');
+      }
+    } catch (_dbErr) {
+      var _chipErr = document.getElementById('db-offline-chip');
+      if (_chipErr) _chipErr.style.display = 'inline-block';
+      console.warn('[UI] loadTeamsFromDB threw — using bundled TEAMS. [DB offline]', _dbErr && _dbErr.message);
+    }
+
+    // Authoritative rebuild AFTER DB merge (or fallback) is settled.
+    if (typeof rebuildTeamSelects === 'function') {
+      try { rebuildTeamSelects(); } catch (_e) { /* fail-soft */ }
+    }
 
     // Render when Strategy tab is opened
     document.querySelectorAll('.tab-btn[data-tab="strategy"]').forEach(function(btn){
@@ -15668,22 +15705,45 @@ if (typeof window !== 'undefined') {
 }(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this));
 
 
-// supabase_adapter.js — Champions Sim v1
-// Thin Supabase layer. Falls back to local silently if credentials missing.
+// supabase_adapter.js — Champions Sim v1 (M3: init / source-of-truth)
+// Thin Supabase layer. Falls back to local silently if credentials missing or disabled.
 // Load AFTER data.js, engine.js, ui.js — and AFTER supabase-js CDN script.
 //
-// Credentials injected directly — project: ymlahqnshgiarpbgxehp (Champions Sim Planner)
-// Updated: 2026-04-27 by TheYfactora12
+// Credentials injected via window.__SUPABASE_URL__ and window.__SUPABASE_KEY__
+// Set these in index.html <script> block — do NOT hardcode here.
+//   Original cred wiring: 2026-04-27 by TheYfactora12 (commit 001b37b)
+//   Security hardening:   2026-04-27 by TheYfactora12 (commit effad08) —
+//                         removed hardcoded fallbacks; inject at runtime only.
+//   M3 refactor:          2026-04-27 — adds __DISABLE_SUPABASE__ test override,
+//                                      loadRulesets(), explicit init contract.
+//                                      Ownership of TEAMS-merge moved to ui.js.
 
 (function () {
   'use strict';
 
   // ── Config ────────────────────────────────────────────────────────────────
-  const SUPABASE_URL = window.__SUPABASE_URL__ || 'https://ymlahqnshgiarpbgxehp.supabase.co';
-  const SUPABASE_KEY = window.__SUPABASE_KEY__ || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltbGFocW5zaGdpYXJwYmd4ZWhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzQ4MDksImV4cCI6MjA5MjgxMDgwOX0.umWnzknxpIAIudKFd5csxyDw_rukAL9qcxsVPXeifHo';
-  const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);
+  // Credentials must be injected at runtime — no hardcoded fallbacks.
+  // In index.html, add before this script loads:
+  //   <script>
+  //     window.__SUPABASE_URL__ = 'https://ymlahqnshgiarpbgxehp.supabase.co';
+  //     window.__SUPABASE_KEY__ = '<your-anon-key>';
+  //   </script>
+  //
+  // Tests / sandboxes can also set window.__DISABLE_SUPABASE__ = true to force
+  // the adapter into local-only mode regardless of injected creds (defense-in-
+  // depth: even if a future change re-introduces hardcoded creds, this flag
+  // still wins).
+  const DISABLED = !!(typeof window !== 'undefined' && window.__DISABLE_SUPABASE__);
 
-  // Canonical ruleset_id — must match seed_teams_v1.sql
+  const SUPABASE_URL = DISABLED
+    ? null
+    : (typeof window !== 'undefined' ? window.__SUPABASE_URL__ : undefined);
+  const SUPABASE_KEY = DISABLED
+    ? null
+    : (typeof window !== 'undefined' ? window.__SUPABASE_KEY__ : undefined);
+  const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY) && !DISABLED;
+
+  // Canonical ruleset_id — must match seed_teams_v2.sql (M2)
   const DEFAULT_RULESET_ID = 'champions_reg_m_doubles_bo3';
 
   if (!ENABLED) {
@@ -15713,6 +15773,8 @@ if (typeof window !== 'undefined') {
   }
 
   // ── loadTeamsFromDB ───────────────────────────────────────────────────────
+  // Returns {[team_id]: {team_id, name, label, description, source, metadata, members[]}}
+  // or null if disabled / errored. NEVER throws.
   async function loadTeamsFromDB() {
     const sb = getClient();
     if (!sb) return null;
@@ -15729,7 +15791,7 @@ if (typeof window !== 'undefined') {
       if (mErr) throw mErr;
 
       const memberMap = {};
-      for (const m of members) {
+      for (const m of (members || [])) {
         if (!memberMap[m.team_id]) memberMap[m.team_id] = [];
         memberMap[m.team_id].push({
           name:     m.species,
@@ -15745,20 +15807,39 @@ if (typeof window !== 'undefined') {
       }
 
       const result = {};
-      for (const t of teams) {
+      for (const t of (teams || [])) {
         result[t.team_id] = {
+          team_id:     t.team_id,
           name:        t.name,
           label:       t.label,
           description: t.description,
           source:      t.source,
+          metadata:    t.metadata || {},
           members:     memberMap[t.team_id] || []
         };
       }
-      console.info(`[SupabaseAdapter] Loaded ${teams.length} teams from DB.`);
+      console.info(`[SupabaseAdapter] Loaded ${Object.keys(result).length} teams from DB.`);
       return result;
     } catch (err) {
-      console.warn('[SupabaseAdapter] loadTeamsFromDB failed — using local data.', err.message);
+      console.warn('[SupabaseAdapter] loadTeamsFromDB failed — using local data.', err && err.message);
       return null;
+    }
+  }
+
+  // ── loadRulesets ──────────────────────────────────────────────────────────
+  // Returns array of ruleset rows (or [] if disabled / errored). NEVER throws.
+  async function loadRulesets() {
+    const sb = getClient();
+    if (!sb) return [];
+    try {
+      const { data, error } = await sb
+        .from('rulesets')
+        .select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[SupabaseAdapter] loadRulesets failed.', err && err.message);
+      return [];
     }
   }
 
@@ -15821,7 +15902,7 @@ if (typeof window !== 'undefined') {
       console.info(`[SupabaseAdapter] Saved analysis ${analysis_id}`);
       return analysis_id;
     } catch (err) {
-      console.warn('[SupabaseAdapter] saveAnalysis failed — result not persisted.', err.message);
+      console.warn('[SupabaseAdapter] saveAnalysis failed — result not persisted.', err && err.message);
       return null;
     }
   }
@@ -15840,7 +15921,7 @@ if (typeof window !== 'undefined') {
       if (error) throw error;
       return data || [];
     } catch (err) {
-      console.warn('[SupabaseAdapter] loadRecentAnalyses failed.', err.message);
+      console.warn('[SupabaseAdapter] loadRecentAnalyses failed.', err && err.message);
       return [];
     }
   }
@@ -15848,22 +15929,18 @@ if (typeof window !== 'undefined') {
   // ── Public API ────────────────────────────────────────────────────────────
   window.SupabaseAdapter = {
     enabled:            ENABLED,
+    DEFAULT_RULESET_ID: DEFAULT_RULESET_ID,
     loadTeamsFromDB,
+    loadRulesets,
     saveAnalysis,
     loadRecentAnalyses
   };
 
-  // ── Auto-merge DB teams into TEAMS on load ────────────────────────────────
-  if (ENABLED) {
-    window.addEventListener('DOMContentLoaded', async () => {
-      const dbTeams = await loadTeamsFromDB();
-      if (dbTeams && typeof TEAMS !== 'undefined') {
-        Object.assign(TEAMS, dbTeams);
-        console.info('[SupabaseAdapter] TEAMS patched with DB data.');
-        if (typeof rebuildTeamSelects === 'function') rebuildTeamSelects();
-      }
-    });
-  }
+  // M3 NOTE: Auto-merge of DB teams into TEAMS has moved to ui.js's
+  // DOMContentLoaded handler so that rebuildTeamSelects() is awaited
+  // (no flash of static teams). See ui.js — search for
+  // "M3 — DB init: source-of-truth merge".
+
 })();
 
 </script>
