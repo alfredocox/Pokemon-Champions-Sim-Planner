@@ -1951,9 +1951,12 @@ table{border-collapse:collapse;width:100%}
 <!-- PDF Report Container (hidden, shown only during print) -->
 <div id="pdf-report-container"></div>
 
-<script src="storage_adapter.js"></script>
+<!-- Supabase CDN (must load before any other scripts) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 
 <script src="legality.js"></script>
+
 
 
 <script>
@@ -15480,6 +15483,386 @@ if (typeof window !== 'undefined') {
     rules: T9J16_RULES
   };
 }
+
+
+// storage_adapter.js — Unified localStorage adapter for Champions Sim
+// Issue #79: Option B — champions:* key schema, migration, CRUD, clearAll.
+//
+// Usage (browser + Node.js harness):
+//   Storage.set('teams:custom', [...])   // stores under 'champions:teams:custom'
+//   Storage.get('teams:custom')          // returns parsed object or null
+//   Storage.del('teams:custom')          // removes the key
+//   Storage.list()                       // returns all logical keys (no prefix)
+//   Storage.list('teams')               // returns logical keys starting with 'teams:'
+//   Storage.clearAll()                  // removes all champions:* keys only
+//   Storage.migrate()                   // one-time migration of old key schema
+//
+// Export contract (for Node.js test harness):
+//   if (typeof module !== 'undefined') module.exports = { Storage };
+
+'use strict';
+
+(function (root) {
+
+  // -------------------------------------------------------------------------
+  // Internal helpers
+  // -------------------------------------------------------------------------
+
+  /** Resolve the global localStorage (browser or injected mock in tests). */
+  function _ls() {
+    return (typeof localStorage !== 'undefined')
+      ? localStorage
+      : (typeof global !== 'undefined' && global.localStorage ? global.localStorage : null);
+  }
+
+  // -------------------------------------------------------------------------
+  // Public API
+  // -------------------------------------------------------------------------
+
+  var Storage = {
+
+    /** Every key stored by this adapter is prefixed with this string. */
+    PREFIX: 'champions:',
+
+    /**
+     * get(logicalKey) → parsed value or null
+     * Reads 'champions:<logicalKey>' from localStorage and JSON-parses it.
+     * Returns null on missing key or corrupt JSON.
+     */
+    get: function (logicalKey) {
+      var ls = _ls();
+      if (!ls) return null;
+      try {
+        var raw = ls.getItem(this.PREFIX + logicalKey);
+        if (raw === null) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        return null;
+      }
+    },
+
+    /**
+     * set(logicalKey, value) → true on success, false on QuotaExceededError
+     * Stores JSON-serialised value under 'champions:<logicalKey>'.
+     */
+    set: function (logicalKey, value) {
+      var ls = _ls();
+      if (!ls) return false;
+      try {
+        ls.setItem(this.PREFIX + logicalKey, JSON.stringify(value));
+        return true;
+      } catch (e) {
+        // Catches QuotaExceededError and any other setItem failure.
+        return false;
+      }
+    },
+
+    /**
+     * del(logicalKey) → void
+     * Removes 'champions:<logicalKey>' from localStorage. Safe to call on
+     * missing keys.
+     */
+    del: function (logicalKey) {
+      var ls = _ls();
+      if (!ls) return;
+      try {
+        ls.removeItem(this.PREFIX + logicalKey);
+      } catch (e) {
+        // swallow — del must never throw
+      }
+    },
+
+    /**
+     * list(scope?) → string[]
+     * Returns all logical keys (prefix stripped) owned by this adapter.
+     * Optional `scope` narrows to keys whose logical key starts with
+     * '<scope>:' (e.g. list('teams') → ['teams:custom', 'teams:tournament']).
+     */
+    list: function (scope) {
+      var ls = _ls();
+      if (!ls) return [];
+      var result = [];
+      var prefix = this.PREFIX;
+      var scopePrefix = scope ? (scope + ':') : null;
+      try {
+        for (var i = 0; i < ls.length; i++) {
+          var rawKey = ls.key(i);
+          if (!rawKey || rawKey.indexOf(prefix) !== 0) continue;
+          var logical = rawKey.slice(prefix.length);
+          if (scopePrefix && logical.indexOf(scopePrefix) !== 0) continue;
+          result.push(logical);
+        }
+      } catch (e) {
+        // swallow iteration errors (e.g. storage modified mid-iteration)
+      }
+      return result;
+    },
+
+    /**
+     * clearAll() → void
+     * Removes every 'champions:*' key from localStorage.
+     * Does NOT touch keys belonging to other apps / domains.
+     */
+    clearAll: function () {
+      var keys = this.list();
+      for (var i = 0; i < keys.length; i++) {
+        this.del(keys[i]);
+      }
+    },
+
+    /**
+     * migrate() → void
+     * One-time migration from the legacy key schema to the champions:* schema.
+     * Safe to call multiple times (idempotent).
+     *
+     * Mapping:
+     *   champions_sim_custom_teams_v1        → champions:teams:custom
+     *   poke-sim:bring:v1                    → champions:bring:default
+     *   champions_strategy_report_v1         → champions:strategy:report
+     *   champions_sim_preloaded_overrides    → champions:overrides:preloaded
+     */
+    migrate: function () {
+      var ls = _ls();
+      if (!ls) return;
+
+      var MIGRATIONS = [
+        { oldKey: 'champions_sim_custom_teams_v1',     newLogical: 'teams:custom'        },
+        { oldKey: 'poke-sim:bring:v1',                 newLogical: 'bring:default'       },
+        { oldKey: 'champions_strategy_report_v1',      newLogical: 'strategy:report'     },
+        { oldKey: 'champions_sim_preloaded_overrides', newLogical: 'overrides:preloaded' },
+      ];
+
+      for (var i = 0; i < MIGRATIONS.length; i++) {
+        var m = MIGRATIONS[i];
+        var raw = ls.getItem(m.oldKey);
+        if (raw === null) continue;           // old key not present — skip
+        if (this.get(m.newLogical) !== null) { // new key already exists — don't overwrite
+          ls.removeItem(m.oldKey);             // still clean up the old key
+          continue;
+        }
+        var parsed;
+        try { parsed = JSON.parse(raw); } catch (e) { parsed = raw; }
+        this.set(m.newLogical, parsed);       // write to new schema
+        ls.removeItem(m.oldKey);              // delete old key
+      }
+    },
+  };
+
+  // -------------------------------------------------------------------------
+  // Export
+  // -------------------------------------------------------------------------
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { Storage: Storage };
+  } else {
+    root.Storage = Storage;
+  }
+
+}(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this));
+
+
+// supabase_adapter.js — Champions Sim v1
+// Thin Supabase layer. Falls back to local silently if credentials missing.
+// Load AFTER data.js, engine.js, ui.js — and AFTER supabase-js CDN script.
+//
+// Credentials: set window.__SUPABASE_URL__ and window.__SUPABASE_KEY__
+// in a <script> block in index.html BEFORE this file loads.
+
+(function () {
+  'use strict';
+
+  // ── Config ────────────────────────────────────────────────────────────────
+  const SUPABASE_URL = window.__SUPABASE_URL__ || '';
+  const SUPABASE_KEY = window.__SUPABASE_KEY__ || '';
+  const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);
+
+  if (!ENABLED) {
+    console.info('[SupabaseAdapter] No credentials — running in local-only mode.');
+  }
+
+  // ── Supabase client ───────────────────────────────────────────────────────
+  let _client = null;
+  function getClient() {
+    if (_client) return _client;
+    if (!ENABLED) return null;
+    if (typeof window.supabase === 'undefined') {
+      console.warn('[SupabaseAdapter] supabase-js not loaded. Check CDN <script> in index.html.');
+      return null;
+    }
+    _client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    return _client;
+  }
+
+  // ── UUID helper ───────────────────────────────────────────────────────────
+  function uuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  // ── loadTeamsFromDB ───────────────────────────────────────────────────────
+  // Pulls teams + team_members from Supabase, returns TEAMS-compatible object.
+  // Returns null on failure so caller can fall back to local data.js TEAMS.
+  async function loadTeamsFromDB() {
+    const sb = getClient();
+    if (!sb) return null;
+    try {
+      const { data: teams, error: tErr } = await sb
+        .from('teams')
+        .select('*');
+      if (tErr) throw tErr;
+
+      const { data: members, error: mErr } = await sb
+        .from('team_members')
+        .select('*')
+        .order('slot', { ascending: true });
+      if (mErr) throw mErr;
+
+      const memberMap = {};
+      for (const m of members) {
+        if (!memberMap[m.team_id]) memberMap[m.team_id] = [];
+        memberMap[m.team_id].push({
+          name:     m.species,
+          item:     m.item      || '',
+          ability:  m.ability   || '',
+          nature:   m.nature    || '',
+          level:    m.level     || 50,
+          evs:      m.evs       || {},
+          moves:    m.moves     || [],
+          teraType: m.tera_type || '',
+          role:     m.role_tag  || ''
+        });
+      }
+
+      const result = {};
+      for (const t of teams) {
+        result[t.team_id] = {
+          name:        t.name,
+          label:       t.label,
+          description: t.description,
+          source:      t.source,
+          members:     memberMap[t.team_id] || []
+        };
+      }
+      console.info(`[SupabaseAdapter] Loaded ${teams.length} teams from DB.`);
+      return result;
+    } catch (err) {
+      console.warn('[SupabaseAdapter] loadTeamsFromDB failed — using local data.', err.message);
+      return null;
+    }
+  }
+
+  // ── saveAnalysis ──────────────────────────────────────────────────────────
+  // Persists a completed sim result to Supabase.
+  // payload shape:
+  //   { engine_version, ruleset_id, player_team_id, opp_team_id,
+  //     policy_model, sample_size, bo, win_rate, wins, losses, draws,
+  //     avg_turns, avg_tr_turns, ci_low, ci_high, analysis_json,
+  //     win_conditions: [{label, count}],
+  //     logs: [{result, turns, tr_turns, win_condition, log}] }
+  async function saveAnalysis(payload) {
+    const sb = getClient();
+    if (!sb) return null;
+
+    const analysis_id = uuid();
+    const row = {
+      analysis_id,
+      engine_version:    payload.engine_version   || 'v1',
+      ruleset_id:        payload.ruleset_id        || 'vgc2026_reg_m_a',
+      player_team_id:    payload.player_team_id,
+      opp_team_id:       payload.opp_team_id,
+      prior_id:          payload.prior_id          || null,
+      policy_model:      payload.policy_model      || 'random',
+      sample_size:       payload.sample_size       || 0,
+      bo:                payload.bo                || 1,
+      win_rate:          payload.win_rate          || 0,
+      wins:              payload.wins              || 0,
+      losses:            payload.losses            || 0,
+      draws:             payload.draws             || 0,
+      avg_turns:         payload.avg_turns         || 0,
+      avg_tr_turns:      payload.avg_tr_turns      || 0,
+      ci_low:            payload.ci_low            || null,
+      ci_high:           payload.ci_high           || null,
+      hidden_info_model: payload.hidden_info_model  || null,
+      analysis_json:     payload.analysis_json     || {}
+    };
+
+    try {
+      const { error: aErr } = await sb.from('analyses').insert(row);
+      if (aErr) throw aErr;
+
+      if (payload.win_conditions && payload.win_conditions.length) {
+        const wcRows = payload.win_conditions.map(wc => ({
+          analysis_id,
+          label: wc.label,
+          count: wc.count
+        }));
+        const { error: wcErr } = await sb.from('analysis_win_conditions').insert(wcRows);
+        if (wcErr) console.warn('[SupabaseAdapter] win_conditions insert error:', wcErr.message);
+      }
+
+      if (payload.logs && payload.logs.length) {
+        const logRows = payload.logs.slice(0, 50).map((l, i) => ({
+          analysis_id,
+          log_index:     i,
+          result:        l.result        || 'unknown',
+          turns:         l.turns         || 0,
+          tr_turns:      l.tr_turns      || 0,
+          win_condition: l.win_condition || null,
+          log:           l.log           || {}
+        }));
+        const { error: lErr } = await sb.from('analysis_logs').insert(logRows);
+        if (lErr) console.warn('[SupabaseAdapter] logs insert error:', lErr.message);
+      }
+
+      console.info(`[SupabaseAdapter] Saved analysis ${analysis_id}`);
+      return analysis_id;
+    } catch (err) {
+      console.warn('[SupabaseAdapter] saveAnalysis failed — result not persisted.', err.message);
+      return null;
+    }
+  }
+
+  // ── loadRecentAnalyses ────────────────────────────────────────────────────
+  async function loadRecentAnalyses(limit) {
+    limit = limit || 20;
+    const sb = getClient();
+    if (!sb) return [];
+    try {
+      const { data, error } = await sb
+        .from('analyses')
+        .select('analysis_id, created_at, player_team_id, opp_team_id, bo, win_rate, wins, losses, sample_size')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('[SupabaseAdapter] loadRecentAnalyses failed.', err.message);
+      return [];
+    }
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────
+  window.SupabaseAdapter = {
+    enabled:            ENABLED,
+    loadTeamsFromDB,
+    saveAnalysis,
+    loadRecentAnalyses
+  };
+
+  // ── Auto-merge DB teams into TEAMS on load ────────────────────────────────
+  if (ENABLED) {
+    window.addEventListener('DOMContentLoaded', async () => {
+      const dbTeams = await loadTeamsFromDB();
+      if (dbTeams && typeof TEAMS !== 'undefined') {
+        Object.assign(TEAMS, dbTeams);
+        console.info('[SupabaseAdapter] TEAMS patched with DB data.');
+        if (typeof rebuildTeamSelects === 'function') rebuildTeamSelects();
+      }
+    });
+  }
+})();
 
 </script>
 </body>

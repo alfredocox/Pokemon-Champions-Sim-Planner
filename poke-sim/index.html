@@ -541,11 +541,14 @@
 <!-- PDF Report Container (hidden, shown only during print) -->
 <div id="pdf-report-container"></div>
 
+<!-- Supabase CDN (must load before any other scripts) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="storage_adapter.js"></script>
 <script src="data.js"></script>
 <script src="legality.js"></script>
 <script src="engine.js"></script>
 <script src="ui.js"></script>
+<script src="supabase_adapter.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
