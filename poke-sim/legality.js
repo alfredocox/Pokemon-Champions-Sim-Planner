@@ -35,22 +35,8 @@ var CHAMPIONS_BANNED_POKEMON = new Set([
   'Munkidori','Fezandipiti','Pecharunt'
 ]);
 
-// Reserved for actually-fabricated forms. Previously contained
-// Dragonite-Mega / Drampa-Mega / Meganium-Mega / Froslass-Mega,
-// which are REAL new Champions-introduced Mega Evolutions
-// (Dragoninite, Drampanite, Meganiumite, Froslassite — all Shop: 2000 VP).
-// Retracted in T9a after source verification:
-//   - Game8 Items List: https://game8.co/games/Pokemon-Champions/archives/588871
-//   - Victory Road Reg M-A: https://victoryroad.pro/champions-regulations/
-var FAKEMON_BLOCKLIST = new Set([
-  // empty; add only truly fabricated forms here
-]);
+var FAKEMON_BLOCKLIST = new Set([]);
 
-// Items confirmed ABSENT from Champions launch item pool. Reg M-A teams
-// may not carry these. Source:
-//   https://game8.co/games/Pokemon-Champions/archives/588871
-//   https://games.gg/news/pokemon-champions-items-list-meta/
-//   https://www.ign.com/wikis/pokemon-champions/Biggest_Changes_Explained
 var CHAMPIONS_BANNED_ITEMS = new Set([
   'Life Orb','Choice Band','Choice Specs','Assault Vest','Rocky Helmet',
   'Heavy-Duty Boots','Black Sludge','Eviolite','Light Clay',
@@ -58,8 +44,6 @@ var CHAMPIONS_BANNED_ITEMS = new Set([
   'Toxic Orb','Flame Orb'
 ]);
 
-// Mega Stone -> required base species. Built from CHAMPIONS_MEGAS at load.
-// Enables "wrong species holding stone" validation.
 var CHAMPIONS_STONE_TO_SPECIES = {};
 (function buildStoneIndex(){
   if (typeof CHAMPIONS_MEGAS === 'undefined') return;
@@ -69,16 +53,11 @@ var CHAMPIONS_STONE_TO_SPECIES = {};
   }
 })();
 
-// HOME-transfer-only Megas. Legal in Reg M-A but not obtainable in
-// Champions alone. Warn, do not block.
 var CHAMPIONS_HOME_TRANSFER_MEGAS = new Set([
   'Chesnaught-Mega','Delphox-Mega','Greninja-Mega',
   'Floette-Mega','Floette-Mega-EF','Floette (Eternal Flower)-Mega'
 ]);
 
-// Strip form suffixes to compare against base-species ban list.
-// Keeps regional forms (Alola/Galar/Hisui/Paldea) legal where the base is legal,
-// but banned sub-legendary forms (e.g. Urshifu-Rapid-Strike) still match their base.
 function _stripForm(name) {
   return name.replace(
     /-(Mega(?:-[XY])?|Alola|Galar|Hisui|Paldea(?:-[A-Za-z]+)?|Therian|Incarnate|White|Black|Origin|Crowned|Ice|Shadow|Dusk-Mane|Dawn-Wings|Ultra|Rapid-Strike|Single-Strike|Ice-Rider|Shadow-Rider|Wellspring|Hearthflame|Cornerstone|Teal)$/i,
@@ -95,58 +74,34 @@ function validateChampionsLegality(team) {
     var name = mon && mon.name ? mon.name : '';
 
     if (FAKEMON_BLOCKLIST.has(name)) {
-      violations.push({
-        severity: 'error',
-        code: 'FAKEMON',
-        message: name + ': not a real Pokemon form (fakemon blocked)'
-      });
+      violations.push({ severity: 'error', code: 'FAKEMON', message: name + ': not a real Pokemon form (fakemon blocked)' });
       continue;
     }
 
     var base = _stripForm(name);
     if (CHAMPIONS_BANNED_POKEMON.has(name) || CHAMPIONS_BANNED_POKEMON.has(base)) {
-      violations.push({
-        severity: 'error',
-        code: 'BANNED',
-        message: name + ': banned in Reg M-A (Legendary/Mythical/Restricted/Paradox)'
-      });
+      violations.push({ severity: 'error', code: 'BANNED', message: name + ': banned in Reg M-A (Legendary/Mythical/Restricted/Paradox)' });
     }
 
-    // Item legality checks
     var item = mon && mon.item ? mon.item : '';
     if (item && CHAMPIONS_BANNED_ITEMS.has(item)) {
-      violations.push({
-        severity: 'error',
-        code: 'ITEM_ABSENT',
-        message: name + ': item "' + item + '" is not in Champions Reg M-A item pool'
-      });
+      violations.push({ severity: 'error', code: 'ITEM_ABSENT', message: name + ': item "' + item + '" is not in Champions Reg M-A item pool' });
     }
 
-    // Mega stone must match holder species
     if (item && CHAMPIONS_STONE_TO_SPECIES[item]) {
       var required = CHAMPIONS_STONE_TO_SPECIES[item];
       if (base !== required) {
-        violations.push({
-          severity: 'error',
-          code: 'MEGA_STONE_MISMATCH',
-          message: name + ': cannot hold ' + item + ' (only ' + required + ' can)'
-        });
+        violations.push({ severity: 'error', code: 'MEGA_STONE_MISMATCH', message: name + ': cannot hold ' + item + ' (only ' + required + ' can)' });
       }
     }
 
-    // HOME-transfer-only Megas: warn
     if (CHAMPIONS_HOME_TRANSFER_MEGAS.has(name)) {
-      violations.push({
-        severity: 'warn',
-        code: 'HOME_TRANSFER',
-        message: name + ': legal in Reg M-A but requires HOME transfer to obtain'
-      });
+      violations.push({ severity: 'warn', code: 'HOME_TRANSFER', message: name + ': legal in Reg M-A but requires HOME transfer to obtain' });
     }
   }
   return { violations: violations };
 }
 
-// CommonJS export for Node tests; harmless in browser.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CHAMPIONS_BANNED_POKEMON: CHAMPIONS_BANNED_POKEMON,
