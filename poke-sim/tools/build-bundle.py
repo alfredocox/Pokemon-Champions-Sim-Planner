@@ -23,21 +23,37 @@ def read(path):
     with open(os.path.join(BASE, path), 'r', encoding='utf-8') as f:
         return f.read()
 
+# Sanity floor: a real supabase-js UMD is ~190 KB. Anything smaller means a
+# truncated/corrupt download or a Windows codec abort mid-write. Refuse to
+# build with a bad cache so we never ship an empty <script> block.
+MIN_UMD_BYTES = 100_000
+
 def fetch_supabase_umd():
     """Fetch supabase-js UMD bundle. Cache it at tools/vendor/ so subsequent
     builds and CI runs do not hit the network. Returns the JS source as a string.
 
     NOTE: All file I/O is forced to UTF-8 with newline='' so the script works
     identically on Linux, macOS, and Windows (which otherwise defaults to cp1252).
+    Validates cached bytes against MIN_UMD_BYTES floor and refetches if invalid.
     """
     if os.path.exists(VENDOR_FILE):
         with open(VENDOR_FILE, 'r', encoding='utf-8') as f:
-            return f.read()
+            cached = f.read()
+        if len(cached) >= MIN_UMD_BYTES and 'createClient' in cached:
+            return cached
+        # Cache is truncated/empty/corrupt — drop it and refetch.
+        print(f'Cache at {VENDOR_FILE} looks corrupt ({len(cached):,} bytes). Refetching.')
+        os.remove(VENDOR_FILE)
     os.makedirs(VENDOR_DIR, exist_ok=True)
     print(f'Fetching supabase-js UMD from {SUPABASE_JS_URL} ...')
     req = urllib.request.Request(SUPABASE_JS_URL, headers={'User-Agent': 'champions-sim-build'})
     with urllib.request.urlopen(req, timeout=30) as resp:
         data = resp.read().decode('utf-8')
+    if len(data) < MIN_UMD_BYTES or 'createClient' not in data:
+        raise RuntimeError(
+            f'supabase-js UMD download looks invalid ({len(data):,} bytes, '
+            f'createClient present: {"createClient" in data}). Refusing to build.'
+        )
     with open(VENDOR_FILE, 'w', encoding='utf-8', newline='') as f:
         f.write(data)
     print(f'Cached supabase-js UMD: {len(data):,} bytes -> {VENDOR_FILE}')
