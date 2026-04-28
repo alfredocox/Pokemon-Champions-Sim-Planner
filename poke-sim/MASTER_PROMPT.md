@@ -11,7 +11,7 @@
 
 --- COPY FROM HERE ---
 
-You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator built as a static, offline-capable PWA — now with a live Supabase database backend for persistent analysis storage.
+You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator built as a static, offline-capable PWA — now with a live Supabase database backend for persistent analysis storage. **DB integration is mid-rollout** — see `## SUPABASE DATABASE LAYER` below for the active 9-module plan and TDD suite.
 
 **GitHub repo:** https://github.com/alfredocox/Pokemon-Champions-Sim-Planner
 **Default branch:** `main`
@@ -88,32 +88,133 @@ cd poke-sim && npx serve .
 
 ## SUPABASE DATABASE LAYER — CURRENT STATUS
 
+### Live status (2026-04-27)
+Supabase project `ymlahqnshgiarpbgxehp` (us-west-2, Postgres 17.6, ACTIVE_HEALTHY) is up. Schema, seed, and RLS were applied via the SQL editor. The adapter is scaffolded but NOT yet wired into the runtime — that's what the active integration branch handles.
+
 ### What exists in the repo
 | File | Status |
 |---|---|
-| `poke-sim/db/schema_v1.sql` | ✅ In repo — 8 tables defined |
-| `poke-sim/db/seed_teams_v1.sql` | ✅ In repo — 13 tournament teams |
-| `poke-sim/db/rls_policies_v1.sql` | ✅ In repo — RLS policies ready |
-| `poke-sim/supabase_adapter.js` | ✅ In repo — Supabase JS client, loadTeams / saveAnalysis / getMatchupHistory |
+| `poke-sim/db/schema_v1.sql` | ✅ Applied — 8 tables live (`rulesets`, `teams`, `team_members`, `prior_snapshots`, `golden_battles`, `analyses`, `analysis_win_conditions`, `analysis_logs`) |
+| `poke-sim/db/seed_teams_v1.sql` | ⚠️ Applied — only 3 of 22 teams seeded; M2 backfills the remaining 19 |
+| `poke-sim/db/rls_policies_v1.sql` | ✅ Applied — anon SELECT everywhere, anon INSERT only on `analyses*` |
+| `poke-sim/supabase_adapter.js` | ✅ In repo — `loadTeamsFromDB`, `saveAnalysis`, `loadRecentAnalyses`. Global is `window.SupabaseAdapter` (NOT `supabase`). |
+| `poke-sim/POKE_SIM_DB_INTEGRATION_PLAN_v2.md` | ✅ Canonical 9-module plan, supersedes v1 drafts |
+| `poke-sim/POKE_SIM_DB_INTEGRATION_TDD_PLAN.md` | ✅ TDD companion plan — ~111 cases across 8 suites, RED-then-GREEN per module |
 
-### What still needs to happen (BLOCKING)
-The SQL files exist but have **NOT been executed** in Supabase yet. Tables do not exist until the owner runs:
-1. `schema_v1.sql` in Supabase SQL Editor → creates tables
-2. `seed_teams_v1.sql` → loads 13 teams
-3. `rls_policies_v1.sql` → locks down public access
+### Active integration branch — `integration/poke-sim-db`
+All 9 module impls land on this branch. Each module is its own PR; merge into `main` only after the module's tests are GREEN.
 
-### supabase_adapter.js — Architecture
-- **Supabase JS CDN** loaded in `index.html` before other scripts: `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`
-- **Key injection:** anon key delivered via `window.__SUPABASE_KEY__` — never hardcoded in source
-- **Offline fallback:** every method wraps in try/catch; on failure falls back silently to localStorage / in-memory TEAMS object
-- **Three methods:** `loadTeams()`, `saveAnalysis(playerKey, oppKey, result, bo)`, `getMatchupHistory(playerKey, oppKey)`
-- **Project URL placeholder:** `https://YOUR_PROJECT_REF.supabase.co` — owner must supply real ref
-
-### RLS Policy Summary (anon key)
-| Table | Read | Write |
+| Module | Linear | Status |
 |---|---|---|
-| teams, team_members, pokemon, moves, rulesets, matchups | ✅ open | ❌ blocked |
-| analyses, analysis_logs | ✅ open | ✅ open (no auth required) |
+| **M1** Wire adapter + supabase-js CDN into `index.html` and bundle | [POK-17](https://linear.app/poke-e-sim/issue/POK-17) | 🟡 In review (PR #161) |
+| M2 Backfill team seed 3 → 22 + add `teams.metadata jsonb` | [POK-18](https://linear.app/poke-e-sim/issue/POK-18) | Pending |
+| M3 `loadTeamsFromDB` becomes awaited source of truth on init | [POK-19](https://linear.app/poke-e-sim/issue/POK-19) | Pending |
+| M4 Persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis` | [POK-20](https://linear.app/poke-e-sim/issue/POK-20) | Pending |
+| M5 Persist imported / Set-Editor teams (upsert teams + team_members) | [POK-21](https://linear.app/poke-e-sim/issue/POK-21) | Pending |
+| M6 Replay Log tab reads history from `analyses` + `analysis_logs` | [POK-22](https://linear.app/poke-e-sim/issue/POK-22) | Pending |
+| M7 `golden_battles` test runner under `tests/` | [POK-23](https://linear.app/poke-e-sim/issue/POK-23) | Pending |
+| M8 `prior_snapshots` hooked into engine hidden-info model | [POK-24](https://linear.app/poke-e-sim/issue/POK-24) | Deferred |
+| M9 RLS hardening, advisor sweep, baseline migration | [POK-25](https://linear.app/poke-e-sim/issue/POK-25) | Pending |
+
+Parent: [POK-16 — Main DB Integration](https://linear.app/poke-e-sim/issue/POK-16/main-db-integration). Hard ordering: M1 → M2 → M3 → M4. Everything else fans out.
+
+### TDD test suite — already merged ahead of impls
+Following the same RED-then-GREEN pattern that landed `storage_adapter_tests.js` (PR #134) before the wire-in (PR #137):
+
+| File | Cases | Module |
+|---|---:|---|
+| `poke-sim/tests/_db_helpers.js` | shared mock supabase-js client | infra |
+| `poke-sim/tests/_run_all_db.sh` | runner — `bash poke-sim/tests/_run_all_db.sh` | infra |
+| `poke-sim/tests/db_m1_wiring_tests.js` | 16 | M1 |
+| `poke-sim/tests/db_m2_seed_tests.js` | 15 | M2 |
+| `poke-sim/tests/db_m3_init_tests.js` | 12 | M3 |
+| `poke-sim/tests/db_m4_save_tests.js` | 18 | M4 |
+| `poke-sim/tests/db_m5_import_tests.js` | 12 | M5 |
+| `poke-sim/tests/db_m6_history_tests.js` | 10 | M6 |
+| `poke-sim/tests/db_m7_golden_battles_tests.js` | 8 | M7 |
+| `poke-sim/tests/db_m9_hardening_tests.js` | 10 | M9 |
+
+All 8 `db_m*_tests.js` suites are RED on `main` until each module's impl PR lands. **Ship gate per module:** the impl PR must flip its corresponding suite GREEN with no regression in the existing 302-case engine suite.
+
+### How to run the DB tests
+```bash
+# All DB suites at once (from repo root):
+cd poke-sim && bash tests/_run_all_db.sh
+
+# Single module (e.g. M1 wiring after building the bundle):
+cd poke-sim && python3 tools/build-bundle.py && node tests/db_m1_wiring_tests.js
+
+# Live DB cases (gated — opt in only when reviewing M2/M9 impls):
+RUN_LIVE_DB=1 SUPABASE_URL=... SUPABASE_KEY=... node tests/db_m2_seed_tests.js
+```
+
+Expected line on full success (mirrors the storage adapter precedent): `✅ all DB tests passed`.
+
+### Hard rules (apply to every DB module)
+- `COVERAGE_CHECKS` MUST stay `var` (TDZ break otherwise).
+- Adapter global is `window.SupabaseAdapter`, NOT `supabase` (the CDN owns that name).
+- Anon key only in any frontend file. Never expose `service_role`.
+- All DB calls fail-soft (`.catch(...) → console.warn`). App must work offline.
+- `team_members` is normalized — never store member arrays in `teams` JSONB.
+- Re-build bundle with `tools/build-bundle.py` only — not the inline rebuild snippets from old plans.
+- Use `apply_migration` (Supabase MCP) for every DDL change going forward.
+
+### Runtime behavior — what works at each milestone
+
+**Core promise: the app remains fully functional at every stage of the DB rollout.** Contributors and end users can run any commit on `integration/poke-sim-db` without Supabase credentials and get the same experience as the pre-DB app. Adding credentials enables progressive enhancements; misconfiguring them never breaks the app.
+
+#### Without `SUPABASE_URL` / `SUPABASE_KEY` (default for every fork, contributor laptop, and prod deploy until creds are intentionally set)
+
+The adapter detects missing creds and disables itself:
+```js
+const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);  // false
+if (!ENABLED) console.info('[SupabaseAdapter] No credentials — running in local-only mode.');
+```
+
+Every public method early-returns:
+- `loadTeamsFromDB()` → `null`
+- `saveAnalysis(...)` → `null`
+- `loadRecentAnalyses()` → `[]`
+
+The auto-merge `DOMContentLoaded` listener is wrapped in `if (ENABLED) {...}`, so it never even registers. `TEAMS` stays whatever `data.js` provides (the 13 hardcoded teams).
+
+**Net effect:** identical to the pre-DB app + one harmless console line. Bo1/3/5/10 sim, Pilot Guide, Speed Tier, Coverage checker, PDF report, import/export, Replay Log, PWA offline mode — all work exactly as before.
+
+#### With creds set, but Supabase unreachable / RLS denying / schema drifted
+
+Every call is wrapped in `try/catch → console.warn → return null/[]`. Failures log a warning and the app falls back to local data. **No crash, no broken UI, no blank screen.** This is enforced by the M1 wiring tests (T-12, T-13, T-14).
+
+#### With creds set and Supabase healthy
+
+Behavior depends on which modules have shipped. Each module is **strictly additive** — none of them break behavior that worked at the previous milestone.
+
+| After… | What changes for users with creds | Users without creds |
+|---|---|---|
+| **M1** (this PR) | `window.SupabaseAdapter` is loaded but dormant unless creds are present. `enabled` flag is queryable. | Identical to pre-DB app. |
+| **M2** (POK-18) | DB has 22 seed teams + `metadata jsonb`. Still no UI difference until M3 reads them. | Identical. |
+| **M3** (POK-19) | App `await`s `loadTeamsFromDB()` on init; DB teams merge into the team selectors. **First user-visible DB feature.** | Identical. |
+| **M4** (POK-20) | Every Bo run persists to `analyses` table via `saveAnalysis`. | Identical (still uses local `storage_adapter.js`). |
+| **M5** (POK-21) | "Recent analyses" panel populated from DB. | Panel shows local-only history. |
+| **M6** (POK-22) | Pilot notes sync across devices. | Notes stay local. |
+| **M7** (POK-23) | Cross-session matchup history queries. | Single-session only. |
+| **M8** (POK-24) | Profile + multi-device sync + auth. | Single-device. |
+| **M9** (POK-25) | DB suites run in CI on every PR. | (Contributor-side improvement only.) |
+
+#### Recommended rollout for production
+
+1. **Merge M1 with no creds set.** Zero regression. Adapter loads dormant. This is safe to ship today.
+2. **Land M2 + M3 together** before turning on creds in production. M3 is when DB teams actually appear in the UI; without it, M2's seed data is invisible.
+3. **Add M4** for write-path persistence.
+4. **M5–M8 are incremental feature unlocks.** Ship in any order.
+5. **M9 last** — observability and CI hardening.
+
+#### Contributor TL;DR
+
+- **You do not need a Supabase project to develop on this repo.** Clone, `python3 tools/build-bundle.py`, open the bundle. Everything works.
+- **You do not need to land all 9 modules before merging M1.** M1 is independently safe.
+- **Never remove a fail-soft `try/catch` or early-return.** They are load-bearing — the entire "works offline" promise depends on them.
+- **If you set creds locally for testing,** use `.env.local` (gitignored) — never commit them.
+
 
 ---
 
@@ -264,7 +365,81 @@ Referenced during init before declaration. `const`/`let` causes TDZ ReferenceErr
 
 ## NEXT ACTIONS (as of 2026-04-27)
 
+1. **Land M1 (PR #161)** — wires `supabase_adapter.js` + supabase-js CDN into `index.html` and the bundle. Gate: all 16 cases in `db_m1_wiring_tests.js` GREEN, plus the existing 302-case engine suite still GREEN.
+2. **Open M2** ([POK-18](https://linear.app/poke-e-sim/issue/POK-18)) — backfill team seed 3 → 22 + add `teams.metadata jsonb`. Gate: `db_m2_seed_tests.js` GREEN; `select count(*) from teams` returns 22 in Supabase.
+3. **Open M3** ([POK-19](https://linear.app/poke-e-sim/issue/POK-19)) — `loadTeamsFromDB` becomes the awaited source of truth on init. Gate: `db_m3_init_tests.js` GREEN; offline fallback verified.
+4. **Open M4** ([POK-20](https://linear.app/poke-e-sim/issue/POK-20)) — persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis`. Gate: `db_m4_save_tests.js` GREEN; one row in `analyses` per Bo run.
+5. After M4 lands: fan out M5/M6/M7 in parallel; finish with M9 hardening. M8 stays deferred.
 1. **Owner runs 3 SQL files in Supabase SQL Editor** (schema → seed → rls) — unblocks DB backend
 2. **Owner provides Supabase Project URL + anon key** — AI wires into supabase_adapter.js and pushes
 3. **Wire saveAnalysis() call into ui.js** after `runBoSeries()` completes — Issue #82
 4. **Wire loadTeams() into init** to hydrate TEAMS from Supabase on startup — Issue #81
+
+---
+
+## SESSION LOG — 2026-04-27 (M1 landing)
+
+### Outcome
+- **PR #161 landed M1 GREEN** — `[db-integration/M1]: Module 1 of integrating poke-sim db`.
+- All 16 cases in `tests/db_m1_wiring_tests.js` pass on Linux, macOS, Codespaces, and Windows.
+- Both CI checks green: `Verify bundle is fresh` + `Verify sw.js CACHE_NAME bumped`.
+- Bundle: 913,888 bytes (was 725,750) — supabase-js v2 UMD inlined, no external CDN at runtime.
+
+### Commits on `integration/poke-sim-db` (chronological)
+| SHA | What | Why |
+|---|---|---|
+| `0bf9f2e` | docs: update MASTER_PROMPT with DB integration v2 + TDD plan | Captures the live status, M1–M9 mapping, TDD suite, run instructions. |
+| `a881ed6` | fix(tests): repair `_db_helpers.js` syntax + add `module.exports` | Inner `select()` chain was malformed; helpers were never exported. |
+| `e91ec72` | fix(tests): repair `db_m1_wiring_tests.js` scope + vm context bugs | `bundlePath` / `bundleContent` were defined inside one T() but referenced from later ones; `vm.runInContext` needs a contextified sandbox; T-9 looked for `.gitignore` in wrong dir; T-16 had unbalanced eval string. |
+| `4bfda50` | fix(build): inline supabase-js UMD, strip CDN script tag | Bundle was leaving `<script src="https://cdn.jsdelivr.net/...supabase">` instead of inlining — broke offline PWA promise and tripped T-4. |
+| `ce28f72` | fix(tests): give `freshCtx` fake window an `addEventListener` no-op | Adapter IIFE registers `DOMContentLoaded` when enabled; sandbox didn't have the method. |
+| `a0fddc9` | fix(build): force UTF-8 on all file I/O for Windows compatibility | Windows Python defaults to cp1252 — couldn't write UTF-8 bytes in supabase-js UMD (`UnicodeEncodeError` at position 185366). |
+| `5cb3b17` | (owner) rebuild bundle locally on Windows | Produced a degenerate bundle with empty `<script>` block because cache was 0 bytes from earlier failed run. |
+| `13e7029` | fix(build): validate vendored supabase-js cache, refuse empty bundle | Sanity floor (`MIN_UMD_BYTES = 100_000` + `createClient` substring check) — refetches and refuses to build if cache is corrupt. |
+| `(owner)` | rebuild bundle + commit `tools/vendor/supabase-js.umd.js` | Real ~196 KB UMD inlined. Vendored file makes CI hermetic. |
+| `42a6378` | fix(tests): raise bundle-size canary to 1 MB | T-6 threshold was 800 KB before inlining; lifted to 1 MB. Acts as bloat canary going forward. |
+
+### Lessons learned (apply to M2–M9)
+1. **TDD harness must be debugged with real implementation context.** Several test cases had `var`-scope bugs that only surfaced once the impl side was correct. Always run a written test against a known-good impl before merging it RED.
+2. **Cross-platform Python defaults are not safe.** Always pass `encoding='utf-8'` to `open()` and reconfigure stdout when targeting Windows.
+3. **Cache-validation is mandatory for vendored fetches.** A 0-byte cache from a crashed run is silent failure. Build scripts must validate before reusing.
+4. **`vm.runInContext` requires `vm.createContext(obj)`** — passing a plain object literal will not work.
+5. **CI freshness checks compare SHA against rebuilt output.** Any change to the build script means you must rebuild + commit the bundle in the same PR, or the freshness check fails.
+6. **Vendor critical CDN deps inside the repo** under `tools/vendor/` so CI is reproducible without network.
+
+### Files added/changed beyond the original M1 spec
+- `poke-sim/tools/vendor/supabase-js.umd.js` — vendored supabase-js v2 UMD (~196 KB), committed for hermetic CI builds.
+- `poke-sim/tools/build-bundle.py` — extended with UMD fetch + cache validation + UTF-8 forcing + CDN strip regex.
+- `poke-sim/tests/_db_helpers.js` — full rewrite with `vm.createContext` plumbing.
+
+### M1 acceptance criteria status (per POK-17)
+- [x] `window.SupabaseAdapter` is defined (T-2, T-7, T-10, T-11)
+- [x] App fails-soft when offline (T-12, T-13, T-14 — adapter returns null/[] when no creds)
+- [x] Bundle rebuilt via `tools/build-bundle.py` (T-15)
+- [x] Anon key only — no `service_role` in frontend (T-5)
+- [x] supabase-js inlined into bundle, no external CDN dependency (T-3, T-4)
+- [ ] `loadTeamsFromDB()` returns 3 seeded teams — covered in M2 (POK-18) once seed is queried live
+
+### Test verification commands (Codespaces, local Linux/macOS, or Windows PowerShell)
+```bash
+# Full DB ladder (all 8 suites)
+cd poke-sim && bash tests/_run_all_db.sh
+# Expected last line: ✅ all DB tests passed
+
+# M1 only (16 cases)
+cd poke-sim && python3 tools/build-bundle.py && node tests/db_m1_wiring_tests.js
+# Expected last line: ✅ All 16 db_m1 wiring tests GREEN
+
+# Live DB cases (gated, M2+ only)
+RUN_LIVE_DB=1 SUPABASE_URL='https://ymlahqnshgiarpbgxehp.supabase.co' SUPABASE_KEY='<anon>' \
+    node tests/db_m2_seed_tests.js
+```
+
+### Updated NEXT ACTIONS (as of 2026-04-27 22:19 EDT)
+1. ✅ **M1 landed** — PR #161 green, awaiting merge.
+2. **Move POK-17 → In Review → Done** in Linear once PR #161 merges.
+3. **Start M2 (POK-18)** — verify `seed_teams_v1.sql` loaded in Supabase (`ymlahqnshgiarpbgxehp`); run `db_m2_seed_tests.js` with `RUN_LIVE_DB=1` to flip RED → GREEN; backfill team seed 3 → 22; add `teams.metadata jsonb`.
+4. **M3 (POK-19)** — `loadTeamsFromDB` becomes awaited source of truth on init; offline fallback verified.
+5. **M4 (POK-20)** — persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis`.
+6. **M9 stretch** — wire `tests/_run_all_db.sh` into `.github/workflows/` so DB suites run on every PR (currently only bundle-freshness + cache-bump checks run).
+
