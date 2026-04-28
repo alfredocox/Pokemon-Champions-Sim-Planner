@@ -2,15 +2,15 @@
 // Thin Supabase layer. Falls back to local silently if credentials missing.
 // Load AFTER data.js, engine.js, ui.js — and AFTER supabase-js CDN script.
 //
-// Credentials: set window.__SUPABASE_URL__ and window.__SUPABASE_KEY__
-// in a <script> block in index.html BEFORE this file loads.
+// Credentials injected directly — project: ymlahqnshgiarpbgxehp (Champions Sim Planner)
+// Updated: 2026-04-27 by TheYfactora12
 
 (function () {
   'use strict';
 
   // ── Config ────────────────────────────────────────────────────────────────
-  const SUPABASE_URL = window.__SUPABASE_URL__ || '';
-  const SUPABASE_KEY = window.__SUPABASE_KEY__ || '';
+  const SUPABASE_URL = window.__SUPABASE_URL__ || 'https://ymlahqnshgiarpbgxehp.supabase.co';
+  const SUPABASE_KEY = window.__SUPABASE_KEY__ || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltbGFocW5zaGdpYXJwYmd4ZWhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzQ4MDksImV4cCI6MjA5MjgxMDgwOX0.umWnzknxpIAIudKFd5csxyDw_rukAL9qcxsVPXeifHo';
   const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);
 
   // Canonical ruleset_id — must match seed_teams_v1.sql
@@ -43,8 +43,6 @@
   }
 
   // ── loadTeamsFromDB ───────────────────────────────────────────────────────
-  // Pulls teams + team_members from Supabase, returns TEAMS-compatible object.
-  // Returns null on failure so caller can fall back to local data.js TEAMS.
   async function loadTeamsFromDB() {
     const sb = getClient();
     if (!sb) return null;
@@ -95,13 +93,6 @@
   }
 
   // ── saveAnalysis ──────────────────────────────────────────────────────────
-  // Persists a completed sim result to Supabase.
-  // payload shape:
-  //   { engine_version, ruleset_id, player_team_id, opp_team_id,
-  //     policy_model, sample_size, bo, win_rate, wins, losses, draws,
-  //     avg_turns, avg_tr_turns, ci_low, ci_high, analysis_json,
-  //     win_conditions: [{label, count}],
-  //     logs: [{result, turns, tr_turns, win_condition, log}] }
   async function saveAnalysis(payload) {
     const sb = getClient();
     if (!sb) return null;
@@ -110,7 +101,6 @@
     const row = {
       analysis_id,
       engine_version:    payload.engine_version   || 'v1',
-      // FIX: was 'vgc2026_reg_m_a' — must match seeded ruleset_id in rulesets table
       ruleset_id:        payload.ruleset_id        || DEFAULT_RULESET_ID,
       player_team_id:    payload.player_team_id,
       opp_team_id:       payload.opp_team_id,
@@ -197,7 +187,6 @@
   if (ENABLED) {
     window.addEventListener('DOMContentLoaded', async () => {
       const dbTeams = await loadTeamsFromDB();
-      // Guard: TEAMS must exist (data.js loaded) before patching
       if (dbTeams && typeof TEAMS !== 'undefined') {
         Object.assign(TEAMS, dbTeams);
         console.info('[SupabaseAdapter] TEAMS patched with DB data.');
