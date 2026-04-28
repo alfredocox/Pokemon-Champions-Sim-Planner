@@ -2,15 +2,22 @@
 // Thin Supabase layer. Falls back to local silently if credentials missing.
 // Load AFTER data.js, engine.js, ui.js — and AFTER supabase-js CDN script.
 //
-// Credentials injected directly — project: ymlahqnshgiarpbgxehp (Champions Sim Planner)
+// Credentials injected via window.__SUPABASE_URL__ and window.__SUPABASE_KEY__
+// Set these in index.html <script> block — do NOT hardcode here.
 // Updated: 2026-04-27 by TheYfactora12
 
 (function () {
   'use strict';
 
   // ── Config ────────────────────────────────────────────────────────────────
-  const SUPABASE_URL = window.__SUPABASE_URL__ || 'https://ymlahqnshgiarpbgxehp.supabase.co';
-  const SUPABASE_KEY = window.__SUPABASE_KEY__ || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltbGFocW5zaGdpYXJwYmd4ZWhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzQ4MDksImV4cCI6MjA5MjgxMDgwOX0.umWnzknxpIAIudKFd5csxyDw_rukAL9qcxsVPXeifHo';
+  // Credentials must be injected at runtime — no hardcoded fallbacks.
+  // In index.html, add before this script loads:
+  //   <script>
+  //     window.__SUPABASE_URL__ = 'https://ymlahqnshgiarpbgxehp.supabase.co';
+  //     window.__SUPABASE_KEY__ = '<your-anon-key>';
+  //   </script>
+  const SUPABASE_URL = window.__SUPABASE_URL__;
+  const SUPABASE_KEY = window.__SUPABASE_KEY__;
   const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);
 
   // Canonical ruleset_id — must match seed_teams_v1.sql
