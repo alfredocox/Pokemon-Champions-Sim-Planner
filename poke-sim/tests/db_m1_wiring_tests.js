@@ -34,18 +34,26 @@ const indexContent  = fs.existsSync(indexPath)  ? fs.readFileSync(indexPath,  'u
 // supabase_adapter.js is an IIFE that reads window.__SUPABASE_URL__ at load time,
 // so we need a clean context per test that toggles enabled state.
 function freshCtx() {
+  var fakeWindow = {
+    console: console,
+    addEventListener: function () {},
+    removeEventListener: function () {},
+    dispatchEvent: function () { return true; }
+  };
   var sandbox = {
     console: console,
-    window: {},
-    document: { getElementById: function () { return null; }, addEventListener: function () {} },
+    window: fakeWindow,
+    document: {
+      getElementById: function () { return null; },
+      addEventListener: function () {},
+      removeEventListener: function () {}
+    },
     crypto: { randomUUID: function () { return '00000000-0000-4000-8000-000000000000'; } },
     setTimeout: setTimeout,
     setInterval: setInterval,
     clearTimeout: clearTimeout,
     clearInterval: clearInterval
   };
-  // Mirror window globals onto the sandbox itself so `window.__X__` and bare globals both work
-  sandbox.window.console = console;
   return vm.createContext(sandbox);
 }
 
