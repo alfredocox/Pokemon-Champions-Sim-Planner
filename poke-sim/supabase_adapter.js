@@ -13,6 +13,9 @@
   const SUPABASE_KEY = window.__SUPABASE_KEY__ || '';
   const ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);
 
+  // Canonical ruleset_id — must match seed_teams_v1.sql
+  const DEFAULT_RULESET_ID = 'champions_reg_m_doubles_bo3';
+
   if (!ENABLED) {
     console.info('[SupabaseAdapter] No credentials — running in local-only mode.');
   }
@@ -107,7 +110,8 @@
     const row = {
       analysis_id,
       engine_version:    payload.engine_version   || 'v1',
-      ruleset_id:        payload.ruleset_id        || 'vgc2026_reg_m_a',
+      // FIX: was 'vgc2026_reg_m_a' — must match seeded ruleset_id in rulesets table
+      ruleset_id:        payload.ruleset_id        || DEFAULT_RULESET_ID,
       player_team_id:    payload.player_team_id,
       opp_team_id:       payload.opp_team_id,
       prior_id:          payload.prior_id          || null,
@@ -193,6 +197,7 @@
   if (ENABLED) {
     window.addEventListener('DOMContentLoaded', async () => {
       const dbTeams = await loadTeamsFromDB();
+      // Guard: TEAMS must exist (data.js loaded) before patching
       if (dbTeams && typeof TEAMS !== 'undefined') {
         Object.assign(TEAMS, dbTeams);
         console.info('[SupabaseAdapter] TEAMS patched with DB data.');
