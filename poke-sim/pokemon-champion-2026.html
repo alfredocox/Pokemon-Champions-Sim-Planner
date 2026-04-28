@@ -1952,9 +1952,6 @@ table{border-collapse:collapse;width:100%}
 <div id="pdf-report-container"></div>
 
 <!-- Supabase CDN (must load before any other scripts) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-
 <script src="legality.js"></script>
 
 
@@ -1967,6 +1964,10 @@ if ('serviceWorker' in navigator) {
     }).catch(err => console.warn('[SW] Registration failed:', err));
   });
 }
+</script>
+<script>
+/* vendored: @supabase/supabase-js UMD, inlined for offline PWA */
+
 </script>
 <script>
 // ============================================================
