@@ -8,7 +8,7 @@
 
 **What it is:** A VGC-style competitive team simulator for April 2026 meta play. Fully client-side, no backend, no dependencies — one HTML file runs the entire app.
 
-**Repo:** [github.com/alfredocox/Pokemon-Champions-Sim-Planner](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner)
+**Repo:** [github.com/TheYfactora12/Pokemon-Champions-Sim-Planner](https://github.com/TheYfactora12/Pokemon-Champions-Sim-Planner)
 
 **Primary artifact:** `poke-sim/pokemon-champion-2026.html` (~400 KB self-contained bundle)
 
@@ -18,6 +18,29 @@
 - No framework, no build tool required
 - PWA: manifest.json + service worker (offline capable)
 - Python 3 rebuild script (optional, for bundle generation only)
+
+---
+
+## 1.1 QC Gate - M4 / POK-20
+
+Status: NO-SHIP until conflict cleanup is complete.
+
+PR 1 is documentation and conflict triage only. Do not implement M4, wire `saveAnalysis`, rebuild `poke-sim/pokemon-champion-2026.html`, push to `main`, or merge until the documented blockers are resolved.
+
+Current blockers:
+- Merge conflicts exist in `poke-sim/supabase_adapter.js`, `poke-sim/db/README_DB.md`, and `poke-sim/db/rls_policies_v1.sql`.
+- M4 save hook is not wired into the visible single-run or run-all completion paths in `poke-sim/ui.js`.
+- `db_m4_save_tests.js` expects `_buildAnalysisPayload`, but `ui.js` does not currently expose that helper.
+- `engine.js` contains `buildAnalysisPayload`, but the payload contract must be reconciled before wiring persistence.
+- `sw.js` cache name must be bumped when runtime source files change.
+- Node test execution still needs to be run locally by a developer; the audit environment returned `Access is denied`.
+
+Local checkout truth:
+- Clean PR base checkout: `C:\Users\kevin\OneDrive\Documents\GitHub\New folder\Pokemon-Champions-Sim-Planner` on `main`.
+- DB/Supabase work checkout: `C:\Users\kevin\OneDrive\Documents\GitHub\Pokemon-Champions-Sim-Planner` on `feat/db-rls-supabase-adapter`.
+- Do not use `C:\Users\kevin\OneDrive\Documents\New project`; it is an empty Git repo shell.
+
+See [`docs/M4_QC_READINESS_REPORT.md`](./docs/M4_QC_READINESS_REPORT.md) and [`poke-sim/db/CONFLICT_RESOLUTION_PLAN.md`](./poke-sim/db/CONFLICT_RESOLUTION_PLAN.md).
 
 ---
 
