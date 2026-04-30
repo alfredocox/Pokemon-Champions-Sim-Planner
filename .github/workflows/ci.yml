@@ -1,0 +1,143 @@
+# Pokemon Champion 2026 — Main CI
+# Runs on every PR to main and every push to main.
+#
+# Jobs:
+#   1. syntax          — node --check all source JS (fast, ~30s)
+#   2. tests           — auto-discovers all tests/*.js except audit.js (~2-4 min)
+#   3. detect-changes  — checks if engine.js or data.js were touched
+#   4. audit           — 5,070-battle audit ONLY when engine/data changed (~5-8 min)
+#
+# Bundle freshness + sw cache bump are enforced by their own dedicated workflows.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ----------------------------------------------------------------
+  # 1. SYNTAX CHECK
+  # Fast gate. All JS source files must parse cleanly before anything else runs.
+  # ----------------------------------------------------------------
+  syntax:
+    name: "Syntax Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check all JS source files
+        run: |
+          set -e
+          FILES=(
+            poke-sim/data.js
+            poke-sim/engine.js
+            poke-sim/ui.js
+            poke-sim/storage_adapter.js
+            poke-sim/supabase_adapter.js
+            poke-sim/strategy-injectable.js
+            poke-sim/legality.js
+          )
+          for f in "${FILES[@]}"; do
+            echo "→ node --check $f"
+            node --check "$f"
+          done
+          echo "✅ All source files pass syntax check."
+
+  # ----------------------------------------------------------------
+  # 2. TEST SUITE
+  # Auto-discovers every file in poke-sim/tests/*.js.
+  # audit.js is excluded here — it runs in its own gated job below.
+  # Runs after syntax passes.
+  # ----------------------------------------------------------------
+  tests:
+    name: "Test Suite"
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: syntax
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run all test suites (auto-discovered)
+        run: |
+          set -e
+          cd poke-sim
+          FAILED=0
+          COUNT=0
+          for t in tests/*.js; do
+            [ "$(basename "$t")" = "audit.js" ] && continue
+            echo "▶ $t"
+            node "$t" || FAILED=1
+            COUNT=$((COUNT + 1))
+          done
+          echo ""
+          echo "Ran $COUNT test file(s)."
+          if [ $FAILED -ne 0 ]; then
+            echo "❌ One or more test suites failed."
+            exit 1
+          fi
+          echo "✅ All test suites passed."
+
+  # ----------------------------------------------------------------
+  # 3. DETECT ENGINE / DATA CHANGES
+  # Uses dorny/paths-filter to check if engine.js or data.js changed.
+  # Output is consumed by the audit job below.
+  # Runs in parallel with tests (no dependency).
+  # ----------------------------------------------------------------
+  detect-changes:
+    name: "Detect Engine/Data Changes"
+    runs-on: ubuntu-latest
+    outputs:
+      engine: ${{ steps.filter.outputs.engine }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            engine:
+              - 'poke-sim/engine.js'
+              - 'poke-sim/data.js'
+
+  # ----------------------------------------------------------------
+  # 4. BATTLE AUDIT (GATED)
+  # Only runs when engine.js or data.js changed.
+  # Runs 5,070 battles. Expensive — skip it on doc/style-only PRs.
+  # Requires both tests AND detect-changes to complete first.
+  # ----------------------------------------------------------------
+  audit:
+    name: "Battle Audit (5,070 battles)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [tests, detect-changes]
+    if: needs.detect-changes.outputs.engine == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run full battle audit
+        run: |
+          cd poke-sim
+          echo "▶ Running audit.js (5,070 battles)…"
+          node tests/audit.js
+          echo "✅ Battle audit passed."
