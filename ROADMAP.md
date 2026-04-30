@@ -11,8 +11,8 @@
 | # | Milestone | Status | Gate Issue |
 |---|---|---|---|
 | M1 | Engine Truth | 🟡 83% (19/23) | #140 test coverage |
-| M7 | Architecture Foundation | 🔴 Open | #87 CI (root blocker) |
-| M9 | Observability & QA | 🟡 Partial | #87 (root) |
+| M7 | Architecture Foundation | 🟡 In Progress | #78 namespace next |
+| M9 | Observability & QA | 🟡 In Progress | CI ✅ live · #89 logger next |
 | M2 | Dynamic Strategy Coach | 🔴 Open | #141 classifier |
 | M3 | Piloting Analytics | 🔴 Open | #142, #143 |
 | M5 | Tournament Packet | 🔴 Open | #57 parent |
@@ -28,9 +28,9 @@
 
 | # | Issue | Owner | Required Action |
 |---|---|---|---|
-| **#87** | GitHub Actions CI | @alfredocox | Merge CI YAML — unlocks 20+ downstream issues |
 | **#147** | Ko-fi account missing | @alfredocox | Create `ko-fi.com/alfredocox` before merging PR #146 |
 
+> ✅ **#87 CLOSED** — `ci.yml` live 2026-04-30 (commit `4f9579d`). Branch protection on `main` confirmed. Sprint 1 unblocked.
 > ✅ **#158 CLOSED** — Supabase confirmed live 2026-04-30: 8 tables, RLS enabled, 22 teams seeded, 210 team_members loaded.
 
 ---
@@ -39,14 +39,14 @@
 
 > **Gate:** All items here must ship before any Sprint 2 code merges.
 
-| # | Issue | Owner | Milestone |
-|---|---|---|---|
-| #87 | GitHub Actions CI (ROOT NODE) | @alfredocox | M9 |
-| #78 | Namespace `window.ChampionsSim` | @alfredocox | M7 |
-| #138 | `data.js` placeholder guard (T9j.18 §A) | @Jdoutt38 | M1 |
-| #149 | Unit tests for `classifyPokemon()` | @Jdoutt38 | M1 |
-| #150 | Stat panel HTML markup | @Josh | M3 |
-| #151 | `CONTRIBUTING.md` | @Josh | M7 |
+| # | Issue | Owner | Milestone | Status |
+|---|---|---|---|---|
+| #87 | GitHub Actions CI (ROOT NODE) | @alfredocox | M9 | ✅ **CLOSED** |
+| #78 | Namespace `window.ChampionsSim` | @alfredocox | M7 | 🔴 Open |
+| #138 | `data.js` placeholder guard (T9j.18 §A) | @Jdoutt38 | M1 | 🔴 Open |
+| #149 | Unit tests for `classifyPokemon()` | @Jdoutt38 | M1 | 🔴 Open |
+| #150 | Stat panel HTML markup | @Josh | M3 | 🔴 Open |
+| #151 | `CONTRIBUTING.md` | @Josh | M7 | 🔴 Open |
 
 ---
 
@@ -179,7 +179,7 @@
 | Persistence | localStorage (offline) + Supabase PostgreSQL (cloud, M8) |
 | Database | Supabase — 8 tables, RLS enabled, **22 teams / 210 team_members seeded** ✅ |
 | Bundle | `pokemon-champion-2026.html` (710 KB, single-file artifact) |
-| CI/CD | GitHub Actions — Bundle Freshness Check + Cache Bump Check |
+| CI/CD | GitHub Actions — CI ✅ + Bundle Freshness ✅ + Cache Bump ✅ (3 workflows active) |
 | Hosting | GitHub Pages (`alfredocox.github.io/Pokemon-Champions-Sim-Planner`) |
 | Tests | Vanilla JS runner — 343 cases (T9j.17 baseline), 5,070 battles/audit |
 
