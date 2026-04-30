@@ -18,7 +18,7 @@
 | M5 | Tournament Packet | 🔴 Open | #57 parent |
 | M4 | Community & Sharing | 🔴 Open | M3 gate |
 | M6 | Polish & Launch | 🔴 Open | M1–M5 gate |
-| M8 | Profile & Sync | ⏳ Not started | Sprint 4 gate |
+| M8 | Profile & Sync | 🟡 Unblocked | Supabase ✅ live |
 | M10 | Performance & Quality | 🟡 Partial | #92, #93, #94 |
 | M11 | Advanced Features | ⏳ Deferred | M8 gate |
 
@@ -28,9 +28,10 @@
 
 | # | Issue | Owner | Required Action |
 |---|---|---|---|
-| **#158** | Supabase DB not provisioned | @alfredocox | Run 3 SQL scripts in Supabase Dashboard (`schema_v1.sql` → `seed_teams_v1.sql` → `rls_policies_v1.sql`) |
 | **#87** | GitHub Actions CI | @alfredocox | Merge CI YAML — unlocks 20+ downstream issues |
 | **#147** | Ko-fi account missing | @alfredocox | Create `ko-fi.com/alfredocox` before merging PR #146 |
+
+> ✅ **#158 CLOSED** — Supabase confirmed live 2026-04-30: 8 tables, RLS enabled, 22 teams seeded, 210 team_members loaded.
 
 ---
 
@@ -92,7 +93,7 @@
 
 ## Sprint 4 — Profile & Sync
 
-> **Gate:** Sprint 3 complete + Supabase provisioned (#158 closed).
+> **Gate:** Sprint 3 complete. Supabase already live ✅ — no additional setup required.
 
 | # | Issue | Owner | Milestone |
 |---|---|---|---|
@@ -162,7 +163,7 @@
 | **M5 Tournament Packet** | Full tournament-ready PDF: per-matchup pages, cover, mobile layout. |
 | **M6 Polish & Launch** | Performance, accessibility, keyboard nav, dark mode — public launch quality. |
 | **M7 Architecture Foundation** | Namespace, `ui.js` module split, TDZ safety, CI/CD all operational. |
-| **M8 Profile & Sync** | Per-user profiles, Supabase cloud sync, cross-device support. |
+| **M8 Profile & Sync** | Per-user profiles, Supabase cloud sync, cross-device support. Supabase layer already live. |
 | **M9 Observability & QA** | Structured logger, CI workflows, performance profiling harness. |
 | **M10 Performance & Quality** | Memoization, log caps, XSS audit, NVDA/VO focus management — measurable gains. |
 | **M11 Advanced Features** | Replay shortlinks, multi-team compare, live fingerprinting. Post-M8 only. |
@@ -176,7 +177,7 @@
 | Frontend | Vanilla JS (ES2020+), HTML5, CSS3 — static PWA, no framework |
 | Offline | Service Worker — `champions-sim-v6-wire-storage-adapter` |
 | Persistence | localStorage (offline) + Supabase PostgreSQL (cloud, M8) |
-| Database | Supabase — 8-table schema, 13 seeded tournament teams |
+| Database | Supabase — 8 tables, RLS enabled, **22 teams / 210 team_members seeded** ✅ |
 | Bundle | `pokemon-champion-2026.html` (710 KB, single-file artifact) |
 | CI/CD | GitHub Actions — Bundle Freshness Check + Cache Bump Check |
 | Hosting | GitHub Pages (`alfredocox.github.io/Pokemon-Champions-Sim-Planner`) |
