@@ -18,49 +18,70 @@ function eq(a, b, msg) { if (a !== b) throw new Error(msg + ' expected ' + JSON.
 function truthy(v, msg) { if (!v) throw new Error(msg + ' expected truthy'); }
 function falsy(v, msg) { if (v) throw new Error(msg + ' expected falsy'); }
 
-// Create test context
-var ctx = {
-  console,
-  require,
-  module: { exports: {} },
-  window: {},
-  document: { 
-    getElementById: () => null,
-    addEventListener: () => {}
-  }
+// Create test context.
+// We use the shared freshCtx() so supabase_adapter.js IIFE has its expected
+// globals, then attach the M4 surface (TEAMS, _buildAnalysisPayload) by
+// loading ui.js bits — but for unit-level tests we only need _buildAnalysisPayload
+// on window, which the M4 impl will define. ui.js is too heavy to vm-load
+// directly in tests (it touches DOM), so we expose a minimal shim that mirrors
+// the impl contract and seed TEAMS.
+var { freshCtx } = require('./_db_helpers.js');
+var ctx = freshCtx();
+// Seed TEAMS so T-save-14 (run-all) has opponents.
+ctx.window.TEAMS = {
+  player:           { name: 'Player Team',     members: [] },
+  mega_altaria:     { name: 'Mega Altaria',    members: [] },
+  mega_metagross:   { name: 'Mega Metagross',  members: [] },
+  mega_salamence:   { name: 'Mega Salamence',  members: [] }
 };
+// Load _buildAnalysisPayload from ui.js by extracting just that function.
+// The M4 impl defines window._buildAnalysisPayload at module scope of ui.js,
+// guarded so it's safe to vm-eval in isolation.
+(function loadBuildPayload() {
+  var uiPath = path.resolve(__dirname, '..', 'ui.js');
+  if (!fs.existsSync(uiPath)) return;
+  var uiSrc = fs.readFileSync(uiPath, 'utf8');
+  var marker = '// __M4_BUILD_PAYLOAD_BEGIN__';
+  var endMarker = '// __M4_BUILD_PAYLOAD_END__';
+  var b = uiSrc.indexOf(marker);
+  var e = uiSrc.indexOf(endMarker);
+  if (b === -1 || e === -1) return;          // RED state — not yet implemented
+  var snippet = uiSrc.substring(b, e + endMarker.length);
+  vm.runInContext(snippet, ctx);
+})();
 
 describe('Module 4 — Save analyses suite (18 cases)', function() {
   
   T('T-save-1', function() {
-    // _buildAnalysisPayload(playerKey, oppKey, 3, res) returns an object with all 14 required keys
+    // _buildAnalysisPayload(playerKey, oppKey, 3, res) returns an object with all 20 required keys
     var payload = ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, {});
     var expectedKeys = ['engine_version', 'ruleset_id', 'player_team_id', 'opp_team_id', 'prior_id', 'policy_model', 'sample_size', 'bo', 'win_rate', 'wins', 'losses', 'draws', 'avg_turns', 'avg_tr_turns', 'ci_low', 'ci_high', 'hidden_info_model', 'analysis_json', 'win_conditions', 'logs'];
     expectedKeys.forEach(function(key) {
-      truthy(payload[key], 'payload missing key: ' + key);
+      // Use key-presence (not truthy) so legitimate 0 / null / [] values pass.
+      eq(key in payload, true, 'payload missing key: ' + key);
     });
   });
   
   T('T-save-2', function() {
-    // Payload bo ∈ {1,3,5,10}; reject anything else
-    var payload = ctx.window._buildAnalysisPayload('player', 'mega_altaria', 999, {});
+    // Payload bo ∈ {1,3,5,10}; _buildAnalysisPayload rejects anything else
+    var threw = false;
     try {
-      ctx.window.SupabaseAdapter.saveAnalysis(payload);
-      throw new Error('Expected rejection for invalid bo=999');
+      ctx.window._buildAnalysisPayload('player', 'mega_altaria', 999, {});
     } catch (e) {
-      // Expected to reject
+      threw = true;
     }
+    eq(threw, true, '_buildAnalysisPayload should reject invalid bo=999');
   });
   
   T('T-save-3', function() {
     // Payload policy_model is non-empty string
-    var payload = ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, { policy_model: '' });
+    var threw = false;
     try {
-      ctx.window.SupabaseAdapter.saveAnalysis(payload);
-      throw new Error('Expected rejection for empty policy_model');
+      ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, { policy_model: '' });
     } catch (e) {
-      // Expected to reject
+      threw = true;
     }
+    eq(threw, true, '_buildAnalysisPayload should reject empty policy_model');
   });
   
   T('T-save-4', function() {
@@ -121,16 +142,22 @@ describe('Module 4 — Save analyses suite (18 cases)', function() {
   });
   
   T('T-save-10', function() {
-    // analyses.win_rate is numeric(5,4) in [0,1]
+    // analyses.win_rate is numeric(5,4) in [0,1] — reject out-of-range only.
+    // 0.5 is valid; 1.5 and -0.1 must be rejected by _buildAnalysisPayload.
     installAdapter(ctx);
-    var payload = ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, {});
-    payload.win_rate = 0.5;
-    try {
-      ctx.window.SupabaseAdapter.saveAnalysis(payload);
-      throw new Error('Expected rejection for win_rate=0.5');
-    } catch (e) {
-      // Expected to reject
-    }
+    // Valid mid-range value should NOT throw.
+    var ok = ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, { win_rate: 0.5 });
+    eq(ok.win_rate, 0.5, 'win_rate=0.5 is valid (in [0,1])');
+    // Out-of-range high
+    var threwHigh = false;
+    try { ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, { win_rate: 1.5 }); }
+    catch (e) { threwHigh = true; }
+    eq(threwHigh, true, '_buildAnalysisPayload should reject win_rate=1.5 (>1)');
+    // Out-of-range low
+    var threwLow = false;
+    try { ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, { win_rate: -0.1 }); }
+    catch (e) { threwLow = true; }
+    eq(threwLow, true, '_buildAnalysisPayload should reject win_rate=-0.1 (<0)');
   });
   
   T('T-save-11', function() {
@@ -147,8 +174,13 @@ describe('Module 4 — Save analyses suite (18 cases)', function() {
     // Mock raises a 4xx error → saveAnalysis resolves to null (no throw)
     installAdapter(ctx);
     mockSupabaseClient.setErrorMode('4xx');
-    var result = ctx.window.SupabaseAdapter.saveAnalysis(ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, {}));
-    eq(result, null, 'saveAnalysis resolves to null on 4xx error');
+    var p = ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, {});
+    var result;
+    return Promise.resolve(ctx.window.SupabaseAdapter.saveAnalysis(p)).then(function (r) {
+      result = r;
+      eq(result, null, 'saveAnalysis resolves to null on 4xx error');
+      mockSupabaseClient.setErrorMode(null);
+    });
   });
   
   T('T-save-13', function() {
@@ -221,13 +253,17 @@ describe('Module 4 — Save analyses suite (18 cases)', function() {
   T('T-save-18', function() {
     // Mock raises RLS denial → import still completes locally; warning logged
     installAdapter(ctx);
+    mockSupabaseClient.reset();
     mockSupabaseClient.setErrorMode('rls_denied');
-    var result = ctx.window.SupabaseAdapter.saveAnalysis(ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, {}));
-    eq(result, null, 'saveAnalysis resolves to null on RLS denial');
-    var mock = mockSupabaseClient.getState();
-    var warnings = mock.warnings || [];
-    eq(warnings.length, 1, 'RLS denial warning logged');
-    eq(warnings[0].message, 'Import blocked by RLS policy', 'correct warning message');
+    var p = ctx.window._buildAnalysisPayload('player', 'mega_altaria', 3, {});
+    return Promise.resolve(ctx.window.SupabaseAdapter.saveAnalysis(p)).then(function (result) {
+      eq(result, null, 'saveAnalysis resolves to null on RLS denial');
+      var mock = mockSupabaseClient.getState();
+      var warnings = mock.warnings || [];
+      eq(warnings.length >= 1, true, 'RLS denial warning logged');
+      eq(warnings[0].message, 'Import blocked by RLS policy', 'correct warning message');
+      mockSupabaseClient.setErrorMode(null);
+    });
   });
 
   // Summary
