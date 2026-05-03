@@ -98,11 +98,13 @@ describe('Module 1 \u2014 Wiring suite (16 cases)', function () {
   });
 
   T('T-wiring-7', function () {
-    // index.html references supabase_adapter.js after ui.js
-    var adapterIdx = indexContent.indexOf('supabase_adapter.js');
-    var uiIdx      = indexContent.indexOf('ui.js');
-    eq(adapterIdx > -1 && uiIdx > -1 && adapterIdx > uiIdx, true,
-       'supabase_adapter.js appears after ui.js in index.html');
+    // index.html loads supabase_adapter.js BEFORE ui.js so SupabaseAdapter
+    // is available when ui.js's DOMContentLoaded handler runs (M3 contract).
+    // Match actual <script src="..."> tags, not comment-text mentions.
+    var adapterTagIdx = indexContent.search(/<script[^>]+src="supabase_adapter\.js"/);
+    var uiTagIdx      = indexContent.search(/<script[^>]+src="ui\.js"/);
+    eq(adapterTagIdx > -1 && uiTagIdx > -1 && adapterTagIdx < uiTagIdx, true,
+       '<script src="supabase_adapter.js"> appears before <script src="ui.js"> in index.html');
   });
 
   T('T-wiring-8', function () {
