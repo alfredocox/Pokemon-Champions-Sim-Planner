@@ -2285,8 +2285,11 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
     for (let j = 0; j < batchSize; j++) {
       // Issue #2 FIX: generate a unique seed per battle and pass it in
       const seed = makeSeed();
-      // T9j.2 — thread format through from ui.js (currentFormat) via window.
-      const fmt = (typeof window !== 'undefined' && window.currentFormat) || 'doubles';
+      // T9j.2 / #78 - thread format through the shared ChampionsSim namespace.
+      const fmt = (typeof window !== 'undefined'
+        && window.ChampionsSim
+        && window.ChampionsSim.state
+        && window.ChampionsSim.state.format) || 'doubles';
       const battle = simulateBattle(playerTeamDef, oppTeamDef, { seed, format: fmt });
       if (battle.result === 'error') {
         results.errors++;

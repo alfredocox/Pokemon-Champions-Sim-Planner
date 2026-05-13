@@ -23,7 +23,7 @@ Supabase (Postgres + RLS) + `supabase-js` v2
 
 > ⚠️ Use `seed_teams_v2.sql` — NOT `seed_teams_v1.sql`. v2 has complete data for all 13 teams.
 
-App layer: `poke-sim/supabase_adapter.js` — fully implemented. Needs credentials injected in `index.html` and `saveAnalysis()` call wired in `ui.js`.
+App layer: `poke-sim/supabase_adapter.js` — fully implemented. Browser credentials are injected at runtime through ignored local files or CI secrets; real keys must not be committed.
 
 ---
 
@@ -34,31 +34,41 @@ App layer: `poke-sim/supabase_adapter.js` — fully implemented. Needs credentia
 | 1 | `schema_v1.sql` | Creates all 8 tables — run first |
 | 2 | `seed_teams_v2.sql` | Loads 13 teams — verify 13 rows in Table Editor after |
 | 3 | `rls_policies_v1.sql` | Locks down security — run last |
-| 4 | Wire credentials in `index.html` | See below |
+| 4 | Wire local or CI credentials | See below |
 | 5 | Wire `saveAnalysis()` in `ui.js` | See Adapter API section below |
 
 ---
 
-## index.html Wiring (add before `</head>`)
+## Local Credential Setup
 
-```html
-<!-- Supabase JS v2 — must load BEFORE supabase_adapter.js -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- Credentials (anon key only — safe to expose in browser, do NOT commit to git) -->
-<script>
-  window.__SUPABASE_URL__ = 'https://YOUR_PROJECT.supabase.co';
-  window.__SUPABASE_KEY__ = 'YOUR_ANON_KEY';
-</script>
+Browser testing:
+
+```bash
+cd poke-sim
+cp local-credentials.example.js local-credentials.js
 ```
 
-And before `</body>`:
-```html
-<script src="supabase_adapter.js"></script>
+Then edit `local-credentials.js` with:
+
+```js
+window.__SUPABASE_URL__ = 'https://your-project-ref.supabase.co';
+window.__SUPABASE_KEY__ = 'your-anon-public-key';
 ```
 
-> ⚠️ Replace `YOUR_PROJECT` and `YOUR_ANON_KEY` with real values.
-> ⛔ Never put the `service_role` key here — anon key only.
-> ⛔ Do NOT commit your real anon key to a tracked file. Inject at deploy time if possible.
+Node/live DB tests:
+
+```bash
+cd poke-sim
+cp .env.example .env.local
+npm install
+npm run test:db:live
+```
+
+`test:db:live` loads `.env.local`, exports `RUN_LIVE_DB=1`, and aliases `SUPABASE_ANON_KEY` to `SUPABASE_KEY` for older tests.
+
+Without `.env.local`, `npm run test:db` runs the DB suites against mocks/offline behavior.
+
+> Use the anon/public key only. Never put a service_role key in frontend files, `.env.local`, GitHub Pages bundles, or CI logs.
 
 ---
 
@@ -150,8 +160,7 @@ All schema changes use the **apply_migration-only** workflow. Never modify `sche
 | File | Purpose |
 |---|---|
 | `2026_04_27_baseline_v1.sql` | Baseline: 8 tables, indexes, triggers |
-| `2026_05_11_m8_add_usage_data_column.sql` | M8: adds `usage_data` JSONB column to `prior_snapshots` |
-| `2026_05_11_m8_seed_prior_snapshots.sql` | M8: seeds 3 months of VGC usage data |
+| `2026_05_12_align_reg_ma_meta_sources.sql` | Adds `prior_snapshots.usage_data` if missing and seeds the current public Reg M-A source-alignment snapshot |
 
 ---
 
@@ -162,7 +171,8 @@ All schema changes use the **apply_migration-only** workflow. Never modify `sche
 - [ ] `seed_teams_v2.sql` executed — 13 rows in `teams` table
 - [ ] `rls_policies_v1.sql` executed — RLS enabled on all tables
 - [ ] Supabase CDN `<script>` loads synchronously before `supabase_adapter.js` in `index.html`
-- [ ] `index.html` wired with `window.__SUPABASE_URL__` and `window.__SUPABASE_KEY__`
+- [ ] Local browser smoke uses ignored `local-credentials.js`
+- [ ] Live DB tests use ignored `.env.local` or GitHub Actions secrets
 - [ ] `saveAnalysis()` call wired in `ui.js` after Bo series completes
 - [ ] App reads seeded teams from Supabase on load
 - [ ] Sim analysis write succeeds and row appears in Supabase Table Editor

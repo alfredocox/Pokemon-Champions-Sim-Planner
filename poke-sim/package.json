@@ -4,8 +4,10 @@
   "description": "Pokemon Champions Sim Planner - DB integration testing",
   "main": "tests/_db_helpers.js",
   "scripts": {
-    "test": "node tests/*.js",
-    "test:db": "node tests/db_m*_tests.js"
+    "test": "bash tests/_run_all.sh",
+    "test:fast": "bash tests/_run_all.sh --skip-db",
+    "test:db": "bash tests/_run_all_db.sh",
+    "test:db:live": "bash tests/_run_all_db.sh --live"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

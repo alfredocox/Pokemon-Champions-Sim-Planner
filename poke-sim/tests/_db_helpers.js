@@ -305,7 +305,8 @@ function installAdapter(ctx, opts) {
 
   // Check if we should use live DB or mock
   var hasLiveCreds = ctx.window.__SUPABASE_URL__ && ctx.window.__SUPABASE_KEY__;
-  var useLiveDB = hasLiveCreds && !opts.forceMock && !opts.disable;
+  var liveRequested = typeof process !== 'undefined' && process.env.RUN_LIVE_DB === '1';
+  var useLiveDB = liveRequested && hasLiveCreds && !opts.forceMock && !opts.disable;
 
   // Load supabase-js library for live DB testing
   if (useLiveDB && !ctx.window.supabase) {
@@ -342,7 +343,7 @@ function installAdapter(ctx, opts) {
     } else {
       mockSupabaseClient.reset();
       if (ctx.window.__SUPABASE_URL__ && ctx.window.__SUPABASE_KEY__) {
-        console.log('✓ Using environment variables with mock client');
+        console.log('✓ Using injected test credentials with mock client');
       } else {
         ctx.window.__SUPABASE_URL__ = 'https://mock.supabase.test';
         ctx.window.__SUPABASE_KEY__ = 'mock-anon-key';

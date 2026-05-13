@@ -3865,6 +3865,69 @@ const TEAMS = {
   }
 
 };
+
+// ============================================================
+// SHIPPED DATA PLACEHOLDER GUARD - T9j.18 (Refs #138)
+// ============================================================
+// CI calls this guard after loading data.js. Keep it narrow: it validates the
+// curated TEAMS catalog, not user-imported teams, so imports can remain lenient.
+const DATA_PLACEHOLDER_RE = /(^|[^A-Z0-9])(TODO|TBD|FIXME|PLACEHOLDER|FILL_ME|MISSING_DATA)([^A-Z0-9]|$)|__[^_]+__/i;
+
+function validateChampionsDataPlaceholders(teams) {
+  const catalog = teams || TEAMS;
+  const issues = [];
+  const checkText = (path, value) => {
+    if (typeof value === 'string' && DATA_PLACEHOLDER_RE.test(value)) {
+      issues.push(path + ' contains placeholder value "' + value + '"');
+    }
+  };
+
+  if (!catalog || typeof catalog !== 'object') {
+    return ['TEAMS catalog missing or not an object'];
+  }
+  if (Object.entries(catalog).length === 0) {
+    return ['TEAMS catalog is empty'];
+  }
+
+  for (const [teamKey, team] of Object.entries(catalog)) {
+    if (!team || typeof team !== 'object') {
+      issues.push(teamKey + ' is not a team object');
+      continue;
+    }
+    if (!Array.isArray(team.members) || team.members.length === 0) {
+      issues.push(teamKey + '.members missing or empty');
+      continue;
+    }
+    team.members.forEach((member, idx) => {
+      const base = teamKey + '.members[' + idx + ']';
+      if (!member || typeof member !== 'object') {
+        issues.push(base + ' is not a member object');
+        return;
+      }
+      if (!member.name || typeof member.name !== 'string') {
+        issues.push(base + '.name missing');
+      }
+      checkText(base + '.name', member.name);
+      checkText(base + '.item', member.item);
+      checkText(base + '.ability', member.ability);
+      checkText(base + '.nature', member.nature);
+      checkText(base + '.role', member.role);
+      if (!Array.isArray(member.moves) || member.moves.length === 0) {
+        issues.push(base + '.moves missing or empty');
+      } else {
+        member.moves.forEach((move, moveIdx) => {
+          if (!move || typeof move !== 'string') {
+            issues.push(base + '.moves[' + moveIdx + '] missing');
+          }
+          checkText(base + '.moves[' + moveIdx + ']', move);
+        });
+      }
+    });
+  }
+  return issues;
+}
+
+const CHAMPIONS_DATA_PLACEHOLDER_ISSUES = validateChampionsDataPlaceholders(TEAMS);
 // Move type map for damage calc
 const MOVE_TYPES = {
   // Player moves

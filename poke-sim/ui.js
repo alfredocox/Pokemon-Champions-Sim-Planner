@@ -16,6 +16,16 @@
   });
 })();
 
+// ============================================================
+// CHAMPIONS SIM NAMESPACE - Issue #78
+// Cross-module state and public helper APIs live here.
+// ============================================================
+var ChampionsSim = (typeof window !== 'undefined')
+  ? (window.ChampionsSim = window.ChampionsSim || {})
+  : {};
+ChampionsSim.state = ChampionsSim.state || {};
+ChampionsSim.bring = ChampionsSim.bring || {};
+
 // ---- Tabs ----
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -32,14 +42,19 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // ---- Format Toggle (Doubles / Singles) ----
 let currentFormat = 'doubles';
-// T9j.2 — expose for engine.js runSimulation (which can't see ui.js lexical scope).
-if (typeof window !== 'undefined') window.currentFormat = currentFormat;
+function setCurrentFormat(format) {
+  currentFormat = (format === 'singles') ? 'singles' : 'doubles';
+  // T9j.2 / #78 - expose for engine.js through the shared namespace.
+  ChampionsSim.state.format = currentFormat;
+  if (typeof window !== 'undefined') window.currentFormat = currentFormat;
+  return currentFormat;
+}
+setCurrentFormat(currentFormat);
 document.querySelectorAll('.fmt-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    currentFormat = btn.dataset.fmt;
-    if (typeof window !== 'undefined') window.currentFormat = currentFormat;
+    setCurrentFormat(btn.dataset.fmt);
     const indicator = document.getElementById('fmt-indicator');
     if (currentFormat === 'doubles') {
       indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/></svg> DOUBLES · 4v4 · Spread moves active`;
@@ -1116,6 +1131,42 @@ document.getElementById('bulk-import-file')?.addEventListener('change', function
 // EDITOR TAB
 // ============================================================
 let editingIdx = null;
+const STAT_PANEL_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+const STAT_PANEL_LABELS = { hp:'HP', atk:'Atk', def:'Def', spa:'SpA', spd:'SpD', spe:'Spe' };
+const STAT_PANEL_NATURE_PLUS = {
+  Adamant:'atk', Bold:'def', Modest:'spa', Calm:'spd', Jolly:'spe', Timid:'spe',
+  Impish:'def', Careful:'spd', Brave:'atk', Quiet:'spa', Relaxed:'def', Sassy:'spd'
+};
+const STAT_PANEL_NATURE_MINUS = {
+  Adamant:'spa', Bold:'atk', Modest:'atk', Calm:'atk', Jolly:'spa', Timid:'atk',
+  Impish:'spa', Careful:'spa', Brave:'spe', Quiet:'spe', Relaxed:'spe', Sassy:'spe'
+};
+
+function renderStatPanelHtml(member) {
+  const evs = (member && member.evs) || {};
+  const ivs = (member && member.ivs) || {};
+  const nature = (member && member.nature) || 'Hardy';
+  const plus = STAT_PANEL_NATURE_PLUS[nature] || null;
+  const minus = STAT_PANEL_NATURE_MINUS[nature] || null;
+  const evTotal = STAT_PANEL_KEYS.reduce((sum, key) => sum + (parseInt(evs[key], 10) || 0), 0);
+  const rows = STAT_PANEL_KEYS.map(key => {
+    const natureMark = key === plus ? '+' : key === minus ? '-' : '';
+    const natureCls = key === plus ? ' plus' : key === minus ? ' minus' : '';
+    return '<div class="stat-panel-row">' +
+      '<span class="stat-panel-stat">' + STAT_PANEL_LABELS[key] + '</span>' +
+      '<span class="stat-panel-pill">EV ' + (parseInt(evs[key], 10) || 0) + '</span>' +
+      '<span class="stat-panel-pill">IV ' + (ivs[key] == null ? 31 : parseInt(ivs[key], 10) || 0) + '</span>' +
+      '<span class="stat-panel-nature' + natureCls + '">' + natureMark + '</span>' +
+    '</div>';
+  }).join('');
+  return '<section class="stat-panel" aria-label="Stat panel">' +
+    '<div class="stat-panel-head">' +
+      '<span>Stats</span>' +
+      '<span class="stat-panel-meta">' + _escapeHtml(nature) + ' · EV ' + evTotal + '/510</span>' +
+    '</div>' +
+    '<div class="stat-panel-grid">' + rows + '</div>' +
+  '</section>';
+}
 
 function renderEditorRoster() {
   const el = document.getElementById('editor-roster');
@@ -1149,6 +1200,7 @@ function openEditorForm(idx) {
     </div>
     <div style="margin-top:var(--sp4)"><label class="form-label" style="display:block;margin-bottom:6px">Moves</label>
     <div class="moves-2col">${(m.moves||[]).map((mv,i)=>`<input class="form-input" id="ed-mv-${i}" value="${mv}"/>`).join('')}</div></div>
+    ${renderStatPanelHtml(m)}
     <div style="margin-top:var(--sp4)"><label class="form-label" style="display:block;margin-bottom:6px">EVs (max 510 total)</label>
     <div class="ev-6col">${evsHtml}</div></div>
     <div style="display:flex;gap:var(--sp3);margin-top:var(--sp4)">
@@ -1569,8 +1621,8 @@ function displayResults(res, oppKey) {
   // result so the PDF button can build a fresh packet. Each new sim either
   // adds a new matchup entry or replaces the prior one for the same
   // opponent, so the button always regenerates from the latest data.
-  if (!window.lastSimResults) window.lastSimResults = {};
-  window.lastSimResults[oppKey] = res;
+  if (!ChampionsSim.state.lastResults) ChampionsSim.state.lastResults = {};
+  ChampionsSim.state.lastResults[oppKey] = res;
   revealPdfButton();
 }
 
@@ -1580,7 +1632,7 @@ function displayResults(res, oppKey) {
 function revealPdfButton() {
   var btn = document.getElementById('pdf-report-btn');
   if (!btn) return;
-  var count = Object.keys(window.lastSimResults || {}).length;
+  var count = Object.keys(ChampionsSim.state.lastResults || {}).length;
   if (count < 1) return;
   btn.style.display = '';
   var label = btn.querySelector('.pdf-btn-label');
@@ -1840,7 +1892,7 @@ if (typeof window !== 'undefined') {
 // ============================================================
 // GLOBAL SIMULATION RESULTS STORE
 // ============================================================
-window.lastSimResults = {};
+ChampionsSim.state.lastResults = {};
 
 // ============================================================
 // BO SERIES RUNNER
@@ -1948,15 +2000,26 @@ function setLeadsFor(teamKey, leads) {
   }
   setBringFor(teamKey, merged);
 }
-window.BRING_SELECTION = BRING_SELECTION;
-window.BRING_MODE      = BRING_MODE;
-window.getBringFor     = getBringFor;
-window.setBringFor     = setBringFor;
-window.getBringMode    = getBringMode;
-window.setBringMode    = setBringMode;
-window.randomBringFor  = randomBringFor;
-window.getLeadsFor     = getLeadsFor;
-window.setLeadsFor     = setLeadsFor;
+ChampionsSim.bring.BRING_SELECTION = BRING_SELECTION;
+ChampionsSim.bring.BRING_MODE = BRING_MODE;
+ChampionsSim.bring.getBringFor = getBringFor;
+ChampionsSim.bring.setBringFor = setBringFor;
+ChampionsSim.bring.getBringMode = getBringMode;
+ChampionsSim.bring.setBringMode = setBringMode;
+ChampionsSim.bring.randomBringFor = randomBringFor;
+ChampionsSim.bring.getLeadsFor = getLeadsFor;
+ChampionsSim.bring.setLeadsFor = setLeadsFor;
+if (typeof window !== 'undefined') {
+  window.BRING_SELECTION = BRING_SELECTION;
+  window.BRING_MODE = BRING_MODE;
+  window.getBringFor = getBringFor;
+  window.setBringFor = setBringFor;
+  window.getBringMode = getBringMode;
+  window.setBringMode = setBringMode;
+  window.randomBringFor = randomBringFor;
+  window.getLeadsFor = getLeadsFor;
+  window.setLeadsFor = setLeadsFor;
+}
 
 async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress) {
   const results = { wins:0, losses:0, draws:0, totalTurns:0, totalTrTurns:0, winConditions:{}, allLogs:[], turnDist:{} };
@@ -2253,7 +2316,7 @@ document.getElementById('run-sim-btn')?.addEventListener('click', async function
   // upsert-by-oppKey, so re-running the same matchup replaces its card.
   try { generatePilotGuide(oppKey, res); } catch (e) { console.warn('[PilotGuide] single-sim populate failed:', e && e.message); }
   // Cache for Run All parity - keeps PDF builder and strategy rebuild in sync.
-  try { if (window.lastSimResults) window.lastSimResults[oppKey] = res; } catch(_){}
+  try { if (ChampionsSim.state.lastResults) ChampionsSim.state.lastResults[oppKey] = res; } catch(_){}
   // M4: persist single-sim result to Supabase (fire-and-forget)
   try {
     var _adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
@@ -2287,7 +2350,7 @@ document.getElementById('run-all-btn')?.addEventListener('click', async function
     totalW=w; totalL=l;
     setProgress(Math.round(cur/tot*100),`Running matchups… ${cur} / ${tot}`,w,l);
   },(opp,res)=>{
-    window.lastSimResults[opp] = res;
+    ChampionsSim.state.lastResults[opp] = res;
     const winPct=Math.round(res.winRate*100);
     const pillCls=winPct>=55?'fav':winPct<=45?'unfav':'even';
     const aCls=winPct>=55?'win':winPct<=45?'loss':'close';
@@ -2618,7 +2681,7 @@ function computeMegaTriggerSweep(playerKey, oppKey, bo, format) {
 // lead system, matchup guide, turn flow, rules to win, Bo3 adaptation,
 // final verdict, coaching notes.
 //
-// All analytics are derived from window.lastSimResults + currentPlayerKey.
+// All analytics are derived from ChampionsSim.state.lastResults + currentPlayerKey.
 // COACHING_RULES below is a pluggable registry — add entries to extend
 // advice without touching the renderer.
 document.getElementById('pdf-report-btn')?.addEventListener('click', generatePDFReport);
@@ -2638,6 +2701,108 @@ var PDF_TRAP_ABILITIES = ['Shadow Tag', 'Arena Trap', 'Magnet Pull'];
 
 function _pdfHasAny(mon, list) {
   return !!(mon && mon.moves && list.some(function(x){ return mon.moves.indexOf(x) >= 0; }));
+}
+
+var CLASSIFY_POKEMON_ROLES = [
+  'lead',
+  'sweeper',
+  'support',
+  'pivot',
+  'disruptor',
+  'win_condition',
+  'sacrifice_piece'
+];
+var CLASSIFY_SETUP_MOVES = ['Dragon Dance', 'Swords Dance', 'Calm Mind', 'Clangorous Soul', 'Coil', 'Nasty Plot', 'Bulk Up'];
+var CLASSIFY_PIVOT_MOVES = ['Parting Shot', 'U-turn', 'Flip Turn', 'Volt Switch', 'Baton Pass'];
+var CLASSIFY_SACRIFICE_MOVES = ['Lunar Dance', 'Memento', 'Healing Wish', 'Explosion', 'Final Gambit', 'Shed Tail'];
+var CLASSIFY_WIN_ITEMS = ['Life Orb', 'Choice Scarf', 'Booster Energy'];
+var CLASSIFY_LEAD_ITEMS = ['Focus Sash', 'Eject Button', 'Mental Herb'];
+
+function _classifyHasAny(mon, list) {
+  return !!(mon && Array.isArray(mon.moves) && list.some(function(x){ return mon.moves.indexOf(x) >= 0; }));
+}
+
+function _classifyAdd(scores, role, points, reason) {
+  scores[role].score += points;
+  scores[role].reasons.push(reason);
+}
+
+// Seven-role classifier for the dynamic coaching layer (#141).
+// Returns a stable object so UI, tests, and future detectors can share it.
+function classifyPokemon(mon, teamMembers) {
+  var scores = {};
+  CLASSIFY_POKEMON_ROLES.forEach(function(role){
+    scores[role] = { role: role, score: 0, reasons: [] };
+  });
+  if (!mon || typeof mon !== 'object') {
+    return { role: 'support', confidence: 'low', score: 0, reasons: ['missing Pokemon data'], scores: scores };
+  }
+
+  var name = mon.name || '';
+  var ability = mon.ability || '';
+  var item = mon.item || '';
+  var moves = Array.isArray(mon.moves) ? mon.moves : [];
+  var damagingMoves = moves.filter(function(move){
+    return !(typeof MOVE_CATEGORY !== 'undefined' && MOVE_CATEGORY[move] === 'status');
+  });
+
+  if (_classifyHasAny(mon, PDF_FAKE_OUT)) _classifyAdd(scores, 'lead', 4, 'Fake Out creates turn-one pressure');
+  if (/Prankster|Intimidate/i.test(ability)) _classifyAdd(scores, 'lead', 2, ability + ' is strongest early');
+  if (CLASSIFY_LEAD_ITEMS.indexOf(item) >= 0) _classifyAdd(scores, 'lead', 1, item + ' supports lead positioning');
+
+  if (_classifyHasAny(mon, CLASSIFY_SETUP_MOVES)) _classifyAdd(scores, 'sweeper', 3, 'setup move enables sweep');
+  if (_classifyHasAny(mon, PDF_SPREAD)) _classifyAdd(scores, 'sweeper', 2, 'spread damage pressures both foes');
+  if (damagingMoves.length >= 3) _classifyAdd(scores, 'sweeper', 1, 'three or more attacking moves');
+
+  if (_classifyHasAny(mon, PDF_TAILWIND) || _classifyHasAny(mon, PDF_TRICK_ROOM)) _classifyAdd(scores, 'support', 3, 'speed control support');
+  if (_classifyHasAny(mon, PDF_REDIRECT) || _classifyHasAny(mon, PDF_SCREENS)) _classifyAdd(scores, 'support', 3, 'team protection support');
+  if (_classifyHasAny(mon, ['Helping Hand', 'Coaching', 'Life Dew', 'Recover', 'Roost'])) _classifyAdd(scores, 'support', 2, 'support or sustain move');
+
+  if (_classifyHasAny(mon, CLASSIFY_PIVOT_MOVES)) _classifyAdd(scores, 'pivot', 3, 'pivot move preserves positioning');
+  if (/Intimidate|Regenerator|Natural Cure/i.test(ability)) _classifyAdd(scores, 'pivot', 2, ability + ' rewards cycling');
+
+  if (_classifyHasAny(mon, PDF_DISRUPT) || _classifyHasAny(mon, ['Will-O-Wisp', 'Thunder Wave', 'Spore', 'Sleep Powder', 'Hypnosis', 'Imprison', 'Trick'])) {
+    _classifyAdd(scores, 'disruptor', 3, 'status or denial move');
+  }
+  if (PDF_TRAP_ABILITIES.indexOf(ability) >= 0) _classifyAdd(scores, 'disruptor', 3, ability + ' traps targets');
+
+  if (/-Mega(?:$|-)/.test(name) || /-Mega(?:$|-)/.test(mon.species || '')) _classifyAdd(scores, 'win_condition', 4, 'Mega slot is a primary win condition');
+  if (CLASSIFY_WIN_ITEMS.indexOf(item) >= 0) _classifyAdd(scores, 'win_condition', 2, item + ' indicates committed damage role');
+  if (_classifyHasAny(mon, ['Last Respects', 'Blood Moon', 'Make It Rain', 'Eruption', 'Expanding Force', 'Light of Ruin'])) {
+    _classifyAdd(scores, 'win_condition', 3, 'signature high-impact attack');
+  }
+  if (_classifyHasAny(mon, CLASSIFY_SETUP_MOVES) && damagingMoves.length >= 2) {
+    _classifyAdd(scores, 'win_condition', 2, 'setup plus attacks can close games');
+  }
+
+  if (_classifyHasAny(mon, CLASSIFY_SACRIFICE_MOVES)) _classifyAdd(scores, 'sacrifice_piece', 6, 'self-sacrifice or pass move');
+  if (item === 'Focus Sash' && (_classifyHasAny(mon, PDF_TAILWIND) || _classifyHasAny(mon, PDF_TRICK_ROOM) || _classifyHasAny(mon, PDF_DISRUPT))) {
+    _classifyAdd(scores, 'sacrifice_piece', 1, 'Focus Sash helps guarantee one utility action');
+  }
+
+  var tieOrder = ['win_condition', 'lead', 'support', 'pivot', 'disruptor', 'sweeper', 'sacrifice_piece'];
+  var best = CLASSIFY_POKEMON_ROLES
+    .slice()
+    .sort(function(a, b){
+      var diff = scores[b].score - scores[a].score;
+      if (diff !== 0) return diff;
+      return tieOrder.indexOf(a) - tieOrder.indexOf(b);
+    })[0];
+
+  if (scores[best].score === 0) {
+    best = damagingMoves.length ? 'sweeper' : 'support';
+    scores[best].score = 1;
+    scores[best].reasons.push(damagingMoves.length ? 'default damaging role' : 'default utility role');
+  }
+
+  var confidence = scores[best].score >= 4 ? 'high' : scores[best].score >= 2 ? 'medium' : 'low';
+  return {
+    role: best,
+    confidence: confidence,
+    score: scores[best].score,
+    reasons: scores[best].reasons.slice(),
+    scores: scores
+  };
 }
 
 // Infer a single-word role label per member based on moves + ability + item.
@@ -2923,7 +3088,7 @@ function generatePDFReport() {
   var container = document.getElementById('pdf-report-container');
   if (!container) return;
 
-  var results = window.lastSimResults || {};
+  var results = ChampionsSim.state.lastResults || {};
   var date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
   var bo = (typeof currentBo !== 'undefined') ? currentBo : 3;
   var fmtLabel = (typeof currentFormat !== 'undefined' && currentFormat === 'singles') ? 'Singles (Bring 6, Pick 3)' : 'Doubles (Bring 6, Pick 4)';
@@ -3162,7 +3327,7 @@ function renderSeriesSummary() {
   const el = document.getElementById('replay-list');
   if (!el) return;
 
-  const results = window.lastSimResults;
+  const results = ChampionsSim.state.lastResults;
   if (!results || !Object.keys(results).length) {
     el.innerHTML = '<div class="replay-empty">No simulation results yet — run "Run All Matchups" first.</div>';
     return;
@@ -3564,7 +3729,7 @@ function _renderT9j16PdfSections(report) {
 // ============================================================
 // Pure analysis layer over shipped sim outputs. NO ENGINE CHANGES.
 //
-// Inputs: TEAMS[teamKey].members, window.lastSimResults, currentFormat
+// Inputs: TEAMS[teamKey].members, ChampionsSim.state.lastResults, currentFormat
 // Outputs: structured Strategy Report (Sections 1-6 + Elite Decision
 // Analysis + human coaching summary), persisted via localStorage and
 // keyed on a stable team signature so any imported/custom team gets
@@ -4201,9 +4366,9 @@ function evolveReport(teamKey, newResults, fmt) {
 function t9j16AutoSave() {
   try {
     if (typeof currentPlayerKey === 'undefined') return;
-    if (!window.lastSimResults || !Object.keys(window.lastSimResults).length) return;
+    if (!ChampionsSim.state.lastResults || !Object.keys(ChampionsSim.state.lastResults).length) return;
     var fmt = (typeof currentFormat !== 'undefined') ? currentFormat : 'doubles';
-    evolveReport(currentPlayerKey, window.lastSimResults, fmt);
+    evolveReport(currentPlayerKey, ChampionsSim.state.lastResults, fmt);
   } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
 }
 
@@ -5329,7 +5494,7 @@ function renderStrategyTab(teamKey) {
     report = window._csCachedOverride;
     fromCache = true;
   } else {
-    var results = (typeof window !== 'undefined' && window.lastSimResults) ? window.lastSimResults : {};
+    var results = (typeof window !== 'undefined' && ChampionsSim.state.lastResults) ? ChampionsSim.state.lastResults : {};
     report = csBuildStrategyReportV2(teamKey, results, (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles'));
   }
   if (!report) {

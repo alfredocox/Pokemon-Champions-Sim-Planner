@@ -126,7 +126,7 @@ vm.runInContext([
   'this.getBringMode=getBringMode;',
   'this.setBringMode=setBringMode;',
   'this.getBringCount=getBringCount;',
-  'this.setCurrentFormat=function(f){ currentFormat = f; };'
+  'this.setCurrentFormat=setCurrentFormat;'
 ].join(' '), ctx);
 
 const {
@@ -206,6 +206,16 @@ T('3. shared state: setBringFor is reflected in next buildBringPickerHtml call',
   inc(html, 'bring-in', 'at least one in-bring class');
 });
 
+T('3b. legacy window bring globals remain compatible', () => {
+  const all = TEAMS[FIXTURE_KEY].members.map(m => m.name);
+  const picked = all.slice(1, 5);
+  ctx.window.setBringFor(FIXTURE_KEY, picked);
+  eq(ctx.window.getBringFor(FIXTURE_KEY).join('|'), picked.join('|'), 'legacy get/set bring works');
+  ctx.window.setBringMode(FIXTURE_KEY, 'random');
+  eq(ctx.window.getBringMode(FIXTURE_KEY), 'random', 'legacy get/set mode works');
+  ctx.window.setBringMode(FIXTURE_KEY, 'manual');
+});
+
 T('4. mode=random disables drag (draggable="false") on pool and slots', () => {
   setCurrentFormat('doubles');
   resetBring(FIXTURE_KEY);
@@ -234,6 +244,7 @@ T('5. doubles format: 4 slots (LEAD 1, LEAD 2, BENCH 3, BENCH 4)', () => {
 
 T('6. singles format: 3 slots (LEAD 1, BENCH 2, BENCH 3)', () => {
   setCurrentFormat('singles');
+  eq(ctx.window.currentFormat, 'singles', 'legacy currentFormat mirrors namespace state');
   setBringFor(FIXTURE_KEY, TEAMS[FIXTURE_KEY].members.slice(0, 3).map(m => m.name));
   const html = buildBringPickerHtml(FIXTURE_KEY, { compact: true });
   inc(html, 'LEAD 1', 'lead 1');

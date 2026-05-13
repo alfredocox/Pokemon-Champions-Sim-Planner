@@ -17,7 +17,7 @@
 // v8-supabase-live [2026-04-27] — Supabase DB fully wired (real URL + anon key in supabase_adapter.js)
 // v7-phase4c2      — previous
 
-const CACHE_NAME = 'champions-sim-v15-m8-priors';
+const CACHE_NAME = 'champions-sim-v21-local-credentials';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [
@@ -59,6 +59,30 @@ self.addEventListener('activate', event => {
 // Fetch — cache-first for app assets, cache-then-network for sprites
 self.addEventListener('fetch', event => {
   const url = event.request.url;
+
+  // Local credentials are mutable and intentionally untracked. Never cache them;
+  // when absent, return an empty JS response so local/offline mode stays quiet.
+  if (url.endsWith('/local-credentials.js')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).then(response => {
+        if (response.ok) return response;
+        return new Response('', {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/javascript',
+            'Cache-Control': 'no-store'
+          }
+        });
+      }).catch(() => new Response('', {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/javascript',
+          'Cache-Control': 'no-store'
+        }
+      }))
+    );
+    return;
+  }
 
   // Sprite CDN — cache as we go (stale-while-revalidate)
   if (url.includes('raw.githubusercontent.com') && url.includes('sprites/pokemon')) {

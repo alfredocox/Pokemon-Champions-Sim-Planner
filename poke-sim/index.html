@@ -18,27 +18,24 @@
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css"/>
 
-<!-- ================================================================
-  SUPABASE CREDENTIALS — BLOCKING: Alfredo must fill these in.
-  Replace the two placeholder strings below with real values from:
-    Supabase Dashboard → Project → Settings → API
-      Project URL  → paste as __SUPABASE_URL__
-      anon/public  → paste as __SUPABASE_KEY__
-  Do NOT commit real credentials — use environment injection or
-  a .env loader if this repo ever goes private. For now the
-  placeholders keep the adapter in local-only mode (safe default).
-  Snapshot ref: archive/snapshot-2026-04-27
-================================================================ -->
-<script>
-  window.__SUPABASE_URL__ = 'https://YOUR_PROJECT_REF.supabase.co';
-  window.__SUPABASE_KEY__ = 'YOUR_ANON_KEY_HERE';
-  // To force local-only mode during testing: window.__DISABLE_SUPABASE__ = true;
-</script>
-
 <!-- Supabase JS client — MUST load synchronously BEFORE supabase_adapter.js.
      If this tag is missing or deferred, SupabaseAdapter will log a warning
      and fall back to local-only mode silently. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- ================================================================
+  SUPABASE CREDENTIALS
+  Safe default is local-only mode. For local live DB testing, copy
+  local-credentials.example.js to local-credentials.js and fill in the
+  Supabase Project URL + anon/public key. local-credentials.js is ignored.
+  Deployments can inject these globals before supabase_adapter.js loads.
+================================================================ -->
+<script src="local-credentials.js"></script>
+<script>
+  window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';
+  window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';
+  // To force local-only mode during testing: window.__DISABLE_SUPABASE__ = true;
+</script>
 
 </head>
 <body>

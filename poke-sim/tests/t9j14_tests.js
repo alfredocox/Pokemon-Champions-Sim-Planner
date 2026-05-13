@@ -271,8 +271,8 @@ T('24. _escapeHtml - escapes angle brackets and quotes', () => {
 // ---- Integration: generatePDFReport renders without throwing on a real team ----
 T('25. generatePDFReport renders HTML into pdf-report-container without throwing', () => {
   // Prime lastSimResults minimally so sections render.
-  ctx.window.lastSimResults = { mega_altaria: { winRate: 0.6, wins: 6, losses: 3, draws: 1, winConditions: { 'Opponent Fainted': 5 }, allLogs: [{ result:'win', leads:{ player:['Incineroar','Gengar-Mega']}, log:[] }] } };
-  vm.runInContext('window.lastSimResults = ' + JSON.stringify(ctx.window.lastSimResults) + ';', ctx);
+  ctx.window.ChampionsSim.state.lastResults = { mega_altaria: { winRate: 0.6, wins: 6, losses: 3, draws: 1, winConditions: { 'Opponent Fainted': 5 }, allLogs: [{ result:'win', leads:{ player:['Incineroar','Gengar-Mega']}, log:[] }] } };
+  vm.runInContext('window.ChampionsSim.state.lastResults = ' + JSON.stringify(ctx.window.ChampionsSim.state.lastResults) + ';', ctx);
   vm.runInContext('generatePDFReport();', ctx);
   const container = ctx.document.getElementById('pdf-report-container');
   inc(container.innerHTML, 'TEAM OVERVIEW');

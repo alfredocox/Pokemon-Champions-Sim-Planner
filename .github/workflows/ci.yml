@@ -102,6 +102,8 @@ jobs:
           if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
             export SUPABASE_URL="$SUPABASE_URL"
             export SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+            export SUPABASE_KEY="$SUPABASE_ANON_KEY"
+            export RUN_LIVE_DB=1
             echo "🔗 Live Supabase credentials configured for DB tests"
           else
             echo "⚠️  No Supabase credentials - DB tests will use mock"
@@ -160,11 +162,9 @@ jobs:
           if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
             echo "🔗 Injecting live Supabase credentials into production bundle"
             
-            # Replace placeholder URL with real credential
-            sed "s|https://YOUR_PROJECT_REF.supabase.co|$SUPABASE_URL|g" pokemon-champion-2026.html > pokemon-champion-2026-temp.html
-            
-            # Replace placeholder key with real credential  
-            sed "s|YOUR_ANON_KEY_HERE|$SUPABASE_ANON_KEY|g" pokemon-champion-2026-temp.html > pokemon-champion-2026.html
+            # Replace safe empty defaults with runtime credentials.
+            sed "s|window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';|window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '$SUPABASE_URL';|g" pokemon-champion-2026.html > pokemon-champion-2026-temp.html
+            sed "s|window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';|window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '$SUPABASE_ANON_KEY';|g" pokemon-champion-2026-temp.html > pokemon-champion-2026.html
             
             # Clean up temp file
             rm pokemon-champion-2026-temp.html
@@ -172,9 +172,9 @@ jobs:
             echo "✅ Production bundle built with live credentials"
             echo "📦 Bundle ready for deployment"
             
-            # Verify credentials were injected (show first 50 chars of URL for security)
+            # Verify URL injection without printing secret material.
             echo "🔍 URL injected: ${SUPABASE_URL:0:50}..."
-            echo "🔍 Key injected: ${SUPABASE_ANON_KEY:0:20}..."
+            echo "🔍 Anon key injected: yes"
           else
             echo "⚠️  No Supabase credentials available - keeping placeholder bundle"
           fi
@@ -226,11 +226,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           cd poke-sim
-          # Create test environment with real Supabase credentials
-          echo "window.__SUPABASE_URL__ = '$SUPABASE_URL';" > test-creds.js
-          echo "window.__SUPABASE_KEY__ = '$SUPABASE_ANON_KEY';" >> test-creds.js
-          echo "console.log('Using live Supabase:', '$SUPABASE_URL');" >> test-creds.js
-          npm test -- tests/db_m*.js
+          bash tests/_run_all_db.sh --live
 
       - name: Run full battle audit
         run: |

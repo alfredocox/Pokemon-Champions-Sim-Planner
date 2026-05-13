@@ -43,3 +43,4 @@ poke-sim/tests/audit_matrix.json
 .env
 .env.local
 .env.*.local
+poke-sim/local-credentials.js
