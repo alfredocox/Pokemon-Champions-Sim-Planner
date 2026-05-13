@@ -5,7 +5,7 @@
 //   TEAM_META, TEAM_ARCHETYPES, POKEMON_MOVE_LOG,
 //   renderArchetypeTags(), renderMoveLog(),
 //   renderSetupPlays(), getTeamGuide(),
-//   detectTeamArchetypes(), renderStrategyTab()
+//   detectTeamArchetypes(), renderStrategyGuideTab()
 // ============================================================
 
 // ============================================================
@@ -401,8 +401,8 @@ function renderSetupPlays(teamKey) {
   `).join('');
 }
 
-function renderStrategyTab(teamKey) {
-  const el = document.getElementById('tab-strategy');
+function renderStrategyGuideTab(teamKey) {
+  const el = document.getElementById('strategy-panel') || document.getElementById('tab-strategy');
   if (!el) return;
   const guide = getTeamGuide(teamKey);
   const team = TEAMS[teamKey];
@@ -413,7 +413,7 @@ function renderStrategyTab(teamKey) {
     <div style="padding:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
         <label style="font-size:0.78rem;font-weight:600;color:#aaa">Strategy for:</label>
-        <select id="strategy-team-picker" style="font-size:0.8rem;padding:4px 8px;background:var(--surface2,#1e1e2e);border:1px solid var(--border,#444);color:#ccc;border-radius:6px" onchange="renderStrategyTab(this.value)">
+        <select id="strategy-team-picker" style="font-size:0.8rem;padding:4px 8px;background:var(--surface2,#1e1e2e);border:1px solid var(--border,#444);color:#ccc;border-radius:6px" onchange="renderStrategyGuideTab(this.value)">
           ${Object.keys(TEAMS).map(k=>`<option value="${k}" ${k===teamKey?'selected':''}>${TEAMS[k].name||k}</option>`).join('')}
         </select>
       </div>
@@ -450,6 +450,13 @@ function renderStrategyTab(teamKey) {
 // STRATEGY UI INTEGRATION — Tab init, archetype injection
 // ============================================================
 
+function renderActiveStrategyTab(teamKey) {
+  if (typeof window !== 'undefined' && typeof window.renderStrategyTab === 'function') {
+    return window.renderStrategyTab(teamKey);
+  }
+  return renderStrategyGuideTab(teamKey);
+}
+
 (function initStrategyUI() {
   function waitForReady(fn, maxMs) {
     const start = Date.now();
@@ -479,7 +486,7 @@ function renderStrategyTab(teamKey) {
         const sel = document.getElementById('player-select')?.value ||
                     document.getElementById('opponent-select')?.value ||
                     Object.keys(TEAMS)[0];
-        renderStrategyTab(sel);
+        renderActiveStrategyTab(sel);
       });
       tabBar.appendChild(btn);
     }
@@ -522,7 +529,7 @@ function renderStrategyTab(teamKey) {
         const panel = document.getElementById('tab-strategy');
         if (panel) panel.classList.add('active');
         const sel = document.getElementById('player-select')?.value || Object.keys(TEAMS)[0];
-        renderStrategyTab(sel);
+        renderActiveStrategyTab(sel);
       });
     }
 
@@ -530,7 +537,7 @@ function renderStrategyTab(teamKey) {
     document.getElementById('player-select')?.addEventListener('change', (e) => {
       const panel = document.getElementById('tab-strategy');
       if (panel && (panel.classList.contains('active') || panel.style.display !== 'none')) {
-        renderStrategyTab(e.target.value);
+        renderActiveStrategyTab(e.target.value);
       }
     });
   }

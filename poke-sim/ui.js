@@ -5538,8 +5538,14 @@ function _csSourceChip(sourceLabel) {
     '</span>';
 }
 
+function getStrategyContentHost() {
+  return document.getElementById('strategy-content') ||
+    document.getElementById('strategy-panel') ||
+    document.getElementById('tab-strategy');
+}
+
 function renderStrategyTab(teamKey) {
-  var host = document.getElementById('strategy-content');
+  var host = getStrategyContentHost();
   if (!host) return;
   var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
   if (!team) {
@@ -7091,7 +7097,7 @@ if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csRe
 // team-select change so the user never sees a blank tab between switches.
 // Returns true if a cached report was painted, false otherwise.
 function renderStrategyTabFromCache(teamKey) {
-  var host = document.getElementById('strategy-content');
+  var host = getStrategyContentHost();
   if (!host) return false;
   var cached = csLoadReport(teamKey);
   if (!cached) return false;
