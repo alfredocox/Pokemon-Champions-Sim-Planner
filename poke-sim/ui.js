@@ -25,6 +25,26 @@ var ChampionsSim = (typeof window !== 'undefined')
   : {};
 ChampionsSim.state = ChampionsSim.state || {};
 ChampionsSim.bring = ChampionsSim.bring || {};
+ChampionsSim.history = ChampionsSim.history || {};
+ChampionsSim.internal = ChampionsSim.internal || {};
+ChampionsSim.phase4c = ChampionsSim.phase4c || {};
+ChampionsSim.simLog = ChampionsSim.simLog || {};
+ChampionsSim.strategy = ChampionsSim.strategy || {};
+ChampionsSim.tests = ChampionsSim.tests || {};
+
+function exposeLegacyWindowAlias(name, value) {
+  if (typeof window === 'undefined') return;
+  Object.defineProperty(window, name, {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: value
+  });
+}
+function getWindowValue(name, fallback) {
+  if (typeof window === 'undefined') return fallback;
+  return Object.prototype.hasOwnProperty.call(window, name) ? window[name] : fallback;
+}
 
 // ---- Tabs ----
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -46,7 +66,7 @@ function setCurrentFormat(format) {
   currentFormat = (format === 'singles') ? 'singles' : 'doubles';
   // T9j.2 / #78 - expose for engine.js through the shared namespace.
   ChampionsSim.state.format = currentFormat;
-  if (typeof window !== 'undefined') window.currentFormat = currentFormat;
+  if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('currentFormat', currentFormat);
   return currentFormat;
 }
 setCurrentFormat(currentFormat);
@@ -630,8 +650,9 @@ function buildBringPickerHtml(teamKey, opts) {
 // onChange() after any state mutation (both renders must re-run).
 function wireBringPickerElements(rootEl, onChange) {
   if (!rootEl) return;
-  var _isHoverCapable = (typeof window !== 'undefined' && window.matchMedia)
-    ? window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  var matchMediaFn = getWindowValue('matchMedia', null);
+  var _isHoverCapable = matchMediaFn
+    ? matchMediaFn('(hover: hover) and (pointer: fine)').matches
     : true;
   var _tapState = {};
   function _assignSlot(teamKey, slotIdx, monName) {
@@ -1496,7 +1517,7 @@ function drawBarChart(canvasId, labels, values, color) {
   const cv = document.getElementById(canvasId);
   if (!cv) return;
   const ctx = cv.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = getWindowValue('devicePixelRatio', 1) || 1;
   if (!cv._dprSet) {
     const w = cv.width, h = cv.height;
     cv.width = w * dpr; cv.height = h * dpr;
@@ -1796,7 +1817,7 @@ let historyRows = [];
 let historyFilter = 'all';
 
 async function loadAnalysisHistory(playerKey) {
-  var adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+  var adapter = getWindowValue('SupabaseAdapter', null);
   if (!adapter || !adapter.enabled || typeof adapter.loadAnalysesForPlayer !== 'function') return;
   try {
     historyRows = await adapter.loadAnalysesForPlayer(playerKey || 'player', 50);
@@ -1849,7 +1870,7 @@ function renderHistorySection() {
 }
 
 async function lazyLoadAnalysisLogs(analysisId, cardEl) {
-  var adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+  var adapter = getWindowValue('SupabaseAdapter', null);
   if (!adapter || typeof adapter.loadAnalysisLogs !== 'function') return;
   try {
     var logs = await adapter.loadAnalysisLogs(analysisId);
@@ -1883,10 +1904,12 @@ document.querySelectorAll('.history-filter-btn').forEach(function(btn) {
   });
 });
 
-if (typeof window !== 'undefined') {
-  window.loadAnalysisHistory = loadAnalysisHistory;
-  window.renderHistorySection = renderHistorySection;
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.history.loadAnalysisHistory = loadAnalysisHistory;
+  ChampionsSim.history.renderHistorySection = renderHistorySection;
 }
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('loadAnalysisHistory', loadAnalysisHistory);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('renderHistorySection', renderHistorySection);
 // __M6_HISTORY_END__
 
 // ============================================================
@@ -2009,17 +2032,15 @@ ChampionsSim.bring.setBringMode = setBringMode;
 ChampionsSim.bring.randomBringFor = randomBringFor;
 ChampionsSim.bring.getLeadsFor = getLeadsFor;
 ChampionsSim.bring.setLeadsFor = setLeadsFor;
-if (typeof window !== 'undefined') {
-  window.BRING_SELECTION = BRING_SELECTION;
-  window.BRING_MODE = BRING_MODE;
-  window.getBringFor = getBringFor;
-  window.setBringFor = setBringFor;
-  window.getBringMode = getBringMode;
-  window.setBringMode = setBringMode;
-  window.randomBringFor = randomBringFor;
-  window.getLeadsFor = getLeadsFor;
-  window.setLeadsFor = setLeadsFor;
-}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('BRING_SELECTION', BRING_SELECTION);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('BRING_MODE', BRING_MODE);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('getBringFor', getBringFor);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('setBringFor', setBringFor);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('getBringMode', getBringMode);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('setBringMode', setBringMode);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('randomBringFor', randomBringFor);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('getLeadsFor', getLeadsFor);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('setLeadsFor', setLeadsFor);
 
 async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress) {
   const results = { wins:0, losses:0, draws:0, totalTurns:0, totalTrTurns:0, winConditions:{}, allLogs:[], turnDist:{} };
@@ -2120,7 +2141,7 @@ async function runAllMatchupsUI(numSeries, bo, onProgress, onDone) {
     if (onDone) onDone(opp, res);
     // M4: persist each matchup result to Supabase (fire-and-forget)
     try {
-      var _adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+      var _adapter = getWindowValue('SupabaseAdapter', null);
       if (_adapter && _adapter.enabled) {
         Promise.resolve(_adapter.saveAnalysis(_buildAnalysisPayload(currentPlayerKey, opp, bo, res)))
           .catch(function(e) { console.warn('[M4] run-all saveAnalysis failed:', e && e.message); });
@@ -2165,7 +2186,7 @@ function _buildAnalysisPayload(playerKey, oppKey, bo, res) {
     rulesetId = TEAMS[playerKey].metadata.ruleset_id;
   }
 
-  var engineVersion = (typeof window !== 'undefined' && window.ENGINE_VERSION) || '1.0.0';
+  var engineVersion = (typeof window === 'undefined') ? '1.0.0' : (window['ENGINE_VERSION'] || '1.0.0');
 
   var winConditions = [];
   if (res && res.winConditions && typeof res.winConditions === 'object') {
@@ -2226,7 +2247,21 @@ function _buildAnalysisPayload(playerKey, oppKey, bo, res) {
   };
 }
 
-if (typeof window !== 'undefined') { window._buildAnalysisPayload = _buildAnalysisPayload; }
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.internal.buildAnalysisPayload = _buildAnalysisPayload;
+}
+if (typeof exposeLegacyWindowAlias !== 'function') {
+  var exposeLegacyWindowAlias = function(name, value) {
+    if (typeof window === 'undefined') return;
+    Object.defineProperty(window, name, {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: value
+    });
+  };
+}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('_buildAnalysisPayload', _buildAnalysisPayload);
 // __M4_BUILD_PAYLOAD_END__
 
 // __M5_UPSERT_TEAM_BEGIN__
@@ -2235,7 +2270,7 @@ if (typeof window !== 'undefined') { window._buildAnalysisPayload = _buildAnalys
 // ============================================================
 function _upsertTeamToDB(teamId, team, source) {
   try {
-    var adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+    var adapter = (typeof window === 'undefined') ? null : window['SupabaseAdapter'];
     if (!adapter || !adapter.enabled || typeof adapter.saveTeam !== 'function') {
       return; // Adapter not available or disabled — graceful no-op
     }
@@ -2273,7 +2308,21 @@ function _upsertTeamToDB(teamId, team, source) {
   }
 }
 
-if (typeof window !== 'undefined') { window._upsertTeamToDB = _upsertTeamToDB; }
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.internal.upsertTeamToDB = _upsertTeamToDB;
+}
+if (typeof exposeLegacyWindowAlias !== 'function') {
+  var exposeLegacyWindowAlias = function(name, value) {
+    if (typeof window === 'undefined') return;
+    Object.defineProperty(window, name, {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: value
+    });
+  };
+}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('_upsertTeamToDB', _upsertTeamToDB);
 // __M5_UPSERT_TEAM_END__
 
 // ============================================================
@@ -2319,7 +2368,7 @@ document.getElementById('run-sim-btn')?.addEventListener('click', async function
   try { if (ChampionsSim.state.lastResults) ChampionsSim.state.lastResults[oppKey] = res; } catch(_){}
   // M4: persist single-sim result to Supabase (fire-and-forget)
   try {
-    var _adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+    var _adapter = getWindowValue('SupabaseAdapter', null);
     if (_adapter && _adapter.enabled) {
       Promise.resolve(_adapter.saveAnalysis(_buildAnalysisPayload(currentPlayerKey, oppKey, bo, res)))
         .catch(function(e) { console.warn('[M4] single-sim saveAnalysis failed:', e && e.message); });
@@ -5490,8 +5539,8 @@ function renderStrategyTab(teamKey) {
   // gives us instant paint on team switches and after page reload.
   var report;
   var fromCache = false;
-  if (typeof window !== 'undefined' && window._csCachedOverride) {
-    report = window._csCachedOverride;
+  if (ChampionsSim.state.cachedStrategyOverride) {
+    report = ChampionsSim.state.cachedStrategyOverride;
     fromCache = true;
   } else {
     var results = (typeof window !== 'undefined' && ChampionsSim.state.lastResults) ? ChampionsSim.state.lastResults : {};
@@ -5506,7 +5555,8 @@ function renderStrategyTab(teamKey) {
     try { csSaveReport(teamKey, report); } catch(e) { console.warn('[Phase3] save failed:', e && e.message); }
   }
   // Stash for tests / inspection
-  if (typeof window !== 'undefined') window._lastStrategyReport = report;
+  ChampionsSim.state.lastStrategyReport = report;
+  if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('_lastStrategyReport', report);
 
   var rc = report.team_report_card;
   var id = report.team_identity;
@@ -6109,16 +6159,23 @@ function csSimLogClearAll() {
   return _csSimLogWrite({ schema_version: CS_SIMLOG_SCHEMA, entries: [] });
 }
 
-// Expose to window so console/debug and Phase 4b/c/d code can reach them.
-try {
-  window.csSimLogAppendSeries = csSimLogAppendSeries;
-  window.csSimLogGetAll       = csSimLogGetAll;
-  window.csSimLogForTeam      = csSimLogForTeam;
-  window.csSimLogForTeamBothSides = csSimLogForTeamBothSides;
-  window.csSimLogForMatchup   = csSimLogForMatchup;
-  window.csSimLogClearTeam    = csSimLogClearTeam;
-  window.csSimLogClearAll     = csSimLogClearAll;
-} catch (_e) { /* non-browser env (node --check) */ }
+// Expose through ChampionsSim; legacy aliases are retained for console/debug.
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.simLog.appendSeries = csSimLogAppendSeries;
+  ChampionsSim.simLog.getAll = csSimLogGetAll;
+  ChampionsSim.simLog.forTeam = csSimLogForTeam;
+  ChampionsSim.simLog.forTeamBothSides = csSimLogForTeamBothSides;
+  ChampionsSim.simLog.forMatchup = csSimLogForMatchup;
+  ChampionsSim.simLog.clearTeam = csSimLogClearTeam;
+  ChampionsSim.simLog.clearAll = csSimLogClearAll;
+}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSimLogAppendSeries', csSimLogAppendSeries);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSimLogGetAll', csSimLogGetAll);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSimLogForTeam', csSimLogForTeam);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSimLogForTeamBothSides', csSimLogForTeamBothSides);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSimLogForMatchup', csSimLogForMatchup);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSimLogClearTeam', csSimLogClearTeam);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSimLogClearAll', csSimLogClearAll);
 
 // =========================================================================
 // Phase 4b (Refs #52) — team_history: adaptive state machine driver.
@@ -6449,13 +6506,18 @@ function csDetectLossConditions(games, teamKey) {
 }
 
 // Expose for tests + debug console.
-try {
-  window.csConfidenceBadge       = csConfidenceBadge;
-  window.csDetectDeadMoves       = csDetectDeadMoves;
-  window.csComputeLeadPerformance = csComputeLeadPerformance;
-  window.csDetectLossConditions  = csDetectLossConditions;
-  window.CS_PHASE4C              = CS_PHASE4C;
-} catch (_e) { /* non-browser env */ }
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.phase4c.csConfidenceBadge = csConfidenceBadge;
+  ChampionsSim.phase4c.csDetectDeadMoves = csDetectDeadMoves;
+  ChampionsSim.phase4c.csComputeLeadPerformance = csComputeLeadPerformance;
+  ChampionsSim.phase4c.csDetectLossConditions = csDetectLossConditions;
+  ChampionsSim.phase4c.CS_PHASE4C = CS_PHASE4C;
+}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csConfidenceBadge', csConfidenceBadge);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csDetectDeadMoves', csDetectDeadMoves);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csComputeLeadPerformance', csComputeLeadPerformance);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csDetectLossConditions', csDetectLossConditions);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('CS_PHASE4C', CS_PHASE4C);
 
 function computeTeamHistory(teamKey) {
   if (!teamKey) return null;
@@ -6942,7 +7004,10 @@ function csRenderPhase4cSections(history, teamKey, team) {
   return html;
 }
 
-try { window.csRenderPhase4cSections = csRenderPhase4cSections; } catch (_e) {}
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.phase4c.csRenderPhase4cSections = csRenderPhase4cSections;
+}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csRenderPhase4cSections', csRenderPhase4cSections);
 
 // Render the Record bar: overall W-L pill + per-archetype chips. Shown right
 // under the adaptive banner on the Strategy tab. No draws surfaced (per user:
@@ -6998,12 +7063,16 @@ function csRenderRecordBar(history) {
   return html;
 }
 
-try {
-  window.computeTeamHistory       = computeTeamHistory;
-  window.csInvalidateTeamHistory  = csInvalidateTeamHistory;
-  window.csRenderAdaptiveBanner   = csRenderAdaptiveBanner;
-  window.csRenderRecordBar        = csRenderRecordBar;
-} catch (_e) { /* non-browser */ }
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.strategy.computeTeamHistory = computeTeamHistory;
+  ChampionsSim.strategy.csInvalidateTeamHistory = csInvalidateTeamHistory;
+  ChampionsSim.strategy.csRenderAdaptiveBanner = csRenderAdaptiveBanner;
+  ChampionsSim.strategy.csRenderRecordBar = csRenderRecordBar;
+}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('computeTeamHistory', computeTeamHistory);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csInvalidateTeamHistory', csInvalidateTeamHistory);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csRenderAdaptiveBanner', csRenderAdaptiveBanner);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csRenderRecordBar', csRenderRecordBar);
 
 // Paint cached report immediately if available. Used as the fast-path on
 // team-select change so the user never sees a blank tab between switches.
@@ -7021,8 +7090,8 @@ function renderStrategyTabFromCache(teamKey) {
   // BUT we want the cached paint to be instant. So we paint with an
   // override: temporarily stash the cached report on window and read
   // it inside renderStrategyTab.
-  window._csCachedOverride = cached;
-  try { renderStrategyTab(teamKey); } finally { delete window._csCachedOverride; }
+  ChampionsSim.state.cachedStrategyOverride = cached;
+  try { renderStrategyTab(teamKey); } finally { delete ChampionsSim.state.cachedStrategyOverride; }
   return true;
 }
 
@@ -7042,9 +7111,14 @@ function csScheduleStrategyRebuild() {
 
 // ---- Wire-up on DOMContentLoaded ------------------------------------
 if (typeof window !== 'undefined') {
-  window.csBuildStrategyReportV2 = csBuildStrategyReportV2;
-  window.renderStrategyTab = renderStrategyTab;
-  window.csScheduleStrategyRebuild = csScheduleStrategyRebuild;
+  if (typeof ChampionsSim !== 'undefined') {
+    ChampionsSim.strategy.csBuildStrategyReportV2 = csBuildStrategyReportV2;
+    ChampionsSim.strategy.renderStrategyTab = renderStrategyTab;
+    ChampionsSim.strategy.csScheduleStrategyRebuild = csScheduleStrategyRebuild;
+  }
+  if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildStrategyReportV2', csBuildStrategyReportV2);
+  if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('renderStrategyTab', renderStrategyTab);
+  if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csScheduleStrategyRebuild', csScheduleStrategyRebuild);
 
   // Hook the existing tab-nav click and player-select change after DOM is ready
   document.addEventListener('DOMContentLoaded', async function(){
@@ -7056,7 +7130,7 @@ if (typeof window !== 'undefined') {
     // On failure / empty / disabled adapter, surface the [DB offline] chip and
     // keep the bundled TEAMS fallback intact.
     try {
-      var _adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+      var _adapter = getWindowValue('SupabaseAdapter', null);
       if (_adapter && _adapter.enabled && typeof _adapter.loadTeamsFromDB === 'function') {
         var dbTeams = await _adapter.loadTeamsFromDB();
         if (dbTeams && Object.keys(dbTeams).length && typeof TEAMS !== 'undefined') {
@@ -7102,7 +7176,7 @@ if (typeof window !== 'undefined') {
 
 // Expose for tests
 if (typeof window !== 'undefined') {
-  window.T9J16 = {
+  var t9j16Exports = {
     teamSignature: teamSignature,
     inferTeamIdentity: inferTeamIdentity,
     buildLeadRecoveryPlan: buildLeadRecoveryPlan,
@@ -7118,4 +7192,6 @@ if (typeof window !== 'undefined') {
     autoSave: t9j16AutoSave,
     rules: T9J16_RULES
   };
+  if (typeof ChampionsSim !== 'undefined') ChampionsSim.tests.T9J16 = t9j16Exports;
+  if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('T9J16', t9j16Exports);
 }

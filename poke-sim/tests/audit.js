@@ -20,6 +20,10 @@ const KNOWN_TEAMS = [
 const available = KNOWN_TEAMS.filter(k => TEAMS[k]);
 console.log('Available teams:', available.length, '/', KNOWN_TEAMS.length);
 console.log('Missing:', KNOWN_TEAMS.filter(k => !TEAMS[k]));
+if (available.length === 0) {
+  console.error('FATAL: no known teams loaded; audit cannot validate placeholder or empty data.js.');
+  process.exit(1);
+}
 
 const N = 30; // 30 battles per matchup = 13*13*30 = 5070 battles total
 const FORMAT = 'doubles';
