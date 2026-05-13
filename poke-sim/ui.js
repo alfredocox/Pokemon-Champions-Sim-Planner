@@ -3030,10 +3030,11 @@ function findDeadMoves(results, members) {
   return dead;
 }
 
-// Coverage gaps — reuse COVERAGE_CHECKS.
+// Coverage gaps — reuse the lazy coverage-check registry.
 function findCoverageGaps(members) {
-  if (typeof COVERAGE_CHECKS === 'undefined') return [];
-  return COVERAGE_CHECKS.filter(function(chk){ return !(members||[]).some(function(m){ return chk.check(m); }); }).map(function(c){ return c.label; });
+  return getCoverageChecks()
+    .filter(function(chk){ return !(members||[]).some(function(m){ return chk.check(m); }); })
+    .map(function(c){ return c.label; });
 }
 
 // ------------- COACHING_RULES pluggable registry ------------------------
@@ -3480,10 +3481,8 @@ function renderSpeedTiersForGrid() {
 
 // ============================================================
 // PART 5B: ROLE COVERAGE CHECKER
-// FIX: Must use var (not const/let) — referenced during init before declaration
 // ============================================================
 // ---- T9j.3b: Champions-legal move/ability lists for coverage detection ----
-// All lists kept as `var` for the same TDZ-safe init pattern COVERAGE_CHECKS uses.
 var PRIORITY_MOVES = [
   'Fake Out','Extreme Speed','Aqua Jet','Shadow Sneak','Sucker Punch',
   'Bullet Punch','Ice Shard','Vacuum Wave','Mach Punch','Grassy Glide',
@@ -3560,17 +3559,31 @@ if (typeof globalThis !== 'undefined') {
   globalThis.computeCoverage = computeCoverage;
 }
 
-// COVERAGE_CHECKS drives the checkmark UI row. Kept as `var` (see file-header note).
-// "Trick Room Counter" renamed to "Trick Room" per user direction 2026-04-24.
-var COVERAGE_CHECKS = [
-  { label: 'Fake Out',       check: (m) => m && m.moves && m.moves.includes('Fake Out') },
-  { label: 'Trick Room',     check: (m) => m && m.moves && TR_PRESSURE_MOVES.some(x => m.moves.includes(x)) },
-  { label: 'Redirection',    check: (m) => m && m.moves && REDIRECTION_MOVES.some(x => m.moves.includes(x)) },
-  { label: 'Priority',       check: (m) => m && m.moves && PRIORITY_MOVES.some(x => m.moves.includes(x)) },
-  { label: 'Weather Setter', check: (m) => (m && m.ability && WEATHER_ABILITIES.includes(m.ability))
-                                         || (m && m.moves && WEATHER_MOVES.some(x => m.moves.includes(x))) },
-  { label: 'Speed Control',  check: (m) => _memberHasSpeedControl(m) }
-];
+var _coverageChecks = null;
+
+// Lazy-init the coverage registry so startup and future module splits never
+// depend on declaration order. Issue #80 replaces the old hoisted var pattern.
+function buildCoverageChecks() {
+  return [
+    { label: 'Fake Out',       check: function(m) { return m && m.moves && m.moves.includes('Fake Out'); } },
+    { label: 'Trick Room',     check: function(m) { return m && m.moves && TR_PRESSURE_MOVES.some(function(x){ return m.moves.includes(x); }); } },
+    { label: 'Redirection',    check: function(m) { return m && m.moves && REDIRECTION_MOVES.some(function(x){ return m.moves.includes(x); }); } },
+    { label: 'Priority',       check: function(m) { return m && m.moves && PRIORITY_MOVES.some(function(x){ return m.moves.includes(x); }); } },
+    { label: 'Weather Setter', check: function(m) { return (m && m.ability && WEATHER_ABILITIES.includes(m.ability))
+                                               || (m && m.moves && WEATHER_MOVES.some(function(x){ return m.moves.includes(x); })); } },
+    { label: 'Speed Control',  check: function(m) { return _memberHasSpeedControl(m); } }
+  ];
+}
+
+function getCoverageChecks() {
+  if (!_coverageChecks) _coverageChecks = buildCoverageChecks();
+  return _coverageChecks;
+}
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.buildCoverageChecks = buildCoverageChecks;
+  globalThis.getCoverageChecks = getCoverageChecks;
+}
 
 function renderCoverageWidget() {
   var el = document.getElementById('coverage-items');
@@ -3579,7 +3592,7 @@ function renderCoverageWidget() {
             ? currentPlayerKey
             : (TEAMS.player ? 'player' : Object.keys(TEAMS)[0]);
   var members = (TEAMS[key] && TEAMS[key].members) || [];
-  el.innerHTML = COVERAGE_CHECKS.map(chk => {
+  el.innerHTML = getCoverageChecks().map(chk => {
     var covered = members.some(m => chk.check(m));
     return `<div class="coverage-item ${covered ? 'coverage-ok' : 'coverage-miss'}">
       <span>${covered ? '✓' : '✗'}</span>

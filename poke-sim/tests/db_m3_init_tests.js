@@ -47,10 +47,14 @@ function truthy(v, msg) { if (!v) throw new Error(msg + ' expected truthy'); }
     // ── Static-source assertions ─────────────────────────────────────────────
 
     T('T-init-1', function () {
-      // ui.js still declares COVERAGE_CHECKS with var (no implicit-global regression)
+      // Issue #80: coverage checks use lazy init, not the old hoisted var.
       const uiContent = fs.readFileSync(UI_PATH, 'utf8');
-      eq(uiContent.includes('var COVERAGE_CHECKS'), true,
-         'COVERAGE_CHECKS still declared with var');
+      eq(uiContent.includes('function getCoverageChecks()'), true,
+         'getCoverageChecks lazy getter is present');
+      eq(uiContent.includes('function buildCoverageChecks()'), true,
+         'buildCoverageChecks registry builder is present');
+      eq(uiContent.includes('var COVERAGE_CHECKS'), false,
+         'old COVERAGE_CHECKS var removed');
     });
 
     T('T-init-2', function () {
