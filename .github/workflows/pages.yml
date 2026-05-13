@@ -1,0 +1,75 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy site with Supabase runtime config
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - name: Inject Supabase anon runtime config
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "::warning::SUPABASE_URL or SUPABASE_ANON_KEY is missing; deployed site will run local-only."
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          url = os.environ["SUPABASE_URL"]
+          key = os.environ["SUPABASE_ANON_KEY"]
+
+          Path("poke-sim/local-credentials.js").write_text(
+              "window.__SUPABASE_URL__ = " + json.dumps(url) + ";\n"
+              "window.__SUPABASE_KEY__ = " + json.dumps(key) + ";\n",
+              encoding="utf-8",
+          )
+
+          bundle = Path("poke-sim/pokemon-champion-2026.html")
+          html = bundle.read_text(encoding="utf-8")
+          html = html.replace(
+              "window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';",
+              "window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || " + json.dumps(url) + ";",
+          )
+          html = html.replace(
+              "window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';",
+              "window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || " + json.dumps(key) + ";",
+          )
+          bundle.write_text(html, encoding="utf-8")
+          PY
+
+          echo "Supabase anon runtime config injected for Pages artifact."
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: poke-sim
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
