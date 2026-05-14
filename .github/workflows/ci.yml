@@ -162,12 +162,22 @@ jobs:
           if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
             echo "🔗 Injecting live Supabase credentials into production bundle"
             
-            # Replace safe empty defaults with runtime credentials.
-            sed "s|window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';|window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '$SUPABASE_URL';|g" pokemon-champion-2026.html > pokemon-champion-2026-temp.html
-            sed "s|window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';|window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '$SUPABASE_ANON_KEY';|g" pokemon-champion-2026-temp.html > pokemon-champion-2026.html
-            
-            # Clean up temp file
-            rm pokemon-champion-2026-temp.html
+            # Replace safe empty defaults with runtime credentials. Use Node so
+            # shell/sed delimiters cannot be confused by JavaScript `||`.
+            node <<'NODE'
+          const fs = require('fs');
+          const file = 'pokemon-champion-2026.html';
+          let html = fs.readFileSync(file, 'utf8');
+          html = html.replace(
+            "window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';",
+            "window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || " + JSON.stringify(process.env.SUPABASE_URL) + ";"
+          );
+          html = html.replace(
+            "window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';",
+            "window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || " + JSON.stringify(process.env.SUPABASE_ANON_KEY) + ";"
+          );
+          fs.writeFileSync(file, html);
+          NODE
             
             echo "✅ Production bundle built with live credentials"
             echo "📦 Bundle ready for deployment"
