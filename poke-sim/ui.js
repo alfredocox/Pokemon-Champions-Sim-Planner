@@ -2341,93 +2341,123 @@ function setProgress(pct, label, w, l) {
   }
 }
 
+function setSimError(err) {
+  var msg = (err && err.message) ? err.message : String(err || 'Unknown simulation error');
+  console.error('[Sim] run failed:', err);
+  var wrap = document.getElementById('progress-wrap');
+  var fill = document.getElementById('progress-fill');
+  var label = document.getElementById('progress-label');
+  if (wrap) wrap.style.display = '';
+  if (fill) fill.style.width = '100%';
+  if (label) label.textContent = 'Simulation failed: ' + msg;
+}
+
 document.getElementById('run-sim-btn')?.addEventListener('click', async function() {
   if (simRunning) return;
-  simRunning=true; this.disabled=true; document.getElementById('run-all-btn').disabled=true;
-  document.getElementById('results-section').style.display='none';
-  document.getElementById('progress-wrap').style.display='';
-  setProgress(0,'Starting…',0,0);
-
-  const oppKey=document.getElementById('opponent-select').value;
-  const n=parseInt(document.getElementById('sim-count').value);
-  const bo=currentBo;
-  const matBadge=document.getElementById('matrix-badge');
-  if(matBadge) matBadge.textContent=`${currentFormat==='doubles'?'Doubles':'Singles'} · Bo${bo} · ${n} series`;
-
-  const res = await runBoSeries(n,currentPlayerKey,oppKey,bo,(cur,tot,w,l)=>{
-    setProgress(Math.round(cur/tot*100),`Running… ${cur} / ${tot}`,w,l);
-  });
-
-  document.getElementById('progress-wrap').style.display='none';
-  displayResults(res, oppKey);
-  // Refs #95 - also populate the Pilot Guide tab after a single sim so the
-  // tab isn't stuck on its empty-state message. generatePilotGuide is
-  // upsert-by-oppKey, so re-running the same matchup replaces its card.
-  try { generatePilotGuide(oppKey, res); } catch (e) { console.warn('[PilotGuide] single-sim populate failed:', e && e.message); }
-  // Cache for Run All parity - keeps PDF builder and strategy rebuild in sync.
-  try { if (ChampionsSim.state.lastResults) ChampionsSim.state.lastResults[oppKey] = res; } catch(_){}
-  // M4: persist single-sim result to Supabase (fire-and-forget)
+  var runBtn = this;
+  var allBtn = document.getElementById('run-all-btn');
+  simRunning=true; runBtn.disabled=true; if (allBtn) allBtn.disabled=true;
   try {
-    var _adapter = getWindowValue('SupabaseAdapter', null);
-    if (_adapter && _adapter.enabled) {
-      Promise.resolve(_adapter.saveAnalysis(_buildAnalysisPayload(currentPlayerKey, oppKey, bo, res)))
-        .catch(function(e) { console.warn('[M4] single-sim saveAnalysis failed:', e && e.message); });
-    }
-  } catch (_m4e) { console.warn('[M4] single-sim payload build failed:', _m4e && _m4e.message); }
-  simRunning=false; this.disabled=false; document.getElementById('run-all-btn').disabled=false;
+    document.getElementById('results-section').style.display='none';
+    document.getElementById('progress-wrap').style.display='';
+    setProgress(0,'Starting…',0,0);
+
+    const oppKey=document.getElementById('opponent-select').value;
+    const n=parseInt(document.getElementById('sim-count').value);
+    const bo=currentBo;
+    if (!TEAMS[currentPlayerKey]) throw new Error('player team not loaded: ' + currentPlayerKey);
+    if (!TEAMS[oppKey]) throw new Error('opponent team not loaded: ' + oppKey);
+    if (!Number.isFinite(n) || n < 1) throw new Error('invalid simulation count');
+    const matBadge=document.getElementById('matrix-badge');
+    if(matBadge) matBadge.textContent=`${currentFormat==='doubles'?'Doubles':'Singles'} · Bo${bo} · ${n} series`;
+
+    const res = await runBoSeries(n,currentPlayerKey,oppKey,bo,(cur,tot,w,l)=>{
+      setProgress(Math.round(cur/tot*100),`Running… ${cur} / ${tot}`,w,l);
+    });
+
+    document.getElementById('progress-wrap').style.display='none';
+    displayResults(res, oppKey);
+    // Refs #95 - also populate the Pilot Guide tab after a single sim so the
+    // tab isn't stuck on its empty-state message. generatePilotGuide is
+    // upsert-by-oppKey, so re-running the same matchup replaces its card.
+    try { generatePilotGuide(oppKey, res); } catch (e) { console.warn('[PilotGuide] single-sim populate failed:', e && e.message); }
+    // Cache for Run All parity - keeps PDF builder and strategy rebuild in sync.
+    try { if (ChampionsSim.state.lastResults) ChampionsSim.state.lastResults[oppKey] = res; } catch(_){}
+    // M4: persist single-sim result to Supabase (fire-and-forget)
+    try {
+      var _adapter = getWindowValue('SupabaseAdapter', null);
+      if (_adapter && _adapter.enabled) {
+        Promise.resolve(_adapter.saveAnalysis(_buildAnalysisPayload(currentPlayerKey, oppKey, bo, res)))
+          .catch(function(e) { console.warn('[M4] single-sim saveAnalysis failed:', e && e.message); });
+      }
+    } catch (_m4e) { console.warn('[M4] single-sim payload build failed:', _m4e && _m4e.message); }
+  } catch (e) {
+    setSimError(e);
+  } finally {
+    simRunning=false; runBtn.disabled=false; if (allBtn) allBtn.disabled=false;
+  }
 });
 
 document.getElementById('run-all-btn')?.addEventListener('click', async function() {
   if (simRunning) return;
-  simRunning=true; this.disabled=true; document.getElementById('run-sim-btn').disabled=true;
-  document.getElementById('matchup-table-wrap').style.display='';
-  document.getElementById('results-section').style.display='none';
-  document.getElementById('matchup-tbody').innerHTML='<tr><td colspan="7" style="color:var(--text-m);font-size:12px;text-align:center;padding:20px;font-family:var(--font-mono)">Running all matchups…</td></tr>';
+  var allBtn = this;
+  var runBtn = document.getElementById('run-sim-btn');
+  simRunning=true; allBtn.disabled=true; if (runBtn) runBtn.disabled=true;
+  try {
+    document.getElementById('matchup-table-wrap').style.display='';
+    document.getElementById('results-section').style.display='none';
+    document.getElementById('matchup-tbody').innerHTML='<tr><td colspan="7" style="color:var(--text-m);font-size:12px;text-align:center;padding:20px;font-family:var(--font-mono)">Running all matchups…</td></tr>';
 
-  const n=parseInt(document.getElementById('sim-count').value);
-  const bo=currentBo;
-  document.getElementById('progress-wrap').style.display='';
-  setProgress(0,'Starting…',0,0);
-  const matBadge=document.getElementById('matrix-badge');
-  if(matBadge) matBadge.textContent=`${currentFormat==='doubles'?'Doubles':'Singles'} · Bo${bo} · ${n} series`;
+    const n=parseInt(document.getElementById('sim-count').value);
+    const bo=currentBo;
+    if (!TEAMS[currentPlayerKey]) throw new Error('player team not loaded: ' + currentPlayerKey);
+    if (!Number.isFinite(n) || n < 1) throw new Error('invalid simulation count');
+    document.getElementById('progress-wrap').style.display='';
+    setProgress(0,'Starting…',0,0);
+    const matBadge=document.getElementById('matrix-badge');
+    if(matBadge) matBadge.textContent=`${currentFormat==='doubles'?'Doubles':'Singles'} · Bo${bo} · ${n} series`;
 
-  const tbody=document.getElementById('matchup-tbody');
-  tbody.innerHTML='';
-  let totalW=0,totalL=0;
+    const tbody=document.getElementById('matchup-tbody');
+    tbody.innerHTML='';
+    let totalW=0,totalL=0;
 
-  await runAllMatchupsUI(n,bo,(cur,tot,w,l)=>{
-    totalW=w; totalL=l;
-    setProgress(Math.round(cur/tot*100),`Running matchups… ${cur} / ${tot}`,w,l);
-  },(opp,res)=>{
-    ChampionsSim.state.lastResults[opp] = res;
-    const winPct=Math.round(res.winRate*100);
-    const pillCls=winPct>=55?'fav':winPct<=45?'unfav':'even';
-    const aCls=winPct>=55?'win':winPct<=45?'loss':'close';
-    const aLbl=winPct>=60?'Favorable':winPct>=55?'Slight Edge':winPct>=45?'Even':winPct>=40?'Slight Disadvantage':'Unfavorable';
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td style="font-weight:700">${TEAMS[opp]?.name||opp}</td>
-      <td><span class="win-pill ${pillCls}">${winPct}%</span></td>
-      <td style="color:var(--green);font-family:var(--font-mono)">${res.wins}</td>
-      <td style="color:var(--red);font-family:var(--font-mono)">${res.losses}</td>
-      <td style="font-family:var(--font-mono)">${res.avgTurns.toFixed(1)}</td>
-      <td style="font-family:var(--font-mono)">${res.avgTrTurns.toFixed(1)}</td>
-      <td><span class="assess-chip ${aCls}">${aLbl}</span></td>`;
-    tbody.appendChild(tr);
-    addReplays(res.allLogs||[], opp);
-    generatePilotGuide(opp, res);
-  });
+    await runAllMatchupsUI(n,bo,(cur,tot,w,l)=>{
+      totalW=w; totalL=l;
+      setProgress(Math.round(cur/tot*100),`Running matchups… ${cur} / ${tot}`,w,l);
+    },(opp,res)=>{
+      ChampionsSim.state.lastResults[opp] = res;
+      const winPct=Math.round(res.winRate*100);
+      const pillCls=winPct>=55?'fav':winPct<=45?'unfav':'even';
+      const aCls=winPct>=55?'win':winPct<=45?'loss':'close';
+      const aLbl=winPct>=60?'Favorable':winPct>=55?'Slight Edge':winPct>=45?'Even':winPct>=40?'Slight Disadvantage':'Unfavorable';
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td style="font-weight:700">${TEAMS[opp]?.name||opp}</td>
+        <td><span class="win-pill ${pillCls}">${winPct}%</span></td>
+        <td style="color:var(--green);font-family:var(--font-mono)">${res.wins}</td>
+        <td style="color:var(--red);font-family:var(--font-mono)">${res.losses}</td>
+        <td style="font-family:var(--font-mono)">${res.avgTurns.toFixed(1)}</td>
+        <td style="font-family:var(--font-mono)">${res.avgTrTurns.toFixed(1)}</td>
+        <td><span class="assess-chip ${aCls}">${aLbl}</span></td>`;
+      tbody.appendChild(tr);
+      addReplays(res.allLogs||[], opp);
+      generatePilotGuide(opp, res);
+    });
 
-  document.getElementById('progress-wrap').style.display='none';
-  // Refs #57 - progressive reveal helper relabels with the correct matchup
-  // count and binds the tooltip. Replaces the old hardcoded display='' line.
-  revealPdfButton();
-  // T9j.16 (Refs #65) - auto-save Strategy Report after Run All Matchups completes.
-  // Persists to localStorage keyed on teamSignature so any imported team gets continuity.
-  try { if (typeof t9j16AutoSave === 'function') t9j16AutoSave(); } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
-  // Phase 2 (Refs #46 #49) - rebuild Strategy tab now that fresh sim data is available.
-  try { if (typeof csScheduleStrategyRebuild === 'function') csScheduleStrategyRebuild(); } catch(e) { console.warn('[Phase2] strategy rebuild skipped:', e && e.message); }
-  simRunning=false; this.disabled=false; document.getElementById('run-sim-btn').disabled=false;
+    document.getElementById('progress-wrap').style.display='none';
+    // Refs #57 - progressive reveal helper relabels with the correct matchup
+    // count and binds the tooltip. Replaces the old hardcoded display='' line.
+    revealPdfButton();
+    // T9j.16 (Refs #65) - auto-save Strategy Report after Run All Matchups completes.
+    // Persists to localStorage keyed on teamSignature so any imported team gets continuity.
+    try { if (typeof t9j16AutoSave === 'function') t9j16AutoSave(); } catch(e) { console.warn('[T9j.16] autosave skipped:', e && e.message); }
+    // Phase 2 (Refs #46 #49) - rebuild Strategy tab now that fresh sim data is available.
+    try { if (typeof csScheduleStrategyRebuild === 'function') csScheduleStrategyRebuild(); } catch(e) { console.warn('[Phase2] strategy rebuild skipped:', e && e.message); }
+  } catch (e) {
+    setSimError(e);
+  } finally {
+    simRunning=false; allBtn.disabled=false; if (runBtn) runBtn.disabled=false;
+  }
 });
 
 // ============================================================
@@ -7130,6 +7160,18 @@ function csScheduleStrategyRebuild() {
 
 // ---- Wire-up on DOMContentLoaded ------------------------------------
 if (typeof window !== 'undefined') {
+  function setDbChip(state, detail) {
+    var chip = document.getElementById('db-offline-chip');
+    if (!chip) return;
+    var connected = state === 'connected';
+    chip.style.display = 'inline-block';
+    chip.textContent = connected ? '[DB connected]' : '[DB offline]';
+    chip.title = detail || (connected ? 'Live Supabase connected' : 'Live database unavailable - using bundled team data');
+    chip.style.background = connected ? '#064e3b' : '#7c2d12';
+    chip.style.color = connected ? '#bbf7d0' : '#fed7aa';
+    chip.style.borderColor = connected ? '#10b981' : '#ea580c';
+  }
+
   if (typeof ChampionsSim !== 'undefined') {
     ChampionsSim.strategy.csBuildStrategyReportV2 = csBuildStrategyReportV2;
     ChampionsSim.strategy.renderStrategyTab = renderStrategyTab;
@@ -7155,23 +7197,19 @@ if (typeof window !== 'undefined') {
         if (dbTeams && Object.keys(dbTeams).length && typeof TEAMS !== 'undefined') {
           Object.assign(TEAMS, dbTeams);
           console.info('[UI] TEAMS patched with ' + Object.keys(dbTeams).length + ' DB teams.');
-          var _chip = document.getElementById('db-offline-chip');
-          if (_chip) _chip.style.display = 'none';
+          setDbChip('connected', 'Live Supabase connected - loaded ' + Object.keys(dbTeams).length + ' teams from DB');
         } else {
           // null or empty → fall back to bundled TEAMS, surface chip
-          var _chipOff = document.getElementById('db-offline-chip');
-          if (_chipOff) _chipOff.style.display = 'inline-block';
+          setDbChip('offline', 'Supabase returned no teams - using bundled TEAMS');
           console.info('[UI] DB returned no teams — using bundled TEAMS. [DB offline]');
         }
       } else {
         // Adapter disabled (no creds / __DISABLE_SUPABASE__) → surface chip
-        var _chipDis = document.getElementById('db-offline-chip');
-        if (_chipDis) _chipDis.style.display = 'inline-block';
+        setDbChip('offline', 'Missing local-credentials.js or Supabase anon key - using bundled TEAMS');
         console.info('[UI] SupabaseAdapter disabled — using bundled TEAMS. [DB offline]');
       }
     } catch (_dbErr) {
-      var _chipErr = document.getElementById('db-offline-chip');
-      if (_chipErr) _chipErr.style.display = 'inline-block';
+      setDbChip('offline', 'Supabase load failed: ' + ((_dbErr && _dbErr.message) || 'unknown error'));
       console.warn('[UI] loadTeamsFromDB threw — using bundled TEAMS. [DB offline]', _dbErr && _dbErr.message);
     }
 
