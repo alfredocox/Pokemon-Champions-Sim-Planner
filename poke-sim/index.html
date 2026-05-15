@@ -145,24 +145,19 @@
         <select class="select-input" id="player-select"></select>
       </div>
       <div class="roster" id="player-roster"></div>
-      <!-- T9j.12 (Refs #74) inline bring picker, shared state with Teams tab.
-           Populated by renderSimBringPicker('player-bring-picker', currentPlayerKey). -->
       <div class="sim-bring-picker" id="player-bring-picker"></div>
     </div>
 
     <div class="sim-controls">
       <div class="vs-badge">VS</div>
 
-      <!-- T9d: Swap teams -->
       <button class="btn-secondary" id="swap-teams-btn" style="margin:4px 0" title="Swap your team with opponent">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
         Swap Teams
       </button>
 
-      <!-- Issue #T6: Ladder Mode toggle -->
       <div class="control-block">
         <label class="control-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <!-- T9h: default unchecked so all 22 preloaded + custom teams are swap-pickable -->
           <input type="checkbox" id="ladder-mode-toggle"
             style="width:16px;height:16px;cursor:pointer"/>
           <span>Ladder Mode
@@ -277,11 +272,13 @@
     <div class="charts-row">
       <div class="chart-card">
         <div class="chart-title">Win / Loss / Draw</div>
-        <canvas id="ko-chart" width="200" height="120"></canvas>
+        <!-- B-01: removed hardcoded width/height so Chart.js sizes from CSS (responsive:true) -->
+        <canvas id="ko-chart" style="width:100%"></canvas>
       </div>
       <div class="chart-card" style="flex:2">
         <div class="chart-title">Turn Distribution</div>
-        <canvas id="turns-chart" width="400" height="120"></canvas>
+        <!-- B-01: removed hardcoded width/height so Chart.js sizes from CSS (responsive:true) -->
+        <canvas id="turns-chart" style="width:100%"></canvas>
       </div>
       <div class="chart-card">
         <div class="chart-title">Win Conditions</div>
@@ -441,7 +438,8 @@
 </div>
 
 <div class="modal-overlay" id="import-modal" style="display:none">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" tabindex="-1">
+  <!-- B-02: modal-box gets max-height + overflow-y so bottom buttons are always reachable on small screens -->
+  <div class="modal-box modal-box--scrollable" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" tabindex="-1">
     <div class="modal-header">
       <span class="modal-title" id="import-modal-title">Import Team from Showdown Paste</span>
       <button class="modal-close" id="close-import">✕</button>
@@ -503,17 +501,6 @@
   </div>
 </div>
 
-<!-- Script load order (MUST maintain this sequence):
-  1. supabase-js CDN     — loaded in <head> synchronously (see above)
-  2. data.js             — TEAMS, BASE_STATS, POKEMON_TYPES_DB
-  3. logger.js           — structured logger on window.ChampionsSim.logger
-  4. engine.js           — simulateBattle, runBoSeries internals
-  5. storage_adapter.js  — localStorage wrapper (Storage.*)
-  6. supabase_adapter.js — SupabaseAdapter.* (needs supabase-js + Storage)
-  7. ui.js               — all UI logic (needs everything above)
-  8. legality.js         — VGC legality checker
-  9. strategy-injectable.js — injectable coaching layer
--->
 <script src="data.js"></script>
 <script src="logger.js"></script>
 <script src="engine.js"></script>
@@ -524,7 +511,6 @@
 <script src="strategy-injectable.js"></script>
 
 <script>
-// Service Worker registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(reg => {
