@@ -28,8 +28,230 @@
     return cleanText(idx >= 0 ? raw.slice(idx + 1) : raw);
   }
 
+  function slotKey(slot) {
+    var raw = cleanText(slot);
+    var m = raw.match(/^(p[12][a-z]?)(?::|$)/i);
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  function isLooseGenderToken(value) {
+    var raw = cleanText(value);
+    return /^(?:gender\s*:\s*)?(?:F|M|Female|Male)$/i.test(raw);
+  }
+
+  function normalizeGenderToken(value) {
+    var raw = cleanText(value).replace(/^gender\s*:\s*/i, '');
+    if (/^(F|Female)$/i.test(raw)) return 'F';
+    if (/^(M|Male)$/i.test(raw)) return 'M';
+    return '';
+  }
+
+  function parseLevelToken(value) {
+    var raw = cleanText(value);
+    var m = raw.match(/^(?:L|Level|lvl)\s*\.?\s*(\d{1,3})$/i);
+    return m ? Math.max(1, Math.min(100, parseInt(m[1], 10) || 0)) : null;
+  }
+
+  function normalizeReplaySpeciesName(value) {
+    var raw = cleanText(value);
+    if (!raw) return '';
+    if (/^Nidoran(?:♀|\s+F)$/i.test(raw)) return 'Nidoran-F';
+    if (/^Nidoran(?:♂|\s+M)$/i.test(raw)) return 'Nidoran-M';
+    return raw;
+  }
+
+  function isReplayMetadataToken(value) {
+    var raw = cleanText(value);
+    return !raw
+      || isLooseGenderToken(raw)
+      || parseLevelToken(raw) != null
+      || /^shiny$/i.test(raw)
+      || /^tera\s*type\s*:/i.test(raw)
+      || /^ability\s*:/i.test(raw)
+      || /^item\s*:/i.test(raw);
+  }
+
+  function splitIdentityAndDetails(identityOrDetails, details) {
+    var identity = cleanText(identityOrDetails);
+    var detailText = cleanText(details);
+    if (!detailText && identity.indexOf('|') >= 0) {
+      var pieces = identity.split('|');
+      identity = cleanText(pieces[0]);
+      detailText = cleanText(pieces.slice(1).join('|'));
+    }
+    if (!detailText) detailText = identity;
+    return { identity: identity, details: detailText };
+  }
+
+  function replayBaseSpecies(species) {
+    var raw = cleanText(species);
+    if (!raw) return '';
+    return raw
+      .replace(/-Mega(?:-[XY])?$/i, '')
+      .replace(/-(?:Gmax|Totem)$/i, '');
+  }
+
+  function replayForme(species) {
+    var raw = cleanText(species);
+    var base = replayBaseSpecies(raw);
+    if (!raw || raw === base) return '';
+    return raw.slice(base.length).replace(/^-/, '');
+  }
+
+  function normalizeReplayPokemonDetails(identityOrDetails, details, opts) {
+    opts = opts || {};
+    var split = splitIdentityAndDetails(identityOrDetails, details);
+    var tokens = split.details.split(',').map(cleanText).filter(Boolean);
+    var identityName = nameFromSlot(split.identity);
+    var species = '';
+    var gender = '';
+    var level = null;
+    var item = cleanText(opts.item || '');
+    var ability = cleanText(opts.ability || '');
+
+    tokens.forEach(function(token) {
+      var parsedLevel = parseLevelToken(token);
+      if (parsedLevel != null) {
+        level = parsedLevel;
+        return;
+      }
+      if (isLooseGenderToken(token)) {
+        gender = gender || normalizeGenderToken(token);
+        return;
+      }
+      var itemMatch = token.match(/^item\s*:\s*(.+)$/i);
+      if (itemMatch) {
+        item = item || cleanText(itemMatch[1]);
+        return;
+      }
+      var abilityMatch = token.match(/^ability\s*:\s*(.+)$/i);
+      if (abilityMatch) {
+        ability = ability || cleanText(abilityMatch[1]);
+        return;
+      }
+      if (!species && !isReplayMetadataToken(token)) {
+        species = normalizeReplaySpeciesName(token);
+      }
+    });
+
+    if ((!species || isLooseGenderToken(species)) && identityName && !isLooseGenderToken(identityName)) {
+      species = normalizeReplaySpeciesName(identityName);
+    }
+    if (isLooseGenderToken(species)) species = '';
+
+    return {
+      displayName: species,
+      species: species,
+      baseSpecies: replayBaseSpecies(species),
+      gender: gender,
+      level: level,
+      forme: replayForme(species),
+      item: item,
+      ability: ability,
+      raw: {
+        identity: split.identity,
+        details: split.details,
+        tokens: tokens
+      }
+    };
+  }
+
   function speciesFromDetails(details) {
-    return cleanText(details).split(',')[0].trim();
+    return normalizeReplayPokemonDetails('', details).species;
+  }
+
+  function showId(value) {
+    return cleanText(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+
+  var MEGA_ITEM_FORM_MAP = {
+    kangaskhanite: 'Kangaskhan-Mega',
+    charizarditex: 'Charizard-Mega-X',
+    charizarditey: 'Charizard-Mega-Y',
+    venusaurite: 'Venusaur-Mega',
+    blastoisinite: 'Blastoise-Mega',
+    gengarite: 'Gengar-Mega',
+    gyaradosite: 'Gyarados-Mega',
+    aerodactylite: 'Aerodactyl-Mega',
+    ampharosite: 'Ampharos-Mega',
+    scizorite: 'Scizor-Mega',
+    heracronite: 'Heracross-Mega',
+    houndoominite: 'Houndoom-Mega',
+    tyranitarite: 'Tyranitar-Mega',
+    blazikenite: 'Blaziken-Mega',
+    gardevoirite: 'Gardevoir-Mega',
+    mawilite: 'Mawile-Mega',
+    aggronite: 'Aggron-Mega',
+    medichamite: 'Medicham-Mega',
+    manectite: 'Manectric-Mega',
+    banettite: 'Banette-Mega',
+    absolite: 'Absol-Mega',
+    garchompite: 'Garchomp-Mega',
+    lucarionite: 'Lucario-Mega',
+    abomasite: 'Abomasnow-Mega',
+    beedrillite: 'Beedrill-Mega',
+    pidgeotite: 'Pidgeot-Mega',
+    slowbronite: 'Slowbro-Mega',
+    steelixite: 'Steelix-Mega',
+    sceptilite: 'Sceptile-Mega',
+    swampertite: 'Swampert-Mega',
+    sableite: 'Sableye-Mega',
+    sharpedonite: 'Sharpedo-Mega',
+    cameruptite: 'Camerupt-Mega',
+    altarianite: 'Altaria-Mega',
+    glalitite: 'Glalie-Mega',
+    salamencite: 'Salamence-Mega',
+    metagrossite: 'Metagross-Mega',
+    lopunnite: 'Lopunny-Mega',
+    galladite: 'Gallade-Mega',
+    audinite: 'Audino-Mega',
+    diancite: 'Diancie-Mega'
+  };
+
+  function resolveReplayMegaSpecies(baseSpecies, itemOrForm) {
+    var base = normalizeReplayPokemonDetails(baseSpecies).species || cleanText(baseSpecies);
+    var item = cleanText(itemOrForm);
+    var mapped = MEGA_ITEM_FORM_MAP[showId(item)];
+    if (mapped) return mapped;
+    if (/-Mega(?:-[XY])?$/i.test(base)) return base;
+    if (/^(Charizard|Mewtwo)$/i.test(base)) return base;
+
+    if (typeof CHAMPIONS_MEGAS !== 'undefined' && CHAMPIONS_MEGAS) {
+      var matches = Object.keys(CHAMPIONS_MEGAS).filter(function(key) {
+        var row = CHAMPIONS_MEGAS[key] || {};
+        return cleanText(row.baseSpecies).toLowerCase() === base.toLowerCase();
+      });
+      if (matches.length === 1) return matches[0];
+    }
+
+    var candidate = base + '-Mega';
+    if ((typeof BASE_STATS !== 'undefined' && BASE_STATS && BASE_STATS[candidate])
+      || (typeof POKEMON_TYPES_DB !== 'undefined' && POKEMON_TYPES_DB && POKEMON_TYPES_DB[candidate])) {
+      return candidate;
+    }
+    return base;
+  }
+
+  function replaceUniquePokemon(list, before, after) {
+    var target = cleanText(after);
+    if (!Array.isArray(list) || !target || isLooseGenderToken(target)) return;
+    var old = cleanText(before);
+    var existing = list.indexOf(target);
+    var idx = old ? list.indexOf(old) : -1;
+    if (idx >= 0) {
+      if (existing >= 0 && existing !== idx) list.splice(idx, 1);
+      else list[idx] = target;
+      return;
+    }
+    if (existing < 0) list.push(target);
+  }
+
+  function speciesForSlot(activeBySlot, slot) {
+    var key = slotKey(slot);
+    var active = key ? activeBySlot[key] : '';
+    if (active && !isLooseGenderToken(active)) return active;
+    var name = nameFromSlot(slot);
+    return isLooseGenderToken(name) ? '' : name;
   }
 
   function hpPercent(hpText) {
@@ -101,6 +323,7 @@
     var currentTurn = ensureTurn(model, 0);
     var seenFirstTurn = false;
     var activeSeenBeforeTurnOne = { p1: [], p2: [] };
+    var activeBySlot = {};
     var lines = text.split(/\r?\n/);
     model.rawPreviewLines = lines.map(cleanText).filter(Boolean).slice(-250);
 
@@ -149,14 +372,27 @@
       if (tag === 'switch' || tag === 'drag' || tag === 'replace') {
         var slot = parts[2];
         var side = sideOf(slot);
-        var mon = nameFromSlot(slot) || speciesFromDetails(parts[3] || '');
-        var details = speciesFromDetails(parts[3] || mon);
+        var parsedDetails = normalizeReplayPokemonDetails(slot, parts[3] || '');
+        var slotName = nameFromSlot(slot);
+        if (isLooseGenderToken(slotName)) slotName = '';
+        var mon = parsedDetails.species || speciesFromDetails(parts[3] || '') || slotName;
+        var details = parsedDetails.species || mon;
         var hp = hpPercent(parts[4] || '');
+        var key = slotKey(slot);
+        if (key && mon && !isLooseGenderToken(mon)) activeBySlot[key] = mon;
         if (side) {
           addUnique(model.selectedPokemon[side], mon || details);
           if (!seenFirstTurn) addUnique(activeSeenBeforeTurnOne[side], mon || details);
         }
-        currentTurn.switches.push({ side: side, pokemon: mon || details, details: details, hp: hp, forced: tag === 'drag' });
+        currentTurn.switches.push({
+          side: side,
+          pokemon: mon || details,
+          details: details,
+          gender: parsedDetails.gender,
+          level: parsedDetails.level,
+          hp: hp,
+          forced: tag === 'drag'
+        });
         currentTurn.events.push({ type: tag, side: side, pokemon: mon || details, text: raw });
         return;
       }
@@ -164,11 +400,11 @@
       if (tag === 'move') {
         var actorSlot = parts[2];
         var actorSide = sideOf(actorSlot);
-        var actor = nameFromSlot(actorSlot);
+        var actor = speciesForSlot(activeBySlot, actorSlot);
         var move = cleanText(parts[3]);
         var targetSlot = parts[4] || '';
         var targetSide = sideOf(targetSlot);
-        var target = nameFromSlot(targetSlot);
+        var target = speciesForSlot(activeBySlot, targetSlot);
         if (actorSide) addUnique(model.selectedPokemon[actorSide], actor);
         currentTurn.moves.push({ side: actorSide, pokemon: actor, move: move, targetSide: targetSide, target: target });
         currentTurn.events.push({ type: 'move', side: actorSide, pokemon: actor, move: move, target: target, text: raw });
@@ -178,7 +414,7 @@
       if (tag === 'faint') {
         var faintSlot = parts[2];
         var faintSide = sideOf(faintSlot);
-        var faintMon = nameFromSlot(faintSlot);
+        var faintMon = speciesForSlot(activeBySlot, faintSlot);
         if (faintSide) addUnique(model.selectedPokemon[faintSide], faintMon);
         currentTurn.faints.push({ side: faintSide, pokemon: faintMon });
         currentTurn.events.push({ type: 'faint', side: faintSide, pokemon: faintMon, text: raw });
@@ -188,7 +424,7 @@
       if (tag === '-damage' || tag === '-heal') {
         var hpSlot = parts[2];
         var hpSide = sideOf(hpSlot);
-        var hpMon = nameFromSlot(hpSlot);
+        var hpMon = speciesForSlot(activeBySlot, hpSlot);
         var hpValue = hpPercent(parts[3] || '');
         var row = { side: hpSide, pokemon: hpMon, hp: hpValue, cause: cleanText(parts.slice(4).join('|')) };
         if (tag === '-damage') currentTurn.damage.push(row);
@@ -197,10 +433,33 @@
         return;
       }
 
+      if (tag === '-mega') {
+        var megaSlot = parts[2];
+        var megaSide = sideOf(megaSlot);
+        var beforeMega = speciesForSlot(activeBySlot, megaSlot);
+        var afterMega = resolveReplayMegaSpecies(beforeMega, parts[3] || '');
+        var megaKey = slotKey(megaSlot);
+        if (megaKey && afterMega && !isLooseGenderToken(afterMega)) activeBySlot[megaKey] = afterMega;
+        if (megaSide) {
+          replaceUniquePokemon(model.selectedPokemon[megaSide], beforeMega, afterMega);
+          replaceUniquePokemon(model.teamPreview[megaSide], beforeMega, afterMega);
+          replaceUniquePokemon(activeSeenBeforeTurnOne[megaSide], beforeMega, afterMega);
+        }
+        currentTurn.events.push({
+          type: 'mega',
+          side: megaSide,
+          pokemon: afterMega || beforeMega,
+          baseSpecies: beforeMega,
+          item: cleanText(parts[3] || ''),
+          text: raw
+        });
+        return;
+      }
+
       if (tag === '-status' || tag === '-curestatus' || tag === '-boost' || tag === '-unboost') {
         var statusSlot = parts[2];
-        currentTurn.status.push({ type: tag.slice(1), side: sideOf(statusSlot), pokemon: nameFromSlot(statusSlot), value: cleanText(parts[3]) });
-        currentTurn.events.push({ type: tag.slice(1), side: sideOf(statusSlot), pokemon: nameFromSlot(statusSlot), text: raw });
+        currentTurn.status.push({ type: tag.slice(1), side: sideOf(statusSlot), pokemon: speciesForSlot(activeBySlot, statusSlot), value: cleanText(parts[3]) });
+        currentTurn.events.push({ type: tag.slice(1), side: sideOf(statusSlot), pokemon: speciesForSlot(activeBySlot, statusSlot), text: raw });
         return;
       }
 
@@ -212,8 +471,8 @@
 
       if (tag === '-crit' || tag === '-miss' || tag === '-fail' || tag === '-immune') {
         var rngSlot = parts[2];
-        currentTurn.rng.push({ type: tag.slice(1), side: sideOf(rngSlot), pokemon: nameFromSlot(rngSlot), value: cleanText(parts[3]) });
-        currentTurn.events.push({ type: tag.slice(1), side: sideOf(rngSlot), pokemon: nameFromSlot(rngSlot), text: raw });
+        currentTurn.rng.push({ type: tag.slice(1), side: sideOf(rngSlot), pokemon: speciesForSlot(activeBySlot, rngSlot), value: cleanText(parts[3]) });
+        currentTurn.events.push({ type: tag.slice(1), side: sideOf(rngSlot), pokemon: speciesForSlot(activeBySlot, rngSlot), text: raw });
       }
     });
 

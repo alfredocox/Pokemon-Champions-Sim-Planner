@@ -48,6 +48,7 @@ const BASE_STATS = {
   // Suica Sun
   Charizard:      { hp:78, atk:84, def:78, spa:109, spd:85, spe:100, types:['Fire','Flying'] },
   Venusaur:       { hp:80, atk:82, def:83, spa:100, spd:100, spe:80, types:['Grass','Poison'] },
+  Kangaskhan:     { hp:105, atk:95, def:80, spa:40, spd:80, spe:90, types:['Normal'] },
   // Cofagrigus TR
   Cofagrigus:     { hp:58, atk:50, def:145, spa:95, spd:105, spe:30, types:['Ghost'] },
   Cresselia:      { hp:120, atk:70, def:120, spa:75, spd:130, spe:85, types:['Psychic'] },
@@ -58,6 +59,7 @@ const BASE_STATS = {
   // New meta entries
   'Charizard-Mega-Y': { hp:78, atk:104, def:78, spa:159, spd:115, spe:100, types:['Fire','Flying'] },
   'Charizard-Mega-X': { hp:78, atk:130, def:111, spa:130, spd:85, spe:100, types:['Fire','Dragon'] },
+  'Kangaskhan-Mega': { hp:105, atk:125, def:100, spa:60, spd:100, spe:100, types:['Normal'] },
   'Tyranitar-Mega': { hp:100, atk:164, def:150, spa:95, spd:120, spe:71, types:['Rock','Dark'] },
   // T9j.3b: corrected to Champions canonical 70/80/70/140/100/120 (BST 580).
   // Sources: Game8, OP.GG Champions, RotomLabs.
