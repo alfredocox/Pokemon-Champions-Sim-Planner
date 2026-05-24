@@ -27,6 +27,19 @@ function readSeed() {
   return fs.readFileSync(seedPath, 'utf8');
 }
 
+function dataTeamIds() {
+  var dataContent = fs.readFileSync(dataPath, 'utf8');
+  var start = dataContent.indexOf('const TEAMS = {') + 'const TEAMS = '.length;
+  var depth = 0; var end = start;
+  for (var i = start; i < dataContent.length; i++) {
+    var c = dataContent[i];
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+  }
+  var teamsObj = JSON.parse(dataContent.substring(start, end));
+  return Object.keys(teamsObj);
+}
+
 // Extract every team_id used as the first column of an INSERT INTO teams (...) VALUES ('id', ...).
 // We anchor on the row pattern emitted by the generator (two-space indent + '(' + id-quote)
 // because SQL string literals can contain ';' which breaks naive [\s\S]*?; matchers.
@@ -70,16 +83,7 @@ describe('Module 2 \u2014 Seed suite (14 cases)', function() {
     var seedContent = readSeed();
     var ids = teamIdsInSeed(seedContent);
     var distinct = Array.from(new Set(ids));
-    var dataContent = fs.readFileSync(dataPath, 'utf8');
-    var start = dataContent.indexOf('const TEAMS = {') + 'const TEAMS = '.length;
-    var depth = 0; var end = start;
-    for (var i = start; i < dataContent.length; i++) {
-      var c = dataContent[i];
-      if (c === '{') depth++;
-      else if (c === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
-    }
-    var teamsObj = JSON.parse(dataContent.substring(start, end));
-    eq(distinct.length, Object.keys(teamsObj).length, 'seed team count matches data.js TEAMS literal');
+    eq(distinct.length, dataTeamIds().length, 'seed team count matches data.js team count');
   });
 
   T('T-seed-3', function() {
@@ -92,19 +96,10 @@ describe('Module 2 \u2014 Seed suite (14 cases)', function() {
 
   T('T-seed-4', function() {
     // Every team_id from data.js TEAMS literal has a matching INSERT INTO teams row
-    var dataContent = fs.readFileSync(dataPath, 'utf8');
-    var start = dataContent.indexOf('const TEAMS = {') + 'const TEAMS = '.length;
-    var depth = 0; var end = start;
-    for (var i = start; i < dataContent.length; i++) {
-      var c = dataContent[i];
-      if (c === '{') depth++;
-      else if (c === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
-    }
-    var teamsObj = JSON.parse(dataContent.substring(start, end));
-    var dataTeamIds = Object.keys(teamsObj);
+    var idsFromData = dataTeamIds();
     var seedContent = readSeed();
     var seedIds = new Set(teamIdsInSeed(seedContent));
-    dataTeamIds.forEach(function(id) {
+    idsFromData.forEach(function(id) {
       eq(seedIds.has(id), true, 'team_id ' + id + ' from data.js has matching INSERT in seed SQL');
     });
   });
@@ -246,10 +241,18 @@ describe('Module 2 \u2014 Seed suite (14 cases)', function() {
         req.end();
       });
     }
-    return get('/rest/v1/teams?select=team_id').then(function(r) {
+    return get('/rest/v1/teams?select=team_id&order=team_id').then(function(r) {
       truthy(r.status === 200, 'GET /teams returned 200, got ' + r.status);
       var arr = JSON.parse(r.body);
-      truthy(arr.length === 22, 'live DB has 22 teams, got ' + arr.length);
+      var liveIds = Array.from(new Set(arr.map(function(row) { return row.team_id; }))).sort();
+      var expectedIds = Array.from(new Set(teamIdsInSeed(readSeed()))).sort();
+      var missing = expectedIds.filter(function(id) { return liveIds.indexOf(id) === -1; });
+      var extra = liveIds.filter(function(id) { return expectedIds.indexOf(id) === -1; });
+      truthy(missing.length === 0 && extra.length === 0,
+        'live DB team_ids match seed; expected ' + expectedIds.length +
+        ', got ' + liveIds.length +
+        ', missing=' + JSON.stringify(missing) +
+        ', extra=' + JSON.stringify(extra));
     });
   });
 
