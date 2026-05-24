@@ -8,9 +8,9 @@ Scope:
 - current battle engine ability hooks and inline checks in `engine.js`
 
 Summary:
-- unique curated-team + mega abilities audited: 82
+- unique curated-team + mega abilities audited: 79
 - already modeled by the engine: 23
-- still unmodeled and classified: 59
+- still unmodeled and classified: 56
 
 Why this exists:
 - Issue #125 showed repeated review friction around ability gaps being noticed ad hoc.

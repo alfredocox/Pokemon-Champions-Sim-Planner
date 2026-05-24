@@ -42,10 +42,6 @@
       "category": "missing_battle_result_impacting",
       "why": "Turns Intimidate and other drops into Milotic Special Attack boosts."
     },
-    "Compound Eyes": {
-      "category": "missing_battle_result_impacting",
-      "why": "Accuracy boost changes hit rates for status and utility lines."
-    },
     "Defiant": {
       "category": "missing_battle_result_impacting",
       "why": "Turns Intimidate and stat drops into Kingambit Attack boosts."
@@ -61,10 +57,6 @@
     "Filter": {
       "category": "missing_low_impact",
       "why": "Super-effective damage reduction matters, but only on mega-only catalog rows today."
-    },
-    "Flower Veil": {
-      "category": "missing_battle_result_impacting",
-      "why": "Protects allied Grass types from stat drops and status in supported lines."
     },
     "Friend Guard": {
       "category": "missing_battle_result_impacting",
@@ -93,10 +85,6 @@
     "Innards Out": {
       "category": "missing_battle_result_impacting",
       "why": "Punishes KOs with reflected HP loss and can swing trades."
-    },
-    "Insomnia": {
-      "category": "missing_low_impact",
-      "why": "Sleep immunity matters on Ariados, but it is narrower than the top coverage gaps."
     },
     "Iron Fist": {
       "category": "missing_battle_result_impacting",
