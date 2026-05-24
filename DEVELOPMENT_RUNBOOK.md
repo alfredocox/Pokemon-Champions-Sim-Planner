@@ -265,7 +265,7 @@ print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
 - [ ] Run All Matchups — full matrix appears, Pilot Guide tab populates, PDF button appears
 
 ### Teams Tab
-- [ ] All 13 teams display with correct members
+- [ ] All current seeded teams display with correct members
 - [ ] Export buttons generate valid Showdown text
 - [ ] Archetype tags visible and match team style
 

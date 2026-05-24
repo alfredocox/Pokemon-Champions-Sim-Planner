@@ -4,7 +4,15 @@
 > **Linear parent:** [POK-16 — Main DB Integration](https://linear.app/poke-e-sim/issue/POK-16/main-db-integration)
 > **Repo:** [github.com/alfredocox/Pokemon-Champions-Sim-Planner](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner)
 > **Branch convention:** `test/db-m<N>-<slug>` (test PR), then `feat/db-m<N>-<slug>` (impl PR) — **two PRs per module**.
-> **Last updated:** 2026-04-27
+> **Last updated:** 2026-05-24
+
+## Current status note (2026-05-24)
+
+This TDD plan is historical design context. The current repo state differs from the original plan:
+
+- The canonical `TEAMS` seed now contains 26 teams, not the earlier 22-team snapshot.
+- The active seed regression file is `poke-sim/tests/db_m2_seed_tests.js` with 14 cases. It checks generated seed/data alignment and gates the live DB team count behind `RUN_LIVE_DB=1`.
+- Existing live DBs with analysis history should use `poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql`, not the delete-first generated seed migration.
 
 ---
 
@@ -143,7 +151,7 @@ Total target: **~110 cases across 8 suites** (M8 deferred).
 
 ---
 
-### MODULE 2 — Seed suite (15 cases)
+### MODULE 2 — Seed suite (historical plan: 15 cases; current file: 14 cases)
 
 **PR:** `test/db-m2-seed` → [POK-18](https://linear.app/poke-e-sim/issue/POK-18/m2-backfill-team-seed-3-22-add-teamsmetadata-jsonb)
 **Spec:** `poke-sim/tests/db_m2_seed_tests.js`
@@ -153,7 +161,7 @@ The trick here: tests should run **without a live DB**. We get there by parsing 
 | # | Case | Assertion |
 |---|---|---|
 | T-seed-1 | `db/seed_teams_v2.sql` exists | file present |
-| T-seed-2 | SQL contains exactly 22 distinct `team_id` values in `teams` UPSERT block | regex count |
+| T-seed-2 | SQL contains one distinct `team_id` per current `data.js` `TEAMS` entry | regex count |
 | T-seed-3 | SQL never INSERTs into `teams.members` (no JSONB array) | grep `members` against `teams` block returns 0 |
 | T-seed-4 | Every `team_id` from `data.js TEAMS` literal has a matching `INSERT INTO teams … VALUES ('<team_id>', …)` in the SQL | parse `data.js` literal + diff |
 | T-seed-5 | Every team has 1..6 `INSERT INTO team_members` rows | per-team count check |
@@ -166,11 +174,11 @@ The trick here: tests should run **without a live DB**. We get there by parsing 
 | T-seed-12 | Every team's `ruleset_id` references either `champions_reg_m_doubles_bo3` **or** a ruleset row also created by the SQL | join check |
 | T-seed-13 | Members `evs` JSONB is a `{hp,atk,def,spa,spd,spe}` shape (all six keys present) | regex parse |
 | T-seed-14 | Members `moves` JSONB is an array of 1..4 strings | regex parse |
-| T-seed-15 | Live DB smoke test, **gated behind `RUN_LIVE_DB=1` env** — `SELECT count(*) FROM teams` returns 22 | uses `pg` lib only when env var set; otherwise marked skipped |
+| T-seed-14 | Live DB smoke test, **gated behind `RUN_LIVE_DB=1` env** — `SELECT count(*) FROM teams` matches current `data.js` `TEAMS` count | REST smoke only when env vars are set; otherwise marked skipped |
 
 **RED state:** files don't exist → T-1, T-6, T-7, T-10 throw; the rest fail to even reach assertions.
 
-**GREEN trigger ([POK-18](https://linear.app/poke-e-sim/issue/POK-18/m2-backfill-team-seed-3-22-add-teamsmetadata-jsonb)):** after applying both migrations + committing the generator output, all 15 pass; the live DB case passes when run with creds (run before merging the impl PR).
+**GREEN trigger ([POK-18](https://linear.app/poke-e-sim/issue/POK-18/m2-backfill-team-seed-3-22-add-teamsmetadata-jsonb)):** after applying the relevant migrations + committing the generator output, all current seed tests pass; the live DB case passes when run with creds.
 
 ---
 
@@ -380,7 +388,7 @@ A `main`-branch protection rule should require the squash commit message to incl
 |---|---|---:|---|
 | Infra | (helpers + runner) | 1 self-test | ships first |
 | M1 | wiring | 16 | RED before [POK-17](https://linear.app/poke-e-sim/issue/POK-17/m1-wire-supabase-adapterjs-supabase-js-cdn-into-indexhtml-and-bundle) |
-| M2 | seed | 15 | RED before [POK-18](https://linear.app/poke-e-sim/issue/POK-18/m2-backfill-team-seed-3-22-add-teamsmetadata-jsonb) |
+| M2 | seed | current file has 14 cases | Historical RED before [POK-18](https://linear.app/poke-e-sim/issue/POK-18/m2-backfill-team-seed-3-22-add-teamsmetadata-jsonb) |
 | M3 | init | 12 | RED before [POK-19](https://linear.app/poke-e-sim/issue/POK-19/m3-loadteamsfromdb-becomes-awaited-source-of-truth-on-init) |
 | M4 | save | 18 | RED before [POK-20](https://linear.app/poke-e-sim/issue/POK-20/m4-persist-runboseries-results-via-supabaseadaptersaveanalysis) |
 | M5 | import | 12 | RED before [POK-21](https://linear.app/poke-e-sim/issue/POK-21/m5-persist-imported-set-editor-teams-upsert-teams-team-members) |

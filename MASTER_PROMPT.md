@@ -350,7 +350,7 @@ Pokemon-Champions-Sim-Planner/
 ├── poke-sim/
 │   ├── index.html                  ← main app shell, all tabs, PWA meta tags, SW reg
 │   ├── style.css                   ← full mobile-first dark theme
-│   ├── data.js                     ← BASE_STATS, POKEMON_TYPES_DB (500+ mons), TEAMS (13 teams)
+│   ├── data.js                     ← BASE_STATS, POKEMON_TYPES_DB (500+ mons), TEAMS (26 teams)
 │   ├── engine.js                   ← battle sim engine, Bo series runner, damage formula
 │   ├── ui.js                       ← all UI logic, team selects, import/export, pilot guide, PDF
 │   ├── storage_adapter.js          ← localStorage wrapper API (Issue #79, PR #134/#135/#137)
@@ -363,11 +363,11 @@ Pokemon-Champions-Sim-Planner/
 │   ├── pokemon-champion-2026.html  ← REBUILT BUNDLE (never edit directly — ~930 KB)
 │   ├── db/
 │   │   ├── schema_v1.sql           ← 8-table Supabase schema (updated 2026-04-27: added metadata col)
-│   │   ├── seed_teams_v2.sql       ← ✅ USE THIS — 13 tournament teams, complete data (42 KB)
+│   │   ├── seed_teams_v2.sql       ← Generated 26-team fresh-DB/reference seed
 │   │   ├── seed_teams_v1.sql       ← ⚠️ DEPRECATED — superseded by v2, do not use
-│   │   ├── rls_policies_v1.sql     ← Row Level Security policies (run third) — HAS MERGE CONFLICT
+│   │   ├── rls_policies_v1.sql     ← Row Level Security policies
 │   │   ├── migrations/             ← migration scripts folder (includes M8 usage_data + seed)
-│   │   └── README_DB.md            ← full setup checklist + adapter API docs — HAS MERGE CONFLICT
+│   │   └── README_DB.md            ← full setup checklist + adapter API docs
 │   ├── tools/
 │   │   ├── build-bundle.py         ← canonical bundle rebuild (always use this)
 │   │   ├── check-bundle.sh         ← SHA compare for CI
@@ -389,7 +389,7 @@ Pokemon-Champions-Sim-Planner/
 └── MASTER_PROMPT.md
 ```
 
-> ⚠️ `poke-sim/supabase_adapter.js` has an **active merge conflict** — resolve before M4 wiring.
+> Historical note: `poke-sim/supabase_adapter.js` previously had an active merge conflict. Current DB work should validate with `git status` and focused DB tests instead of assuming that blocker still exists.
 
 ---
 
@@ -415,31 +415,26 @@ cd poke-sim && npx serve .
 
 ## SUPABASE DATABASE LAYER — CURRENT STATUS
 
-> **P0 BLOCKER — Issue [#158](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues/158)**
-> Owner: @alfredocox. Supabase project not yet provisioned. Lina must accept collaborator invite first.
+> **ACTIVE — Issue #158 closed**
+> Supabase is provisioned and wired. Current repo seed target is 26 teams. For existing live DBs with analysis history, use the non-destructive repair migration `poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql`.
 
 ### What exists in the repo
 
 | File | Status |
 |---|---|
 | `poke-sim/db/schema_v1.sql` | ✅ In repo — 8 tables, `metadata` col added 2026-04-27 |
-| `poke-sim/db/seed_teams_v2.sql` | ✅ USE THIS — 13 tournament teams, complete (42 KB) |
+| `poke-sim/db/seed_teams_v2.sql` | Generated 26-team fresh-DB/reference seed; do not run delete-first seed on live DBs with analysis history |
 | `poke-sim/db/seed_teams_v1.sql` | ⚠️ DEPRECATED — do not use, v2 supersedes it |
-| `poke-sim/db/rls_policies_v1.sql` | ⚠️ HAS MERGE CONFLICT — resolve before running |
-| `poke-sim/supabase_adapter.js` | ⚠️ HAS MERGE CONFLICT — resolve before M4 wiring |
+| `poke-sim/db/rls_policies_v1.sql` | RLS policy source; do not change without a bounded DB/security PR |
+| `poke-sim/supabase_adapter.js` | In repo — `loadTeamsFromDB`, `saveAnalysis`, `loadRecentAnalyses` |
 
-### What still needs to happen (BLOCKING — Alfredo owns these)
+### Current operational guidance
 
-The SQL files exist but have **NOT been executed** in Supabase yet. Tables do not exist until:
-
-1. Resolve merge conflict in `supabase_adapter.js`
-2. Resolve merge conflict in `rls_policies_v1.sql`
-3. `schema_v1.sql` in Supabase SQL Editor → creates 8 tables
-4. `seed_teams_v2.sql` → loads 13 teams (verify 13 rows in Table Editor after)
-5. `rls_policies_v1.sql` → locks down public access
-6. Wire `window.__SUPABASE_URL__` and `window.__SUPABASE_KEY__` in `index.html`
-7. Wire `saveAnalysis()` call in `ui.js` after `runBoSeries()` completes ← **OPEN BUG — blocked by conflict resolution**
-8. Confirm CDN `<script>` load order in `index.html` (Supabase JS must load before `supabase_adapter.js`) ← **OPEN BUG**
+1. Use `schema_v1.sql` only for fresh DB bootstrap.
+2. Use `seed_teams_v2.sql` only for fresh DB/reference review.
+3. Use `2026_05_24_upsert_seed_teams_v2_repair.sql` for existing live DBs with analysis history.
+4. Verify seed alignment with `node poke-sim/tests/db_m2_seed_tests.js`; live DB smoke should match the current `data.js` team count.
+5. Keep Supabase credentials in ignored local files or GitHub secrets only.
 
 > See `poke-sim/db/README_DB.md` for the full wiring guide, adapter API, and verification checklist.
 

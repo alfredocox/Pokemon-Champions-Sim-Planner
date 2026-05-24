@@ -599,9 +599,9 @@ Static-meta caveat: any tier-list claim must be labeled `verified_champions_sour
 | Issue | Closes when |
 |-------|-------------|
 | #50   | This spec is merged to main |
-| #46   | LeadGuide returns 3 ranked pairs with all required fields, validated on all 13 teams |
-| #47   | WhatWorks.strongest_win_path + StrategyReport.coaching_summary populated for all 13 teams (already partially shipped — re-validate) |
-| #48   | Risk[] with severity surfaced for all 13 teams (already partially shipped — re-validate) |
+| #46   | LeadGuide returns 3 ranked pairs with all required fields, validated on the current team catalog |
+| #47   | WhatWorks.strongest_win_path + StrategyReport.coaching_summary populated for the current team catalog (already partially shipped — re-validate) |
+| #48   | Risk[] with severity surfaced for the current team catalog (already partially shipped — re-validate) |
 | #49   | Mistakes[] returns 3-5 team-specific entries with mistake + why + correction |
 | #52   | TrendAnalysis section renders in Strategy tab with non-data placeholder when sample=0 |
 | #53   | LeadGuide.win_rate populated when sample > 0 |

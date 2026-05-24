@@ -43,7 +43,7 @@ Pokemon-Champions-Sim-Planner/
 ├── poke-sim/
 │   ├── index.html                  ← main app shell, all tabs, PWA meta tags, SW reg
 │   ├── style.css                   ← full mobile-first dark theme
-│   ├── data.js                     ← BASE_STATS, POKEMON_TYPES_DB (500+ mons), TEAMS (13 teams)
+│   ├── data.js                     ← BASE_STATS, POKEMON_TYPES_DB (500+ mons), TEAMS (26 teams)
 │   ├── engine.js                   ← battle sim engine, Bo series runner, damage formula
 │   ├── ui.js                       ← all UI logic, team selects, import/export, pilot guide, PDF
 │   ├── storage_adapter.js          ← localStorage wrapper API (Issue #79, PR #134/#135/#137)
@@ -56,7 +56,8 @@ Pokemon-Champions-Sim-Planner/
 │   ├── pokemon-champion-2026.html  ← REBUILT BUNDLE (never edit directly — 710 KB)
 │   ├── db/
 │   │   ├── schema_v1.sql           ← 8-table Supabase schema (run first)
-│   │   ├── seed_teams_v1.sql       ← 13 tournament teams seed data (run second)
+│   │   ├── seed_teams_v2.sql       ← Generated 26-team fresh-DB/reference seed
+│   │   ├── migrations/             ← Timestamped migrations, including the 2026-05-24 non-destructive seed repair
 │   │   ├── rls_policies_v1.sql     ← Row Level Security policies (run third)
 │   │   └── README_DB.md
 │   ├── tools/
@@ -96,21 +97,22 @@ cd poke-sim && npx serve .
 
 ## SUPABASE DATABASE LAYER — CURRENT STATUS
 
-### Live status (2026-04-27)
-Supabase project `ymlahqnshgiarpbgxehp` (us-west-2, Postgres 17.6, ACTIVE_HEALTHY) is up. Schema, seed, and RLS were applied via the SQL editor. The adapter is scaffolded but NOT yet wired into the runtime — that's what the active integration branch handles.
+### Live status (2026-05-24)
+Supabase project `ymlahqnshgiarpbgxehp` (us-west-2, Postgres 17.6, ACTIVE_HEALTHY) is up. Schema, RLS, adapter wiring, and analysis persistence are active. Current repo seed target is 26 teams; existing live DBs with analysis history should use `poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` instead of delete-first seed files.
 
 ### What exists in the repo
 | File | Status |
 |---|---|
 | `poke-sim/db/schema_v1.sql` | ✅ Applied — 8 tables live (`rulesets`, `teams`, `team_members`, `prior_snapshots`, `golden_battles`, `analyses`, `analysis_win_conditions`, `analysis_logs`) |
-| `poke-sim/db/seed_teams_v1.sql` | ⚠️ Applied — only 3 of 22 teams seeded; M2 backfills the remaining 19 |
+| `poke-sim/db/seed_teams_v2.sql` | Generated 26-team fresh-DB/reference seed; do not use delete-first seed files on live DBs with analysis history |
+| `poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` | Non-destructive live DB seed repair path |
 | `poke-sim/db/rls_policies_v1.sql` | ✅ Applied — anon SELECT everywhere, anon INSERT only on `analyses*` |
 | `poke-sim/supabase_adapter.js` | ✅ In repo — `loadTeamsFromDB`, `saveAnalysis`, `loadRecentAnalyses`. Global is `window.SupabaseAdapter` (NOT `supabase`). |
 | `poke-sim/POKE_SIM_DB_INTEGRATION_PLAN_v2.md` | ✅ Canonical 9-module plan, supersedes v1 drafts |
 | `poke-sim/POKE_SIM_DB_INTEGRATION_TDD_PLAN.md` | ✅ TDD companion plan — ~111 cases across 8 suites, RED-then-GREEN per module |
 
-### Active integration branch — `integration/poke-sim-db`
-All 9 module impls land on this branch. Each module is its own PR; merge into `main` only after the module's tests are GREEN.
+### Historical integration branch — `integration/poke-sim-db`
+This table is retained as rollout context. Current DB seed work should follow live GitHub issues/PRs and the 26-team seed state.
 
 | Module | Linear | Status |
 |---|---|---|
@@ -376,14 +378,12 @@ The old top-level `var COVERAGE_CHECKS` workaround is gone. Keep the lazy-init p
 
 ---
 
-## NEXT ACTIONS (as of 2026-04-27)
+## NEXT ACTIONS (as of 2026-05-24)
 
-1. **Land M1 (PR #161)** — wires `supabase_adapter.js` + supabase-js CDN into `index.html` and the bundle. Gate: all 16 cases in `db_m1_wiring_tests.js` GREEN, plus the existing 302-case engine suite still GREEN.
-2. **Open M2** ([POK-18](https://linear.app/poke-e-sim/issue/POK-18)) — backfill team seed 3 → 22 + add `teams.metadata jsonb`. Gate: `db_m2_seed_tests.js` GREEN; `select count(*) from teams` returns 22 in Supabase.
-3. **Open M3** ([POK-19](https://linear.app/poke-e-sim/issue/POK-19)) — `loadTeamsFromDB` becomes the awaited source of truth on init. Gate: `db_m3_init_tests.js` GREEN; offline fallback verified.
-4. **Open M4** ([POK-20](https://linear.app/poke-e-sim/issue/POK-20)) — persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis`. Gate: `db_m4_save_tests.js` GREEN; one row in `analyses` per Bo run.
-5. After M4 lands: fan out M5/M6/M7 in parallel; finish with M9 hardening. M8 stays deferred.
-1. **Owner runs 3 SQL files in Supabase SQL Editor** (schema → seed → rls) — unblocks DB backend
+1. **Review this sync PR** — non-destructive 26-team seed repair and DB documentation alignment.
+2. **Keep seed alignment current** ([POK-18](https://linear.app/poke-e-sim/issue/POK-18)) — gate with `db_m2_seed_tests.js` GREEN and live DB count matching `data.js`.
+3. **Do not run delete-first seed files** on live DBs with `analyses` history.
+4. **Coordinate with Kevin separately** for cross-repo catalog differences; do not overwrite divergent history.
 2. **Owner provides Supabase Project URL + anon key** — AI wires into supabase_adapter.js and pushes
 3. **Wire saveAnalysis() call into ui.js** after `runBoSeries()` completes — Issue #82
 4. **Wire loadTeams() into init** to hydrate TEAMS from Supabase on startup — Issue #81
@@ -448,10 +448,9 @@ RUN_LIVE_DB=1 SUPABASE_URL='https://ymlahqnshgiarpbgxehp.supabase.co' SUPABASE_K
     node tests/db_m2_seed_tests.js
 ```
 
-### Updated NEXT ACTIONS (as of 2026-04-27 22:19 EDT)
-1. ✅ **M1 landed** — PR #161 green, awaiting merge.
-2. **Move POK-17 → In Review → Done** in Linear once PR #161 merges.
-3. **Start M2 (POK-18)** — verify `seed_teams_v1.sql` loaded in Supabase (`ymlahqnshgiarpbgxehp`); run `db_m2_seed_tests.js` with `RUN_LIVE_DB=1` to flip RED → GREEN; backfill team seed 3 → 22; add `teams.metadata jsonb`.
-4. **M3 (POK-19)** — `loadTeamsFromDB` becomes awaited source of truth on init; offline fallback verified.
-5. **M4 (POK-20)** — persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis`.
+### Updated NEXT ACTIONS (as of 2026-05-24)
+1. ✅ **M1 historical rollout completed** — adapter wiring is active.
+2. **Seed repair / alignment (POK-18)** — run `db_m2_seed_tests.js` with `RUN_LIVE_DB=1` when credentials are available; current expected count is 26 teams.
+3. **M3 (POK-19)** — `loadTeamsFromDB` becomes awaited source of truth on init; offline fallback verified.
+4. **M4 (POK-20)** — persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis`.
 6. **M9 stretch** — wire `tests/_run_all_db.sh` into `.github/workflows/` so DB suites run on every PR (currently only bundle-freshness + cache-bump checks run).

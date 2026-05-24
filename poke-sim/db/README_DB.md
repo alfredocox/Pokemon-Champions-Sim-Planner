@@ -1,9 +1,9 @@
 # Champions Sim — Database Setup
 
-> **🔴 STATUS: P0 IN PROGRESS**
-> GitHub Issue: [#158 — Finish Supabase DB Integration](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues/158)
-> Owner: Alfredo
-> Blocker: Supabase project not yet provisioned. Lina must accept collaborator invite first.
+> **STATUS: ACTIVE**
+> Last verified: 2026-05-24.
+> Current repo seed target is 26 teams, matching `poke-sim/data.js`.
+> Use a reviewed sync PR for cross-repo alignment; do not overwrite divergent history.
 
 ---
 
@@ -16,12 +16,13 @@ Supabase (Postgres + RLS) + `supabase-js` v2
 
 | File | Purpose | Status |
 |---|---|---|
-| `schema_v1.sql` | Creates all 8 tables | ✅ Updated 2026-04-27 — added `metadata` column to `teams` |
-| `seed_teams_v2.sql` | Seeds all 13 tournament teams | ✅ Use v2 (42 KB) — supersedes v1 |
-| `rls_policies_v1.sql` | Row-level security policies | ✅ Ready to run |
+| `schema_v1.sql` | Creates all 8 tables | Updated 2026-04-27 — includes `metadata` column on `teams` |
+| `seed_teams_v2.sql` | Generated seed for all 26 repo teams | Fresh-DB/reference seed only; delete-first shape is unsafe on live DBs with analysis history |
+| `rls_policies_v1.sql` | Row-level security policies | Ready to run |
+| `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` | Non-destructive repair seed for live DB alignment | Use this for existing DBs because it upserts teams and replaces only canonical `team_members` |
 | `README_DB.md` | This file | — |
 
-> ⚠️ Use `seed_teams_v2.sql` — NOT `seed_teams_v1.sql`. v2 has complete data for all 13 teams.
+> Do not run the delete-first `seed_teams_v2.sql` or `2026_04_28_seed_teams_v2.sql` against a live DB that already has `analyses` rows. Use `2026_05_24_upsert_seed_teams_v2_repair.sql` instead.
 
 App layer: `poke-sim/supabase_adapter.js` — fully implemented. Browser credentials are injected at runtime through ignored local files or CI secrets; real keys must not be committed.
 UI wiring: `poke-sim/ui.js` already loads DB teams on startup and persists analyses after battle runs when the adapter is enabled.
@@ -32,11 +33,19 @@ UI wiring: `poke-sim/ui.js` already loads DB teams on startup and persists analy
 
 | Step | File | Notes |
 |---|---|---|
-| 1 | `schema_v1.sql` | Creates all 8 tables — run first |
-| 2 | `seed_teams_v2.sql` | Loads 13 teams — verify 13 rows in Table Editor after |
-| 3 | `rls_policies_v1.sql` | Locks down security — run last |
-| 4 | Wire local or CI credentials | See below |
-| 5 | Wire `saveAnalysis()` in `ui.js` | See Adapter API section below |
+| 1 | `schema_v1.sql` | Fresh DB only; creates all 8 tables |
+| 2 | `migrations/2026_04_28_add_teams_metadata_column.sql` | Fresh DBs may already have this through `schema_v1.sql`; existing DBs need the migration |
+| 3 | `seed_teams_v2.sql` | Fresh DB/reference only; loads 26 canonical teams |
+| 4 | `rls_policies_v1.sql` | Locks down security |
+| 5 | `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` | Existing/live DB repair path; safe with analysis FK history |
+| 6 | Wire local or CI credentials | See below |
+
+## Current Seed Repair Status (2026-05-24)
+
+- Current repo source of truth: `poke-sim/data.js` with 26 `TEAMS` entries.
+- The repair migration is intentionally non-destructive for `teams` and `rulesets`: it uses UPSERTs and only replaces `team_members` for canonical repo team IDs.
+- The older generated seed files are still useful for fresh DB/bootstrap review, but their delete-first shape can fail or partially apply on a DB with existing `analyses` FK references.
+- After this sync PR is merged, run `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` through the manual migration workflow or Supabase SQL Editor to align an existing live DB.
 
 ---
 
@@ -223,15 +232,19 @@ The M10 live DB snapshot warning should be gone once the remote schema includes 
 | File | Purpose |
 |---|---|
 | `2026_04_27_baseline_v1.sql` | Baseline: 8 tables, indexes, triggers |
+| `2026_04_28_add_teams_metadata_column.sql` | Adds `teams.metadata` for generated seed metadata |
+| `2026_04_28_seed_teams_v2.sql` | Generated delete-first seed for 26 teams; do not use on live DBs with analysis history |
 | `2026_05_12_align_reg_ma_meta_sources.sql` | Adds `prior_snapshots.usage_data` if missing and seeds the current public Reg M-A source-alignment snapshot |
+| `2026_05_15_refresh_reg_ma_meta_sources.sql` | Refreshes current Reg M-A meta source snapshot data |
+| `2026_05_24_upsert_seed_teams_v2_repair.sql` | Non-destructive 26-team seed repair for live DB alignment |
 
 ---
 
-## Verification Checklist (Alfredo)
+## Verification Checklist
 
 - [ ] Supabase project created and URL/key available
 - [ ] `schema_v1.sql` executed — tables visible in Table Editor
-- [ ] `seed_teams_v2.sql` executed — 13 rows in `teams` table
+- [ ] Current canonical seed alignment verified — 26 rows in `teams` table
 - [ ] `rls_policies_v1.sql` executed — RLS enabled on all tables
 - [x] Supabase CDN `<script>` loads synchronously before `supabase_adapter.js` in `index.html`
 - [ ] Local browser smoke uses ignored `local-credentials.js`
@@ -242,4 +255,4 @@ The M10 live DB snapshot warning should be gone once the remote schema includes 
 - [ ] Records persist after page refresh
 - [ ] App falls back gracefully when Supabase is unavailable (disable network, confirm no crash)
 - [ ] No secrets committed to GitHub
-- [ ] Comment posted on Issue [#158](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/issues/158) confirming completion
+- [ ] Cross-repo alignment reviewed separately before changing either default branch

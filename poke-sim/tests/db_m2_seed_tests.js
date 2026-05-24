@@ -249,7 +249,17 @@ describe('Module 2 \u2014 Seed suite (14 cases)', function() {
     return get('/rest/v1/teams?select=team_id').then(function(r) {
       truthy(r.status === 200, 'GET /teams returned 200, got ' + r.status);
       var arr = JSON.parse(r.body);
-      truthy(arr.length === 22, 'live DB has 22 teams, got ' + arr.length);
+      var dataContent = fs.readFileSync(dataPath, 'utf8');
+      var start = dataContent.indexOf('const TEAMS = {') + 'const TEAMS = '.length;
+      var depth = 0; var end = start;
+      for (var i = start; i < dataContent.length; i++) {
+        var c = dataContent[i];
+        if (c === '{') depth++;
+        else if (c === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+      }
+      var teamsObj = JSON.parse(dataContent.substring(start, end));
+      truthy(arr.length === Object.keys(teamsObj).length,
+        'live DB team count matches data.js count, got ' + arr.length);
     });
   });
 

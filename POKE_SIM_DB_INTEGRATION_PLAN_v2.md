@@ -5,8 +5,17 @@
 > **Linear team:** `POK` — *Poke-e-Sim* (Alfredo, joshualeondoutt, kevin medeiros)
 > **Supabase project:** `ymlahqnshgiarpbgxehp` (region `us-west-2`, Postgres 17.6, status `ACTIVE_HEALTHY`, owner *TheYfactora12's Project*)
 > **Author:** Alfredo Cox · **Reviewers:** TheYfactora12, Joshua, Kevin
-> **Last updated:** 2026-04-27
-> **Status:** 🟡 Adapter scaffolded · 🔴 Not yet wired into bundle · 🔴 Seed incomplete (3/22 teams)
+> **Last updated:** 2026-05-24
+> **Status:** App DB wiring is active. Canonical repo seed is 26 teams. Existing live DBs with analysis history should use `2026_05_24_upsert_seed_teams_v2_repair.sql`.
+
+## Current status note (2026-05-24)
+
+This file started as the original DB integration roadmap. The current implementation has moved past the 2026-04-27 snapshot:
+
+- `poke-sim/data.js` currently has 26 canonical teams.
+- `poke-sim/db/seed_teams_v2.sql` and `migrations/2026_04_28_seed_teams_v2.sql` are generated delete-first seed artifacts for fresh DB/bootstrap review.
+- Existing live DBs with `analyses` history must use `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql`, which upserts rulesets/teams and replaces only canonical `team_members`.
+- Cross-repo alignment with Kevin's repo must stay reviewed because the two repos currently carry different team catalogs.
 
 ---
 
@@ -20,8 +29,8 @@ The three prior drafts (`DB_INTEGRATION_PLAN.md`, `poke-sim-db-integration-plan.
 | Team storage | `members` JSONB column | Normalized — `teams` row + N rows in `team_members` |
 | Sim result storage | `matchups` + child `pilot_notes` + `replay_logs` | Single `analyses` row + child `analysis_win_conditions` + `analysis_logs` |
 | Adapter file | "to be created" | `poke-sim/supabase_adapter.js` already exists with `loadTeamsFromDB`, `saveAnalysis`, `loadRecentAnalyses` |
-| `index.html` wiring | Plan step | **Not wired yet** — adapter file isn't included in `index.html` and supabase-js CDN isn't loaded |
-| Seed status | Empty | 3 of 22 teams seeded (`player`, `mega_altaria`, `champions_arena_1st`); 19 missing |
+| `index.html` wiring | Plan step | Historical 2026-04-27 state was not wired. Current `index.html` loads supabase-js, `local-credentials.js`, and `supabase_adapter.js`. |
+| Seed status | Empty | Historical 2026-04-27 state was 3 of 22 teams seeded. Current repo seed target is 26 teams. |
 | RLS | "set later" | Already enabled on every table; anon = read everywhere + insert on `analyses*` only |
 | Migrations | n/a | None registered in `supabase_migrations` — schema applied via SQL editor, not via `apply_migration` |
 
@@ -34,19 +43,20 @@ This v2 plan **does not redesign the schema**. It maps the existing code to the 
 ```
 Pokemon-Champions-Sim-Planner/
 ├── poke-sim/
-│   ├── index.html                  ← App shell (559 lines) — does NOT yet load supabase_adapter.js
-│   ├── data.js                     ← TEAMS literal with 22 teams, BASE_STATS, POKEMON_TYPES_DB
+│   ├── index.html                  ← App shell — loads supabase-js, local credentials, and supabase_adapter.js
+│   ├── data.js                     ← TEAMS literal with 26 teams, BASE_STATS, POKEMON_TYPES_DB
 │   ├── engine.js                   ← Battle sim + runBoSeries (defined ~L2351, async)
-│   ├── ui.js                       ← 6,645 lines — runBoSeries calls at L1942, L1979; Replay Log L1666–
+│   ├── ui.js                       ← UI orchestration, Supabase bootstrap, replay log, and Battle Sensei surfaces
 │   ├── legality.js
 │   ├── strategy-injectable.js
 │   ├── storage_adapter.js          ← localStorage adapter (champions:* prefix) — already shipped
-│   ├── supabase_adapter.js         ← Supabase adapter — already in repo, NOT wired into index.html
+│   ├── supabase_adapter.js         ← Supabase adapter — wired into index.html and the built bundle
 │   ├── pokemon-champion-2026.html  ← Single-file bundle (built artifact, ~711 KB)
 │   ├── manifest.json, sw.js, icon-*.png
 │   ├── db/
 │   │   ├── schema_v1.sql           ← Live schema source of truth
-│   │   ├── seed_teams_v1.sql       ← Seeds only 3 teams (player, mega_altaria, champions_arena_1st)
+│   │   ├── seed_teams_v2.sql       ← Generated fresh-DB/reference seed for 26 teams
+│   │   ├── migrations/             ← Timestamped schema/seed migrations, including the 2026-05-24 repair
 │   │   ├── rls_policies_v1.sql     ← Enables RLS, anon read everywhere, anon insert on analyses*
 │   │   └── README_DB.md
 │   ├── tests/                      ← 22 Node test files incl. storage_adapter_tests.js, ui_storage_integration_tests.js
@@ -74,7 +84,7 @@ Pulled live from project `ymlahqnshgiarpbgxehp`. RLS is `ENABLED` on every table
 | `custom_rules` | jsonb | `{"levelCap":50,"bring":6,"choose":4,"gameMode":"doubles"}` |
 | `is_active` | bool default `true` | |
 
-### `teams` (3 rows)
+### `teams` (26 canonical seed rows)
 | Column | Type | Notes |
 |---|---|---|
 | `team_id` | text **PK** | mirrors the in-memory `TEAMS` key (e.g. `player`, `mega_altaria`) |
@@ -84,7 +94,7 @@ Pulled live from project `ymlahqnshgiarpbgxehp`. RLS is `ENABLED` on every table
 | `source` | text | `builtin` \| `pokepaste` \| `manual` \| `import` |
 | `source_ref` | text | e.g. `Rental: SQMPYRW6BP` |
 
-### `team_members` (9 rows) — normalized, **not** JSONB-of-array
+### `team_members` (156 canonical seed rows) — normalized, **not** JSONB-of-array
 | Column | Type | Notes |
 |---|---|---|
 | `team_member_id` | bigserial **PK** | |
@@ -95,11 +105,11 @@ Pulled live from project `ymlahqnshgiarpbgxehp`. RLS is `ENABLED` on every table
 | `evs` | jsonb | `{hp,atk,def,spa,spd,spe}` |
 | `moves` | jsonb | `["Fake Out","Flare Blitz",...]` |
 
-### `prior_snapshots` (0 rows) — Smogon/ladder usage priors for hidden-info inference
+### `prior_snapshots` — Smogon/ladder usage priors for hidden-info inference
 
-### `golden_battles` (0 rows) — deterministic mechanics regression suite (seed → expected winner / trace hash)
+### `golden_battles` — deterministic mechanics regression suite (seed -> expected winner / trace hash)
 
-### `analyses` (0 rows) — **the single row written per Bo series**
+### `analyses` — **the single row written per Bo series**
 Key columns: `analysis_id` UUID PK, `created_at`, `engine_version`, `ruleset_id` FK, `player_team_id` FK, `opp_team_id` FK, `prior_id` nullable FK, `policy_model`, `sample_size`, `bo`, `win_rate` numeric(5,4), `wins`, `losses`, `draws`, `avg_turns`, `avg_tr_turns`, `ci_low`, `ci_high`, `hidden_info_model`, `analysis_json` jsonb (the full result blob).
 
 ### `analysis_win_conditions` (composite PK `(analysis_id, label)`) — top win-condition tally per analysis
@@ -117,7 +127,7 @@ Key columns: `analysis_id` UUID PK, `created_at`, `engine_version`, `ruleset_id`
 
 | Frontend symbol | File / line | DB destination |
 |---|---|---|
-| `TEAMS` literal (22 teams) | `data.js` L823+ | `teams` + `team_members` (normalized split) |
+| `TEAMS` literal (26 teams) | `data.js` | `teams` + `team_members` (normalized split) |
 | `currentPlayerKey`, `currentBo`, `currentFormat` | `ui.js` L53, L199 | columns on `analyses` |
 | `runBoSeries(...)` | `engine.js` L~2351, called from `ui.js` L1942 (`runAllMatchupsUI`), L1979 (single-sim) | one `analyses` row per call |
 | `res.allLogs[]` per-game logs | passed to `addReplays` at `ui.js` L1553, L2031 | `analysis_logs` (first 50) |
@@ -211,11 +221,11 @@ The first three modules are **wiring only** — they don't change behavior, they
 
 ---
 
-### MODULE 2 — Backfill the team seed (3 → 22) 🟧 high
+### MODULE 2 — Backfill the team seed (historical 3 -> 22; current repo seed is 26) 🟧 high
 
 **Branch:** `feat/db-m2-full-team-seed` · **Linear:** `POK-DB-2`
 
-**Goal:** Get every team that's in `data.js → TEAMS` into Supabase, including the 19 missing ones (`mega_dragonite`, `mega_houndoom`, `rin_sand`, `suica_sun`, `cofagrigus_tr`, `champions_arena_2nd`, `champions_arena_3rd`, `chuppa_balance`, `aurora_veil_froslass`, `kingambit_sneasler`, `custom_1776995210260`, `perish_trap_gengar`, `rain_offense`, `trick_room_golurk`, `sun_offense_charizard`, `z2r_feitosa_mega_floette`, `benny_v_mega_froslass`, `lukasjoel1_sand_gengar`, `hiroto_imai_snow`).
+**Goal:** Get every team that's in `data.js -> TEAMS` into Supabase. The original plan listed 22 teams; the current repo has 26 teams and should be validated against `data.js`, not a hard-coded historical list.
 
 **Approach — generator script (preferred over hand-written SQL):**
 1. Add `poke-sim/tools/generate_seed_from_data.py`:
@@ -233,9 +243,9 @@ ALTER TABLE teams ADD COLUMN metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
 Then `loadTeamsFromDB` in `supabase_adapter.js` is updated (Module 3) to spread `t.metadata` onto the result.
 
 **Acceptance criteria:**
-- `select count(*) from teams` returns 22.
+- `select count(*) from teams` returns 26.
 - `select team_id, count(*) from team_members group by team_id` shows 6 members for every non-pack team.
-- `loadTeamsFromDB()` returns all 22 keys with members populated.
+- `loadTeamsFromDB()` returns all 26 keys with members populated.
 - Supabase **advisor** (`get_advisors`) shows no new errors after migration.
 
 ---
@@ -398,7 +408,7 @@ Hard ordering: **M1 → M2 → M3 → M4**. Everything else can fan out after M3
 | Module | Smoke test | Pass condition |
 |---|---|---|
 | M1 | Open built bundle, run `SupabaseAdapter.enabled` in console | `true` with creds, `false` without — no errors either way |
-| M2 | Supabase Studio → `select count(*) from teams` | 22 |
+| M2 | Supabase Studio → `select count(*) from teams` | 26 |
 | M3 | Edit a team in Studio, reload app | Edit visible in dropdown |
 | M4 | Run a Bo3 single-sim | 1 row in `analyses`, ≥1 in `analysis_win_conditions`, ≤50 in `analysis_logs` |
 | M5 | Import pokepaste → reload app | Imported team survives reload, no duplicates |
@@ -431,7 +441,7 @@ Create as a **Project** named *"Supabase DB Integration v2"* with these issues, 
 | Linear ID | Title | Priority |
 |---|---|---|
 | POK-DB-1 | Wire `supabase_adapter.js` + supabase-js CDN into `index.html` and bundle | Urgent |
-| POK-DB-2 | Backfill team seed: 3 → 22 (generator script + `seed_teams_v2.sql`) | High |
+| POK-DB-2 | Backfill team seed: historical 3 → 22; current repo seed is 26 teams | High |
 | POK-DB-3 | `loadTeamsFromDB` becomes awaited source-of-truth on init; add `metadata` jsonb | High |
 | POK-DB-4 | Persist `runBoSeries` results via `SupabaseAdapter.saveAnalysis` | Urgent |
 | POK-DB-5 | Persist imported / Set-Editor-saved teams (upsert teams + team_members) | Medium |
@@ -444,19 +454,19 @@ Use Linear's GitHub integration so each PR auto-links. Branch naming convention:
 
 ---
 
-## 10. Immediate next actions for Alfredo
+## 10. Current next actions for Alfredo / repo alignment
 
-1. **Create the Linear project + 9 tickets above** under team POK (can be done from this plan).
-2. **Get the anon key** from TheYfactora12 and stash it in a local `poke-sim/local-credentials.js` (gitignored).
-3. **Open `feat/db-m1-adapter-wiring`** and ship Module 1 first — it's pure wiring, ~30 lines of diff, unblocks everything.
-4. Hand this file (`POKE_SIM_DB_INTEGRATION_PLAN_v2.md`) to Windsurf/SWE-1.5 with the instruction: *"Implement Module 1, then stop and post the diff."* Modules are sized to fit one chat each.
-5. After M1 lands, run M2's seed generator locally, commit the SQL, and apply via `apply_migration`.
+1. Do not apply the delete-first seed migration to a live DB with analysis history.
+2. Review this sync PR and merge only after Alfredo/Kevin approval.
+3. After merge, apply `2026_05_24_upsert_seed_teams_v2_repair.sql` if the existing live DB needs seed alignment.
+4. Keep live credentials in ignored local files or GitHub secrets only; never commit keys.
+5. Use `node poke-sim/tests/db_m2_seed_tests.js` and live DB smoke as the minimum seed-alignment checks.
 
 ---
 
 ## 11. Open questions to resolve before M2 lands
 
-- [ ] Does `champions_reg_m_doubles_bo3` cover all 22 teams' formats, or do we also need `vgc2024regh` / `vgc2025regg` ruleset rows? (`data.js` shows mixed `formatid` values — e.g. `player.formatid = 'gen9vgc2024regh'`.)
+- [ ] Does `champions_reg_m_doubles_bo3` cover all 26 teams' formats, or do we also need `vgc2024regh` / `vgc2025regg` ruleset rows? (`data.js` shows mixed `formatid` values — e.g. `player.formatid = 'gen9vgc2024regh'`.)
 - [ ] Should `mode` ever be `player` for more than one team, or is there a uniqueness rule? Today only `team_id='player'` has `mode='player'`.
 - [ ] Are we keeping the `champions:*` localStorage layer permanently as an offline cache, or deprecating it once DB is solid? (Recommendation: keep — it's the offline fallback and already test-covered in `tests/storage_adapter_tests.js`.)
 - [ ] Auth roadmap: are we adding Supabase Auth in v3 (mentioned in v1 §8), or staying single-tenant anon? Affects whether M9 adds `created_by` now.

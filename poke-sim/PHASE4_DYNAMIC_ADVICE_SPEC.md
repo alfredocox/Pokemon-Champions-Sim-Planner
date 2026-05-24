@@ -207,7 +207,7 @@ Total: ~10 days of work across 4 PRs. Spec doc gets committed immediately as sta
 - [ ] Lead downgrade only fires at n≥5
 - [ ] Repeated loss escalation: 3 identical loss conditions → severity bumps to "warning"; 6 → "critical"
 - [ ] Consistency label matches intuition on 3 hand-crafted test teams (always-wins, coin-flip, RNG-dependent)
-- [ ] 0 `pageerror` / `console.error` across 22 teams at all 3 states
+- [ ] 0 `pageerror` / `console.error` across the current team catalog at all 3 states
 - [ ] Solver completes in <8 s per threat; Strategy tab first-paint <200 ms (solver runs async)
 - [ ] Regression test fails the build if advice identical at 0 vs 30 sims
 

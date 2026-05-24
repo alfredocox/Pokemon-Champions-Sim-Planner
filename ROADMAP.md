@@ -34,7 +34,7 @@
 | **#147** | Ko-fi account missing | @alfredocox | Create `ko-fi.com/alfredocox` before merging PR #146 |
 
 > ✅ **#87 CLOSED** — `ci.yml` live 2026-04-30 (commit `4f9579d`). Branch protection on `main` confirmed. Sprint 1 unblocked.
-> ✅ **#158 CLOSED** — Supabase confirmed live 2026-04-30: 8 tables, RLS enabled, 22 teams seeded, 210 team_members loaded.
+> ✅ **#158 CLOSED** — Supabase confirmed live. Current repo seed target: 26 teams and 156 canonical team_members.
 
 ---
 
