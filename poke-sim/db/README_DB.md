@@ -234,6 +234,7 @@ The M10 live DB snapshot warning should be gone once the remote schema includes 
 | `2026_04_28_seed_teams_v2.sql` | Generated delete-first seed for 29 teams; do not use on live DBs with analysis history |
 | `2026_05_12_align_reg_ma_meta_sources.sql` | Adds `prior_snapshots.usage_data` if missing and seeds the current public Reg M-A source-alignment snapshot |
 | `2026_05_24_align_shared_29_team_catalog.sql` | Non-destructive shared 29-team catalog alignment for existing live DBs |
+| `2026_05_24_fix_champions_arena_2nd_item_clause.sql` | Source-backed item correction for Jorge Tabuyo's finalist roster (`Sinistcha` -> `Kouba Berry`) |
 
 ---
 

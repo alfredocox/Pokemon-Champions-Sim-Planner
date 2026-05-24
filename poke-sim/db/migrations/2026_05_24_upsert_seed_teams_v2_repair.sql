@@ -1,11 +1,11 @@
--- Align shared 29-team catalog across Y Factor, Alfredo, and live Supabase.
--- Source: poke-sim/data.js TEAMS literal and generated seed_teams_v2.sql (29 teams).
--- Purpose: make the live DB match the shared reviewed catalog without deleting referenced teams.
+-- Repair canonical team seed alignment without deleting referenced teams.
+-- Source: 2026_04_28_seed_teams_v2.sql generated from poke-sim/data.js (25 teams).
+-- Purpose: restore team_members after a failed delete-first seed attempt and align live Supabase with current repo data.
 -- Safe shape: transaction + ruleset/team UPSERTs + team_members replace for canonical team IDs only.
--- No schema changes. No secrets. No destructive delete from teams/rulesets.
 
 BEGIN;
 
+-- Ensure the canonical ruleset exists without deleting rows referenced by teams.
 INSERT INTO rulesets (ruleset_id, format_group, engine_formatid, description, custom_rules)
 VALUES (
   'champions_reg_m_doubles_bo3',
@@ -20,6 +20,7 @@ ON CONFLICT (ruleset_id) DO UPDATE SET
   description = EXCLUDED.description,
   custom_rules = EXCLUDED.custom_rules;
 
+-- Upsert canonical teams without deleting rows that analyses/history may reference.
 INSERT INTO teams (team_id, name, label, mode, ruleset_id, source, source_ref, description)
 VALUES
   ('player', 'TR Counter Squad', 'YOUR TEAM', 'player', 'champions_reg_m_doubles_bo3', 'builtin', 'player_tr_counter_v1', 'Fast offensive pressure with Intimidate + Will-O-Wisp support. Built to break Trick Room before it starts.'),
@@ -46,11 +47,7 @@ VALUES
   ('hiroto_imai_snow', 'Hiroto Imai — Snow + Mega Lopunny', 'CHAMPIONS CUP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'hiroto_imai_snow_champions_regma_v1', 'Vanilluxe Snow Warning + Choice Scarf Blizzard spam, Mega Lopunny Fake Out disruption, Aegislash Stance Change. Hiroto Imai Champions Arena Rank #75.'),
   ('fedecampovgc_aerodactyl_ariados', 'FedeCampoVGC — Aerodactyl Ariados', 'MAY META', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fedecampovgc_aerodactyl_ariados_may2026_v1', 'Current May 2026 public meta-index roster built around Mega Aerodactyl + Mega Charizard Y pressure. Rental: AV7NTVGB10.'),
   ('swirlingroses_meganium_vivillon', 'swirlingroses — Meganium Vivillon Balance', 'MAY REPLAY', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'swirlingroses_meganium_vivillon_may2026_v1', 'May 6, 2026 Champions replay-preview roster with Sneasler / Basculegion / Incineroar / Kingambit / Meganium / Vivillon-Continental.'),
-  ('prro_t_floette_aerodactyl', 'Prro-T — Floette Aerodactyl Pressure', 'MAY REPLAY', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'prro_t_floette_aerodactyl_may2026_v1', 'May 8, 2026 Champions Bo3 replay-preview roster with Floette-Eternal / Aerodactyl / Incineroar / Garchomp / Sneasler / Basculegion.'),
-  ('fabulous_sunroom', 'Fabulous Sunroom', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fabulous_sunroom_champions_regma_v1', 'Calibration sunroom built from public sample-team archetypes and shipped legal catalog sets.'),
-  ('sand_bulky_offense', 'Sand Bulky Offense', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'sand_bulky_offense_champions_regma_v1', 'Calibration sand offense built from shipped legal catalog sets and public sample-team archetypes.'),
-  ('fire_ice_fullroom', 'Fire and Ice Fullroom', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fire_ice_fullroom_champions_regma_v1', 'Calibration room team built from shipped legal catalog sets and public sample-team archetypes.'),
-  ('zardx_snow_setup', 'ZardX Snow Setup', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'zardx_snow_setup_champions_regma_v1', 'Calibration snow offense built from shipped legal catalog sets and public sample-team archetypes.')
+  ('prro_t_floette_aerodactyl', 'Prro-T — Floette Aerodactyl Pressure', 'MAY REPLAY', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'prro_t_floette_aerodactyl_may2026_v1', 'May 8, 2026 Champions Bo3 replay-preview roster with Floette-Eternal / Aerodactyl / Incineroar / Garchomp / Sneasler / Basculegion.')
 ON CONFLICT (team_id) DO UPDATE SET
   name = EXCLUDED.name,
   label = EXCLUDED.label,
@@ -60,7 +57,7 @@ ON CONFLICT (team_id) DO UPDATE SET
   source_ref = EXCLUDED.source_ref,
   description = EXCLUDED.description;
 
--- Replace normalized members for shared canonical repo teams only.
+-- Replace normalized members for the canonical repo teams.
 DELETE FROM team_members WHERE team_id IN (
   'player',
   'mega_altaria',
@@ -86,14 +83,10 @@ DELETE FROM team_members WHERE team_id IN (
   'hiroto_imai_snow',
   'fedecampovgc_aerodactyl_ariados',
   'swirlingroses_meganium_vivillon',
-  'prro_t_floette_aerodactyl',
-  'fabulous_sunroom',
-  'sand_bulky_offense',
-  'fire_ice_fullroom',
-  'zardx_snow_setup'
+  'prro_t_floette_aerodactyl'
+
 );
 
--- ============================================================
 -- TEAM MEMBERS
 -- ============================================================
 
@@ -321,41 +314,5 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
   ('prro_t_floette_aerodactyl', 4, 'Garchomp', 'Soft Sand', 'Rough Skin', 'Jolly', 50, '{"atk":32,"def":0,"hp":1,"spa":0,"spd":0,"spe":32}'::jsonb, '["Earthquake","Dragon Claw","Rock Slide","Protect"]'::jsonb, NULL, 'Physical Pressure'),
   ('prro_t_floette_aerodactyl', 5, 'Sneasler', 'White Herb', 'Unburden', 'Jolly', 50, '{"atk":32,"def":0,"hp":1,"spa":0,"spd":0,"spe":32}'::jsonb, '["Close Combat","Dire Claw","Fake Out","Protect"]'::jsonb, NULL, 'Unburden Sweeper'),
   ('prro_t_floette_aerodactyl', 6, 'Basculegion', 'Choice Scarf', 'Adaptability', 'Adamant', 50, '{"atk":32,"def":0,"hp":1,"spa":0,"spd":0,"spe":32}'::jsonb, '["Wave Crash","Last Respects","Aqua Jet","Flip Turn"]'::jsonb, NULL, 'Scarf Cleaner');
-
--- fabulous_sunroom
-INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
-  ('fabulous_sunroom', 1, 'Charizard-Mega-Y', 'Charizardite Y', 'Drought', 'Modest', 50, '{"atk":0,"def":16,"hp":6,"spa":30,"spd":0,"spe":14}'::jsonb, '["Heat Wave","Weather Ball","Solar Beam","Protect"]'::jsonb, NULL, 'Sun Setter / Spread Attacker'),
-  ('fabulous_sunroom', 2, 'Torkoal', 'Charcoal', 'Drought', 'Quiet', 50, '{"atk":0,"def":1,"hp":32,"spa":32,"spd":1,"spe":0}'::jsonb, '["Protect","Helping Hand","Heat Wave","Eruption"]'::jsonb, NULL, 'Sun Setter'),
-  ('fabulous_sunroom', 3, 'Venusaur', 'Focus Sash', 'Chlorophyll', 'Modest', 50, '{"atk":0,"def":1,"hp":0,"spa":32,"spd":1,"spe":32}'::jsonb, '["Energy Ball","Sludge Bomb","Sleep Powder","Earth Power"]'::jsonb, NULL, 'Sun Abuser'),
-  ('fabulous_sunroom', 4, 'Whimsicott', 'Sitrus Berry', 'Prankster', 'Timid', 50, '{"atk":0,"def":0,"hp":4,"spa":32,"spd":0,"spe":30}'::jsonb, '["Tailwind","Sunny Day","Moonblast","Protect"]'::jsonb, NULL, 'Speed Control'),
-  ('fabulous_sunroom', 5, 'Arcanine', 'Life Orb', 'Intimidate', 'Adamant', 50, '{"atk":32,"def":0,"hp":4,"spa":0,"spd":0,"spe":30}'::jsonb, '["Power Gem","Head Smash","Extreme Speed","Will-O-Wisp"]'::jsonb, NULL, 'TR Breaker / Speed Control'),
-  ('fabulous_sunroom', 6, 'Floette (Eternal Flower)-Mega', 'Floettite', 'Fairy Aura', 'Timid', 50, '{"atk":0,"def":0,"hp":4,"spa":32,"spd":0,"spe":30}'::jsonb, '["Protect","Light of Ruin","Dazzling Gleam","Moonblast"]'::jsonb, NULL, 'Mega Special Wall-Breaker');
-
--- sand_bulky_offense
-INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
-  ('sand_bulky_offense', 1, 'Tyranitar', 'Chople Berry', 'Sand Stream', 'Adamant', 50, '{"atk":16,"def":12,"hp":32,"spa":0,"spd":2,"spe":4}'::jsonb, '["Rock Slide","Knock Off","Protect","Ice Punch"]'::jsonb, NULL, 'Sand Setter'),
-  ('sand_bulky_offense', 2, 'Excadrill', 'Focus Sash', 'Sand Rush', 'Jolly', 50, '{"atk":32,"def":1,"hp":0,"spa":0,"spd":1,"spe":32}'::jsonb, '["High Horsepower","Iron Head","Protect","Earthquake"]'::jsonb, NULL, 'Sand Rush Sweeper'),
-  ('sand_bulky_offense', 3, 'Rotom-Wash', 'Leftovers', 'Levitate', 'Bold', 50, '{"atk":0,"def":0,"hp":31,"spa":32,"spd":0,"spe":3}'::jsonb, '["Thunderbolt","Hydro Pump","Will-O-Wisp","Protect"]'::jsonb, NULL, 'Spread Check'),
-  ('sand_bulky_offense', 4, 'Milotic', 'Mystic Water', 'Competitive', 'Bold', 50, '{"atk":0,"def":21,"hp":31,"spa":1,"spd":12,"spe":1}'::jsonb, '["Muddy Water","Coil","Hypnosis","Recover"]'::jsonb, NULL, 'Utility / Secret Weapon'),
-  ('sand_bulky_offense', 5, 'Kingambit', 'Black Glasses', 'Defiant', 'Adamant', 50, '{"atk":32,"def":0,"hp":4,"spa":0,"spd":0,"spe":30}'::jsonb, '["Kowtow Cleave","Sucker Punch","Low Kick","Protect"]'::jsonb, NULL, 'Late-Game Sweeper'),
-  ('sand_bulky_offense', 6, 'Gholdengo', 'Choice Specs', 'Good as Gold', 'Modest', 50, '{"atk":0,"def":0,"hp":4,"spa":32,"spd":0,"spe":30}'::jsonb, '["Make It Rain","Shadow Ball","Power Gem","Trick"]'::jsonb, NULL, 'Status-Immune Attacker');
-
--- fire_ice_fullroom
-INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
-  ('fire_ice_fullroom', 1, 'Farigiraf', 'Mental Herb', 'Armor Tail', 'Relaxed', 50, '{"atk":0,"def":20,"hp":26,"spa":1,"spd":19,"spe":0}'::jsonb, '["Trick Room","Helping Hand","Psychic Noise","Hyper Voice"]'::jsonb, NULL, 'TR Setter'),
-  ('fire_ice_fullroom', 2, 'Cofagrigus', 'Colbur Berry', 'Mummy', 'Quiet', 50, '{"atk":0,"def":2,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Trick Room","Will-O-Wisp","Shadow Ball","Ally Switch"]'::jsonb, NULL, 'TR Setter'),
-  ('fire_ice_fullroom', 3, 'Typhlosion-Hisui', 'Choice Scarf', 'Frisk', 'Timid', 50, '{"atk":0,"def":32,"hp":2,"spa":32,"spd":0,"spe":0}'::jsonb, '["Eruption","Heat Wave","Focus Blast","Shadow Ball"]'::jsonb, NULL, 'Scarfer'),
-  ('fire_ice_fullroom', 4, 'Vanilluxe', 'Covert Cloak', 'Snow Warning', 'Modest', 50, '{"atk":0,"def":0,"hp":4,"spa":32,"spd":0,"spe":30}'::jsonb, '["Blizzard","Icy Wind","Freeze-Dry","Ice Shard"]'::jsonb, NULL, 'Snow Setter / Scarf'),
-  ('fire_ice_fullroom', 5, 'Torkoal', 'Charcoal', 'Drought', 'Quiet', 50, '{"atk":0,"def":1,"hp":32,"spa":32,"spd":1,"spe":0}'::jsonb, '["Protect","Helping Hand","Heat Wave","Eruption"]'::jsonb, NULL, 'Sun Setter'),
-  ('fire_ice_fullroom', 6, 'Ursaluna-Bloodmoon', 'Assault Vest', 'Mind''s Eye', 'Modest', 50, '{"atk":0,"def":2,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Blood Moon","Hyper Voice","Earth Power","Vacuum Wave"]'::jsonb, NULL, 'TR Sweeper / Tank');
-
--- zardx_snow_setup
-INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
-  ('zardx_snow_setup', 1, 'Charizard-Mega-X', 'Charizardite X', 'Tough Claws', 'Adamant', 50, '{"atk":21,"def":1,"hp":14,"spa":0,"spd":1,"spe":29}'::jsonb, '["Flare Blitz","Dragon Claw","Dragon Dance","Protect"]'::jsonb, NULL, 'Setup Sweeper'),
-  ('zardx_snow_setup', 2, 'Vanilluxe', 'Choice Scarf', 'Snow Warning', 'Modest', 50, '{"atk":0,"def":0,"hp":4,"spa":32,"spd":0,"spe":30}'::jsonb, '["Blizzard","Icy Wind","Freeze-Dry","Ice Shard"]'::jsonb, NULL, 'Snow Setter / Scarf'),
-  ('zardx_snow_setup', 3, 'Froslass-Mega', 'Froslassite', 'Snow Warning', 'Timid', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":0,"spe":32}'::jsonb, '["Aurora Veil","Blizzard","Shadow Ball","Protect"]'::jsonb, NULL, 'Veil Setter / Attacker'),
-  ('zardx_snow_setup', 4, 'Dragonite', 'Lum Berry', 'Multiscale', 'Adamant', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Extreme Speed","Dragon Dance","Fire Punch","Protect"]'::jsonb, NULL, 'Multiscale Setup Sweeper'),
-  ('zardx_snow_setup', 5, 'Kingambit', 'Chople Berry', 'Supreme Overlord', 'Adamant', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Kowtow Cleave","Sucker Punch","Low Kick","Protect"]'::jsonb, NULL, 'Supreme Overlord Sweeper'),
-  ('zardx_snow_setup', 6, 'Milotic', 'Life Orb', 'Competitive', 'Modest', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":32,"spe":0}'::jsonb, '["Blizzard","Scald","Weather Ball","Life Dew"]'::jsonb, NULL, 'Utility / Secret Weapon');
 
 COMMIT;
