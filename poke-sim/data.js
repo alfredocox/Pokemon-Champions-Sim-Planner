@@ -1020,7 +1020,7 @@ const TEAMS = {
         "evs": {
           "hp": 2,
           "atk": 0,
-          "def": 0,
+          "def": 32,
           "spa": 32,
           "spd": 0,
           "spe": 32
@@ -1119,7 +1119,7 @@ const TEAMS = {
       },
       {
         "name": "Sinistcha",
-        "item": "Mental Herb",
+        "item": "Sitrus Berry",
         "ability": "Hospitality",
         "nature": "Bold",
         "evs": {
@@ -1394,7 +1394,7 @@ const TEAMS = {
       },
       {
         "name": "Farigiraf",
-        "item": "Sitrus Berry",
+        "item": "Mental Herb",
         "ability": "Armor Tail",
         "nature": "Relaxed",
         "evs": {
@@ -1415,7 +1415,7 @@ const TEAMS = {
       },
       {
         "name": "Sinistcha",
-        "item": "Mental Herb",
+        "item": "Sitrus Berry",
         "ability": "Hospitality",
         "nature": "Bold",
         "evs": {
@@ -2132,7 +2132,7 @@ const TEAMS = {
       },
       {
         "name": "Milotic",
-        "item": "Mystic Water",
+        "item": "Leftovers",
         "ability": "Competitive",
         "nature": "Calm",
         "evs": {
@@ -2153,7 +2153,7 @@ const TEAMS = {
       },
       {
         "name": "Sinistcha",
-        "item": "Mental Herb",
+        "item": "Sitrus Berry",
         "ability": "Hospitality",
         "nature": "Bold",
         "evs": {
@@ -3055,7 +3055,7 @@ const TEAMS = {
         "ability": "Defiant",
         "nature": "Adamant",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Kowtow Cleave", "Sucker Punch", "Low Kick", "Protect"],
         "tera": "Dark",
@@ -3104,7 +3104,7 @@ const TEAMS = {
         "ability": "Unnerve",
         "nature": "Jolly",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Tailwind", "Dual Wingbeat", "Rock Slide", "Protect"],
         "tera": "Flying",
@@ -3149,7 +3149,7 @@ const TEAMS = {
         "ability": "Mega Sol",
         "nature": "Modest",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Solar Beam", "Weather Ball", "Dazzling Gleam", "Protect"],
         "tera": "Fairy",
@@ -3185,7 +3185,7 @@ const TEAMS = {
         "ability": "Adaptability",
         "nature": "Adamant",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Wave Crash", "Flip Turn", "Aqua Jet", "Last Respects"],
         "tera": "Ghost",
@@ -3197,7 +3197,7 @@ const TEAMS = {
         "ability": "Drizzle",
         "nature": "Modest",
         "nature_source": "archetype_default",
-        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "evs": {"hp": 32, "atk": 0, "def": 1, "spa": 32, "spd": 0, "spe": 0},
         "ev_source": "archetype_default",
         "moves": ["Weather Ball", "Hurricane", "Tailwind", "Protect"],
         "tera": "Ghost",
@@ -3209,7 +3209,7 @@ const TEAMS = {
         "ability": "Unburden",
         "nature": "Jolly",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
         "tera": "Stellar",
@@ -3292,7 +3292,7 @@ const TEAMS = {
         "ability": "Unburden",
         "nature": "Jolly",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Close Combat", "Dire Claw", "Fake Out", "Coaching"],
         "tera": "Fighting",
@@ -3412,7 +3412,7 @@ const TEAMS = {
         "ability": "Defiant",
         "nature": "Adamant",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Kowtow Cleave", "Sucker Punch", "Iron Head", "Swords Dance"],
         "tera": "Dark",
@@ -3469,7 +3469,7 @@ const TEAMS = {
         "ability": "Gale Wings",
         "nature": "Jolly",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Protect", "Dual Wingbeat", "Flare Blitz", "Tailwind"],
         "tera": "Flying",
@@ -3481,7 +3481,7 @@ const TEAMS = {
         "ability": "Rough Skin",
         "nature": "Jolly",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Protect", "Rock Slide", "Earthquake", "Dragon Claw"],
         "tera": "Steel",
@@ -3529,7 +3529,7 @@ const TEAMS = {
         "ability": "Fairy Aura",
         "nature": "Timid",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 0, "def": 0, "spa": 252, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Protect", "Light of Ruin", "Dazzling Gleam", "Moonblast"],
         "tera": "Fairy",
@@ -3574,7 +3574,7 @@ const TEAMS = {
         "ability": "Adaptability",
         "nature": "Adamant",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Wave Crash", "Last Respects", "Icy Wind", "Flip Turn"],
         "tera": "Water",
@@ -3796,7 +3796,7 @@ const TEAMS = {
         "ability": "Stance Change",
         "nature": "Brave",
         "nature_source": "archetype_default",
-        "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 252, "spd": 0, "spe": 0},
+        "evs": {"hp": 32, "atk": 0, "def": 1, "spa": 32, "spd": 0, "spe": 0},
         "ev_source": "archetype_default",
         "ivs": { "hp":31, "atk":31, "def":31, "spa":31, "spd":31, "spe":0 },
         "moves": ["Poltergeist", "Close Combat", "Shadow Sneak", "King's Shield"],
@@ -3821,7 +3821,7 @@ const TEAMS = {
         "ability": "Rough Skin",
         "nature": "Jolly",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Dragon Claw", "Earthquake", "Rock Slide", "Protect"],
         "tera": "Ground",
@@ -3833,7 +3833,7 @@ const TEAMS = {
         "ability": "Defiant",
         "nature": "Adamant",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Kowtow Cleave", "Sucker Punch", "Low Kick", "Protect"],
         "tera": "Dark",
@@ -3845,11 +3845,326 @@ const TEAMS = {
         "ability": "Adaptability",
         "nature": "Adamant",
         "nature_source": "archetype_default",
-        "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
         "ev_source": "archetype_default",
         "moves": ["Wave Crash", "Last Respects", "Aqua Jet", "Protect"],
         "tera": "Water",
         "role": "Revenge Killer"
+      }
+    ]
+  },
+  "fedecampovgc_aerodactyl_ariados": {
+    "name": "FedeCampoVGC — Aerodactyl Ariados",
+    "label": "MAY META",
+    "style": "speed_sun_pressure",
+    "description": "Current May 2026 public meta-index roster built around Mega Aerodactyl + Mega Charizard Y pressure. Rental: AV7NTVGB10.",
+    "champion_pack_id": "fedecampovgc_aerodactyl_ariados_may2026_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://pokemonchampionsmeta.net/",
+      "player": "Federico Camporesi",
+      "event": "Public meta index (May 1, 2026) · rental AV7NTVGB10"
+    },
+    "provenance": {
+      "roster_source": "pokemon_champions_meta_index",
+      "spread_source": "archetype_default",
+      "author": "Federico Camporesi",
+      "url": "https://pokemonchampionsmeta.net/",
+      "status": "species-forms-verified-sets-inferred"
+    },
+    "legality_status": "legal_inferred",
+    "legality_notes": "Species/forms verified from the current public Champions meta index. Full sets are inferred because the index does not expose a raw export in-repo.",
+    "assumption_register": [
+      "Species/forms verified from the public May 1, 2026 Champions meta index entry.",
+      "Items, abilities, moves, EVs, natures, and Tera types were inferred from current Reg M-A archetypes.",
+      "Team carries two Mega-capable species; actual per-game Mega choice remains player-selected in battle."
+    ],
+    "members": [
+      {
+        "name": "Ariados",
+        "item": "Focus Sash",
+        "ability": "Insomnia",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Lunge", "Poison Jab", "Sucker Punch", "Protect"],
+        "tera": "Poison",
+        "role": "Utility Pressure"
+      },
+      {
+        "name": "Aerodactyl-Mega",
+        "item": "Aerodactylite",
+        "ability": "Tough Claws",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Tailwind", "Dual Wingbeat", "Rock Slide", "Protect"],
+        "tera": "Flying",
+        "role": "Mega Speed Control"
+      },
+      {
+        "name": "Charizard-Mega-Y",
+        "item": "Charizardite Y",
+        "ability": "Drought",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Heat Wave", "Solar Beam", "Overheat", "Protect"],
+        "tera": "Fire",
+        "role": "Sun Breaker"
+      },
+      {
+        "name": "Basculegion",
+        "item": "Choice Scarf",
+        "ability": "Adaptability",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Wave Crash", "Last Respects", "Aqua Jet", "Flip Turn"],
+        "tera": "Ghost",
+        "role": "Scarf Cleaner"
+      },
+      {
+        "name": "Sylveon",
+        "item": "Leftovers",
+        "ability": "Pixilate",
+        "nature": "Modest",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 32, "atk": 0, "def": 1, "spa": 32, "spd": 0, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Hyper Voice", "Moonblast", "Helping Hand", "Protect"],
+        "tera": "Fairy",
+        "role": "Fairy Support"
+      },
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
+        "tera": "Fighting",
+        "role": "Unburden Sweeper"
+      }
+    ]
+  },
+  "swirlingroses_meganium_vivillon": {
+    "name": "swirlingroses — Meganium Vivillon Balance",
+    "label": "MAY REPLAY",
+    "style": "balance_speed",
+    "description": "May 6, 2026 Champions replay-preview roster with Sneasler / Basculegion / Incineroar / Kingambit / Meganium / Vivillon-Continental.",
+    "champion_pack_id": "swirlingroses_meganium_vivillon_may2026_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://replay.pokemonshowdown.com/gen9championsvgc2026regma-2603247306",
+      "player": "swirlingroses",
+      "event": "Pokémon Showdown replay preview (Tournament battle, May 6, 2026)"
+    },
+    "provenance": {
+      "roster_source": "pokemon_showdown_replay_preview",
+      "spread_source": "archetype_default",
+      "author": "swirlingroses",
+      "url": "https://replay.pokemonshowdown.com/gen9championsvgc2026regma-2603247306",
+      "status": "species-verified-sets-inferred"
+    },
+    "legality_status": "legal_inferred",
+    "legality_notes": "Six species verified from the replay preview team line. Full sets are inferred because replay preview does not expose items, moves, or spreads.",
+    "assumption_register": [
+      "Only the six species were verified from the replay preview.",
+      "Items, abilities, moves, EVs, natures, and Tera types were inferred from current Reg M-A archetypes.",
+      "Vivillon-Continental uses Vivillon's canonical statline and typing; regional wing pattern is cosmetic for sim purposes."
+    ],
+    "members": [
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
+        "tera": "Fighting",
+        "role": "Unburden Sweeper"
+      },
+      {
+        "name": "Basculegion",
+        "item": "Mystic Water",
+        "ability": "Adaptability",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Wave Crash", "Last Respects", "Aqua Jet", "Protect"],
+        "tera": "Water",
+        "role": "Physical Cleaner"
+      },
+      {
+        "name": "Incineroar",
+        "item": "Sitrus Berry",
+        "ability": "Intimidate",
+        "nature": "Careful",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 32, "atk": 1, "def": 0, "spa": 0, "spd": 32, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Fake Out", "Parting Shot", "Flare Blitz", "Knock Off"],
+        "tera": "Ghost",
+        "role": "Pivot"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Black Glasses",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Kowtow Cleave", "Sucker Punch", "Low Kick", "Protect"],
+        "tera": "Dark",
+        "role": "Late-Game Cleaner"
+      },
+      {
+        "name": "Meganium",
+        "item": "Leftovers",
+        "ability": "Overgrow",
+        "nature": "Calm",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 32, "atk": 0, "def": 1, "spa": 0, "spd": 32, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Giga Drain", "Dazzling Gleam", "Leech Seed", "Protect"],
+        "tera": "Fairy",
+        "role": "Bulky Support"
+      },
+      {
+        "name": "Vivillon-Continental",
+        "item": "Focus Sash",
+        "ability": "Compound Eyes",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Sleep Powder", "Hurricane", "Tailwind", "Protect"],
+        "tera": "Flying",
+        "role": "Fast Utility"
+      }
+    ]
+  },
+  "prro_t_floette_aerodactyl": {
+    "name": "Prro-T — Floette Aerodactyl Pressure",
+    "label": "MAY REPLAY",
+    "style": "fast_pressure",
+    "description": "May 8, 2026 Champions Bo3 replay-preview roster with Floette-Eternal / Aerodactyl / Incineroar / Garchomp / Sneasler / Basculegion.",
+    "champion_pack_id": "prro_t_floette_aerodactyl_may2026_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "origin": {
+      "url": "https://replay.pokemonshowdown.com/gen9championsvgc2026regma-2604413910",
+      "player": "Prro-T",
+      "event": "Pokémon Showdown replay preview (Bo3 Game 2, May 8, 2026)"
+    },
+    "provenance": {
+      "roster_source": "pokemon_showdown_replay_preview",
+      "spread_source": "archetype_default",
+      "author": "Prro-T",
+      "url": "https://replay.pokemonshowdown.com/gen9championsvgc2026regma-2604413910",
+      "status": "species-verified-sets-inferred"
+    },
+    "legality_status": "legal_inferred",
+    "legality_notes": "Six species verified from the replay preview team line. Full sets are inferred because replay preview does not expose items, moves, or spreads.",
+    "assumption_register": [
+      "Only the six species were verified from the replay preview.",
+      "Repo canonical naming normalizes replay-preview Floette-Eternal to Floette (Eternal Flower).",
+      "Items, abilities, moves, EVs, natures, and Tera types were inferred from current Reg M-A archetypes."
+    ],
+    "members": [
+      {
+        "name": "Floette (Eternal Flower)",
+        "item": "Fairy Feather",
+        "ability": "Flower Veil",
+        "nature": "Timid",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Light of Ruin", "Dazzling Gleam", "Moonblast", "Protect"],
+        "tera": "Fairy",
+        "role": "Fairy Breaker"
+      },
+      {
+        "name": "Aerodactyl",
+        "item": "Focus Sash",
+        "ability": "Unnerve",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Tailwind", "Dual Wingbeat", "Rock Slide", "Protect"],
+        "tera": "Flying",
+        "role": "Speed Control"
+      },
+      {
+        "name": "Incineroar",
+        "item": "Chople Berry",
+        "ability": "Intimidate",
+        "nature": "Careful",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 32, "atk": 1, "def": 0, "spa": 0, "spd": 32, "spe": 0},
+        "ev_source": "archetype_default",
+        "moves": ["Fake Out", "Parting Shot", "Flare Blitz", "Darkest Lariat"],
+        "tera": "Ghost",
+        "role": "Pivot"
+      },
+      {
+        "name": "Garchomp",
+        "item": "Soft Sand",
+        "ability": "Rough Skin",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Earthquake", "Dragon Claw", "Rock Slide", "Protect"],
+        "tera": "Ground",
+        "role": "Physical Pressure"
+      },
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Close Combat", "Dire Claw", "Fake Out", "Protect"],
+        "tera": "Fighting",
+        "role": "Unburden Sweeper"
+      },
+      {
+        "name": "Basculegion",
+        "item": "Choice Scarf",
+        "ability": "Adaptability",
+        "nature": "Adamant",
+        "nature_source": "archetype_default",
+        "evs": {"hp": 1, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "ev_source": "archetype_default",
+        "moves": ["Wave Crash", "Last Respects", "Aqua Jet", "Flip Turn"],
+        "tera": "Ghost",
+        "role": "Scarf Cleaner"
       }
     ]
   },

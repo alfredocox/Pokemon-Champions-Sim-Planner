@@ -34,6 +34,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_JS = ROOT / "data.js"
 OUT_SQL = ROOT / "db" / "seed_teams_v2.sql"
+MIGRATION_SQL = ROOT / "db" / "migrations" / "2026_04_28_seed_teams_v2.sql"
 
 CANONICAL_RULESET_ID = "champions_reg_m_doubles_bo3"
 RULESET_ROW = {
@@ -246,11 +247,22 @@ def main(argv=None):
         sys.stdout.write(sql)
         return 0
 
-    OUT_SQL.parent.mkdir(parents=True, exist_ok=True)
-    # Write with explicit UTF-8 + \n line endings for stable diff across platforms
-    with open(OUT_SQL, "w", encoding="utf-8", newline="\n") as f:
-        f.write(sql)
-    print("wrote " + str(OUT_SQL.relative_to(ROOT.parent)) + " (" + str(len(sql)) + " bytes, " + str(len(teams)) + " teams)")
+    for out_path in (OUT_SQL, MIGRATION_SQL):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        # Write with explicit UTF-8 + \n line endings for stable diff across platforms
+        with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(sql)
+    print(
+        "wrote "
+        + str(OUT_SQL.relative_to(ROOT.parent))
+        + " and "
+        + str(MIGRATION_SQL.relative_to(ROOT.parent))
+        + " ("
+        + str(len(sql))
+        + " bytes, "
+        + str(len(teams))
+        + " teams)"
+    )
     return 0
 
 

@@ -1,12 +1,66 @@
--- Champions Sim seed data v2 (auto-generated)
--- Source: poke-sim/data.js (TEAMS literal, 29 teams)
--- Generator: poke-sim/tools/generate_seed_from_data.py
--- DO NOT EDIT BY HAND. Re-run the generator and commit the diff.
--- Run order: schema_v1.sql -> 2026_04_28_add_teams_metadata_column.sql -> THIS FILE -> rls_policies_v1.sql
+-- Align shared 29-team catalog across Y Factor, Alfredo, and live Supabase.
+-- Source: poke-sim/data.js TEAMS literal and generated seed_teams_v2.sql (29 teams).
+-- Purpose: make the live DB match the shared reviewed catalog without deleting referenced teams.
+-- Safe shape: transaction + ruleset/team UPSERTs + team_members replace for canonical team IDs only.
+-- No schema changes. No secrets. No destructive delete from teams/rulesets.
 
--- ============================================================
--- CLEAN SLATE: delete in reverse FK order (all 29 team IDs)
--- ============================================================
+BEGIN;
+
+INSERT INTO rulesets (ruleset_id, format_group, engine_formatid, description, custom_rules)
+VALUES (
+  'champions_reg_m_doubles_bo3',
+  'Champion',
+  'gen9championsvgc2026regma',
+  'Champions 2026 Reg M A — Doubles, bring 6 pick 4, level 50, Bo3',
+  '{"bring":6,"choose":4,"gameMode":"doubles","levelCap":50}'::jsonb
+)
+ON CONFLICT (ruleset_id) DO UPDATE SET
+  format_group = EXCLUDED.format_group,
+  engine_formatid = EXCLUDED.engine_formatid,
+  description = EXCLUDED.description,
+  custom_rules = EXCLUDED.custom_rules;
+
+INSERT INTO teams (team_id, name, label, mode, ruleset_id, source, source_ref, description)
+VALUES
+  ('player', 'TR Counter Squad', 'YOUR TEAM', 'player', 'champions_reg_m_doubles_bo3', 'builtin', 'player_tr_counter_v1', 'Fast offensive pressure with Intimidate + Will-O-Wisp support. Built to break Trick Room before it starts.'),
+  ('mega_altaria', 'Mega Altaria', 'HYBRID RAINBOW', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'mega_altaria_champions_regma_v1', 'Sun-rain hybrid with Trick Room threat via Sinistcha. Prankster Whimsicott provides flexible speed control.'),
+  ('mega_dragonite', 'Mega Dragonite', 'HYBRID RAINBOW', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'mega_dragonite_champions_regma_v1', 'Rain team with Mega Dragonite as the primary sweeper. Basculegion Adaptability + Archaludon Electro Shot under rain.'),
+  ('mega_houndoom', 'Mega Houndoom', 'HYBRID RAINBOW', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'mega_houndoom_champions_regma_v1', 'Sun + Trick Room hybrid. Mega Houndoom Solar Power nukes under sun. Flexible TR setters in Sinistcha, Farigiraf, Whimsicott.'),
+  ('rin_sand', 'Rin Sand', 'RIN', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'rin_sand_champions_regma_v1', 'Sand offense with Tyranitar + Excadrill core. Sneasler Unburden for burst speed. Dragapult for speed and spread.'),
+  ('suica_sun', 'Suica Sun', 'SUICA', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'suica_sun_champions_regma_v1', 'Charizard Y sun offense. Sneasler + Basculegion revenge killers. Incineroar provides Intimidate support.'),
+  ('cofagrigus_tr', 'Cofagrigus TR', 'TRICK ROOM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'cofagrigus_tr_champions_regma_v1', 'Classic Trick Room team. Cofagrigus + Sinistcha lead sets TR. Slow, powerful sweepers underneath.'),
+  ('champions_arena_1st', 'Hyungwoo Shin — Champions Arena', '1ST CHAMPIONS ARENA', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'champions_arena_1st_v1', 'Mega Charizard-Y Sun with Coil Milotic secret weapon. Champions Arena winner April 2026. Rental: SQMPYRW6BP'),
+  ('champions_arena_2nd', 'Jorge Tabuyo — Champions Arena Finalist', '2ND CHAMPIONS ARENA', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'champions_arena_2nd_v1', 'Double Mega Charizard-X + Tyranitar with Sinistcha TR fallback. Rental: P08QQ5NU9C'),
+  ('champions_arena_3rd', 'Juan Benítez — Champions Arena Top 3', '3RD CHAMPIONS ARENA', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'champions_arena_3rd_v1', 'Mega Charizard-Y + Max Speed Kingambit tech. Prankster Whimsicott + Scarf Garchomp. Rental: KN6SNLGUPA'),
+  ('chuppa_balance', 'Chuppa Cross IV — Pittsburgh Champion', 'REGIONAL WINNER', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'chuppa_balance_sv_v1', 'Adaptability Basculegion + Last Respects win-con. Pittsburgh Regional champion. Focus Sash + Maushold Follow Me.'),
+  ('aurora_veil_froslass', 'Mega Froslass — Aurora Veil', 'VEIL TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'aurora_veil_froslass_champions_regma_v1', 'Mega Froslass Snow Warning sets instant Aurora Veil. Dragonite + Kingambit behind veil. High win-condition team.'),
+  ('kingambit_sneasler', 'Kingambit + Sneasler Core', 'META CORE', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'kingambit_sneasler_sv_v1', 'The #1 ranked meta core in Reg M-A. 1,329 teams tracked. Defiant Kingambit punishes Intimidate; Unburden Sneasler cleans up.'),
+  ('custom_1776995210260', 'Froslass''s Team', 'CUSTOM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', NULL, 'Imported via Showdown paste'),
+  ('perish_trap_gengar', 'Perish Trap — Mega Gengar', 'PERISH TRAP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'perish_trap_gengar_champions_regma_v1', 'Mega Gengar Shadow Tag + Perish Song trap core. Sinistcha Rage Powder redirection stalls opponents through perish countdown. Francesco Rasini Champions Arena Top 12.'),
+  ('rain_offense', 'Rain Offense — Mega Meganium', 'RAIN', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'rain_offense_meganium_champions_regma_v1', 'Pelipper Drizzle + Basculegion Adaptability Wave Crash + Archaludon Electro Shot rain core. Mega Meganium (Mega Sol) secondary. leoscerni LIGA DA COMUNIDADE #2 Rank #3.'),
+  ('trick_room_golurk', 'Trick Room — Mega Golurk', 'TRICK ROOM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'trick_room_golurk_champions_regma_v1', 'Farigiraf Armor Tail + Trick Room setter, Mega Golurk Iron Fist Headlong Rush sweeper, Torkoal Eruption cleanup. pokefey Torneo Salida Rank #2.'),
+  ('sun_offense_charizard', 'Sun Offense — Mega Charizard Y', 'SUN', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'sun_offense_charizard_champions_regma_v1', 'Mega Charizard Y Drought + Torkoal Eruption + Hatterene/Farigiraf Trick Room hybrid. Jiang Jin-Hao Champions Arena Top 5.'),
+  ('z2r_feitosa_mega_floette', 'Z2R Feitosa — Mega Floette Balance', 'CHAMPIONS CUP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'z2r_feitosa_champions_regma_v1', 'Mega Floette Fairy Aura Light of Ruin + Talonflame Gale Wings Tailwind + Basculegion/Kingambit dual wincon. Z2R Feitosa LIGA DA COMUNIDADE #2 Rank #2 15-0-0.'),
+  ('benny_v_mega_froslass', 'Benny V — Mega Froslass Wide League', 'WIDE LEAGUE', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'benny_v_champions_regma_v1', 'Mega Froslass Snow Cloak Blizzard + Basculegion Choice Scarf Last Respects + Kingambit closer. Benny V Wide League SNR #84 Rank #2 13-1-0.'),
+  ('lukasjoel1_sand_gengar', 'lukasjoel1 — Sand + Mega Gengar ZGG', 'ZGG CUP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'lukasjoel1_champions_regma_v1', 'Tyranitar Sand Stream + Garchomp Sand Veil + Mega Gengar Shadow Tag trap core. lukasjoel1 ZGG #1 $200 Rank #2 13-2-0.'),
+  ('hiroto_imai_snow', 'Hiroto Imai — Snow + Mega Lopunny', 'CHAMPIONS CUP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'hiroto_imai_snow_champions_regma_v1', 'Vanilluxe Snow Warning + Choice Scarf Blizzard spam, Mega Lopunny Fake Out disruption, Aegislash Stance Change. Hiroto Imai Champions Arena Rank #75.'),
+  ('fedecampovgc_aerodactyl_ariados', 'FedeCampoVGC — Aerodactyl Ariados', 'MAY META', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fedecampovgc_aerodactyl_ariados_may2026_v1', 'Current May 2026 public meta-index roster built around Mega Aerodactyl + Mega Charizard Y pressure. Rental: AV7NTVGB10.'),
+  ('swirlingroses_meganium_vivillon', 'swirlingroses — Meganium Vivillon Balance', 'MAY REPLAY', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'swirlingroses_meganium_vivillon_may2026_v1', 'May 6, 2026 Champions replay-preview roster with Sneasler / Basculegion / Incineroar / Kingambit / Meganium / Vivillon-Continental.'),
+  ('prro_t_floette_aerodactyl', 'Prro-T — Floette Aerodactyl Pressure', 'MAY REPLAY', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'prro_t_floette_aerodactyl_may2026_v1', 'May 8, 2026 Champions Bo3 replay-preview roster with Floette-Eternal / Aerodactyl / Incineroar / Garchomp / Sneasler / Basculegion.'),
+  ('fabulous_sunroom', 'Fabulous Sunroom', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fabulous_sunroom_champions_regma_v1', 'Calibration sunroom built from public sample-team archetypes and shipped legal catalog sets.'),
+  ('sand_bulky_offense', 'Sand Bulky Offense', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'sand_bulky_offense_champions_regma_v1', 'Calibration sand offense built from shipped legal catalog sets and public sample-team archetypes.'),
+  ('fire_ice_fullroom', 'Fire and Ice Fullroom', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fire_ice_fullroom_champions_regma_v1', 'Calibration room team built from shipped legal catalog sets and public sample-team archetypes.'),
+  ('zardx_snow_setup', 'ZardX Snow Setup', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'zardx_snow_setup_champions_regma_v1', 'Calibration snow offense built from shipped legal catalog sets and public sample-team archetypes.')
+ON CONFLICT (team_id) DO UPDATE SET
+  name = EXCLUDED.name,
+  label = EXCLUDED.label,
+  mode = EXCLUDED.mode,
+  ruleset_id = EXCLUDED.ruleset_id,
+  source = EXCLUDED.source,
+  source_ref = EXCLUDED.source_ref,
+  description = EXCLUDED.description;
+
+-- Replace normalized members for shared canonical repo teams only.
 DELETE FROM team_members WHERE team_id IN (
   'player',
   'mega_altaria',
@@ -38,85 +92,6 @@ DELETE FROM team_members WHERE team_id IN (
   'fire_ice_fullroom',
   'zardx_snow_setup'
 );
-DELETE FROM teams WHERE team_id IN (
-  'player',
-  'mega_altaria',
-  'mega_dragonite',
-  'mega_houndoom',
-  'rin_sand',
-  'suica_sun',
-  'cofagrigus_tr',
-  'champions_arena_1st',
-  'champions_arena_2nd',
-  'champions_arena_3rd',
-  'chuppa_balance',
-  'aurora_veil_froslass',
-  'kingambit_sneasler',
-  'custom_1776995210260',
-  'perish_trap_gengar',
-  'rain_offense',
-  'trick_room_golurk',
-  'sun_offense_charizard',
-  'z2r_feitosa_mega_floette',
-  'benny_v_mega_froslass',
-  'lukasjoel1_sand_gengar',
-  'hiroto_imai_snow',
-  'fedecampovgc_aerodactyl_ariados',
-  'swirlingroses_meganium_vivillon',
-  'prro_t_floette_aerodactyl',
-  'fabulous_sunroom',
-  'sand_bulky_offense',
-  'fire_ice_fullroom',
-  'zardx_snow_setup'
-);
-DELETE FROM rulesets WHERE ruleset_id = 'champions_reg_m_doubles_bo3';
-
--- ============================================================
--- RULESET
--- ============================================================
-INSERT INTO rulesets (ruleset_id, format_group, engine_formatid, description, custom_rules)
-VALUES (
-  'champions_reg_m_doubles_bo3',
-  'Champion',
-  'gen9championsvgc2026regma',
-  'Champions 2026 Reg M A — Doubles, bring 6 pick 4, level 50, Bo3',
-  '{"bring":6,"choose":4,"gameMode":"doubles","levelCap":50}'::jsonb
-);
-
--- ============================================================
--- TEAMS (all 29)
--- ============================================================
-INSERT INTO teams (team_id, name, label, mode, ruleset_id, source, source_ref, description)
-VALUES
-  ('player', 'TR Counter Squad', 'YOUR TEAM', 'player', 'champions_reg_m_doubles_bo3', 'builtin', 'player_tr_counter_v1', 'Fast offensive pressure with Intimidate + Will-O-Wisp support. Built to break Trick Room before it starts.'),
-  ('mega_altaria', 'Mega Altaria', 'HYBRID RAINBOW', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'mega_altaria_champions_regma_v1', 'Sun-rain hybrid with Trick Room threat via Sinistcha. Prankster Whimsicott provides flexible speed control.'),
-  ('mega_dragonite', 'Mega Dragonite', 'HYBRID RAINBOW', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'mega_dragonite_champions_regma_v1', 'Rain team with Mega Dragonite as the primary sweeper. Basculegion Adaptability + Archaludon Electro Shot under rain.'),
-  ('mega_houndoom', 'Mega Houndoom', 'HYBRID RAINBOW', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'mega_houndoom_champions_regma_v1', 'Sun + Trick Room hybrid. Mega Houndoom Solar Power nukes under sun. Flexible TR setters in Sinistcha, Farigiraf, Whimsicott.'),
-  ('rin_sand', 'Rin Sand', 'RIN', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'rin_sand_champions_regma_v1', 'Sand offense with Tyranitar + Excadrill core. Sneasler Unburden for burst speed. Dragapult for speed and spread.'),
-  ('suica_sun', 'Suica Sun', 'SUICA', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'suica_sun_champions_regma_v1', 'Charizard Y sun offense. Sneasler + Basculegion revenge killers. Incineroar provides Intimidate support.'),
-  ('cofagrigus_tr', 'Cofagrigus TR', 'TRICK ROOM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'cofagrigus_tr_champions_regma_v1', 'Classic Trick Room team. Cofagrigus + Sinistcha lead sets TR. Slow, powerful sweepers underneath.'),
-  ('champions_arena_1st', 'Hyungwoo Shin — Champions Arena', '1ST CHAMPIONS ARENA', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'champions_arena_1st_v1', 'Mega Charizard-Y Sun with Coil Milotic secret weapon. Champions Arena winner April 2026. Rental: SQMPYRW6BP'),
-  ('champions_arena_2nd', 'Jorge Tabuyo — Champions Arena Finalist', '2ND CHAMPIONS ARENA', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'champions_arena_2nd_v1', 'Double Mega Charizard-X + Tyranitar with Sinistcha TR fallback. Rental: P08QQ5NU9C'),
-  ('champions_arena_3rd', 'Juan Benítez — Champions Arena Top 3', '3RD CHAMPIONS ARENA', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'champions_arena_3rd_v1', 'Mega Charizard-Y + Max Speed Kingambit tech. Prankster Whimsicott + Scarf Garchomp. Rental: KN6SNLGUPA'),
-  ('chuppa_balance', 'Chuppa Cross IV — Pittsburgh Champion', 'REGIONAL WINNER', 'champion_pack', 'champions_reg_m_doubles_bo3', 'builtin', 'chuppa_balance_sv_v1', 'Adaptability Basculegion + Last Respects win-con. Pittsburgh Regional champion. Focus Sash + Maushold Follow Me.'),
-  ('aurora_veil_froslass', 'Mega Froslass — Aurora Veil', 'VEIL TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'aurora_veil_froslass_champions_regma_v1', 'Mega Froslass Snow Warning sets instant Aurora Veil. Dragonite + Kingambit behind veil. High win-condition team.'),
-  ('kingambit_sneasler', 'Kingambit + Sneasler Core', 'META CORE', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'kingambit_sneasler_sv_v1', 'The #1 ranked meta core in Reg M-A. 1,329 teams tracked. Defiant Kingambit punishes Intimidate; Unburden Sneasler cleans up.'),
-  ('custom_1776995210260', 'Froslass''s Team', 'CUSTOM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', NULL, 'Imported via Showdown paste'),
-  ('perish_trap_gengar', 'Perish Trap — Mega Gengar', 'PERISH TRAP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'perish_trap_gengar_champions_regma_v1', 'Mega Gengar Shadow Tag + Perish Song trap core. Sinistcha Rage Powder redirection stalls opponents through perish countdown. Francesco Rasini Champions Arena Top 12.'),
-  ('rain_offense', 'Rain Offense — Mega Meganium', 'RAIN', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'rain_offense_meganium_champions_regma_v1', 'Pelipper Drizzle + Basculegion Adaptability Wave Crash + Archaludon Electro Shot rain core. Mega Meganium (Mega Sol) secondary. leoscerni LIGA DA COMUNIDADE #2 Rank #3.'),
-  ('trick_room_golurk', 'Trick Room — Mega Golurk', 'TRICK ROOM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'trick_room_golurk_champions_regma_v1', 'Farigiraf Armor Tail + Trick Room setter, Mega Golurk Iron Fist Headlong Rush sweeper, Torkoal Eruption cleanup. pokefey Torneo Salida Rank #2.'),
-  ('sun_offense_charizard', 'Sun Offense — Mega Charizard Y', 'SUN', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'sun_offense_charizard_champions_regma_v1', 'Mega Charizard Y Drought + Torkoal Eruption + Hatterene/Farigiraf Trick Room hybrid. Jiang Jin-Hao Champions Arena Top 5.'),
-  ('z2r_feitosa_mega_floette', 'Z2R Feitosa — Mega Floette Balance', 'CHAMPIONS CUP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'z2r_feitosa_champions_regma_v1', 'Mega Floette Fairy Aura Light of Ruin + Talonflame Gale Wings Tailwind + Basculegion/Kingambit dual wincon. Z2R Feitosa LIGA DA COMUNIDADE #2 Rank #2 15-0-0.'),
-  ('benny_v_mega_froslass', 'Benny V — Mega Froslass Wide League', 'WIDE LEAGUE', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'benny_v_champions_regma_v1', 'Mega Froslass Snow Cloak Blizzard + Basculegion Choice Scarf Last Respects + Kingambit closer. Benny V Wide League SNR #84 Rank #2 13-1-0.'),
-  ('lukasjoel1_sand_gengar', 'lukasjoel1 — Sand + Mega Gengar ZGG', 'ZGG CUP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'lukasjoel1_champions_regma_v1', 'Tyranitar Sand Stream + Garchomp Sand Veil + Mega Gengar Shadow Tag trap core. lukasjoel1 ZGG #1 $200 Rank #2 13-2-0.'),
-  ('hiroto_imai_snow', 'Hiroto Imai — Snow + Mega Lopunny', 'CHAMPIONS CUP', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'hiroto_imai_snow_champions_regma_v1', 'Vanilluxe Snow Warning + Choice Scarf Blizzard spam, Mega Lopunny Fake Out disruption, Aegislash Stance Change. Hiroto Imai Champions Arena Rank #75.'),
-  ('fedecampovgc_aerodactyl_ariados', 'FedeCampoVGC — Aerodactyl Ariados', 'MAY META', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fedecampovgc_aerodactyl_ariados_may2026_v1', 'Current May 2026 public meta-index roster built around Mega Aerodactyl + Mega Charizard Y pressure. Rental: AV7NTVGB10.'),
-  ('swirlingroses_meganium_vivillon', 'swirlingroses — Meganium Vivillon Balance', 'MAY REPLAY', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'swirlingroses_meganium_vivillon_may2026_v1', 'May 6, 2026 Champions replay-preview roster with Sneasler / Basculegion / Incineroar / Kingambit / Meganium / Vivillon-Continental.'),
-  ('prro_t_floette_aerodactyl', 'Prro-T — Floette Aerodactyl Pressure', 'MAY REPLAY', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'prro_t_floette_aerodactyl_may2026_v1', 'May 8, 2026 Champions Bo3 replay-preview roster with Floette-Eternal / Aerodactyl / Incineroar / Garchomp / Sneasler / Basculegion.'),
-  ('fabulous_sunroom', 'Fabulous Sunroom', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fabulous_sunroom_champions_regma_v1', 'Calibration sunroom built from public sample-team archetypes and shipped legal catalog sets.'),
-  ('sand_bulky_offense', 'Sand Bulky Offense', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'sand_bulky_offense_champions_regma_v1', 'Calibration sand offense built from shipped legal catalog sets and public sample-team archetypes.'),
-  ('fire_ice_fullroom', 'Fire and Ice Fullroom', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fire_ice_fullroom_champions_regma_v1', 'Calibration room team built from shipped legal catalog sets and public sample-team archetypes.'),
-  ('zardx_snow_setup', 'ZardX Snow Setup', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'zardx_snow_setup_champions_regma_v1', 'Calibration snow offense built from shipped legal catalog sets and public sample-team archetypes.');
 
 -- ============================================================
 -- TEAM MEMBERS
@@ -382,3 +357,5 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
   ('zardx_snow_setup', 4, 'Dragonite', 'Lum Berry', 'Multiscale', 'Adamant', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Extreme Speed","Dragon Dance","Fire Punch","Protect"]'::jsonb, NULL, 'Multiscale Setup Sweeper'),
   ('zardx_snow_setup', 5, 'Kingambit', 'Chople Berry', 'Supreme Overlord', 'Adamant', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Kowtow Cleave","Sucker Punch","Low Kick","Protect"]'::jsonb, NULL, 'Supreme Overlord Sweeper'),
   ('zardx_snow_setup', 6, 'Milotic', 'Life Orb', 'Competitive', 'Modest', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":32,"spe":0}'::jsonb, '["Blizzard","Scald","Weather Ball","Life Dew"]'::jsonb, NULL, 'Utility / Secret Weapon');
+
+COMMIT;
