@@ -23,6 +23,8 @@ node tests/phase4c_detectors.js # Phase 4c — detectors + confidence badges (5 
 node tests/phase4d_threat_response_tests.js # Phase 4d — threat response solver + line classifier — 7 cases
 node tests/phase4e_policy_regression.js # Phase 4e — policy audit / T5 static-advice gate — 16 cases
 node tests/mechanics_audit.js      # Mechanics audit — move-rule checks used by smoke test
+node tests/ability_coverage_audit_tests.js # Ability coverage inventory + classification guard
+node tests/ability_priority_targeting_tests.js # Prankster, Armor Tail, Good as Gold, Magic Bounce
 node tests/t159_mobile_roster_layout_tests.js # Mobile roster layout safeguards
 node tests/t160_distinct_battle_team_tests.js # Battle team selection must stay distinct
 node tests/t161_team_member_uniqueness_tests.js # Catalog teams must not repeat members

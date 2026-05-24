@@ -1866,6 +1866,18 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         log.push(`${attacker.name} used ${move}! But it failed because of Substitute!`);
         return;
       }
+      if (target && target.alive && shouldPranksterFailOnTarget(attacker, move, target)) {
+        log.push(`${target.name} is immune to Prankster-boosted ${move}!`);
+        return;
+      }
+      if (target && target.alive && isBlockedByGoodAsGold(target, move)) {
+        log.push(`${target.name}'s Good as Gold blocked ${move}!`);
+        return;
+      }
+      if (target && target.alive && shouldReflectByMagicBounce(attacker, target, move)) {
+        log.push(`${target.name}'s Magic Bounce reflected ${move}!`);
+        target = attacker;
+      }
       if (move === 'Trick Room') {
         if (field.trickRoom) {
           field.trickRoom = false;
@@ -2048,7 +2060,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         return;
       }
       if (move === 'Taunt' && target && target.alive) {
-        const targetAllies = enemies;
+        const targetAllies = (target.side && attacker.side && target.side === attacker.side) ? allies : enemies;
         const aromaVeilOnSide = targetAllies.some(m => m.alive && m.ability === 'Aroma Veil');
         if (target.ability === 'Oblivious' || target.ability === 'Aroma Veil' || aromaVeilOnSide) {
           log.push(`${target.name} is immune to Taunt!`);
@@ -2068,7 +2080,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         return;
       }
       if (move === 'Encore' && target && target.alive) {
-        const targetAllies = enemies;
+        const targetAllies = (target.side && attacker.side && target.side === attacker.side) ? allies : enemies;
         const aromaVeilOnSide = targetAllies.some(m => m.alive && m.ability === 'Aroma Veil');
         if (target.ability === 'Oblivious' || target.ability === 'Aroma Veil' || aromaVeilOnSide) {
           log.push(`${target.name} is immune to Encore!`);
@@ -2452,12 +2464,17 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (targets.length === 0) return;
     }
 
-    const movePriority = getPriority(move);
+    const movePriority = getPriority(move, attacker);
     if (movePriority > 0) {
       targets = targets.filter(t => {
         if (!t.side || !attacker.side || t.side === attacker.side) return true;
         if (t.side.quickGuard && move !== 'Feint') {
           log.push(`Quick Guard blocked ${move} on ${t.name}!`);
+          return false;
+        }
+        const defenders = (t.side === field.playerSide) ? playerActive : oppActive;
+        if (defenders.some(m => m.alive && m.ability === 'Armor Tail')) {
+          log.push(`Armor Tail blocked ${move} on ${t.name}!`);
           return false;
         }
         return true;
@@ -2771,7 +2788,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         target,
         targetIndex: (target && oppActive.indexOf(target) >= 0) ? oppActive.indexOf(target) : null,
         side: 'player',
-        priority: getPriority(move)
+        priority: getPriority(move, mon)
       };
       mon._chosenMove = move;
       _recordAction(_act);
@@ -2785,7 +2802,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         target,
         targetIndex: (target && playerActive.indexOf(target) >= 0) ? playerActive.indexOf(target) : null,
         side: 'opp',
-        priority: getPriority(move)
+        priority: getPriority(move, mon)
       };
       mon._chosenMove = move;
       _recordAction(_act);
@@ -3158,7 +3175,25 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
 // ============================================================
 // PRIORITY LOOKUP
 // ============================================================
-function getPriority(move) {
+var STATUS_MOVE_NAMES = new Set([
+  'Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder','Tailwind','Sunny Day',
+  'Trick Room','Life Dew','Rage Powder','Roost','Parting Shot','Shed Tail',
+  'Quick Guard','Endure','Wide Guard','Follow Me','Protect','Detect',
+  "King's Shield",'Spiky Shield','Baneful Bunker','Obstruct','Light Screen',
+  'Reflect','Aurora Veil','Encore','Haze','Defog','Recover','Shore Up','Rest',
+  'Sleep Talk','Substitute','Imprison','Ally Switch','Toxic','Poison Powder'
+]);
+
+var TARGETED_STATUS_MOVES = new Set([
+  'Will-O-Wisp','Thunder Wave','Taunt','Sleep Powder','Toxic',
+  'Poison Powder','Encore','Parting Shot'
+]);
+
+function isStatusMoveName(move) {
+  return !!(move && (STATUS_MOVE_NAMES.has(move) || MOVE_CATEGORY[move] === 'status'));
+}
+
+function getPriority(move, attacker) {
   // T9j.2 — Champions 2026 priority table (Refs CHAMPIONS_MECHANICS_SPEC §4).
   // Rage Powder and Follow Me are +2 in Champions (ORACLE-DIVERGENCE-3 vs SV +3).
   const P = {
@@ -3171,7 +3206,40 @@ function getPriority(move) {
     'Follow Me':2, 'Rage Powder':2,
     'Trick Room':-7, 'Roost':0
   };
-  return P[move] || 0;
+  let priority = P[move] || 0;
+  if (attacker && attacker.ability === 'Prankster' && isStatusMoveName(move)) priority += 1;
+  return priority;
+}
+
+function shouldPranksterFailOnTarget(attacker, move, target) {
+  return !!(attacker
+    && attacker.ability === 'Prankster'
+    && target
+    && target.alive
+    && target.side
+    && attacker.side
+    && target.side !== attacker.side
+    && TARGETED_STATUS_MOVES.has(move)
+    && Array.isArray(target.types)
+    && target.types.indexOf('Dark') !== -1);
+}
+
+function isBlockedByGoodAsGold(target, move) {
+  return !!(target
+    && target.alive
+    && target.ability === 'Good as Gold'
+    && TARGETED_STATUS_MOVES.has(move));
+}
+
+function shouldReflectByMagicBounce(attacker, target, move) {
+  return !!(attacker
+    && target
+    && target.alive
+    && target.ability === 'Magic Bounce'
+    && attacker.side
+    && target.side
+    && attacker.side !== target.side
+    && TARGETED_STATUS_MOVES.has(move));
 }
 
 // ============================================================
