@@ -246,10 +246,18 @@ describe('Module 2 \u2014 Seed suite (14 cases)', function() {
         req.end();
       });
     }
-    return get('/rest/v1/teams?select=team_id').then(function(r) {
+    return get('/rest/v1/teams?select=team_id&order=team_id').then(function(r) {
       truthy(r.status === 200, 'GET /teams returned 200, got ' + r.status);
       var arr = JSON.parse(r.body);
-      truthy(arr.length === 22, 'live DB has 22 teams, got ' + arr.length);
+      var liveIds = Array.from(new Set(arr.map(function(row) { return row.team_id; }))).sort();
+      var expectedIds = Array.from(new Set(teamIdsInSeed(readSeed()))).sort();
+      var missing = expectedIds.filter(function(id) { return liveIds.indexOf(id) === -1; });
+      var extra = liveIds.filter(function(id) { return expectedIds.indexOf(id) === -1; });
+      truthy(missing.length === 0 && extra.length === 0,
+        'live DB team_ids match seed; expected ' + expectedIds.length +
+        ', got ' + liveIds.length +
+        ', missing=' + JSON.stringify(missing) +
+        ', extra=' + JSON.stringify(extra));
     });
   });
 
