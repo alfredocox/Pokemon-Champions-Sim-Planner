@@ -100,6 +100,10 @@ cd poke-sim && npx serve .
 ### Live status (2026-05-24)
 Supabase project `ymlahqnshgiarpbgxehp` (us-west-2, Postgres 17.6, ACTIVE_HEALTHY) is up. Schema, RLS, adapter wiring, and analysis persistence are active. Current repo seed target is 26 teams; existing live DBs with analysis history should use `poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` instead of delete-first seed files.
 
+### Alfredo / Josh seed-repair handoff
+
+Alfredo's branch catalog can be ahead of the shared live DB during review. If live DB smoke reports 25 teams while `data.js` has 26, that is expected pre-migration drift. Do not run delete-first seed SQL, revert the 26-team catalog, or mutate Supabase from an unapproved PR. After the non-destructive repair migration is intentionally applied, require strict parity with `RUN_LIVE_DB=1 STRICT_LIVE_DB_SEED=1 node poke-sim/tests/db_m2_seed_tests.js`.
+
 ### What exists in the repo
 | File | Status |
 |---|---|
@@ -381,12 +385,11 @@ The old top-level `var COVERAGE_CHECKS` workaround is gone. Keep the lazy-init p
 ## NEXT ACTIONS (as of 2026-05-24)
 
 1. **Review this sync PR** — non-destructive 26-team seed repair and DB documentation alignment.
-2. **Keep seed alignment current** ([POK-18](https://linear.app/poke-e-sim/issue/POK-18)) — gate with `db_m2_seed_tests.js` GREEN and live DB count matching `data.js`.
-3. **Do not run delete-first seed files** on live DBs with `analyses` history.
-4. **Coordinate with Kevin separately** for cross-repo catalog differences; do not overwrite divergent history.
-2. **Owner provides Supabase Project URL + anon key** — AI wires into supabase_adapter.js and pushes
-3. **Wire saveAnalysis() call into ui.js** after `runBoSeries()` completes — Issue #82
-4. **Wire loadTeams() into init** to hydrate TEAMS from Supabase on startup — Issue #81
+2. **Alfredo/Josh read the seed-repair handoff above before acting on live DB count drift.**
+3. **Keep seed alignment current** ([POK-18](https://linear.app/poke-e-sim/issue/POK-18)) — gate with `db_m2_seed_tests.js` GREEN and use strict live parity only after the repair migration is deliberately applied.
+4. **Do not run delete-first seed files** on live DBs with `analyses` history.
+5. **Coordinate with Kevin separately** for cross-repo catalog differences; do not overwrite divergent history.
+6. **Before acting on older DB rollout items**, verify the current GitHub/Linear issue state; do not treat historical setup notes as current work.
 
 ---
 

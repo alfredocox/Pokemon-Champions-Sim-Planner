@@ -47,6 +47,13 @@ UI wiring: `poke-sim/ui.js` already loads DB teams on startup and persists analy
 - The older generated seed files are still useful for fresh DB/bootstrap review, but their delete-first shape can fail or partially apply on a DB with existing `analyses` FK references.
 - After this sync PR is merged, run `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` through the manual migration workflow or Supabase SQL Editor to align an existing live DB.
 
+### Alfredo / Josh handoff note
+
+- Alfredo's branch catalog currently has 26 teams. Kevin's live DB may still show 25 teams until Alfredo deliberately applies this repair migration.
+- A CI/live smoke warning like `live DB team count is 25, branch data.js count is 26` is expected pre-migration drift, not proof that the branch seed is broken.
+- Do not make that warning disappear by running delete-first seed SQL, reverting the 26-team catalog, or mutating Supabase from an unapproved PR.
+- After the repair migration is intentionally applied, run the strict live smoke with `RUN_LIVE_DB=1 STRICT_LIVE_DB_SEED=1 node poke-sim/tests/db_m2_seed_tests.js`.
+
 ---
 
 ## Local Credential Setup

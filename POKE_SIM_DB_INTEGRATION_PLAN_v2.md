@@ -17,6 +17,10 @@ This file started as the original DB integration roadmap. The current implementa
 - Existing live DBs with `analyses` history must use `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql`, which upserts rulesets/teams and replaces only canonical `team_members`.
 - Cross-repo alignment with Kevin's repo must stay reviewed because the two repos currently carry different team catalogs.
 
+### Alfredo / Josh handoff note
+
+If live DB smoke reports 25 teams while this branch reports 26 teams, treat that as expected pre-migration drift. Do not "fix" it by running delete-first seed SQL, reverting the branch catalog, or mutating Supabase from an unapproved PR. After Alfredo deliberately applies `2026_05_24_upsert_seed_teams_v2_repair.sql`, run `RUN_LIVE_DB=1 STRICT_LIVE_DB_SEED=1 node poke-sim/tests/db_m2_seed_tests.js` to require live DB parity.
+
 ---
 
 ## 0. What changed since v1
@@ -460,7 +464,8 @@ Use Linear's GitHub integration so each PR auto-links. Branch naming convention:
 2. Review this sync PR and merge only after Alfredo/Kevin approval.
 3. After merge, apply `2026_05_24_upsert_seed_teams_v2_repair.sql` if the existing live DB needs seed alignment.
 4. Keep live credentials in ignored local files or GitHub secrets only; never commit keys.
-5. Use `node poke-sim/tests/db_m2_seed_tests.js` and live DB smoke as the minimum seed-alignment checks.
+5. Josh/Alfredo should read the handoff note above before interpreting live DB count drift.
+6. Use `node poke-sim/tests/db_m2_seed_tests.js` and live DB smoke as the minimum seed-alignment checks.
 
 ---
 

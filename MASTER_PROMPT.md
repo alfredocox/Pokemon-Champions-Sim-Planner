@@ -433,8 +433,9 @@ cd poke-sim && npx serve .
 1. Use `schema_v1.sql` only for fresh DB bootstrap.
 2. Use `seed_teams_v2.sql` only for fresh DB/reference review.
 3. Use `2026_05_24_upsert_seed_teams_v2_repair.sql` for existing live DBs with analysis history.
-4. Verify seed alignment with `node poke-sim/tests/db_m2_seed_tests.js`; live DB smoke should match the current `data.js` team count.
-5. Keep Supabase credentials in ignored local files or GitHub secrets only.
+4. Alfredo/Josh note: if live DB smoke reports 25 teams while this branch has 26 in `data.js`, that is expected pre-migration drift. Do not run delete-first seed SQL, revert the branch catalog, or mutate Supabase from an unapproved PR.
+5. Verify seed alignment with `node poke-sim/tests/db_m2_seed_tests.js`; after the repair migration is deliberately applied, require strict live parity with `RUN_LIVE_DB=1 STRICT_LIVE_DB_SEED=1 node poke-sim/tests/db_m2_seed_tests.js`.
+6. Keep Supabase credentials in ignored local files or GitHub secrets only.
 
 > See `poke-sim/db/README_DB.md` for the full wiring guide, adapter API, and verification checklist.
 
