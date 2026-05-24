@@ -21,6 +21,15 @@ This file started as the original DB integration roadmap. The current implementa
 
 If live DB smoke reports 25 teams while this branch reports 26 teams, treat that as expected pre-migration drift. Do not "fix" it by running delete-first seed SQL, reverting the branch catalog, or mutating Supabase from an unapproved PR. After Alfredo deliberately applies `2026_05_24_upsert_seed_teams_v2_repair.sql`, run `RUN_LIVE_DB=1 STRICT_LIVE_DB_SEED=1 node poke-sim/tests/db_m2_seed_tests.js` to require live DB parity.
 
+Live DB repair transaction gate:
+
+- Do not apply the repair migration until the sync PR is merged and the target Supabase project ref is confirmed.
+- Required approval should name the exact file, target project, and main commit.
+- Record `teams`, `team_members`, and `analyses` counts before and after the migration.
+- Apply only `poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql`.
+- Do not run delete-first seed files on a live DB with analysis history.
+- Post the strict smoke result back to the PR or issue after execution.
+
 ---
 
 ## 0. What changed since v1

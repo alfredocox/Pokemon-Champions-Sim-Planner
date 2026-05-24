@@ -54,6 +54,37 @@ UI wiring: `poke-sim/ui.js` already loads DB teams on startup and persists analy
 - Do not make that warning disappear by running delete-first seed SQL, reverting the 26-team catalog, or mutating Supabase from an unapproved PR.
 - After the repair migration is intentionally applied, run the strict live smoke with `RUN_LIVE_DB=1 STRICT_LIVE_DB_SEED=1 node poke-sim/tests/db_m2_seed_tests.js`.
 
+### Manual live DB repair transaction checklist
+
+Run this only after the sync PR is merged and the target Supabase project is confirmed.
+
+Required approval line before execution:
+
+```text
+Kevin/Alfredo approves applying poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql to Supabase project <project-ref> from main at <commit>.
+```
+
+Preflight:
+
+1. Confirm the checked-out branch is `main` and includes the merged repair migration.
+2. Confirm the Supabase project ref is the intended project, not a fork/test project.
+3. Record counts before migration: `teams`, `team_members`, and `analyses`.
+4. Confirm no delete-first seed file is being run.
+
+Transaction:
+
+1. Apply only `poke-sim/db/migrations/2026_05_24_upsert_seed_teams_v2_repair.sql`.
+2. Do not run `seed_teams_v2.sql` against a live DB with analysis history.
+3. Stop immediately if the migration tool reports an error.
+
+Postflight:
+
+1. Confirm `teams` matches the merged `data.js` team count.
+2. Confirm canonical `team_members` matches the merged seed target.
+3. Confirm `analyses` count did not unexpectedly decrease.
+4. Run `RUN_LIVE_DB=1 STRICT_LIVE_DB_SEED=1 node poke-sim/tests/db_m2_seed_tests.js`.
+5. Post the before/after counts and strict smoke result back to the PR or issue.
+
 ---
 
 ## Local Credential Setup
