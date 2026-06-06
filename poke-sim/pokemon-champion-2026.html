@@ -9627,11 +9627,11 @@ function _battleRosterSnapshot(active, bench, roster, side) {
       baseStatsLabel: _statsLabel(mon._base),
       calculatedStats: _statsLabel({
         hp: mon.maxHp,
-        atk: mon.atk,
-        def: mon.def,
-        spa: mon.spa,
-        spd: mon.spd,
-        spe: mon.spe
+        atk: mon.baseAtk,
+        def: mon.baseDef,
+        spa: mon.baseSpa,
+        spd: mon.baseSpd,
+        spe: mon.baseSpe
       })
     });
   }
@@ -9680,6 +9680,34 @@ function _buildPositionState(playerActive, playerBench, oppActive, oppBench, fie
 
 function positionScore(state) {
   state = state || {};
+  if (state.score_state && state.score_state.player && state.score_state.opponent) {
+    state = Object.assign({}, state, {
+      player: state.score_state.player,
+      opponent: state.score_state.opponent
+    });
+  }
+  if ((!state.player || !state.opponent) && state.active && state.bench) {
+    const hpPct = state.hp_pct || {};
+    const roster = state.roster || {};
+    function sideFromFlat(side) {
+      const activeKeys = (state.active_keys && state.active_keys[side]) || [];
+      const benchKeys = (state.bench_keys && state.bench_keys[side]) || [];
+      const keys = activeKeys.concat(benchKeys);
+      return {
+        active: (state.active && state.active[side]) || [],
+        bench: (state.bench && state.bench[side]) || [],
+        active_keys: activeKeys,
+        bench_keys: benchKeys,
+        alive_count: keys.filter(k => Number(hpPct[k] || 0) > 0).length,
+        hp_total: keys.reduce((s, k) => s + Number(hpPct[k] || 0), 0),
+        max_count: Math.max(1, keys.length || ((roster[side] || []).length))
+      };
+    }
+    state = Object.assign({}, state, {
+      player: sideFromFlat('player'),
+      opponent: sideFromFlat('opponent')
+    });
+  }
   const player = state.player || {};
   const opponent = state.opponent || {};
   const maxCount = Math.max(player.max_count || 1, opponent.max_count || 1, 1);
@@ -9740,6 +9768,10 @@ function _makeTurnSnapshot(playerActive, playerBench, oppActive, oppBench, field
     active_keys: { player: state.player.active_keys, opponent: state.opponent.active_keys },
     bench_keys: { player: state.player.bench_keys, opponent: state.opponent.bench_keys },
     hp_pct: _hpPctSnapshot(playerActive, playerBench, oppActive, oppBench),
+    score_state: {
+      player: Object.assign({}, state.player),
+      opponent: Object.assign({}, state.opponent)
+    },
     roster: {
       player: _battleRosterSnapshot(playerActive, playerBench, playerRoster || playerActive.concat(playerBench), 'player'),
       opponent: _battleRosterSnapshot(oppActive, oppBench, oppRoster || oppActive.concat(oppBench), 'opponent')

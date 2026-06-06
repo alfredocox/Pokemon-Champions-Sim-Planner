@@ -33,6 +33,7 @@ venv/
 coverage/
 .nyc_output/
 poke-sim/tests/audit_matrix.json
+poke-sim/artifacts/
 
 # Build artifacts (bundle is intentionally committed — see poke-sim/pokemon-champion-2026.html)
 # but keep unstaged work-in-progress HTML scratch files out

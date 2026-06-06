@@ -1,0 +1,72 @@
+name: Showdown Sync
+
+on:
+  schedule:
+    - cron: '30 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: showdown-sync
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    name: Fetch Showdown source hashes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore previous entity hash baseline
+        uses: actions/cache/restore@v4
+        with:
+          path: poke-sim/artifacts/showdown-sync-cache/entity_hashes.json
+          key: showdown-sync-entity-hashes-${{ github.run_id }}
+          restore-keys: |
+            showdown-sync-entity-hashes-
+
+      - name: Fetch upstream Showdown data
+        run: |
+          set -euo pipefail
+          cd poke-sim
+          if [ -f artifacts/showdown-sync-cache/entity_hashes.json ]; then
+            npm run showdown:sync -- --previous=artifacts/showdown-sync-cache/entity_hashes.json
+          else
+            npm run showdown:sync
+          fi
+
+      - name: Save latest entity hash baseline
+        run: |
+          set -euo pipefail
+          mkdir -p poke-sim/artifacts/showdown-sync-cache
+          cp poke-sim/artifacts/showdown-sync/normalized/entity_hashes.json \
+            poke-sim/artifacts/showdown-sync-cache/entity_hashes.json
+
+      - name: Upload sync artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: showdown-sync-${{ github.run_id }}
+          path: |
+            poke-sim/artifacts/showdown-sync/report.json
+            poke-sim/artifacts/showdown-sync/source_files.json
+            poke-sim/artifacts/showdown-sync/normalized/entities.json
+            poke-sim/artifacts/showdown-sync/normalized/entity_hashes.json
+            poke-sim/artifacts/showdown-sync/normalized/change_summary.json
+            poke-sim/artifacts/showdown-sync/normalized/validation_findings.json
+            poke-sim/artifacts/showdown-sync/raw/
+          retention-days: 14
+
+      - name: Cache latest entity hash baseline
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: poke-sim/artifacts/showdown-sync-cache/entity_hashes.json
+          key: showdown-sync-entity-hashes-${{ github.run_id }}

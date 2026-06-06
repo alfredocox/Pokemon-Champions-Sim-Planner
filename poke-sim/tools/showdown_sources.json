@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "baseUrl": "https://play.pokemonshowdown.com/data/",
+  "sources": [
+    {
+      "name": "pokedex",
+      "path": "pokedex.js",
+      "kind": "species",
+      "required": true
+    },
+    {
+      "name": "moves",
+      "path": "moves.js",
+      "kind": "move",
+      "required": true
+    },
+    {
+      "name": "abilities",
+      "path": "abilities.js",
+      "kind": "ability",
+      "required": true
+    },
+    {
+      "name": "items",
+      "path": "items.js",
+      "kind": "item",
+      "required": true
+    },
+    {
+      "name": "typechart",
+      "path": "typechart.js",
+      "kind": "typechart",
+      "required": true
+    },
+    {
+      "name": "aliases",
+      "path": "aliases.js",
+      "kind": "alias",
+      "required": true
+    },
+    {
+      "name": "learnsets",
+      "path": "learnsets.js",
+      "kind": "learnset",
+      "required": true
+    },
+    {
+      "name": "formats-data",
+      "path": "formats-data.js",
+      "kind": "format",
+      "required": false
+    }
+  ]
+}

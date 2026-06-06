@@ -7,7 +7,8 @@
     "test": "bash tests/_run_all.sh",
     "test:fast": "bash tests/_run_all.sh --skip-db",
     "test:db": "bash tests/_run_all_db.sh",
-    "test:db:live": "bash tests/_run_all_db.sh --live"
+    "test:db:live": "bash tests/_run_all_db.sh --live",
+    "showdown:sync": "node tools/fetch_showdown_data.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
