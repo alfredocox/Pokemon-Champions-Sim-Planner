@@ -2288,6 +2288,10 @@ class Pokemon {
         target.statBoosts[dStatKey] = dOverride;
       }
       atk = attackStatSource.getStat(aStatKey, field);
+      if (move === 'Foul Play' && aStatKey === 'atk' &&
+          (attackStatSource.ability === 'Huge Power' || attackStatSource.ability === 'Pure Power')) {
+        atk = Math.floor(atk / 2);
+      }
       def = target.getStat(dStatKey, field);
     } finally {
       if (_stageOverrideApplied) {
@@ -2298,6 +2302,10 @@ class Pokemon {
     }
     if (isPhysical && this.ability === 'Guts' && this.status) {
       atk = _applyStatMod(atk, 6144);
+    }
+    if (isPhysical && (this.ability === 'Huge Power' || this.ability === 'Pure Power') &&
+        (attackStatSource !== this || aStatKey !== 'atk')) {
+      atk = _applyStatMod(atk, 8192);
     }
     if (!isPhysical && this.ability === 'Solar Power' && _fieldWeather === 'sun') {
       atk = _applyStatMod(atk, 6144);

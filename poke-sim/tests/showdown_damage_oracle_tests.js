@@ -1119,6 +1119,36 @@ T('56. baseline special-case damage rules match Showdown', () => {
   );
   eqRange(
     simRange(
+      simMon('Mandibuzz', { nature: 'Bold', moves: ['Foul Play'], evs: { atk: 0 } }),
+      simMon('Dragonite', { nature: 'Adamant', evs: { atk: 252 }, ability: 'Huge Power' }),
+      'Foul Play',
+      new Field({ format: 'doubles' })
+    ),
+    oracleRange(
+      calcMon('Mandibuzz', { nature: 'Bold', evs: { atk: 0 } }),
+      calcMon('Dragonite', { nature: 'Adamant', evs: { atk: 252 }, ability: 'Huge Power' }),
+      'Foul Play',
+      new calc.Field({ gameType: 'Doubles' })
+    ),
+    'Foul Play uses target Attack without borrowing target Huge Power'
+  );
+  eqRange(
+    simRange(
+      simMon('Medicham-Mega', { nature: 'Adamant', moves: ['Foul Play'], evs: { atk: 252 }, ability: 'Pure Power' }),
+      simMon('Dragonite', { nature: 'Adamant', evs: { atk: 252 } }),
+      'Foul Play',
+      new Field({ format: 'doubles' })
+    ),
+    oracleRange(
+      calcMon('Medicham-Mega', { nature: 'Adamant', evs: { atk: 252 }, ability: 'Pure Power' }),
+      calcMon('Dragonite', { nature: 'Adamant', evs: { atk: 252 } }),
+      'Foul Play',
+      new calc.Field({ gameType: 'Doubles' })
+    ),
+    'Foul Play keeps user-side Pure Power modifier behavior'
+  );
+  eqRange(
+    simRange(
       simMon('Corviknight', { nature: 'Impish', moves: ['Body Press'], evs: { def: 252 } }),
       simMon('Snorlax', { nature: 'Careful' }),
       'Body Press',
@@ -1131,6 +1161,21 @@ T('56. baseline special-case damage rules match Showdown', () => {
       new calc.Field({ gameType: 'Doubles' })
     ),
     'Body Press uses user Defense as its offensive stat'
+  );
+  eqRange(
+    simRange(
+      simMon('Corviknight', { nature: 'Impish', moves: ['Body Press'], evs: { def: 252 }, ability: 'Huge Power' }),
+      simMon('Snorlax', { nature: 'Careful' }),
+      'Body Press',
+      new Field({ format: 'doubles' })
+    ),
+    oracleRange(
+      calcMon('Corviknight', { nature: 'Impish', evs: { def: 252 }, ability: 'Huge Power' }),
+      calcMon('Snorlax', { nature: 'Careful' }),
+      'Body Press',
+      new calc.Field({ gameType: 'Doubles' })
+    ),
+    'Body Press keeps user-side Huge Power modifier behavior'
   );
   eqRange(
     simRange(

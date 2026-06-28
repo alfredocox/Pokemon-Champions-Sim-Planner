@@ -116,9 +116,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.8-drain-rule-source-audit';
+    return txt || 'v2.2.9-foul-play-stat-source-audit';
   } catch (e) {
-    return 'v2.2.8-drain-rule-source-audit';
+    return 'v2.2.9-foul-play-stat-source-audit';
   }
 }
 
@@ -9984,6 +9984,11 @@ var CS_OVERVIEW_DATA = {
       status: 'done',
       title: 'Reg M-B stats/types/abilities source pass',
       detail: 'v2.2.1 source-verifies all 16 Reg M-B new Mega base stats, types, and abilities against Pokemon Showdown pokedex.ts while keeping the rows review-only and blocked from runtime legality until base/form implementation, learnset policy, and positive/negative fixtures are reviewed.'
+    },
+    {
+      status: 'done',
+      title: 'Foul Play stat-source audit',
+      detail: 'v2.2.9 fixes stat-source edge cases for unusual physical moves. Foul Play now uses the target Attack stat and stages without borrowing target Huge Power/Pure Power, while still applying user-side physical ability modifiers. Body Press also keeps user-side Huge/Pure Power behavior when using Defense as its offensive stat.'
     },
     {
       status: 'done',
