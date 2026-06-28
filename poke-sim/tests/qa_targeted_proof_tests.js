@@ -445,6 +445,24 @@ function targetedBattles() {
     evs: { hp: 32, atk: 32, spe: 2, def: 0, spa: 0, spd: 0 }
   }], { seed: [601, 602, 603, 604], maxTurns: 1 });
 
+  const moveRuleTrace = battle('Move Rule Trace Proof', [{
+    name: 'Mandibuzz',
+    ability: '',
+    item: '',
+    nature: 'Impish',
+    level: 50,
+    moves: ['Foul Play'],
+    evs: { hp: 32, def: 32, spd: 2, atk: 0, spa: 0, spe: 0 }
+  }], [{
+    name: 'Dragonite',
+    ability: 'Huge Power',
+    item: '',
+    nature: 'Adamant',
+    level: 50,
+    moves: ['Tackle'],
+    evs: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 0 }
+  }], { seed: [701, 702, 703, 704], maxTurns: 1 });
+
   return {
     auroraVeil,
     hpCost,
@@ -458,7 +476,8 @@ function targetedBattles() {
     priority,
     recoil,
     recovery,
-    itemRecovery
+    itemRecovery,
+    moveRuleTrace
   };
 }
 
@@ -509,6 +528,12 @@ T('targeted battles emit the evidence rows named by missing_targeted_proof', () 
     'direct recovery effect row missing');
   truthy(effectRows(runs.itemRecovery.turnLog, row => String(row.effect_kind || '').includes('item-recovery')).length,
     'item recovery effect row missing');
+  const moveRuleRows = damageRows(runs.moveRuleTrace.turnLog, row => row.move_rule_trace && row.move_rule_trace.schema_version === 'champions-move-rule-trace-v1');
+  truthy(moveRuleRows.length, 'move rule trace damage row missing');
+  truthy(moveRuleRows.some(row => row.move_rule_trace.ruleset_flags && row.move_rule_trace.ruleset_flags.foul_play_target_attack_source),
+    'Foul Play target Attack trace flag missing');
+  truthy(moveRuleRows.some(row => row.move_rule_trace.ruleset_flags && row.move_rule_trace.ruleset_flags.foul_play_target_power_ability_ignored),
+    'Foul Play target Huge/Pure Power ignored trace flag missing');
 });
 
 T('merged targeted QA coverage clears the artifact proof gaps', () => {
@@ -535,6 +560,10 @@ T('merged targeted QA coverage clears the artifact proof gaps', () => {
   truthy(mechanics.recoil > 0, 'recoil coverage missing');
   truthy(mechanics.recovery > 0, 'recovery coverage missing');
   truthy(mechanics.item_recovery > 0, 'item_recovery coverage missing');
+  truthy(mechanics.move_rule_trace_rows > 0, 'move_rule_trace_rows coverage missing');
+  truthy(mechanics.nonstandard_stat_source_trace > 0, 'nonstandard_stat_source_trace coverage missing');
+  truthy(mechanics.foul_play_trace > 0, 'foul_play_trace coverage missing');
+  truthy(mechanics.ignored_target_power_ability_trace > 0, 'ignored_target_power_ability_trace coverage missing');
 
   const missing = merged.missing_targeted_proof || [];
   eq(missing.includes('screen or Aurora Veil damage reduction'), false, 'screen proof should not be missing');

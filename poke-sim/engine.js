@@ -2282,6 +2282,8 @@ class Pokemon {
     const _aSaved = aBoost;
     const _dSaved = dBoost;
     const _stageOverrideApplied = (aOverride !== aBoost) || (dOverride !== dBoost);
+    let _targetPhysicalPowerIgnored = false;
+    let _userPhysicalPowerApplied = false;
     try {
       if (_stageOverrideApplied) {
         attackStatSource.statBoosts[aStatKey] = aOverride;
@@ -2291,6 +2293,7 @@ class Pokemon {
       if (move === 'Foul Play' && aStatKey === 'atk' &&
           (attackStatSource.ability === 'Huge Power' || attackStatSource.ability === 'Pure Power')) {
         atk = Math.floor(atk / 2);
+        _targetPhysicalPowerIgnored = true;
       }
       def = target.getStat(dStatKey, field);
     } finally {
@@ -2306,6 +2309,7 @@ class Pokemon {
     if (isPhysical && (this.ability === 'Huge Power' || this.ability === 'Pure Power') &&
         (attackStatSource !== this || aStatKey !== 'atk')) {
       atk = _applyStatMod(atk, 8192);
+      _userPhysicalPowerApplied = true;
     }
     if (!isPhysical && this.ability === 'Solar Power' && _fieldWeather === 'sun') {
       atk = _applyStatMod(atk, 6144);
@@ -2554,6 +2558,10 @@ class Pokemon {
     if (_ctx && _ctx.captureDamageCalc) {
       const attackerSide = this.side === (field && field.playerSide) ? 'player' : (this.side === (field && field.oppSide) ? 'opponent' : 'unknown');
       const targetSide = target.side === (field && field.playerSide) ? 'player' : (target.side === (field && field.oppSide) ? 'opponent' : 'unknown');
+      const _offensiveStatSourceSide = attackStatSource === target ? targetSide : attackerSide;
+      const _offensiveStatSourceRole = attackStatSource === target ? 'target' : 'attacker';
+      const _nonstandardOffensiveStatSource = attackStatSource !== this || aStatKey !== (isPhysical ? 'atk' : 'spa');
+      const _nonstandardDefensiveStat = dStatKey !== (isPhysical ? 'def' : 'spd');
       _ctx.lastDamageCalc = {
         attacker: this.name,
         attacker_key: _snapshotMonStableKey(attackerSide, this),
@@ -2592,7 +2600,65 @@ class Pokemon {
         status_penalty: !!applyStatusPenalty,
         roll: Number(roll || 0),
         weather: _effWeather,
-        terrain: field && field.terrain || 'none'
+        terrain: field && field.terrain || 'none',
+        move_rule_trace: {
+          schema_version: 'champions-move-rule-trace-v1',
+          source: 'engine.calcDamage',
+          move: move,
+          move_type: moveType,
+          category: isPhysical ? 'physical' : 'special',
+          offensive_stat: {
+            source_role: _offensiveStatSourceRole,
+            source_side: _offensiveStatSourceSide,
+            source_name: attackStatSource.name || '',
+            source_key: _snapshotMonStableKey(_offensiveStatSourceSide, attackStatSource),
+            stat_key: aStatKey,
+            stage_seen: Number(aBoost || 0),
+            stage_used: Number(aOverride || 0),
+            value_used: Number(atk || 0),
+            ability: attackStatSource.ability || '',
+            target_side_power_ability_ignored: !!_targetPhysicalPowerIgnored,
+            user_side_power_ability_applied: !!_userPhysicalPowerApplied
+          },
+          defensive_stat: {
+            source_role: 'target',
+            source_side: targetSide,
+            source_name: target.name || '',
+            source_key: _snapshotMonStableKey(targetSide, target),
+            stat_key: dStatKey,
+            stage_seen: Number(dBoost || 0),
+            stage_used: Number(dOverride || 0),
+            value_used: Number(def || 0),
+            ability: target.ability || ''
+          },
+          modifiers: {
+            base_power_initial: Number(_basePowerBeforeModifiers || 0),
+            base_power_modified: Number(bp || 0),
+            typed_item_boost: _itemTypeBoostMod !== 4096,
+            typed_item_boost_mod: Number(_itemTypeBoostMod || 4096),
+            knock_off_boost: _knockOffBoostMod !== 4096,
+            knock_off_boost_mod: Number(_knockOffBoostMod || 4096),
+            spread_mod: Number(spreadMod || 4096),
+            weather_mod: Number(weatherMod || 4096),
+            screen_mod: Number(screenMod || 4096),
+            stab_mod: Number(stabMod || 4096),
+            final_mod: Number(finalMod || 4096),
+            status_penalty: !!applyStatusPenalty,
+            critical: !!_isCrit,
+            roll: Number(roll || 0),
+            type_effectiveness: Number(typeEff || 0)
+          },
+          ruleset_flags: {
+            nonstandard_offensive_stat_source: !!_nonstandardOffensiveStatSource,
+            nonstandard_defensive_stat: !!_nonstandardDefensiveStat,
+            foul_play_target_attack_source: move === 'Foul Play',
+            foul_play_target_power_ability_ignored: !!_targetPhysicalPowerIgnored,
+            user_physical_power_ability_applied_to_nonstandard_source: !!_userPhysicalPowerApplied,
+            psyshock_targets_defense: move === 'Psyshock' && dStatKey === 'def',
+            body_press_uses_user_defense: move === 'Body Press' && aStatKey === 'def' && attackStatSource === this,
+            champion_choice_item_modifiers_absent: this.item === 'Choice Band' || this.item === 'Choice Specs'
+          }
+        }
       };
     }
     return finalDamage;

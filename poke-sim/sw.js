@@ -108,7 +108,8 @@
 // v139-secondary-table-consolidation [2026-06-27] - Consolidate simple Showdown secondary effects into one audited table.
 // v140-drain-rule-source-audit [2026-06-27] - Read generated Showdown drain metadata for all supported drain moves.
 // v141-foul-play-stat-source-audit [2026-06-27] - Correct unusual physical stat-source ability modifiers.
-const CACHE_NAME = 'champions-sim-v141-foul-play-stat-source-audit';
+// v142-move-rule-trace-qa [2026-06-27] - Expose move rule traces in QA/replay damage events.
+const CACHE_NAME = 'champions-sim-v142-move-rule-trace-qa';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [

@@ -116,9 +116,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.9-foul-play-stat-source-audit';
+    return txt || 'v2.2.10-move-rule-trace-qa';
   } catch (e) {
-    return 'v2.2.9-foul-play-stat-source-audit';
+    return 'v2.2.10-move-rule-trace-qa';
   }
 }
 
@@ -4186,6 +4186,13 @@ function csQaBlankMechanicsSeen() {
     typed_item_boost: 0,
     stat_stage_damage: 0,
     base_power_modified: 0,
+    move_rule_trace_rows: 0,
+    nonstandard_stat_source_trace: 0,
+    foul_play_trace: 0,
+    body_press_trace: 0,
+    psyshock_trace: 0,
+    ignored_target_power_ability_trace: 0,
+    applied_user_power_ability_trace: 0,
     weather_damage_modifier: 0,
     screen_reduction: 0,
     priority_actions: 0,
@@ -5296,6 +5303,8 @@ function csQaMissingTargetedProof(mechanics) {
     ['trick_room_active', 'Trick Room active state'],
     ['tailwind_active', 'Tailwind active state'],
     ['stat_stage_damage', 'stat-stage damage calculation'],
+    ['move_rule_trace_rows', 'move rule trace rows'],
+    ['nonstandard_stat_source_trace', 'non-standard stat-source move trace'],
     ['priority_actions', 'priority move ordering'],
     ['recoil', 'recoil effect math'],
     ['drain_heal', 'drain healing'],
@@ -5402,6 +5411,19 @@ function csBuildQaCoverageSummary(turnLog, opts) {
       }
       if (Number.isFinite(Number(row.base_power_initial)) && Number.isFinite(Number(row.base_power_modified)) && Number(row.base_power_initial) !== Number(row.base_power_modified)) {
         mechanics.base_power_modified += 1;
+      }
+      var trace = row.move_rule_trace || {};
+      var flags = trace.ruleset_flags || {};
+      if (trace.schema_version === 'champions-move-rule-trace-v1') mechanics.move_rule_trace_rows += 1;
+      if (flags.nonstandard_offensive_stat_source || flags.nonstandard_defensive_stat) mechanics.nonstandard_stat_source_trace += 1;
+      if (flags.foul_play_target_attack_source) mechanics.foul_play_trace += 1;
+      if (flags.body_press_uses_user_defense) mechanics.body_press_trace += 1;
+      if (flags.psyshock_targets_defense) mechanics.psyshock_trace += 1;
+      if (flags.foul_play_target_power_ability_ignored || (trace.offensive_stat && trace.offensive_stat.target_side_power_ability_ignored)) {
+        mechanics.ignored_target_power_ability_trace += 1;
+      }
+      if (flags.user_physical_power_ability_applied_to_nonstandard_source || (trace.offensive_stat && trace.offensive_stat.user_side_power_ability_applied)) {
+        mechanics.applied_user_power_ability_trace += 1;
       }
     }
 
@@ -9989,6 +10011,11 @@ var CS_OVERVIEW_DATA = {
       status: 'done',
       title: 'Foul Play stat-source audit',
       detail: 'v2.2.9 fixes stat-source edge cases for unusual physical moves. Foul Play now uses the target Attack stat and stages without borrowing target Huge Power/Pure Power, while still applying user-side physical ability modifiers. Body Press also keeps user-side Huge/Pure Power behavior when using Defense as its offensive stat.'
+    },
+    {
+      status: 'done',
+      title: 'Move rule trace QA layer',
+      detail: 'v2.2.10 adds structured move_rule_trace evidence to damage_events so downloaded replay logs, Run All QA, Tactical Sweep QA, and targeted proof artifacts show the stat source, ability modifier decisions, base-power modifiers, screen/weather/spread/STAB/final modifiers, and fixed ruleset flags for Foul Play, Body Press, and Psyshock-style edge cases.'
     },
     {
       status: 'done',
