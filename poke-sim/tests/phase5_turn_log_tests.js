@@ -431,7 +431,7 @@ T('T5c-3 JSON download produces valid parseable file', () => {
   ctx.downloadReplayTurnLog({ seed: 'abc', result: 'win', playerKey: 'player', oppKey: 'mega_altaria', turnLog: battleA.turnLog, position_path: battleA.position_path });
   truthy(parsed && Array.isArray(parsed.turnLog), 'download JSON did not parse');
   eq(parsed.schema_version, 'champions-turn-log-v2', 'download schema version missing');
-  truthy(/^v2\.1\.60-team-evidence-dashboard/.test(parsed.build_id || ''), 'download build id missing');
+  truthy(/^v2\.\d+\.\d+-[a-z0-9-]+$/.test(parsed.build_id || ''), 'download build id missing');
   truthy(typeof parsed.exported_at === 'string' && parsed.exported_at.length > 0, 'download timestamp missing');
   eq(parsed.player_team_id, 'player', 'download player team id missing');
   eq(parsed.opponent_team_id, 'mega_altaria', 'download opponent team id missing');

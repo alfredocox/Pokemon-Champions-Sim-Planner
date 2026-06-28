@@ -7,6 +7,7 @@ const ROOT = path.resolve(__dirname, '..');
 const REPO = path.resolve(ROOT, '..');
 
 const ui = fs.readFileSync(path.join(ROOT, 'ui.js'), 'utf8');
+const strategyInjectable = fs.readFileSync(path.join(ROOT, 'strategy-injectable.js'), 'utf8');
 const seedV1 = fs.readFileSync(path.join(ROOT, 'db', 'seed_teams_v1.sql'), 'utf8');
 const dbReadme = fs.readFileSync(path.join(ROOT, 'db', 'README_DB.md'), 'utf8');
 const bundleWorkflow = fs.readFileSync(path.join(REPO, '.github', 'workflows', 'bundle-freshness-check.yml'), 'utf8');
@@ -80,12 +81,27 @@ T('2. current coaching fallback copy does not recommend absent Champion items', 
   });
 });
 
-T('3. bundle and cache drift workflows treat legality.js as app source', () => {
-  inc(bundleWorkflow, 'legality', 'bundle freshness workflow must watch legality.js');
-  inc(cacheWorkflow, 'legality', 'cache bump workflow must watch legality.js');
+T('3. active Champion strategy copy does not teach unapproved Scarlet/Violet mechanic labels', () => {
+  [
+    'Protosynthesis under Sun',
+    'Paradox Sweeper',
+    'Terastallized',
+    'Tera Type:'
+  ].forEach((token) => {
+    notInc(strategyInjectable, token, 'strategy injectable includes unapproved mechanic copy ' + token);
+  });
 });
 
-T('4. Pages deploy runs Champion source-of-truth checks before publishing', () => {
+T('4. bundle and cache drift workflows treat legality/ruleset files as app source', () => {
+  inc(bundleWorkflow, 'legality', 'bundle freshness workflow must watch legality.js');
+  inc(cacheWorkflow, 'legality', 'cache bump workflow must watch legality.js');
+  inc(bundleWorkflow, 'rulesets', 'bundle freshness workflow must watch rulesets.js');
+  inc(cacheWorkflow, 'rulesets', 'cache bump workflow must watch rulesets.js');
+  inc(bundleWorkflow, 'regmb_source_conversion', 'bundle freshness workflow must watch Reg M-B source conversion');
+  inc(cacheWorkflow, 'regmb_source_conversion', 'cache bump workflow must watch Reg M-B source conversion');
+});
+
+T('5. Pages deploy runs Champion source-of-truth checks before publishing', () => {
   [
     'db_m2_seed_tests.js',
     'champion_pack_legality_tests.js',
@@ -96,7 +112,7 @@ T('4. Pages deploy runs Champion source-of-truth checks before publishing', () =
   ].forEach((token) => inc(pagesWorkflow, token, 'Pages deploy missing ' + token));
 });
 
-T('5. retired v1 seed and old Kouba correction cannot look current', () => {
+T('6. retired v1 seed and old Kouba correction cannot look current', () => {
   inc(seedV1, 'HISTORICAL / SUPERSEDED', 'seed_teams_v1.sql must stay clearly retired');
   inc(dbReadme, 'Historical/superseded item correction', 'old Kouba migration row must be marked superseded');
   inc(dbReadme, 'Coba Berry', 'current DB docs must point to Coba Berry');

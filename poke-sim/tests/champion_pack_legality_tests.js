@@ -79,5 +79,22 @@ T('4. curated shipped teams validate against the Champions item pool', function(
   eq(offenders.length, 0, offenders.join('; '));
 });
 
+T('5. Champion legality rejects Tera fields and Tera Blast', function() {
+  const result = validateTeam({
+    name: 'Bad Champion Tera',
+    format: 'champions',
+    members: [{
+      name: 'Dragapult',
+      item: 'Choice Scarf',
+      ability: 'Clear Body',
+      teraType: 'Fairy',
+      moves: ['Dragon Darts', 'Tera Blast'],
+      evs: { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
+    }]
+  }, 'vgc');
+  truthy(result.errors.some(function(err) { return err.indexOf('Tera type') !== -1; }), 'Tera field should be rejected');
+  truthy(result.errors.some(function(err) { return err.indexOf('Tera Blast') !== -1; }), 'Tera Blast should be rejected');
+});
+
 console.log('\nchampion pack legality:', pass + ' pass, ' + fail + ' fail\n');
 process.exit(fail ? 1 : 0);

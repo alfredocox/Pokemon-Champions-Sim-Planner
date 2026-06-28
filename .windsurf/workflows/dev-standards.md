@@ -29,7 +29,10 @@ These rules apply to **every** implementation session. Follow them in order befo
 6. **Update MASTER_PROMPT.md** — After completing work on a branch, update this file with: what was done, current status, blockers, and open questions. This is the team handoff doc.
 7. **Verify before push** — Run the test suite, confirm no regressions, check that the bundle builds cleanly.
 8. **No auto-commits/pushes** — Never run `git commit` or `git push` without explicit user approval. Present changes for review first.
-9. **Rebuild bundle after app source changes** — If any of `ui.js`, `engine.js`, `data.js`, `storage_adapter.js`, or `supabase_adapter.js` are modified, the bundle MUST be rebuilt before pushing:
+9. **Rebuild bundle after app source changes** — If ANY of the following files are modified, the bundle MUST be rebuilt before pushing:
+   `engine.js`, `data.js`, `ui.js`, `style.css`, `strategy-injectable.js`, `replay_coach.js`, `replay_learning.js`, `move_legality.js`, `move_support.js`, `legality.js`, `index.html`, `storage_adapter.js`, `supabase_adapter.js`, `logger.js`, `runtime_data.js`, `generated/pokemon_showdown_legal_data.js`
+
+   This is the exact set CI checks in `bundle-freshness-check.yml`. When in doubt, rebuild.
    ```
    cd poke-sim && python3 tools/build-bundle.py
    ```

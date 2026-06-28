@@ -1,6 +1,6 @@
 # Champion Sim Architecture and Evidence Map
 
-Status: current for `v2.1.59-team-evidence-dashboard` on 2026-06-24.
+Status: current for source-truth architecture and `v2.1.83-champions-tera-gate` follow-up docs on 2026-06-27.
 
 Use this file when QA, data reviewers, or repo maintainers need to understand how the simulator works, where source truth enters the system, what Supabase does, and what evidence proves a battle result.
 
@@ -65,12 +65,17 @@ Optional persistence
 
 `v2.1.59-team-evidence-dashboard` folds shared evidence into the Strategy Priority Board per selected team: normal sim samples, tactical branch samples, best-case, worst-case, likely-case, confidence, set-change comparison, and next-test guidance render together. Same team IDs keep continuity, but changed sets are version-compared by team signature.
 
+`v2.1.83-champions-tera-gate` adds a ruleset boundary after QA found stale Scarlet/Violet-style Tera data leaking into current Champion Reg M-A replay logs. The current Reg M-A lane now rejects or strips Tera fields, `Tera Blast`, and unapproved SV mechanic abilities such as Protosynthesis/Quark Drive from active Champion teams. Showdown/SV parity tests may still exist in isolated non-Reg-M-A contexts, but the Champion sim must not teach or execute a mechanic until the active Champion ruleset source enables it.
+
+`DATA_SOURCE_REGISTRY.md` is the team challenge page for sources. It records source tiers, golden links, pull/check areas, timestamp requirements, and the June 27 Reg M-A/Reg M-B source warning so future contributors improve source quality instead of hard-coding stale assumptions.
+
 ## Layer Responsibilities
 
 | Layer | Owns | Does not own | Current evidence |
 | --- | --- | --- | --- |
 | Pokemon Showdown upstream | Standard Pokemon data, move metadata, learnsets, target names, base mechanics baseline | Champion-only changes unless Showdown explicitly supports them | Generated Showdown files, source hashes, oracle tests |
 | Champion overrides | Confirmed Champion-specific rule differences | Unreviewed guesses or inferred behavior | Override notes, Champion legality docs, focused tests |
+| Data Source Registry | Source priority, golden links, timestamp contract, challenge process | Runtime execution | Source-review PRs, Overview link, sync metadata |
 | Supabase | Teams, team members, analyses/history, approved source rows, audit/sync tables, future approved runtime data | Live damage calculation, unreviewed mechanic decisions, secret service-role frontend access | DB tests, migrations, adapter contract, approved views |
 | Generated assets | Offline GitHub Pages runtime inputs derived from approved data | Hidden hand-edited mechanic behavior | Bundle freshness checks, generated-data tests |
 | `engine.js` | Deterministic battle mechanics and damage/effect execution | Long-term source data governance | Damage oracle tests, move registry tests, exported turn logs |

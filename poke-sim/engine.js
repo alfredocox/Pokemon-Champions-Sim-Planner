@@ -65,7 +65,9 @@
 // ============================================================
 
 var CHAMPIONS_FORMAT_ID = 'champions-vgc-2026-regma';
-var CHAMPIONS_FORMAT_LABEL = 'Champions Reg M-A (Apr 8 - Jun 17, 2026)';
+var CHAMPIONS_ACTIVE_SOURCE_RULESET_ID = 'champions_reg_m_b_doubles_bo3_source_review';
+var CHAMPIONS_ACTIVE_SOURCE_FORMAT_LABEL = 'Champions Reg M-B Source Review (Jun 17 - Sep 2, 2026)';
+var CHAMPIONS_FORMAT_LABEL = 'Champions Reg M-A Historical Lane (Apr 8 - Jun 17, 2026)';
 
 // ============================================================
 // SEEDED PRNG — Issue #2 FIX
@@ -313,27 +315,55 @@ var SHEER_FORCE_MOVES = new Set([
 ]);
 
 var SECONDARY_EFFECTS = {
+  'Breaking Swipe':   { chance: 1.00, targetStages: { atk: -1 } },
   'Blizzard':         { chance: 0.10, status: 'frozen' },
+  'Bulldoze':         { chance: 1.00, targetStages: { spe: -1 } },
+  'Burning Jealousy': { chance: 1.00, conditionalStatus: 'burn', condition: 'targetStatsRaisedThisTurn' },
   'Crunch':           { chance: 0.20, targetStages: { def: -1 } },
+  'Diamond Storm':    { chance: 0.50, selfStages: { def: 2 } },
   'Earth Power':      { chance: 0.10, targetStages: { spd: -1 } },
   'Energy Ball':      { chance: 0.10, targetStages: { spd: -1 } },
+  'Discharge':        { chance: 0.30, status: 'paralysis' },
+  'Fire Fang':        { chance: 0.10, status: 'burn' },
   'Fire Punch':       { chance: 0.10, status: 'burn' },
   'Flamethrower':     { chance: 0.10, status: 'burn' },
+  'Flare Blitz':      { chance: 0.10, status: 'burn' },
   'Flash Cannon':     { chance: 0.10, targetStages: { spd: -1 } },
   'Focus Blast':      { chance: 0.10, targetStages: { spd: -1 } },
+  'Freeze-Dry':       { chance: 0.10, status: 'frozen' },
   'Gunk Shot':        { chance: 0.30, status: 'poison' },
   'Heat Wave':        { chance: 0.10, status: 'burn' },
   'Hurricane':        { chance: 0.30, volatile: 'confusion' },
   'Ice Beam':         { chance: 0.10, status: 'frozen' },
+  'Ice Fang':         { chance: 0.10, status: 'frozen' },
   'Ice Punch':        { chance: 0.10, status: 'frozen' },
+  'Icy Wind':         { chance: 1.00, targetStages: { spe: -1 } },
+  'Infernal Parade':  { chance: 0.30, status: 'burn' },
+  'Lava Plume':       { chance: 0.30, status: 'burn' },
   'Liquidation':      { chance: 0.20, targetStages: { def: -1 } },
+  'Lunge':            { chance: 1.00, targetStages: { atk: -1 } },
+  'Moonblast':        { chance: 0.30, targetStages: { spa: -1 } },
+  'Muddy Water':      { chance: 0.30, targetStages: { acc: -1 } },
+  'Mystical Fire':    { chance: 1.00, targetStages: { spa: -1 } },
+  'Night Daze':       { chance: 0.40, targetStages: { acc: -1 } },
+  'Play Rough':       { chance: 0.10, targetStages: { atk: -1 } },
   'Poison Jab':       { chance: 0.30, status: 'poison' },
   'Psychic':          { chance: 0.10, targetStages: { spd: -1 } },
+  'Psyshield Bash':   { chance: 1.00, selfStages: { def: 1 } },
+  'Rock Tomb':        { chance: 1.00, targetStages: { spe: -1 } },
   'Scald':            { chance: 0.30, status: 'burn' },
   'Scorching Sands':  { chance: 0.30, status: 'burn' },
+  'Shadow Ball':      { chance: 0.20, targetStages: { spd: -1 } },
+  'Sludge Bomb':      { chance: 0.30, status: 'poison' },
   'Sludge Wave':      { chance: 0.10, status: 'poison' },
+  'Snarl':            { chance: 1.00, targetStages: { spa: -1 } },
+  'Spirit Shackle':   { chance: 1.00, volatile: 'trapped' },
   'Throat Chop':      { chance: 1.00, volatile: 'throatChop' },
-  'Thunder':          { chance: 0.30, status: 'paralysis' }
+  'Thunder':          { chance: 0.30, status: 'paralysis' },
+  'Thunder Fang':     { chance: 0.10, status: 'paralysis' },
+  'Thunder Punch':    { chance: 0.10, status: 'paralysis' },
+  'Thunderbolt':      { chance: 0.10, status: 'paralysis' },
+  'Trop Kick':        { chance: 1.00, targetStages: { atk: -1 } }
 };
 
 // Contact moves — Champions/Gen 9 contact list used by Piercing Drill,
@@ -349,9 +379,9 @@ var CONTACT_MOVES = new Set([
   'Crunch','Stomping Tantrum','Liquidation','Fire Punch','Thunder Punch',
   'Psyshield Bash','High Horsepower','Body Press','Zen Headbutt',
   'Bite','Waterfall','Headbutt','Rolling Kick','Stomp','Needle Arm',
-  'Heart Stamp','Bone Club','Heracross','Wicked Blow','Surging Strikes',
-  'Low Kick','Throat Chop','Scale Shot','Darkest Lariat','Tackle',
-  'Beak Blast','Brave Bird','Double-Edge','Wild Charge','Volt Tackle',
+  'Heart Stamp','Wicked Blow','Surging Strikes',
+  'Low Kick','Throat Chop','Darkest Lariat','Tackle',
+  'Brave Bird','Double-Edge','Wild Charge','Volt Tackle',
   'Wood Hammer','Take Down','Submission','Head Charge'
 ]);
 
@@ -411,6 +441,7 @@ function _showdownSpeciesRow(species) {
     if (rows[species]) return rows[species];
     var id = _moveId(species);
     var altId = id === 'floetteeternalflower' ? 'floetteeternal' : id;
+    if (id === 'floetteeternalflowermega') altId = 'floettemega';
     for (var key in rows) {
       if (!Object.prototype.hasOwnProperty.call(rows, key)) continue;
       var row = rows[key];
@@ -843,6 +874,16 @@ function _applyStatMod(value, mod4096) {
   return Math.max(1, _pokeRound(_of32(value * mod4096) / 4096));
 }
 
+function _moveOverrideOffensiveStat(move, isPhysical) {
+  if (move === 'Body Press') return 'def';
+  return isPhysical ? 'atk' : 'spa';
+}
+
+function _moveOverrideDefensiveStat(move, isPhysical) {
+  if (move === 'Psyshock' || move === 'Psystrike' || move === 'Secret Sword') return 'def';
+  return isPhysical ? 'def' : 'spd';
+}
+
 function _preDamageSpaBoostDelta(mon, move) {
   if (move !== 'Electro Shot' && move !== 'Meteor Beam') return 0;
   if (mon && mon.ability === 'Simple') return 2;
@@ -878,6 +919,7 @@ function _applyStageMap(mon, deltas, log) {
     const actual = _applyStageDelta(mon, stat, delta);
     if (actual) {
       applied++;
+      if (actual > 0) mon._statsRaisedThisTurn = true;
       _logStageDelta(log, mon, stat, actual);
     }
   }
@@ -927,6 +969,7 @@ function _applyTargetStageMap(source, target, deltas, log) {
     if (actual) {
       applied++;
       if (actual < 0) negativeApplied = true;
+      if (actual > 0) target._statsRaisedThisTurn = true;
       _logStageDelta(log, target, stat, actual);
     }
   }
@@ -962,6 +1005,10 @@ function _isGrounded(mon) {
 
 function _canReceiveHealing(mon) {
   return !!(mon && mon.alive && (!mon.healBlockedTurns || mon.healBlockedTurns <= 0));
+}
+
+function _isTrappedByMove(mon) {
+  return !!(mon && mon.trappedByMove && mon.trappedByMon && mon.trappedByMon.alive);
 }
 
 function _sideActiveMons(side) {
@@ -1107,6 +1154,20 @@ function _isContactMove(move) {
   return CONTACT_MOVES.has(move) || _moveHasFlag(move, 'contact');
 }
 
+function getMoveContactInfo(move) {
+  var name = String(move || '');
+  var row = _showdownMoveRow(name);
+  var showdownContact = !!(row && _moveHasFlag(name, 'contact'));
+  var fallbackContact = CONTACT_MOVES.has(name);
+  return {
+    move: name,
+    is_contact: !!(showdownContact || fallbackContact),
+    source: showdownContact ? 'showdown_flag' : (fallbackContact ? 'local_contact_override' : (row ? 'showdown_no_contact_flag' : 'missing_move_metadata')),
+    has_showdown_row: !!row,
+    has_local_override: fallbackContact
+  };
+}
+
 function _normalizeRecoilRule(value) {
   if (!value) return null;
   if (Array.isArray(value) && value.length >= 2) {
@@ -1138,6 +1199,9 @@ var MODELED_DRAIN_BY_ID = {
 };
 
 function _moveDrainRule(move) {
+  var row = _showdownMoveRow(move);
+  var rowRule = _normalizeRecoilRule(row && row.drain);
+  if (rowRule) return rowRule;
   var rule = MODELED_DRAIN_BY_ID[_moveId(move)];
   return rule ? { numerator: rule.numerator, denominator: rule.denominator } : null;
 }
@@ -1185,6 +1249,16 @@ function _recordEffectEvent(field, mon, move, kind, hpBefore, hpAfter, details) 
   }, details || {});
   field._ctx.turnEffectEvents.push(row);
   return row;
+}
+
+function _recordActionDenialEvent(field, mon, move, kind, reason, details) {
+  return _recordEffectEvent(field, mon, move || reason || 'action-denial', kind || 'action-denial', mon && mon.hp, mon && mon.hp, Object.assign({
+    source: 'engine action gate',
+    action_denial: true,
+    skipped_move: true,
+    skipped_action_move: move || null,
+    volatile_status: reason || kind || 'action-denial'
+  }, details || {}));
 }
 
 // ============================================================
@@ -1431,8 +1505,15 @@ var ABILITIES = {
       if (!ctx.damage || ctx.damage <= 0) return;
       if (!_isContactMove(ctx.move)) return;
       var chip = Math.max(1, Math.floor(attacker.maxHp / 8));
+      var hpBeforeRoughSkin = attacker.hp;
       attacker.hp = Math.max(0, attacker.hp - chip);
       if (ctx.log) ctx.log.push(attacker.name + " was hurt by " + defender.name + "'s Rough Skin! [" + chip + " dmg]");
+      _recordEffectEvent(ctx.field, attacker, 'Rough Skin', 'ability-contact-damage', hpBeforeRoughSkin, attacker.hp, {
+        source: 'engine ability contact rule',
+        source_actor: defender.name || '',
+        rule: { numerator: 1, denominator: 8, basis: 'max_hp', rounding: 'down' },
+        damage_applied: Math.max(0, hpBeforeRoughSkin - attacker.hp)
+      });
       if (attacker.hp === 0) {
         attacker.alive = false;
         if (ctx.log) ctx.log.push(attacker.name + ' fainted!');
@@ -1616,6 +1697,31 @@ function applyWeatherAbility(mon, field, log) {
     field.weather = 'snow';
     field.weatherTurns = 5;
     if (log) log.push(`${mon.name}'s Snow Warning summoned snow!`);
+    return true;
+  }
+  return false;
+}
+
+function applyTerrainAbility(mon, field, log) {
+  if (!mon || !mon.alive || !field) return false;
+  if (mon.ability === 'Grassy Surge') {
+    field.terrain = 'grassy'; field.terrainTurns = 5;
+    if (log) log.push(`${mon.name}'s Grassy Surge set Grassy Terrain!`);
+    return true;
+  }
+  if (mon.ability === 'Electric Surge') {
+    field.terrain = 'electric'; field.terrainTurns = 5;
+    if (log) log.push(`${mon.name}'s Electric Surge set Electric Terrain!`);
+    return true;
+  }
+  if (mon.ability === 'Misty Surge') {
+    field.terrain = 'misty'; field.terrainTurns = 5;
+    if (log) log.push(`${mon.name}'s Misty Surge set Misty Terrain!`);
+    return true;
+  }
+  if (mon.ability === 'Psychic Surge') {
+    field.terrain = 'psychic'; field.terrainTurns = 5;
+    if (log) log.push(`${mon.name}'s Psychic Surge set Psychic Terrain!`);
     return true;
   }
   return false;
@@ -1894,6 +2000,9 @@ class Pokemon {
     this.healBlockedTurns = data.healBlockedTurns || 0;
     this.throatChopTurns = data.throatChopTurns || 0;
     this.confusionTurns = data.confusionTurns || 0;
+    this.trappedByMove = data.trappedByMove || null;
+    this.trappedByMon = data.trappedByMon || null;
+    this._statsRaisedThisTurn = false;
     this.lastMoveFailed = !!data.lastMoveFailed;
     this.alive = true;
     this.hasActed = false;
@@ -2007,11 +2116,17 @@ class Pokemon {
   _statRaw(base, ev, stat) {
     // Nature / Stat Alignment table is identical in both systems (0.9 / 1.0 / 1.1).
     const natureBonus = {
-      Adamant:{atk:1.1,spa:0.9}, Modest:{spa:1.1,atk:0.9}, Jolly:{spe:1.1,spa:0.9},
-      Timid:{spe:1.1,atk:0.9}, Bold:{def:1.1,atk:0.9}, Calm:{spd:1.1,atk:0.9},
-      Careful:{spd:1.1,spa:0.9}, Quiet:{spa:1.1,spe:0.9}, Relaxed:{def:1.1,spe:0.9},
-      Sassy:{spd:1.1,spe:0.9}, Serious:{}, Hasty:{spe:1.1,def:0.9},
-      Naive:{spe:1.1,spd:0.9}, Hardy:{}
+      Hardy:{}, Docile:{}, Serious:{}, Bashful:{}, Quirky:{},
+      Lonely:{atk:1.1,def:0.9}, Brave:{atk:1.1,spe:0.9},
+      Adamant:{atk:1.1,spa:0.9}, Naughty:{atk:1.1,spd:0.9},
+      Bold:{def:1.1,atk:0.9}, Relaxed:{def:1.1,spe:0.9},
+      Impish:{def:1.1,spa:0.9}, Lax:{def:1.1,spd:0.9},
+      Timid:{spe:1.1,atk:0.9}, Hasty:{spe:1.1,def:0.9},
+      Jolly:{spe:1.1,spa:0.9}, Naive:{spe:1.1,spd:0.9},
+      Modest:{spa:1.1,atk:0.9}, Mild:{spa:1.1,def:0.9},
+      Quiet:{spa:1.1,spe:0.9}, Rash:{spa:1.1,spd:0.9},
+      Calm:{spd:1.1,atk:0.9}, Gentle:{spd:1.1,def:0.9},
+      Sassy:{spd:1.1,spe:0.9}, Careful:{spd:1.1,spa:0.9}
     };
     const nm = (natureBonus[this.nature] || {})[stat] || 1;
     if (this.statFormat === 'champions') {
@@ -2150,8 +2265,8 @@ class Pokemon {
     //         defender ignores positive Def/SpD stages (takes 0 instead).
     //         Burn still halves physical Atk (Gen 6+).
     let atk, def;
-    const aStatKey = isPhysical ? 'atk' : 'spa';
-    const dStatKey = isPhysical ? 'def' : 'spd';
+    const aStatKey = _moveOverrideOffensiveStat(move, isPhysical);
+    const dStatKey = _moveOverrideDefensiveStat(move, isPhysical);
     const attackStatSource = move === 'Foul Play' ? target : this;
     const aBoost = attackStatSource.statBoosts[aStatKey] || 0;
     const dBoost = target.statBoosts[dStatKey] || 0;
@@ -2172,8 +2287,8 @@ class Pokemon {
         attackStatSource.statBoosts[aStatKey] = aOverride;
         target.statBoosts[dStatKey] = dOverride;
       }
-      atk = isPhysical ? attackStatSource.getStat('atk', field) : attackStatSource.getStat('spa', field);
-      def = isPhysical ? target.getStat('def', field) : target.getStat('spd', field);
+      atk = attackStatSource.getStat(aStatKey, field);
+      def = target.getStat(dStatKey, field);
     } finally {
       if (_stageOverrideApplied) {
         attackStatSource.statBoosts[aStatKey] = _aSaved;
@@ -2517,6 +2632,10 @@ function canInflictStatus(mon, status, field, source) {
   const effectiveWeather = _effectiveFieldWeather(field);
   const types = mon.types || [];
   if (_isFlowerVeilProtected(mon, source)) return false;
+  // Misty Terrain blocks all major status conditions on grounded mons.
+  if (field && field.terrain === 'misty' && _isGrounded(mon)) return false;
+  // Electric Terrain blocks sleep on grounded mons.
+  if (field && field.terrain === 'electric' && status === 'sleep' && _isGrounded(mon)) return false;
   if (status === 'burn'      && (types.includes('Fire')     || mon.ability === 'Water Veil')) return false;
   if (status === 'paralysis' && (types.includes('Electric') || mon.ability === 'Limber')) return false;
   if ((status === 'poison' || status === 'toxic') &&
@@ -2544,6 +2663,9 @@ function _applyDamagingMoveSecondary(attacker, move, target, field, log, rng) {
   if (effect.targetStages) {
     applied = _applyTargetStageMap(attacker, target, effect.targetStages, log) > 0 || applied;
   }
+  if (effect.selfStages) {
+    applied = _applyStageMap(attacker, effect.selfStages, log) > 0 || applied;
+  }
   if (effect.status && canInflictStatus(target, effect.status, field, attacker)) {
     target.status = effect.status;
     if (effect.status === 'toxic') target.toxicCounter = 1;
@@ -2561,6 +2683,14 @@ function _applyDamagingMoveSecondary(attacker, move, target, field, log, rng) {
     if (log) log.push(`${target.name} was ${statusLabel} by ${attacker.name}'s ${move}!`);
     applied = true;
   }
+  if (effect.conditionalStatus === 'burn' &&
+      effect.condition === 'targetStatsRaisedThisTurn' &&
+      target._statsRaisedThisTurn &&
+      canInflictStatus(target, 'burn', field, attacker)) {
+    target.status = 'burn';
+    if (log) log.push(`${target.name} was burned by ${attacker.name}'s ${move}!`);
+    applied = true;
+  }
   if (effect.volatile === 'confusion') {
     target.confusionTurns = Math.max(target.confusionTurns || 0, 2 + Math.floor(rng() * 4));
     if (log) log.push(`${target.name} became confused!`);
@@ -2569,6 +2699,12 @@ function _applyDamagingMoveSecondary(attacker, move, target, field, log, rng) {
   if (effect.volatile === 'throatChop') {
     target.throatChopTurns = Math.max(target.throatChopTurns || 0, 2);
     if (log) log.push(`${target.name} cannot use sound-based moves after Throat Chop!`);
+    applied = true;
+  }
+  if (effect.volatile === 'trapped') {
+    target.trappedByMove = move;
+    target.trappedByMon = attacker;
+    if (log) log.push(`${target.name} can no longer escape because of ${move}!`);
     applied = true;
   }
   return applied;
@@ -3442,6 +3578,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       }
     }
     applyWeatherAbility(mon, field, log);
+    applyTerrainAbility(mon, field, log);
     if (mon.ability === 'Hospitality' && side === 'player') {
       const ally = playerActive.find(a => a !== mon && a.alive);
       if (ally) { ally.hp = Math.min(ally.maxHp, ally.hp + Math.floor(ally.maxHp * 0.25)); log.push(`${mon.name}'s Hospitality restored ${ally.name}'s HP!`); }
@@ -3495,6 +3632,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     replacement.healBlockedTurns = 0;
     replacement.throatChopTurns = 0;
     replacement.confusionTurns = 0;
+    replacement.trappedByMove = null;
+    replacement.trappedByMon = null;
+    replacement._statsRaisedThisTurn = false;
     replacement.lastMoveFailed = false;
     replacement.statBoosts = { atk:0, def:0, spa:0, spd:0, spe:0, acc:0, eva:0 };
     replacement.choiceLock = null;
@@ -3523,6 +3663,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (log) log.push(`${mon.name} is trapped by Shadow Tag!`);
       return false;
     }
+    if (_isTrappedByMove(mon)) {
+      if (log) log.push(`${mon.name} is trapped by ${mon.trappedByMove}!`);
+      return false;
+    }
     const replacement = _chooseBenchReplacement(bench);
     if (!replacement) return false;
     bench.splice(bench.indexOf(replacement), 1);
@@ -3536,6 +3680,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     mon.substituteHp = 0;
     mon.leechSeededBy = null;
     mon.perishSongTurns = 0;
+    mon.trappedByMove = null;
+    mon.trappedByMon = null;
     _resetSwitchInState(replacement);
     _applyIncomingSwitchState(replacement, opts && opts.incomingState);
     if (opts && opts.incomingSubstituteHp > 0) replacement.substituteHp = opts.incomingSubstituteHp;
@@ -4769,8 +4915,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           }
           if (_shieldKind === 'Spiky Shield') {
             const recoil = Math.max(1, Math.floor(attacker.maxHp / 8));
+            const hpBeforeShield = attacker.hp;
             attacker.hp = Math.max(0, attacker.hp - recoil);
             log.push(`${attacker.name} was hurt by Spiky Shield! [${recoil} dmg]`);
+            _recordEffectEvent(field, attacker, 'Spiky Shield', 'protect-contact-damage', hpBeforeShield, attacker.hp, {
+              source: 'engine protect contact rule',
+              rule: { numerator: 1, denominator: 8, basis: 'max_hp', rounding: 'down' },
+              damage_applied: Math.max(0, hpBeforeShield - attacker.hp)
+            });
             if (attacker.hp === 0) {
               attacker.alive = false;
               log.push(`${attacker.name} fainted!`);
@@ -4898,7 +5050,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     const isDoubles = (format !== 'singles');
     let targetCat = _moveTargetCategory(move);
 
-    if (attacker.tera && !attacker.teraActivated) {
+    const teraAllowed = attacker.teamFormat !== 'champions' && opts && opts.allowTera === true;
+    if (teraAllowed && attacker.tera && !attacker.teraActivated) {
       attacker.teraActivated = true;
       log.push(`${attacker.name} Terastallized into ${attacker.tera}!`);
     }
@@ -5028,6 +5181,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           log.push(`Armor Tail blocked ${move} on ${t.name}!`);
           return false;
         }
+        // Psychic Terrain blocks priority moves from hitting grounded mons.
+        if (field && field.terrain === 'psychic' && _isGrounded(t)) {
+          log.push(`Psychic Terrain blocked ${move} on ${t.name}!`);
+          return false;
+        }
         return true;
       });
       if (targets.length === 0) {
@@ -5037,7 +5195,6 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     }
 
     const applySpreadMod = isSpread && isDoubles && targets.length > 1;
-    const SPEED_DROP_MOVES = new Set(['Icy Wind', 'Electroweb', 'Bulldoze', 'Rock Tomb']);
 
     // Miss check — single roll for whole move (VGC spread behavior)
     const ACC_MAP = { 'Focus Blast':0.70, 'Hydro Pump':0.80, 'Blizzard':0.70,
@@ -5119,8 +5276,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
             }
             if (_shieldKind === 'Spiky Shield') {
               const recoil = Math.max(1, Math.floor(attacker.maxHp / 8));
+              const hpBeforeShield = attacker.hp;
               attacker.hp = Math.max(0, attacker.hp - recoil);
               log.push(`${attacker.name} was hurt by Spiky Shield! [${recoil} dmg]`);
+              _recordEffectEvent(field, attacker, 'Spiky Shield', 'protect-contact-damage', hpBeforeShield, attacker.hp, {
+                source: 'engine protect contact rule',
+                rule: { numerator: 1, denominator: 8, basis: 'max_hp', rounding: 'down' },
+                damage_applied: Math.max(0, hpBeforeShield - attacker.hp)
+              });
               if (attacker.hp === 0) {
                 attacker.alive = false;
                 log.push(`${attacker.name} fainted!`);
@@ -5166,10 +5329,32 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           ? Math.max(0, Math.min(t.maxHp, t.hp + healAmount) - t.hp)
           : 0;
         if (healed > 0) {
+          const hpBeforeImmuneHeal = t.hp;
           t.hp += healed;
           log.push(`${t.name}'s ${t.ability} restored HP! [+${healed} HP]`);
+          _recordEffectEvent(field, t, move, 'ability-immunity-heal', hpBeforeImmuneHeal, t.hp, {
+            source: 'ability onTryHit immunity',
+            source_actor: attacker.name || null,
+            source_actor_key: _snapshotMonStableKey(attacker.side === field.playerSide ? 'player' : 'opponent', attacker),
+            blocked_move: move,
+            blocked_move_type: _resolvedMoveType,
+            ability: t.ability || null,
+            immune: true,
+            heal_amount: healed,
+            note: t.name + ' was immune to ' + move + ' because of ' + (t.ability || 'its ability') + ' and restored HP.'
+          });
         } else {
           log.push(`${t.name} is immune to ${move} because of ${t.ability}!`);
+          _recordEffectEvent(field, t, move, 'ability-immunity', t.hp, t.hp, {
+            source: 'ability onTryHit immunity',
+            source_actor: attacker.name || null,
+            source_actor_key: _snapshotMonStableKey(attacker.side === field.playerSide ? 'player' : 'opponent', attacker),
+            blocked_move: move,
+            blocked_move_type: _resolvedMoveType,
+            ability: t.ability || null,
+            immune: true,
+            note: t.name + ' was immune to ' + move + ' because of ' + (t.ability || 'its ability') + '.'
+          });
         }
         continue;
       }
@@ -5189,17 +5374,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         applyDamage(attacker, move, t, dmg, field, log, rng);
         resolution.didDamage = true;
         const _suppressSecondary = attacker.ability === 'Sheer Force' && SHEER_FORCE_MOVES.has(move);
-        if (!_suppressSecondary && SPEED_DROP_MOVES.has(move)) {
-          _applyTargetStageMap(attacker, t, { spe: -1 }, log);
-        }
-        if (!_suppressSecondary && move === 'Snarl' && t.alive && !_hadSubstitute) _applyTargetStageMap(attacker, t, { spa: -1 }, log);
-        if (!_suppressSecondary && move === 'Lunge' && t.alive && !_hadSubstitute) _applyTargetStageMap(attacker, t, { atk: -1 }, log);
         if (!_suppressSecondary && move === 'Psychic Noise' && t.alive) {
           t.healBlockedTurns = Math.max(t.healBlockedTurns || 0, 2);
           log.push(`${t.name} can no longer recover HP because of Psychic Noise!`);
-        }
-        if (!_suppressSecondary && move === 'Muddy Water' && rng() < 0.30) {
-          _applyTargetStageMap(attacker, t, { acc: -1 }, log);
         }
         if (!_suppressSecondary && !_hadSubstitute) {
           _applyDamagingMoveSecondary(attacker, move, t, field, log, rng);
@@ -5210,10 +5387,39 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           const _flinch = FLINCH_MOVES[move];
           if (!_suppressSecondary && _flinch && !t.hasActed && rng() < _flinch.chance) {
             t._flinched = true;
-            log.push(`${t.name} flinched and couldn't move!`);
+            t._flinchSource = {
+              actor: attacker.name || null,
+              actor_key: _snapshotMonStableKey(attacker.side === field.playerSide ? 'player' : 'opponent', attacker),
+              move: move
+            };
+            _recordEffectEvent(field, t, move, 'flinch-applied', t.hp, t.hp, {
+              source: 'pokemon-showdown move metadata + engine rule',
+              source_actor: attacker.name || null,
+              source_actor_key: _snapshotMonStableKey(attacker.side === field.playerSide ? 'player' : 'opponent', attacker),
+              volatile_status: 'flinch',
+              action_denial: true,
+              skipped_move: false,
+              note: 'Flinch was applied. It only skips the target action if the target is still alive and has not moved when its action resolves.'
+            });
+            log.push(`${t.name} flinched!`);
           }
         }
       } else {
+        const typeImmune = typeof getEffectiveness === 'function'
+          && Array.isArray(t.types)
+          && getEffectiveness(_resolvedMoveType, t.types) === 0;
+        if (typeImmune) {
+          _recordEffectEvent(field, t, move, 'type-immunity', t.hp, t.hp, {
+            source: 'type chart immunity',
+            source_actor: attacker.name || null,
+            source_actor_key: _snapshotMonStableKey(attacker.side === field.playerSide ? 'player' : 'opponent', attacker),
+            blocked_move: move,
+            blocked_move_type: _resolvedMoveType,
+            defender_types: Array.isArray(t.types) ? t.types.slice() : [],
+            immune: true,
+            note: t.name + ' was immune to ' + move + ' because ' + _resolvedMoveType + ' does not affect ' + (Array.isArray(t.types) ? t.types.join('/') : 'that typing') + '.'
+          });
+        }
         log.push(`${move} had no effect on ${t.name}!`);
       }
       if (!attacker.alive) break;
@@ -5408,6 +5614,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         target.status = 'burn';
         log.push(`${target.name} was burned by ${attacker.name}'s Matcha Gotcha!`);
       }
+    }
+    if (move === 'Sparkling Aria' && target.status === 'burn' && target.alive && target.hp > 0) {
+      target.status = null;
+      log.push(`${target.name}'s burn was healed by ${attacker.name}'s Sparkling Aria!`);
     }
     if (!suppressSecondary && move === 'Dire Claw' && target.alive && target.hp > 0 && !target.status) {
       if (rng() < 0.5) {
@@ -5647,6 +5857,7 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       // T9j.8 (Refs #19) Flinch flag resets at top of turn so last-turn flinch
       // cannot bleed into this turn's action.
       m._flinched = false;
+      m._flinchSource = null;
     }
 
     // Check win condition
@@ -5748,6 +5959,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         } else {
           _cancelInterruptedCharge(action.attacker, action.move, 'frozen');
           log.push(`${action.attacker.name} is frozen solid!`);
+          _recordActionDenialEvent(field, action.attacker, action.move, 'frozen-skip', 'frozen', {
+            note: 'The Pokemon lost its action because it was frozen solid.'
+          });
           continue;
         }
       }
@@ -5771,6 +5985,11 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         } else {
           _cancelInterruptedCharge(action.attacker, action.move, 'sleep');
           log.push(`${action.attacker.name} is fast asleep!`);
+          _recordActionDenialEvent(field, action.attacker, action.move, 'sleep-skip', 'sleep', {
+            sleep_turns: action.attacker.sleepTurns || 0,
+            status_turns_remaining: action.attacker.statusTurns || 0,
+            note: 'The Pokemon lost its action because it remained asleep.'
+          });
           continue;
         }
       }
@@ -5779,6 +5998,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (action.attacker.status === 'paralysis' && rng() < 0.125) {
         _cancelInterruptedCharge(action.attacker, action.move, 'paralysis');
         log.push(`${action.attacker.name} is fully paralysed and can't move!`);
+        _recordActionDenialEvent(field, action.attacker, action.move, 'paralysis-skip', 'paralysis', {
+          note: 'The Pokemon lost its action because paralysis triggered a full-skip.'
+        });
         continue;
       }
       // T9j.8 (Refs #19) Flinch consumption: _flinched was set in a prior
@@ -5786,9 +6008,21 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       // skips the action. Cleared on use; clearing of stale values happens in
       // the per-turn reset loop (m._flinched = false).
       if (action.attacker._flinched) {
+        const _flinchSource = action.attacker._flinchSource || {};
         _cancelInterruptedCharge(action.attacker, action.move, 'flinch');
         log.push(`${action.attacker.name} flinched and couldn't move!`);
+        _recordEffectEvent(field, action.attacker, _flinchSource.move || action.move || 'Flinch', 'flinch-skip', action.attacker.hp, action.attacker.hp, {
+          source: 'volatile flinch state',
+          source_actor: _flinchSource.actor || null,
+          source_actor_key: _flinchSource.actor_key || null,
+          volatile_status: 'flinch',
+          action_denial: true,
+          skipped_move: true,
+          skipped_action_move: action.move || null,
+          note: 'The Pokemon lost its action this turn because it flinched.'
+        });
         action.attacker._flinched = false;
+        action.attacker._flinchSource = null;
         action.attacker.hasActed = true;
         continue;
       }
@@ -5797,8 +6031,19 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         if (rng() < (1 / 3)) {
           _cancelInterruptedCharge(action.attacker, action.move, 'confusion');
           const confusionDmg = _confusionSelfHitDamage(action.attacker, field, rng);
+          const hpBeforeConfusion = action.attacker.hp;
           action.attacker.hp = Math.max(0, action.attacker.hp - confusionDmg);
           log.push(`${action.attacker.name} hurt itself in its confusion! [${confusionDmg} dmg]`);
+          _recordEffectEvent(field, action.attacker, 'Confusion', 'confusion-self-hit', hpBeforeConfusion, action.attacker.hp, {
+            source: 'volatile confusion state',
+            action_denial: true,
+            skipped_move: true,
+            skipped_action_move: action.move || null,
+            volatile_status: 'confusion',
+            damage_applied: confusionDmg,
+            calculated_effect_damage: confusionDmg,
+            note: 'The Pokemon lost its selected action and damaged itself because confusion triggered.'
+          });
           if (action.attacker.hp === 0) {
             action.attacker.alive = false;
             log.push(`${action.attacker.name} fainted!`);
@@ -5826,8 +6071,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         if (!['Rock','Steel','Ground'].includes(mon.types[0]) &&
             !['Rock','Steel','Ground'].includes(mon.types[1] || '')) {
           const sandDmg = Math.floor(mon.maxHp / 16);
+          const hpBeforeSand = mon.hp;
           mon.hp = Math.max(0, mon.hp - sandDmg);
           log.push(`${mon.name} is buffeted by the sandstorm! [${sandDmg} dmg]`);
+          _recordEffectEvent(field, mon, 'Sandstorm', 'weather-damage', hpBeforeSand, mon.hp, {
+            source: 'engine weather rule',
+            rule: { numerator: 1, denominator: 16, basis: 'max_hp', rounding: 'down' },
+            damage_applied: Math.max(0, hpBeforeSand - mon.hp)
+          });
           if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'sandstorm' }); }
         }
       }
@@ -5837,8 +6088,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (_effectiveFieldWeather(field) === 'sun') {
       for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.ability === 'Solar Power')) {
         const solarPowerDmg = Math.floor(mon.maxHp / 8);
+        const hpBeforeSolar = mon.hp;
         mon.hp = Math.max(0, mon.hp - solarPowerDmg);
         log.push(`${mon.name} is hurt by its Solar Power! [${solarPowerDmg} dmg]`);
+        _recordEffectEvent(field, mon, 'Solar Power', 'ability-recoil', hpBeforeSolar, mon.hp, {
+          source: 'engine ability rule',
+          rule: { numerator: 1, denominator: 8, basis: 'max_hp', rounding: 'down' },
+          damage_applied: Math.max(0, hpBeforeSolar - mon.hp)
+        });
         if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'Solar Power' }); }
       }
     }
@@ -5846,8 +6103,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // Burn damage
     for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'burn')) {
       const burnDmg = Math.floor(mon.maxHp / 16);
+      const hpBeforeBurn = mon.hp;
       mon.hp = Math.max(0, mon.hp - burnDmg);
       log.push(`${mon.name} is hurt by its burn! [${burnDmg} dmg]`);
+      _recordEffectEvent(field, mon, 'Burn', 'status-damage', hpBeforeBurn, mon.hp, {
+        source: 'engine status rule',
+        rule: { numerator: 1, denominator: 16, basis: 'max_hp', rounding: 'down' },
+        damage_applied: Math.max(0, hpBeforeBurn - mon.hp)
+      });
       if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'burn' }); }
     }
 
@@ -5857,16 +6120,28 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // Cite: https://bulbapedia.bulbagarden.net/wiki/Frostbite_(status_condition)
     for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'frostbite')) {
       const frostDmg = Math.max(1, Math.floor(mon.maxHp / 16));
+      const hpBeforeFrost = mon.hp;
       mon.hp = Math.max(0, mon.hp - frostDmg);
       log.push(`${mon.name} is hurt by frostbite! [${frostDmg} dmg]`);
+      _recordEffectEvent(field, mon, 'Frostbite', 'status-damage', hpBeforeFrost, mon.hp, {
+        source: 'engine status rule',
+        rule: { numerator: 1, denominator: 16, basis: 'max_hp', rounding: 'down' },
+        damage_applied: Math.max(0, hpBeforeFrost - mon.hp)
+      });
       if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'frostbite' }); }
     }
 
     // T9j.4 (#41) — Poison residual (1/8 max HP). Cite: Bulbapedia Status; Spec §1.6.
     for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.status === 'poison')) {
       const poisonDmg = Math.max(1, Math.floor(mon.maxHp / 8));
+      const hpBeforePoison = mon.hp;
       mon.hp = Math.max(0, mon.hp - poisonDmg);
       log.push(`${mon.name} is hurt by poison! [${poisonDmg} dmg]`);
+      _recordEffectEvent(field, mon, 'Poison', 'status-damage', hpBeforePoison, mon.hp, {
+        source: 'engine status rule',
+        rule: { numerator: 1, denominator: 8, basis: 'max_hp', rounding: 'down' },
+        damage_applied: Math.max(0, hpBeforePoison - mon.hp)
+      });
       if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'poison' }); }
     }
 
@@ -5876,8 +6151,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (!mon.toxicCounter || mon.toxicCounter < 1) mon.toxicCounter = 1;
       const n = Math.min(15, mon.toxicCounter);
       const toxicDmg = Math.max(1, Math.floor(mon.maxHp * n / 16));
+      const hpBeforeToxic = mon.hp;
       mon.hp = Math.max(0, mon.hp - toxicDmg);
       log.push(`${mon.name} is hurt by toxic! [${toxicDmg} dmg] (tick ${n}/16)`);
+      _recordEffectEvent(field, mon, 'Toxic', 'status-damage', hpBeforeToxic, mon.hp, {
+        source: 'engine status rule',
+        rule: { numerator: n, denominator: 16, basis: 'max_hp', rounding: 'down' },
+        damage_applied: Math.max(0, hpBeforeToxic - mon.hp)
+      });
       mon.toxicCounter++;
       if (mon.hp === 0) { mon.alive = false; log.push(`${mon.name} fainted!`); _recordKO(mon, { reason: 'toxic' }); }
     }
@@ -5915,6 +6196,9 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         mon.healBlockedTurns = 0;
         log.push(`${mon.name} can recover HP again.`);
       }
+    }
+    for (const mon of [...playerActive, ...oppActive]) {
+      mon._statsRaisedThisTurn = false;
     }
     for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.throatChopTurns > 0)) {
       mon.throatChopTurns--;
@@ -5996,9 +6280,14 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && m.perishSongTurns > 0)) {
       mon.perishSongTurns--;
       if (mon.perishSongTurns <= 0) {
+        const hpBeforePerish = mon.hp;
         mon.hp = 0;
         mon.alive = false;
         log.push(`${mon.name} perished due to Perish Song!`);
+        _recordEffectEvent(field, mon, 'Perish Song', 'perish-song-faint', hpBeforePerish, mon.hp, {
+          source: 'engine field-effect rule',
+          damage_applied: Math.max(0, hpBeforePerish - mon.hp)
+        });
         _recordKO(mon, { move: 'Perish Song', attacker: null, reason: 'perish' });
       }
     }
@@ -6017,6 +6306,23 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         heal_candidate: heal,
         heal_applied: Math.max(0, mon.hp - hpBeforeHeal)
       });
+    }
+
+    // Grassy Terrain: heal grounded mons 1/16 maxHp at end of turn.
+    if (field.terrain === 'grassy') {
+      for (const mon of [...playerActive, ...oppActive].filter(m => m.alive && _isGrounded(m) && m.hp < m.maxHp)) {
+        if (!_canReceiveHealing(mon)) continue;
+        const heal = Math.max(1, Math.floor(mon.maxHp / 16));
+        const hpBefore = mon.hp;
+        mon.hp = Math.min(mon.maxHp, mon.hp + heal);
+        log.push(`${mon.name} restored HP with Grassy Terrain! [+${heal}]`);
+        _recordEffectEvent(field, mon, 'Grassy Terrain', 'terrain-recovery', hpBefore, mon.hp, {
+          source: 'engine terrain rule',
+          rule: { numerator: 1, denominator: 16, basis: 'max_hp', rounding: 'down' },
+          heal_candidate: heal,
+          heal_applied: Math.max(0, mon.hp - hpBefore)
+        });
+      }
     }
 
     // Field upkeep
@@ -6340,7 +6646,7 @@ async function runSimulation(numBattles, playerTeamKey, oppTeamKey, onProgress) 
   results.avgTrTurns = validBattles > 0 ? results.totalTrTurns / validBattles : 0;
   results.avgTwTurns = validBattles > 0 ? results.totalTwTurns / validBattles : 0;  // T9j.3 (#38)
   // Issue #6: confidence tier label
-  results.confidenceNote = numBattles < 20  ? 'Low confidence — run more simulations (Bo10+)' :
+  results.confidenceNote = numBattles < 20  ? 'Low confidence — run more simulations or increase sample size' :
                            numBattles < 100 ? 'Moderate confidence' : 'High confidence';
   return results;
 }
@@ -6464,7 +6770,7 @@ function buildAnalysisPayload(rawResult, ctx = {}) {
     confidence_interval: ci,
     confidence_tier:     tier,
     confidence_note:     rawResult.confidenceNote ||
-      (tier === 'Low'      ? 'Low confidence — run Bo10+ or increase sample size' :
+      (tier === 'Low'      ? 'Low confidence — run more series or increase sample size' :
        tier === 'Moderate' ? 'Moderate confidence' : 'High confidence'),
     top_win_paths:        topWinPaths,
     top_loss_paths:       [], // TODO: requires per-loss winCondition tracking
@@ -6578,8 +6884,10 @@ function runMegaTriggerSweep(teamA, teamB, bo, opts) {
 
 if (typeof window !== 'undefined') {
   window.ChampionsSim = window.ChampionsSim || {};
+  window.ChampionsSim.battle = window.ChampionsSim.battle || {};
   window.ChampionsSim.turnLog = window.ChampionsSim.turnLog || [];
   window.ChampionsSim.positionScore = positionScore;
   window.ChampionsSim.winProbabilityDelta = winProbabilityDelta;
   window.ChampionsSim.isRNGBlame = isRNGBlame;
+  window.ChampionsSim.battle.getMoveContactInfo = getMoveContactInfo;
 }

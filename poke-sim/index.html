@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <meta name="color-scheme" content="dark light"/>
-<meta name="description" content="Poke-e-Sim Champion 2026 Preview — Pokémon Champions team simulator and replay-review workbench. Test bundled or imported teams in seeded Bo1/Bo3/Bo5/Bo10 sim sets."/>
+<meta name="description" content="Poke-e-Sim Champion 2026 Preview — Pokémon Champions team simulator and replay-review workbench. Test bundled or imported teams in seeded Bo1/Bo3/Bo5 sim sets."/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Poke-e-Sim"/>
@@ -66,7 +66,8 @@
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-        <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.1.60-team-evidence-dashboard</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
+      <!-- build history: v2.1.68-speed-transition v2.1.69-source-truth-audit v2.1.70-terrain-gaps-fixed v2.1.83-champions-tera-gate v2.1.86-regmb-source-audit v2.1.87-ruleset-lifecycle v2.1.88-ruleset-team-sections v2.1.89-regmb-review-cards v2.1.94-paldea-tauros-sprites v2.1.95-sprite-fallback-chain v2.1.96-alola-raichu-sprite-fallbacks v2.1.97-hisui-zoroark-gif v2.1.98-gif-primary-sprite-audit v2.1.99-regmb-promotion-gate v2.2.0-regmb-stone-source-pass v2.2.1-regmb-stats-types-abilities-source-pass v2.2.2-regmb-learnset-policy-pass v2.2.3-damage-stat-override-audit v2.2.4-contact-flag-audit v2.2.5-secondary-effect-audit v2.2.6-complex-secondary-state v2.2.7-secondary-table-consolidation v2.2.8-drain-rule-source-audit -->
+      <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.2.8-drain-rule-source-audit</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
         <p class="site-sub">Champions 2026 Preview · VGC Doubles Simulator</p>
       </div>
     </div>
@@ -138,7 +139,7 @@
       <div>
         <span class="badge badge-blue">PROJECT CHECKLIST</span>
         <h2 class="section-title">High Level Overview</h2>
-        <p class="section-subtitle">Living record of shipped changes, validation proof, Supabase status, and the next Showdown source-of-truth milestones.</p>
+        <p class="section-subtitle">Living record of completed work, closed proof, open issues, Supabase status, and the next Showdown source-of-truth milestones.</p>
       </div>
       <span class="overview-updated">Updated from repo docs</span>
     </div>
@@ -216,7 +217,6 @@
           <button class="bo-btn" data-bo="1">Bo1</button>
           <button class="bo-btn active" data-bo="3">Bo3</button>
           <button class="bo-btn" data-bo="5">Bo5</button>
-          <button class="bo-btn" data-bo="10">Bo10</button>
         </div>
       </div>
 
@@ -248,11 +248,6 @@
           <option value="250">Deep 250 branches</option>
           <option value="all">All candidate branches (full coverage)</option>
         </select>
-      </div>
-
-      <div class="control-block">
-        <label class="control-label">Lead Pair</label>
-        <select class="select-input" id="lead-select"></select>
       </div>
 
       <button class="btn-primary" id="run-sim-btn">▶ Run Simulation</button>
@@ -439,8 +434,8 @@
             <div>1. Open your replay in Pokémon Showdown.</div>
             <div>2. Copy the full replay log text, or save it as a plain <code>.txt</code>/<code>.log</code> file.</div>
             <div>3. You can also paste a replay URL from <code>replay.pokemonshowdown.com</code> and let Battle Sensei load the raw log.</div>
-            <div>4. Paste it here or upload the file, choose your side, then run analysis.</div>
-            <small>Replay HTML, screenshots, and team exports are still not the primary input path in this build.</small>
+            <div>4. Paste it here or upload the replay file, choose your side, then run analysis.</div>
+            <small>Battle Sensei accepts raw logs, pasted replay-page text, replay URLs, and exported Showdown HTML. Screenshots and team exports are not replay inputs.</small>
           </div>
         </div>
         <div class="replay-coach-url-row">
@@ -448,6 +443,9 @@
           <button class="btn-secondary" id="replay-coach-fetch-btn" type="button">Load Replay URL</button>
         </div>
         <textarea id="replay-coach-log" class="replay-coach-textarea" rows="14" spellcheck="false" placeholder="Paste a Pokemon Showdown battle log here."></textarea>
+        <label class="form-label" for="replay-coach-full-roster">Know the full 6?</label>
+        <textarea id="replay-coach-full-roster" class="replay-coach-textarea" rows="4" spellcheck="false" placeholder="Optional: paste your registered six, one Pokemon per line, when the replay only reveals the brought four."></textarea>
+        <small>Optional roster completion only affects your selected side. In series play, Battle Sensei needs the registered six to judge why this game used this selected lineup.</small>
         <div class="replay-coach-controls">
           <label class="form-label" for="replay-coach-side">Your side</label>
           <select class="select-input" id="replay-coach-side">
@@ -461,8 +459,8 @@
             <option value="mistakes">Mistake Finder</option>
             <option value="sim">Sim Comparison Prep</option>
           </select>
-          <input type="file" id="replay-coach-file" accept=".txt,.log" hidden/>
-          <button class="btn-secondary" id="replay-coach-upload-btn" type="button">Upload .txt</button>
+          <input type="file" id="replay-coach-file" accept=".txt,.log,.html,.htm,text/plain,text/html" hidden/>
+          <button class="btn-secondary" id="replay-coach-upload-btn" type="button">Upload Replay</button>
           <button class="btn-primary" id="replay-coach-run-btn" type="button">Analyze Replay</button>
         </div>
         <div id="replay-coach-status" class="replay-coach-status" aria-live="polite"></div>
@@ -632,6 +630,8 @@
 <script src="generated/pokemon_showdown_species_weights.js"></script>
 <script src="runtime_data.js"></script>
 <script src="engine.js"></script>
+<script src="rulesets.js"></script>
+<script src="regmb_source_conversion.js"></script>
 <script src="storage_adapter.js"></script>
 <script src="supabase_adapter.js"></script>
 <script src="move_legality.js"></script>

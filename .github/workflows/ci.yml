@@ -60,6 +60,8 @@ jobs:
             poke-sim/replay_learning.js
             poke-sim/strategy-injectable.js
             poke-sim/legality.js
+            poke-sim/rulesets.js
+            poke-sim/regmb_source_conversion.js
           )
           for f in "${FILES[@]}"; do
             echo "→ node --check $f"
@@ -221,6 +223,8 @@ jobs:
             engine:
               - 'poke-sim/engine.js'
               - 'poke-sim/data.js'
+              - 'poke-sim/rulesets.js'
+              - 'poke-sim/regmb_source_conversion.js'
             live_db_relevant:
               - 'poke-sim/data.js'
               - 'poke-sim/db/**'

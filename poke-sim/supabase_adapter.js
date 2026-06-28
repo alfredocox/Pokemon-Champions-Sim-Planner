@@ -73,9 +73,89 @@
     if (!err) return null;
     if (typeof err === 'string') return err;
 
+    function attachParsedBody(errObject, target) {
+      if (!errObject || typeof errObject !== 'object') return;
+
+      if (errObject.body !== undefined) {
+        target.body = safeJsonForDb(errObject.body, null);
+        if (typeof target.body === 'string') {
+          var trimmedBody = target.body.trim();
+          if (trimmedBody.indexOf('{') === 0 || trimmedBody.indexOf('[') === 0) {
+            var parsedBody = safeJsonForDb(tryParseJson(trimmedBody), null);
+            if (parsedBody !== null) target.body_json = parsedBody;
+          }
+        }
+        return;
+      }
+
+      if (errObject.response && errObject.response.body !== undefined) {
+        target.response_body = safeJsonForDb(errObject.response.body, null);
+      }
+
+      if (errObject.response && errObject.response.text !== undefined) {
+        if (typeof errObject.response.text === 'string') {
+          target.response_text = safeTextForDb(errObject.response.text, null);
+        } else {
+          target.response_text = '[unreadable-response-text-function]';
+        }
+      }
+
+      if (errObject.response && typeof errObject.response.status !== 'undefined') {
+        target.response_status = safeTextForDb(errObject.response.status, null);
+      }
+
+      if (errObject.response && errObject.response.statusText !== undefined) {
+        target.response_status_text = safeTextForDb(errObject.response.statusText, null);
+      }
+    }
+
+    function tryParseJson(rawText) {
+      if (typeof rawText !== 'string') return rawText;
+      try {
+        return JSON.parse(rawText);
+      } catch (_parseErr) {
+        return rawText;
+      }
+    }
+
+    function setIfEmptyMessage(target, candidate) {
+      if (target.message) return;
+      if (!candidate) return;
+      if (typeof candidate === 'string') {
+        var trimmed = candidate.trim();
+        if (trimmed) {
+          target.message = trimmed;
+          return;
+        }
+      }
+      if (candidate && typeof candidate === 'object' && candidate.message) {
+        var candidateMessage = safeTextForDb(candidate.message, null);
+        if (candidateMessage) {
+          var trimmedCandidateMessage = candidateMessage.trim();
+          if (trimmedCandidateMessage) {
+            target.message = trimmedCandidateMessage;
+          }
+        }
+      }
+      if (!target.message && typeof candidate === 'function') {
+        try {
+          var candidateText = safeTextForDb(candidate(), null);
+          if (candidateText) {
+            var trimmedCandidateText = candidateText.trim();
+            if (trimmedCandidateText) {
+              target.message = trimmedCandidateText;
+            }
+          }
+        } catch (_toStringErr) {
+          // ignore; best-effort message extraction
+        }
+      }
+    }
+
     var details = {
       name: err.name || null,
       message: err.message || null,
+      error: err.error || null,
       code: err.code || null,
       details: err.details || null,
       hint: err.hint || null,
@@ -89,6 +169,35 @@
     if (typeof err.stack === 'string') {
       details.stack = err.stack;
     }
+    if (err.context) {
+      details.context = safeJsonForDb(err.context, null);
+    }
+    if (!details.message && err.response && err.response.text) {
+      details.message = safeTextForDb(err.response.text, null);
+    }
+
+    setIfEmptyMessage(details, err.message);
+    setIfEmptyMessage(details, err.msg);
+    setIfEmptyMessage(details, err.description);
+    setIfEmptyMessage(details, err.body);
+    setIfEmptyMessage(details, err.error && err.error.message);
+    setIfEmptyMessage(details, err.cause && err.cause.message);
+    setIfEmptyMessage(details, err.toString && err.toString());
+
+    if (err.details) details.api_details = safeJsonForDb(err.details, safeTextForDb(err.details, null));
+    if (err.hint) details.api_hint = safeTextForDb(err.hint, null);
+    if (err.code && (!details.code || !String(details.code).trim())) details.code = safeTextForDb(err.code, null);
+
+    attachParsedBody(err, details);
+    if (err.cause) {
+      attachParsedBody(err.cause, details);
+      details.cause = normalizeDbError(err.cause);
+    }
+    if (err.error) {
+      if (typeof err.error === 'string' || (err.error && typeof err.error === 'object')) {
+        details.nested_error = normalizeDbError(err.error);
+      }
+    }
 
     var hasValue = false;
     Object.keys(details).forEach(function(key) {
@@ -96,12 +205,288 @@
         hasValue = true;
       }
     });
-    if (hasValue) return details;
+    if (hasValue) {
+      if (details.message && typeof details.message === 'string') {
+        details.message = details.message.trim();
+      }
+      if (typeof details.message === 'string' && !details.message) {
+        details.message = null;
+      }
+      if (!details.message && (details.error || details.cause || details.nested_error)) {
+        var fallbackMessage = safeTextForDb(details.error || details.cause || details.nested_error, null);
+        if (fallbackMessage) details.message = fallbackMessage;
+      }
+      if (!details.message) {
+        details.message = 'Database operation error';
+      }
+      if (!details.raw) {
+        var rawErrFromHasValue = safeJsonForDb(err, null);
+        if (rawErrFromHasValue) details.raw = rawErrFromHasValue;
+      }
+      return details;
+    }
 
     try {
       return JSON.parse(JSON.stringify(err));
     } catch (_e) {
-      return String(err);
+      var rawErr = safeJsonForDb(err, null);
+      return {
+        message: 'Database operation error',
+        raw: rawErr !== null ? rawErr : safeTextForDb(err, null)
+      };
+    }
+  }
+
+  function safeJsonForDb(value, fallbackValue) {
+    if (value === undefined || value === null) return fallbackValue;
+    if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint') return fallbackValue;
+    if (typeof value === 'number' && !Number.isFinite(value)) return fallbackValue;
+    if (value instanceof Date) return value.toISOString();
+
+    try {
+      var serialized = JSON.stringify(value);
+      if (typeof serialized !== 'string') return fallbackValue;
+      return JSON.parse(serialized);
+    } catch (_err) {
+      return fallbackValue;
+    }
+  }
+
+  function safeTextForDb(value, fallbackValue) {
+    if (value === undefined || value === null) return fallbackValue;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    try {
+      return String(value);
+    } catch (_err) {
+      return fallbackValue;
+    }
+  }
+
+  function safeIntForDb(value, fallbackValue) {
+    var normalized = Number(value);
+    if (!Number.isFinite(normalized)) return fallbackValue;
+    return Math.round(normalized);
+  }
+
+  function sanitizeBranchKey(rawBranchKey) {
+    var normalized = safeTextForDb(rawBranchKey, null);
+    if (!normalized) return null;
+    return normalized;
+  }
+
+  function stripJsonbForDb(value, fallbackValue) {
+    if (typeof fallbackValue === 'undefined') {
+      fallbackValue = {};
+    }
+    var safeValue = safeJsonForDb(value, null);
+    if (safeValue === null || safeValue === undefined) {
+      return fallbackValue;
+    }
+    if (Array.isArray(safeValue) || typeof safeValue === 'object') {
+      return safeValue;
+    }
+    return fallbackValue;
+  }
+
+  function buildBranchCoverageRow(run, payload, includeCoverageSummary, defaultRunCount, defaultDriftCount) {
+    includeCoverageSummary = includeCoverageSummary !== false;
+    var rowBranchKey = sanitizeBranchKey(run.branch_key);
+    if (rowBranchKey == null) return null;
+
+    var row = {
+      branch_key: rowBranchKey,
+      ruleset_id: safeTextForDb(payload.ruleset_id || run.ruleset_id || DEFAULT_RULESET_ID, DEFAULT_RULESET_ID),
+      player_team_id: safeTextForDb(payload.player_team_id || run.player_team_id, null),
+      opponent_team_id: safeTextForDb(payload.opponent_team_id || run.opponent_team_id, null),
+      player_leads: stripJsonbForDb(Array.isArray(run.player_bring) ? run.player_bring.slice(0, 2) : [], []),
+      opponent_leads: stripJsonbForDb(Array.isArray(run.opponent_bring) ? run.opponent_bring.slice(0, 2) : [], []),
+      player_bring: stripJsonbForDb(Array.isArray(run.player_bring) ? run.player_bring : [], []),
+      opponent_bring: stripJsonbForDb(Array.isArray(run.opponent_bring) ? run.opponent_bring : [], []),
+      forced_actions: stripJsonbForDb(Array.isArray(run.forced_actions) ? run.forced_actions : [], []),
+      tactical_summary: stripJsonbForDb(run.tactical_summary, {}),
+      result: safeTextForDb(run.result, null),
+      turns: Number.isFinite(Number(run.turns)) ? Number(run.turns) : 0,
+      outcome_signature: safeTextForDb(run.outcome_signature, null),
+      run_count: safeIntForDb(defaultRunCount, 1),
+      outcome_drift_count: safeIntForDb(defaultDriftCount, 0),
+      build_id: safeTextForDb(payload.build_id, null),
+      source_url: safeTextForDb(payload.source_url, null),
+      last_seen_at: new Date().toISOString()
+    };
+
+    if (includeCoverageSummary) {
+      row.qa_coverage_summary = stripJsonbForDb(run.qa_coverage_summary, {});
+    }
+
+    return row;
+  }
+
+  function buildMinimalBranchCoverageRow(run, payload) {
+    var row = {
+      branch_key: sanitizeBranchKey(run.branch_key),
+      ruleset_id: safeTextForDb(payload.ruleset_id || run.ruleset_id || DEFAULT_RULESET_ID, DEFAULT_RULESET_ID),
+      player_team_id: safeTextForDb(payload.player_team_id || run.player_team_id, null),
+      opponent_team_id: safeTextForDb(payload.opponent_team_id || run.opponent_team_id, null),
+      player_bring: stripJsonbForDb(Array.isArray(run.player_bring) ? run.player_bring : [], []),
+      opponent_bring: stripJsonbForDb(Array.isArray(run.opponent_bring) ? run.opponent_bring : [], []),
+      forced_actions: stripJsonbForDb(Array.isArray(run.forced_actions) ? run.forced_actions : [], []),
+      result: safeTextForDb(run.result, null),
+      turns: Number.isFinite(Number(run.turns)) ? Number(run.turns) : 0,
+      outcome_signature: safeTextForDb(run.outcome_signature, null),
+      run_count: 1,
+      outcome_drift_count: 0,
+      build_id: safeTextForDb(payload.build_id, null),
+      source_url: safeTextForDb(payload.source_url, null),
+      last_seen_at: new Date().toISOString()
+    };
+    return row;
+  }
+
+  function asIntFallback(value, fallbackValue) {
+    var parsed = safeIntForDb(value, null);
+    if (Number.isFinite(parsed)) return parsed;
+    return fallbackValue;
+  }
+
+  function branchCoverageError(err, context) {
+    var normalized = normalizeDbError(err);
+    normalized = safeJsonForDb(normalized, null);
+    if (!normalized || typeof normalized !== 'object') {
+      normalized = {};
+    }
+    if (!normalized.message) {
+      var messageCandidates = [
+        err && err.message,
+        err && err.error && err.error.message,
+        err && err.msg,
+        err && err.description,
+        err && err.body,
+        err && err.toString && err.toString()
+      ];
+      for (var m = 0; m < messageCandidates.length; m++) {
+        var msg = safeTextForDb(messageCandidates[m], null);
+        if (msg && msg.trim()) {
+          normalized.message = msg.trim();
+          break;
+        }
+      }
+      if (!normalized.message) {
+        normalized.message = 'Database operation failed';
+      }
+    }
+    if (typeof normalized.message === 'string') {
+      normalized.message = normalized.message.trim();
+      if (!normalized.message) {
+        normalized.message = 'Database operation failed';
+      }
+    }
+    if (!normalized.message) {
+      var rawTextForMessage = safeTextForDb(normalized.raw || normalized.raw_text, null);
+      if (!rawTextForMessage && err) {
+        rawTextForMessage = safeTextForDb(err, null);
+      }
+      if (!rawTextForMessage && err && err.message === '') {
+        rawTextForMessage = 'Database operation failed';
+      }
+      if (rawTextForMessage) {
+        normalized.message = rawTextForMessage.length > 256 ? rawTextForMessage.slice(0, 256) + '...' : rawTextForMessage;
+      }
+      if (!normalized.message) {
+        normalized.message = 'Database operation failed';
+      }
+    }
+
+    if (err && err.context && err.context.code === 23505) {
+      normalized.message = 'Supabase conflict while saving branch coverage';
+    }
+    if (typeof normalized.status === 'undefined' && err && err.status) {
+      normalized.status = safeTextForDb(err.status, null);
+    }
+    if (typeof normalized.statusText === 'undefined' && err && err.statusText) {
+      normalized.statusText = safeTextForDb(err.statusText, null);
+    }
+
+    if (!normalized.raw) {
+      normalized.raw = safeJsonForDb(err, null);
+    }
+    if (!normalized.raw_text) {
+      normalized.raw_text = safeTextForDb(err, null);
+    }
+
+    if (!context) return normalized;
+    var contextWrapped = safeJsonForDb(context, {});
+    var out = Object.create(null);
+    Object.keys(normalized).forEach(function(key) {
+      out[key] = normalized[key];
+    });
+    Object.keys(contextWrapped).forEach(function(key) {
+      out[key] = contextWrapped[key];
+    });
+    return out;
+  }
+
+  async function loadExistingBranchCoverageRows(sb, runKeys) {
+    var table = 'branch_coverage_runs';
+    var columns = 'branch_key,run_count,outcome_signature,outcome_drift_count';
+
+    if (!runKeys.length) return [];
+    var chunkSize = 120;
+    var allKeys = [];
+    var keySeen = Object.create(null);
+
+    try {
+      for (var keyIndex = 0; keyIndex < runKeys.length; keyIndex++) {
+        var key = safeTextForDb(runKeys[keyIndex], null);
+        if (key == null) continue;
+        if (!Object.prototype.hasOwnProperty.call(keySeen, key)) {
+          keySeen[key] = true;
+          allKeys.push(key);
+        }
+      }
+
+      if (!allKeys.length) return [];
+
+      var foundRows = [];
+      for (var i = 0; i < allKeys.length; i += chunkSize) {
+        var chunk = allKeys.slice(i, i + chunkSize);
+        try {
+          var selectResult = await sb
+            .from(table)
+            .select(columns)
+            .in('branch_key', chunk);
+          if (selectResult.error) throw selectResult.error;
+          if (selectResult.data && selectResult.data.length) {
+            foundRows = foundRows.concat(selectResult.data);
+          }
+          continue;
+        } catch (_inErr) {
+          log.warn('loadExistingBranchCoverageRows chunked in() lookup failed; falling back to per-key eq', {
+            chunk_index: i,
+            chunk_size: chunk.length,
+            attempted_keys: chunk
+          });
+        }
+
+        for (var k = 0; k < chunk.length; k++) {
+          var fallbackKey = chunk[k];
+          try {
+            var rowResult = await sb
+              .from(table)
+              .select(columns)
+              .eq('branch_key', fallbackKey);
+            if (rowResult && rowResult.data && rowResult.data.length) {
+              foundRows = foundRows.concat(rowResult.data);
+            }
+          } catch (_e) {
+            // continue; saving later will upsert new rows safely
+          }
+        }
+      }
+      return foundRows;
+    } catch (err) {
+      log.warn('loadExistingBranchCoverageRows failed; proceeding with empty existing cache', err);
+      return [];
     }
   }
 
@@ -521,6 +906,51 @@
     }
   }
 
+  // Read approved Showdown rows for browser-side inspectors and future
+  // team-builder validation. Battle simulation still uses the generated
+  // static asset first so offline GitHub Pages remains deterministic.
+  async function loadShowdownEntities(kind, options) {
+    var sb = getClient();
+    options = options || {};
+    var normalizedKind = normalizeShowdownKind(kind || '');
+    var allowedKinds = ['species', 'move', 'ability', 'item', 'typechart', 'alias', 'learnset', 'format'];
+    var limit = Number(options.limit || options.maxRows || 5000);
+    if (!Number.isFinite(limit) || limit < 1) limit = 5000;
+    limit = Math.max(1, Math.min(5000, Math.floor(limit)));
+
+    if (!sb) {
+      return { enabled: false, available: false, mode: 'static', message: 'Static bundle', kind: normalizedKind || null, rows: [] };
+    }
+    if (allowedKinds.indexOf(normalizedKind) === -1) {
+      return { enabled: true, available: false, mode: 'invalid-kind', message: 'Invalid Showdown entity kind', kind: normalizedKind || null, rows: [] };
+    }
+
+    try {
+      var result = await sb
+        .from('approved_showdown_entities')
+        .select('sync_run_id,entity_kind,entity_key,display_name,source_hash,approved_at,data')
+        .eq('entity_kind', normalizedKind)
+        .order('entity_key', { ascending: true })
+        .limit(limit);
+      if (result.error) throw result.error;
+      var rows = result.data || [];
+
+      return {
+        enabled: true,
+        available: rows.length > 0,
+        mode: rows.length ? 'approved-db' : 'empty-approved-db',
+        message: rows.length ? 'Approved DB rows' : 'DB views empty',
+        kind: normalizedKind,
+        rows: rows,
+        row_count: rows.length,
+        limit: limit
+      };
+    } catch (err) {
+      log.warn('loadShowdownEntities failed', err);
+      return { enabled: true, available: false, mode: 'missing-db', message: 'Showdown DB unavailable', kind: normalizedKind, rows: [] };
+    }
+  }
+
   async function loadBranchCoverageSummary(filters) {
     var sb = getClient();
     if (!sb) return [];
@@ -553,71 +983,107 @@
 
     try {
       var keys = runs.map(function(run) { return run.branch_key; });
-      var existingResult = await sb
-        .from('branch_coverage_runs')
-        .select('branch_key,run_count,outcome_signature,outcome_drift_count')
-        .in('branch_key', keys);
-      if (existingResult.error) throw existingResult.error;
+      var existingRows = await loadExistingBranchCoverageRows(sb, keys);
 
       var existing = {};
-      (existingResult.data || []).forEach(function(row) {
+      existingRows.forEach(function(row) {
+        var parsedRunCount = safeIntForDb(row.run_count, 0);
+        var parsedDriftCount = safeIntForDb(row.outcome_drift_count, 0);
         existing[row.branch_key] = {
-          run_count: Number(row.run_count || 0),
+          run_count: Number.isFinite(parsedRunCount) ? parsedRunCount : 0,
           outcome_signature: row.outcome_signature || null,
-          outcome_drift_count: Number(row.outcome_drift_count || 0)
+          outcome_drift_count: Number.isFinite(parsedDriftCount) ? parsedDriftCount : 0
         };
       });
 
+      var saveResult = { enabled: true, saved: 0, updated: 0, inserted: 0, errors: [] };
       var rowsToWrite = [];
       var seenInBatch = Object.create(null);
-      var inserted = 0;
-      var updated = 0;
+      var rowToKey = function(row) {
+        return row && row.branch_key ? row.branch_key : null;
+      };
       for (var i = 0; i < runs.length; i++) {
         var run = runs[i];
-        if (seenInBatch[run.branch_key]) continue;
-        seenInBatch[run.branch_key] = true;
-        var row = {
-          branch_key: run.branch_key,
-          ruleset_id: payload.ruleset_id || DEFAULT_RULESET_ID,
-          player_team_id: payload.player_team_id || run.player_team_id || null,
-          opponent_team_id: payload.opponent_team_id || run.opponent_team_id || null,
-          player_leads: Array.isArray(run.player_bring) ? run.player_bring.slice(0, 2) : [],
-          opponent_leads: Array.isArray(run.opponent_bring) ? run.opponent_bring.slice(0, 2) : [],
-          player_bring: run.player_bring || [],
-          opponent_bring: run.opponent_bring || [],
-          forced_actions: run.forced_actions || [],
-          tactical_summary: run.tactical_summary || {},
-          qa_coverage_summary: run.qa_coverage_summary || {},
-          result: run.result || null,
-          turns: run.turns || 0,
-          outcome_signature: run.outcome_signature || null,
-          build_id: payload.build_id || null,
-          source_url: payload.source_url || null,
-          last_seen_at: new Date().toISOString()
-        };
-        var prior = existing[run.branch_key] || {};
-        var priorOutcome = prior.outcome_signature || null;
-        var changed = !!(priorOutcome && row.outcome_signature && priorOutcome !== row.outcome_signature);
-        if (Object.prototype.hasOwnProperty.call(existing, run.branch_key)) {
-          row.run_count = Number(prior.run_count || 0) + 1;
-          row.outcome_drift_count = Number(prior.outcome_drift_count || 0) + (changed ? 1 : 0);
-          updated++;
-        } else {
-          row.run_count = 1;
-          row.outcome_drift_count = 0;
-          inserted++;
+        var runBranchKey = sanitizeBranchKey(run.branch_key);
+        if (!runBranchKey) continue;
+        if (seenInBatch[runBranchKey]) continue;
+        seenInBatch[runBranchKey] = true;
+        try {
+          var prior = existing[runBranchKey] || {};
+          var priorRunCount = asIntFallback(prior.run_count, 0);
+          var priorDriftCount = asIntFallback(prior.outcome_drift_count, 0);
+          var priorOutcome = prior.outcome_signature == null ? null : safeTextForDb(prior.outcome_signature, null);
+          var normalizedPriorOutcome = priorOutcome == null ? null : priorOutcome;
+          var normalizedCurrentOutcome = safeTextForDb(run.outcome_signature, null);
+          var changed = !!(normalizedPriorOutcome && normalizedCurrentOutcome && normalizedPriorOutcome !== normalizedCurrentOutcome);
+
+          var row = buildBranchCoverageRow(run, payload, true, priorRunCount + (Object.prototype.hasOwnProperty.call(existing, runBranchKey) ? 1 : 0), priorDriftCount + (Object.prototype.hasOwnProperty.call(existing, runBranchKey) && changed ? 1 : 0));
+          if (!row) continue;
+          rowsToWrite.push(row);
+        } catch (_rowErr) {
+          saveResult.errors.push(branchCoverageError(_rowErr, {
+            context: 'branch_coverage_row_prepare_failed',
+            run_index: i,
+            source_run: safeJsonForDb(run, null),
+            branch_key: rowToKey(run)
+          }));
         }
-        rowsToWrite.push(row);
       }
       if (!rowsToWrite.length) {
+        if (saveResult.errors.length) {
+          saveResult.errors = saveResult.errors.map(function(error) {
+            return error && error.message ? error : branchCoverageError(error, { context: 'branch_coverage_row_prepare_failed' });
+          });
+          saveResult.error = branchCoverageError(new Error('No valid branch coverage rows were produced for save'), {
+            context: 'branch_coverage_row_prepare_failed',
+            error_count: saveResult.errors.length,
+            run_count: runs.length,
+            sample_failed_rows: saveResult.errors.slice(0, 3).map(function(error) {
+              if (!error) return null;
+              return {
+                message: error.message || null,
+                run_index: error.run_index || null,
+                branch_key: error.branch_key || null,
+                code: error.code || null,
+                status: error.status || error.statusText || null,
+                details: error.details || null
+              };
+            })
+          });
+          saveResult.error_count = saveResult.errors.length;
+          return saveResult;
+        }
         return { enabled: true, saved: 0, updated: 0, inserted: 0 };
       }
-      var saveChunkSize = 80;
-      var saveResult = { enabled: true, saved: 0, updated: 0, inserted: 0, errors: [] };
+      var saveChunkSize = 24;
+      if (rowsToWrite.length <= 120) {
+        saveChunkSize = 80;
+      } else if (rowsToWrite.length <= 1500) {
+        saveChunkSize = 40;
+      }
+      var onProgress = typeof payload.onProgress === 'function' ? payload.onProgress : null;
 
-      for (var i = 0; i < rowsToWrite.length; i += saveChunkSize) {
-        var chunk = rowsToWrite.slice(i, i + saveChunkSize);
-        if (!chunk.length) continue;
+      function emitSaveProgress(event) {
+        if (!onProgress) return;
+        var payloadEvent = event || {};
+        var safeEvent = {
+          phase: 'save_progress',
+          attempted_rows: Number(payloadEvent.attempted_rows || 0),
+          attempted_chunk_index: Number(payloadEvent.attempted_chunk_index || 0),
+          attempted_chunk_size: Number(payloadEvent.attempted_chunk_size || 0),
+          saved_rows: Number(saveResult.saved || 0),
+          inserted_rows: Number(saveResult.inserted || 0),
+          updated_rows: Number(saveResult.updated || 0),
+          error_count: Number(saveResult.errors.length || 0)
+        };
+        var keys = Object.keys(payloadEvent);
+        for (var i = 0; i < keys.length; i++) {
+          safeEvent[keys[i]] = payloadEvent[keys[i]];
+        }
+        try { onProgress(safeEvent); } catch (_err) {}
+      }
+
+      function countChunkRows(chunk) {
         var chunkUpdated = 0;
         var chunkInserted = 0;
         for (var c = 0; c < chunk.length; c++) {
@@ -625,20 +1091,169 @@
           if (existing[row.branch_key]) chunkUpdated += 1;
           else chunkInserted += 1;
         }
-        var upsertResult = await sb
-          .from('branch_coverage_runs')
-          .upsert(chunk, { onConflict: 'branch_key' });
-        if (upsertResult && upsertResult.error) {
-          saveResult.errors.push(normalizeDbError(upsertResult.error));
-        } else {
-          saveResult.saved += chunk.length;
-          saveResult.updated += chunkUpdated;
-          saveResult.inserted += chunkInserted;
+        return { updated: chunkUpdated, inserted: chunkInserted };
+      }
+
+      async function persistChunk(chunk, startIndex) {
+          if (!chunk.length) return;
+          var chunkInfo = countChunkRows(chunk);
+          try {
+            var upsertResult = await sb
+              .from('branch_coverage_runs')
+              .upsert(chunk, { onConflict: 'branch_key' });
+            if (upsertResult && upsertResult.error) {
+              throw {
+                message: upsertResult.error.message || 'Bad Request',
+                code: upsertResult.error.code || null,
+                details: upsertResult.error.details || null,
+                hint: upsertResult.error.hint || null,
+                status: upsertResult.status || upsertResult.error.status || null,
+                statusText: upsertResult.statusText || upsertResult.error.statusText || null,
+                body: upsertResult.error.body || null,
+                raw: safeTextForDb(upsertResult.error.raw || upsertResult.error, null),
+                branch_keys: (chunk || []).map(function(row) { return row && row.branch_key ? row.branch_key : null; }),
+                request_rows: chunk.length
+              };
+            }
+            saveResult.saved += chunk.length;
+            saveResult.updated += chunkInfo.updated;
+            saveResult.inserted += chunkInfo.inserted;
+            emitSaveProgress({
+                context: 'branch_coverage_chunk_saved',
+                attempted_rows: chunk.length,
+                attempted_chunk_index: startIndex,
+                attempted_chunk_size: chunk.length
+              });
+          return;
+        } catch (err) {
+          if (chunk.length === 1) {
+            var singleRow = chunk[0] || {};
+            emitSaveProgress({
+              context: 'branch_coverage_single_row_failed',
+              attempted_rows: 1,
+              attempted_chunk_index: startIndex,
+              attempted_chunk_size: 1,
+              failed_row_key: singleRow && singleRow.branch_key
+            });
+
+            var minimalRow;
+            try {
+              minimalRow = buildMinimalBranchCoverageRow(singleRow, payload);
+            } catch (_minimalBuildErr) {
+              minimalRow = null;
+            }
+
+            if (singleRow && singleRow.branch_key && minimalRow) {
+              try {
+                var fallbackResult = await sb
+                  .from('branch_coverage_runs')
+                  .upsert([minimalRow], { onConflict: 'branch_key' });
+                if (!fallbackResult || fallbackResult.error) {
+                  var fallbackErr = fallbackResult && fallbackResult.error ? {
+                    message: fallbackResult.error.message || 'Bad Request',
+                    code: fallbackResult.error.code || null,
+                    details: fallbackResult.error.details || null,
+                    hint: fallbackResult.error.hint || null,
+                    status: fallbackResult.status || fallbackResult.error.status || null,
+                    statusText: fallbackResult.statusText || fallbackResult.error.statusText || null,
+                    body: fallbackResult.error.body || null,
+                    raw: safeTextForDb(fallbackResult.error.raw || fallbackResult.error, null),
+                    branch_keys: [singleRow.branch_key],
+                    request_rows: 1,
+                    fallback_mode: 'minimal_row'
+                  } : null;
+                  if (fallbackErr) {
+                    throw fallbackErr;
+                  }
+                }
+
+                saveResult.saved += 1;
+                if (chunkInfo.updated) {
+                  saveResult.updated += 1;
+                } else {
+                  saveResult.inserted += 1;
+                }
+                emitSaveProgress({
+                  context: 'branch_coverage_single_row_recovered',
+                  attempted_rows: 1,
+                  attempted_chunk_index: startIndex,
+                  attempted_chunk_size: 1,
+                  recovered_row_key: singleRow.branch_key
+                });
+                return;
+              } catch (fallbackErr) {
+                // fall through to record the full error below if minimal payload also fails
+                err = fallbackErr;
+              }
+            }
+
+            saveResult.errors.push(branchCoverageError(err, {
+              context: 'branch_coverage_single_row_failed',
+              branch_key: singleRow.branch_key || null,
+              branch_payload: singleRow ? safeJsonForDb(singleRow, null) : null,
+              minimal_branch_payload: minimalRow ? safeJsonForDb(minimalRow, null) : null,
+              attempted_chunk_size: 1,
+              attempted_chunk_index: startIndex,
+              requested_rows: 1,
+              attempted_rows: 1,
+              requested_keys: [singleRow.branch_key || null]
+            }));
+            return;
+          }
+
+          if (chunk.length <= 3) {
+            for (var iRow = 0; iRow < chunk.length; iRow++) {
+              await persistChunk([chunk[iRow]], startIndex + iRow);
+            }
+            return;
+          }
+
+          var half = Math.max(1, Math.floor(chunk.length / 2));
+          await persistChunk(chunk.slice(0, half), startIndex);
+          await persistChunk(chunk.slice(half), startIndex + half);
+          return;
         }
       }
 
+      for (var i = 0; i < rowsToWrite.length; i += saveChunkSize) {
+        var baseChunk = rowsToWrite.slice(i, i + saveChunkSize);
+        if (!baseChunk.length) continue;
+        if (baseChunk.length === 1) {
+          await persistChunk(baseChunk, i);
+          continue;
+        }
+        await persistChunk(baseChunk, i);
+      }
+
       if (saveResult.errors.length) {
-        saveResult.error = 'one_or_more_branch_coverage_chunk_writes_failed';
+        var firstErr = saveResult.errors[0] && saveResult.errors[0].message ? saveResult.errors[0].message : null;
+        var lastErr = saveResult.errors[saveResult.errors.length - 1] && saveResult.errors[saveResult.errors.length - 1].message ? saveResult.errors[saveResult.errors.length - 1].message : null;
+        saveResult.error = branchCoverageError(new Error('Branch coverage chunk write failed; see details in errors[]'), {
+          context: 'one_or_more_branch_coverage_chunk_writes_failed',
+          error_count: saveResult.errors.length,
+          first_error_message: firstErr,
+          last_error_message: lastErr,
+          first_failed_row_context: saveResult.errors[0] && saveResult.errors[0].branch_key
+            ? {
+              branch_key: saveResult.errors[0].branch_key,
+              payload: saveResult.errors[0].branch_payload || null
+            }
+            : null,
+          sample_failed_rows: saveResult.errors.slice(0, 3).map(function(error) {
+            if (!error) return null;
+            return {
+              message: error.message || null,
+              branch_key: error.branch_key || null,
+              requested_rows: error.requested_rows || null,
+              status: error.status || error.statusText || null,
+              details: error.details || null,
+              code: error.code || null,
+              hint: error.hint || null
+            };
+          })
+        });
+        saveResult.error_count = saveResult.errors.length;
+        saveResult.failed_chunks = Math.max(saveResult.errors.length, 0);
         return saveResult;
       }
       return saveResult;
@@ -649,7 +1264,9 @@
         saved: 0,
         updated: 0,
         inserted: 0,
-        error: normalizeDbError(err)
+        error: branchCoverageError(err, { context: 'saveBranchCoverageRuns_unexpected_failure' }),
+        errors: [branchCoverageError(err, { context: 'saveBranchCoverageRuns_unexpected_failure' })],
+        error_count: 1
       };
     }
   }
@@ -668,6 +1285,7 @@
     loadPriorSnapshot,
     loadShowdownDbStatus,
     loadShowdownDbSnapshot,
+    loadShowdownEntities,
     loadBranchCoverageSummary,
     saveBranchCoverageRuns
   };

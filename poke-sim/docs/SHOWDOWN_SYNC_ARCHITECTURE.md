@@ -6,6 +6,14 @@
 
 ---
 
+## Ruleset Lifecycle Guard
+
+Showdown sync must record which ruleset window it is validating against and when that source was checked. Reg M-B is currently a source-review lane, not a promoted simulator legality lane, so sync output should identify source drift instead of overwriting historical Reg M-A fixtures without an explicit migration.
+
+For Reg M-B, the current blocker is source conversion, not just fetching. Victory Road exposes the full allowed-Pokemon list as image sheets and the new Mega list as an image. Sync/promotion must turn those into explicit reviewed rows before generated data, legality gates, or DB seeds can claim Reg M-B runtime support.
+
+---
+
 ## Problem
 
 The simulator currently has useful Showdown-derived assets and replay tooling, but the update path is not yet a full live pipeline. That creates two separate risks:
@@ -103,6 +111,8 @@ This keeps the app easy to sync while avoiding hidden hand-maintained static tab
 
 Primary source: `https://play.pokemonshowdown.com/data/`
 
+The team-facing source registry is [`DATA_SOURCE_REGISTRY.md`](DATA_SOURCE_REGISTRY.md). It defines which source can prove legality, mechanics, coaching usage, and app QA evidence. Sync reports and PRs should link back to that registry so reviewers can challenge source quality over time.
+
 | Source file | Purpose |
 |---|---|
 | `pokedex.js` | Species, forms, typing, base stats, forme metadata |
@@ -125,6 +135,32 @@ Current local guardrail:
 
 - `tests/showdown_priority_drift_tests.js` compares local `getPriority()` for every shipped move against generated Showdown move metadata, with a Champions override allowlist for intentional differences.
 - `tools/validate-turn-logs.mjs` uses the same corrected priority assumptions to audit exported battle logs, and validates structured `damage_events`/`effect_events` so recoil, drain, HP-cost, recovery, and delayed effect math remain auditable.
+
+## Timestamped Source Review Contract
+
+Every source sync or manual source review must record:
+
+- UTC `checked_at`, `started_at`, and `finished_at` when automation runs.
+- Source URL and source owner.
+- Source type: official, Champion regulation, Showdown mirror, oracle, readable cross-checker, usage/meta, or repo QA evidence.
+- Source commit, page date, package version, fetched hash, or normalized hash when available.
+- Ruleset ID being checked, for example `champions_reg_m_doubles_bo3`.
+- Decision: `approved`, `blocked`, `needs_review`, `historical`, or `override_required`.
+- Related workflow run ID, commit SHA, PR, issue, or QA artifact path.
+
+Showdown sync date/hash proves static mirror freshness. It does not prove Champion legality by itself. Champion ruleset pages and reviewed `champions_overrides` rows must carry their own review timestamp.
+
+## Source Priority For Promotion
+
+Use this order when promoting runtime behavior:
+
+- Official Pokemon / Play! Pokemon / Pokemon Champions notices if available.
+- Champion-specific regulation and availability pages such as Victory Road, Serebii, and Game8.
+- Pokemon Showdown upstream, `@pkmn/sim`, and `@smogon/calc` for baseline data, mechanics, and oracle checks.
+- Human-readable cross-checkers such as Bulbapedia, Serebii dex pages, Smogon strategy pages, RotomLabs, OP.GG, and usage/meta sources.
+- Repo QA artifacts and turn logs proving what this app executed.
+
+If a source-tier conflict affects runtime behavior, create a finding and a Champion override instead of changing mirrored Showdown rows.
 
 ---
 
@@ -258,7 +294,7 @@ Default behavior should be "detect and open/report", not "auto-merge". Showdown 
 - [x] Add indexes on run IDs, entity kind/key, source hash, status, and severity.
 - [x] Add unique constraints that make repeated sync writes idempotent.
 
-Repo note: the migrations and tests are staged in source. Live Supabase still needs the migration workflow to apply them.
+Repo note: the migrations and tests are staged in source, and the live Supabase approved views generated the runtime asset with 8,653 approved entities and 0 active overrides. Release proof still needs reviewed Champions override seed rows where needed and browser evidence.
 
 ### Phase 4: Generated Assets
 
@@ -354,4 +390,4 @@ create table if not exists mechanics_validation_findings (
 );
 ```
 
-Follow-up migration `2026_06_07_showdown_entities_approved_views.sql` now adds the heavier `showdown_entities`, `showdown_entity_diffs`, and `champions_overrides` tables plus approved read views. The remaining work is applying it to live Supabase and wiring sync output into those rows.
+Follow-up migration `2026_06_07_showdown_entities_approved_views.sql` adds the heavier `showdown_entities`, `showdown_entity_diffs`, and `champions_overrides` tables plus approved read views. The committed generated runtime asset now comes from live approved views; the remaining work is seeding/reviewing Champions-specific overrides.

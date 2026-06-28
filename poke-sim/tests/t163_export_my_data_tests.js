@@ -284,8 +284,8 @@ async function main() {
     const payload = await csBuildQaArtifactExport('player');
     eq(payload.schema_version, 'champions-qa-artifact-v1');
     eq(payload.artifact_type, 'large-run-qa-retained-evidence');
-    truthy(/^v2\.1\.60-team-evidence-dashboard/.test(payload.build_id || ''), 'QA build id missing');
-    eq(payload.source_url, 'http://localhost/?v=v2.1.60-team-evidence-dashboard&fresh=1');
+    truthy(/^v2\.\d+\.\d+-[a-z0-9-]+$/.test(payload.build_id || ''), 'QA build id missing');
+    truthy(/^http:\/\/localhost\/\?v=v2\.\d+\.\d+-[a-z0-9-]+&fresh=1$/.test(payload.source_url || ''), 'QA source URL missing build cache buster');
     eq(payload.retention.max_replay_cards, 240);
     eq(payload.retention.max_replay_log_lines, 200);
     eq(payload.retention.max_simlog_total, 500);

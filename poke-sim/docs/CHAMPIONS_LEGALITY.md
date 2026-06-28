@@ -1,13 +1,96 @@
 # Champions Reg M-A Legality
 
 **Format:** `champions-vgc-2026-regma`
-**Active period:** April 8, 2026 - June 17, 2026
+**Active period:** historical/source-sensitive. Treat Reg M-A as the active simulator lane only when the user or test explicitly selects the Reg M-A lane; do not call it the live ladder after source pages identify a newer regulation.
 **Authoritative sources:**
 - [Serebii Reg M-A](https://www.serebii.net/pokemonchampions/rankedbattle/regulationm-a.shtml)
 - [Victory Road Regulations](https://victoryroad.pro/champions-regulations/)
 - [Game8 Items List](https://game8.co/games/Pokemon-Champions/archives/588871)
+- [Data Source Registry](DATA_SOURCE_REGISTRY.md)
+
+Last reviewed in repo: June 27, 2026.
+
+Source freshness note: the June 27, 2026 review found that Reg M-A should be treated as a named historical lane unless a stronger source still identifies it as live. The next ruleset migration task is Reg M-B source review and implementation.
 
 ---
+
+## Reg M-B Source-Review Boundary
+
+Reg M-B is the active external season window after June 17, 2026, but this validator remains the implemented Reg M-A historical lane until Reg M-B species, item, form, move, ability, and mechanic differences are source-confirmed.
+
+Passing this validator proves compatibility with the implemented historical lane. It does not prove full Reg M-B legality. Reg M-B promotion must update source rows, fixtures, QA artifacts, generated bundle/cache guards, and the browser QA artifact before the UI can claim Reg M-B as the implemented ruleset.
+
+Structured conversion ledger: [`REG_M_B_SOURCE_CONVERSION_TABLE.md`](REG_M_B_SOURCE_CONVERSION_TABLE.md) and `../regmb_source_conversion.js`.
+
+Verified June 27, 2026 Reg M-B source facts:
+
+- Victory Road lists Regulation Set M-B as June 17 to September 2, 2026.
+- Victory Road states Reg M-B allows Mega Evolutions and keeps all Reg M-A Mega Evolutions allowed.
+- Victory Road states Reg M-B adds 16 new Mega Evolutions: Mega Raichu X, Mega Raichu Y, Mega Sceptile, Mega Blaziken, Mega Swampert, Mega Mawile, Mega Metagross, Mega Staraptor, Mega Scolipede, Mega Scrafty, Mega Eelektross, Mega Pyroar, Mega Malamar, Mega Barbaracle, Mega Dragalge, and Mega Falinks.
+- The full Reg M-B Pokemon allowlist is source-visible as image sheets, so it must be converted into explicit reviewed rows before runtime promotion.
+
+---
+
+## Team Engineering Rule
+
+Champion legality is ruleset-gated.
+
+Do not assume that a mechanic belongs in the active sim just because it exists in Pokemon Showdown, Scarlet/Violet, or another Champion mode. The simulator must answer a narrower question:
+
+> Is this mechanic legal for the current Champion ruleset lane being simulated?
+
+Current implemented lane:
+
+- `champions_reg_m_doubles_bo3`
+- Reg M-A style doubles, now treated as source-sensitive/historical until Reg M-B migration is reviewed
+- Mega Evolution enabled
+- Champion SP spreads enabled
+- Champion item pool allowlist enforced
+- Champion species/form ban list enforced
+- Scarlet/Violet Tera fields are not active in this lane unless a reviewed source explicitly enables them for the ruleset
+
+Showdown is still useful, but its role is source data, not automatic permission:
+
+- Use Showdown for species data, learnsets, base move metadata, flags, target categories, and standard battle mechanics.
+- Use Champion sources and reviewed overrides to decide whether a Pokemon, item, ability, move, or mechanic is allowed in the active Champion ruleset.
+- If Showdown and Champion sources conflict, do not silently pick one. Add a source-review note, test, and Overview entry.
+- Use [`DATA_SOURCE_REGISTRY.md`](DATA_SOURCE_REGISTRY.md) to decide which source can prove legality, mechanics, coaching usage, or app evidence.
+
+Ruleset lifecycle guard:
+
+- `rulesets.js` owns whether a ruleset is `source_review`, `implemented`, or `historical`.
+- `validateTeamForRuleset(team, rulesetId)` is the builder/sim entry point.
+- Source-review rulesets return `RULESET_NOT_RUNTIME_PROMOTED` and `review_only_do_not_train_or_rank`.
+- DB/coaching payloads must preserve ruleset status so future learning does not mix illegal, review-only, historical, and current-implemented rows.
+
+## June 27, 2026 Ruleset Drift Fix
+
+QA artifacts from `v2.1.82-replay-effect-tags` showed Champion battle logs containing `Terastallized` lines, including stale team data such as Dragapult with a Fairy Tera type. This was a ruleset leak: the engine was auto-activating Tera when a Pokemon had legacy `tera`, `teraType`, or `tera_type` data.
+
+Fix shipped in `v2.1.83-champions-tera-gate`:
+
+- Current Champion Reg M-A sim runs no longer auto-Terastallize from stale team data.
+- Active Champion team catalog data no longer carries Tera fields.
+- Active Champion team catalog data no longer carries `Tera Blast` as a team move.
+- Champion exports no longer write `Tera Type:` lines.
+- DB persistence strips Champion Tera fields and `Tera Blast` before saving.
+- `validateChampionsLegality()` rejects current Reg M-A teams with:
+- `TERA_NOT_CHAMPIONS_LEGAL`
+- `MOVE_NOT_CHAMPIONS_LEGAL`
+- `ABILITY_NOT_CHAMPIONS_LEGAL`
+- Active Champion strategy copy no longer teaches `Protosynthesis` as approved coaching.
+- Legacy/SV Tera parity code remains isolated for explicit non-Reg-M-A test contexts so future Champion rulesets can opt in only after source review.
+
+Required validation before closing any similar issue:
+
+- Scan active Champion catalog for Tera fields, `Tera Blast`, `Protosynthesis`, `Quark Drive`, and `Booster Energy`.
+- Run `t152_tera_activation_tests.js`.
+- Run `champion_pack_legality_tests.js`.
+- Run `preloaded_team_legality_tests.js`.
+- Run `champion_drift_guard_tests.js`.
+- Export one fresh QA Artifact and verify there are no Champion-format `Terastallized` lines.
+
+This is the pattern for future mixed-rule findings: gate the current Champion lane, preserve isolated source/oracle tests where useful, and document the source boundary.
 
 ## Ruleset Summary
 
@@ -108,6 +191,9 @@ Returned from `validateChampionsLegality(team)` in `{severity, code, message}` f
 | `FAKEMON` | error | Pokemon name in `FAKEMON_BLOCKLIST` (currently empty) |
 | `ITEM_ABSENT` | error | Held item is a known absent SV carryover |
 | `ITEM_NOT_IN_CHAMPIONS_POOL` | error | Held item is outside `CHAMPIONS_LEGAL_ITEMS` |
+| `TERA_NOT_CHAMPIONS_LEGAL` | error | Tera field present in a current Reg M-A Champion team |
+| `MOVE_NOT_CHAMPIONS_LEGAL` | error | Move belongs to an unapproved mechanic for current Reg M-A, e.g. `Tera Blast` |
+| `ABILITY_NOT_CHAMPIONS_LEGAL` | error | Ability belongs to an unapproved mechanic for current Reg M-A, e.g. `Protosynthesis` or `Quark Drive` |
 | `MEGA_STONE_MISMATCH` | error | Mega Stone held by non-matching species |
 | `HOME_TRANSFER` | warn | HOME-transfer-only Mega (legal but not shop-obtainable) |
 
@@ -128,5 +214,7 @@ Species Clause and Item Clause are enforced separately in `engine.js::validateTe
 Not enforced by `legality.js` yet; filed as follow-up tickets:
 
 - Legal-item allowlist maintenance on patch notes
-- Mewtwo X/Y, Latias, Latios — stones not in Game8 item list as of April 2026; may become Reg M-B content
-- Mega Raichu — Beebom tier list reference unverified; stone not confirmed in item pool
+- Reg M-B full Pokemon allowlist extraction from Victory Road image sheets
+- Reg M-B new Mega implementation for Raichu X/Y, Sceptile, Blaziken, Swampert, Mawile, Metagross, Staraptor, Scolipede, Scrafty, Eelektross, Pyroar, Malamar, Barbaracle, Dragalge, and Falinks after stone/item names, stats, abilities, typing, sprites, and fixtures are sourced
+- Mewtwo X/Y, Latias, Latios — stones not in Game8 item list as of April 2026 and not part of the June 27 verified Reg M-B new-Mega list
+- Broader ruleset matrix: if Champion modes later enable Omni Ring mechanics such as Tera, add a separate ruleset flag instead of loosening current Reg M-A validation.

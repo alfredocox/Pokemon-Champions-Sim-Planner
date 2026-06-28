@@ -100,7 +100,7 @@ T('2. Overview tracks accomplished work and validation proof', () => {
   inc(ui, 'Showdown data/moves.ts records Low Kick basePower as 0');
   inc(ui, '100% Champion parity checklist is explicit');
   inc(ui, 'Damage stack oracle is green');
-  inc(ui, 'Tera Blast parity is green');
+  inc(ui, 'Tera Blast parity is isolated from current Reg M-A');
   inc(ui, 'Knock Off source-truth behavior is documented');
   inc(ui, 'Turn-order stack evidence is green');
   inc(ui, 'GitHub issue sweep completed');
@@ -115,9 +115,11 @@ T('3. Overview names current Supabase and Showdown DB alignment state', () => {
   inc(ui, 'Live Supabase freshness checks require `RUN_LIVE_DB=1`');
   inc(ui, 'overview-showdown-db-inspect');
   inc(ui, 'loadShowdownDbSnapshot');
+  inc(ui, 'loadShowdownEntities');
   inc(ui, 'approvedCounts');
   inc(ui, 'sourceFiles');
-  inc(ui, 'showdown_entities DB rows are not the battle runtime source yet');
+  inc(ui, 'Champions override seed/review remains open');
+  inc(ui, 'generate_showdown_data.mjs');
   inc(ui, 'Live logs exposed stale DB item drift');
   inc(ui, 'Pokemon data audit has unresolved reviewer risk');
   inc(ui, '100% parity still has non-move gates');
@@ -146,7 +148,7 @@ T('4. Overview includes next milestones and source docs', () => {
   inc(ui, 'Verify the next deployed source URL and QA artifact');
   inc(ui, 'Mirror or update JD issue alignment in the Y fork');
   inc(ui, 'Apply Champion item cleanup to live Supabase rows');
-  inc(ui, 'Wire approved Showdown DB data into generated runtime assets');
+  inc(ui, 'Seed and review Champions overrides');
   inc(ui, 'Design DB forensic log retention before relying on saved history');
   inc(ui, 'build_id, source_url, and retention metadata');
   inc(ui, 'Prove post-move mechanics by battle system');

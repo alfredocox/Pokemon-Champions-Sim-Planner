@@ -67,11 +67,13 @@ load('storage_adapter.js');
 load('ui.js');
 vm.runInContext([
   'this.csCapBattleReplay = csCapBattleReplay;',
+  'this.csIsClutchReplay = csIsClutchReplay;',
   'this.renderReplays = renderReplays;',
   'this.setReplayState = ChampionsSim.simLog._setReplayState;'
 ].join('\n'), ctx);
 
 const csCapBattleReplay = ctx.csCapBattleReplay;
+const csIsClutchReplay = ctx.csIsClutchReplay;
 const renderReplays = ctx.renderReplays;
 const setReplayState = ctx.setReplayState;
 
@@ -154,6 +156,30 @@ T('4. replay renderer does not show coaching summary for wins', () => {
   }], 'all');
   renderReplays();
   truthy(replayList.innerHTML.indexOf('Coaching Summary') < 0, 'unexpected coaching summary on win replay');
+});
+
+T('5. clutch replay requires comeback, close endgame, or late major swing', () => {
+  truthy(!csIsClutchReplay({
+    result: 'loss',
+    turns: 8,
+    trTurns: 0,
+    turnLog: Array.from({ length: 8 }, (_, i) => ({ turn: i + 1, positionScore: 0.5, delta: { position_score: 0.01 } }))
+  }), 'flat 8-turn replay should not be clutch by length alone');
+
+  truthy(csIsClutchReplay({
+    result: 'win',
+    turns: 6,
+    trTurns: 0,
+    turning_point: { turn: 5, direction: 'player', cause: 'position_improved' },
+    turnLog: [
+      { turn: 1, positionScore: 0.5, delta: { position_score: -0.04 } },
+      { turn: 2, positionScore: 0.41, delta: { position_score: -0.09 } },
+      { turn: 3, positionScore: 0.39, delta: { position_score: -0.02 } },
+      { turn: 4, positionScore: 0.44, delta: { position_score: 0.05 } },
+      { turn: 5, positionScore: 0.67, delta: { position_score: 0.23 } },
+      { turn: 6, positionScore: 0.72, delta: { position_score: 0.05 } }
+    ]
+  }), 'late comeback win should be clutch');
 });
 
 console.log(`\nreplay log cap: ${pass} pass, ${fail} fail\n`);

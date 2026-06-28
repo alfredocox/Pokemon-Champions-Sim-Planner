@@ -103,7 +103,7 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
   ('player', 3, 'Garchomp', 'Soft Sand', 'Rough Skin', 'Jolly', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Earthquake","Dragon Claw","Rock Slide","Protect"]'::jsonb, NULL, 'Physical Sweeper'),
   ('player', 4, 'Whimsicott', 'Focus Sash', 'Prankster', 'Timid', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":0,"spe":32}'::jsonb, '["Tailwind","Sunny Day","Moonblast","Protect"]'::jsonb, NULL, 'Speed Control'),
   ('player', 5, 'Rotom-Wash', 'Leftovers', 'Levitate', 'Bold', 50, '{"atk":0,"def":8,"hp":32,"spa":26,"spd":0,"spe":0}'::jsonb, '["Thunderbolt","Hydro Pump","Will-O-Wisp","Protect"]'::jsonb, NULL, 'Spread Check'),
-  ('player', 6, 'Dragapult', 'Choice Scarf', 'Clear Body', 'Jolly', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Dragon Darts","U-turn","Tera Blast","Sucker Punch"]'::jsonb, 'Fairy', 'Speed Control / Scarf Revenge');
+  ('player', 6, 'Dragapult', 'Choice Scarf', 'Clear Body', 'Jolly', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Dragon Darts","U-turn","Phantom Force","Sucker Punch"]'::jsonb, NULL, 'Speed Control / Scarf Revenge');
 
 -- mega_altaria
 INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES

@@ -737,6 +737,11 @@ table{border-collapse:collapse;width:100%}
 .replay-roster-status.bench{color:var(--text-m)}
 .replay-roster-status.fainted{border-color:rgba(240,84,100,.55);color:var(--red)}
 .replay-roster-meta{font-size:11px;line-height:1.45;color:var(--text);margin-top:4px}
+.replay-effect-tags{display:flex;flex-wrap:wrap;gap:5px;margin:3px 0 6px}
+.replay-effect-tag{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:var(--r-full);padding:2px 7px;font-size:9px;font-weight:900;letter-spacing:.02em;text-transform:uppercase;background:var(--surface);color:var(--text-m)}
+.replay-effect-tag.high{border-color:rgba(240,84,100,.6);background:rgba(240,84,100,.12);color:var(--red)}
+.replay-effect-tag.medium{border-color:rgba(245,197,66,.55);background:rgba(245,197,66,.12);color:var(--gold)}
+.replay-effect-tag.low{border-color:rgba(91,164,245,.5);background:rgba(91,164,245,.12);color:var(--blue)}
 .replay-hp-track{height:7px;border-radius:var(--r-full);background:rgba(148,163,184,.22);overflow:hidden;margin-bottom:6px}
 .replay-hp-track span{display:block;height:100%;border-radius:inherit;background:var(--green)}
 .replay-hp-track.bench span{background:var(--text-m)}
@@ -2264,3 +2269,13 @@ table{border-collapse:collapse;width:100%}
     grid-template-columns: 1fr;
   }
 }
+
+.regmb-visual-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin-top:14px}
+.regmb-visual-card{background:rgba(15,23,42,.72);border:1px solid rgba(148,163,184,.24);border-radius:14px;padding:10px;text-align:center;min-height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.regmb-visual-card img{width:56px;height:56px;object-fit:contain;image-rendering:auto}
+.regmb-visual-fallback{display:none;width:56px;height:56px;border-radius:12px;align-items:center;justify-content:center;background:rgba(148,163,184,.14);color:var(--muted);font-weight:900}
+.regmb-visual-fallback.missing{display:flex}
+.regmb-visual-card strong{font-size:12px;line-height:1.1;color:var(--text)}
+.regmb-visual-card span{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.regmb-visual-card em{font-style:normal;font-size:9px;padding:2px 5px;border-radius:999px}
+@media(max-width:640px){.regmb-visual-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}.regmb-visual-card{padding:8px}.regmb-visual-card img,.regmb-visual-fallback{width:48px;height:48px}}

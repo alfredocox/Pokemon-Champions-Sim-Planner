@@ -103,6 +103,7 @@ T('1. generated Showdown species and move data are loaded for runtime', () => {
   truthy(Object.keys(SHOWDOWN.moves || {}).length > 800, 'Showdown move table too small');
   truthy(showdownSpecies('Arcanine-Hisui'), 'Arcanine-Hisui missing from generated species');
   truthy(showdownSpecies('Floette (Eternal Flower)'), 'Floette Eternal Flower alias missing from generated species');
+  truthy(showdownSpecies('Floette-Mega'), 'Floette-Mega missing from generated species');
 });
 
 T('2. Pokemon construction prefers generated Showdown stats/types over local tables', () => {

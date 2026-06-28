@@ -59,6 +59,8 @@
   // These are learnset supplements, not species aliases. Stats, typing,
   // sprite, Mega state, and display identity remain the exact form row.
   var FORM_LEARNSET_SUPPLEMENTS = {
+    'Indeedee-M': ['Indeedee'],
+    'Meowstic-M': ['Meowstic'],
     'Rotom-Fan': ['Rotom'],
     'Rotom-Frost': ['Rotom'],
     'Rotom-Heat': ['Rotom'],
@@ -78,7 +80,7 @@
         'Floette-Mega Eternal Flower'
       ],
       learnsetKeys: ['Floette-Eternal', 'Floette'],
-      notes: 'Champion-specific Mega Eternal Flower form uses Eternal Flower/Floette learnset rows until the generated source has an exact form key.'
+      notes: 'Champion-specific Mega Eternal Flower app identity uses the generated Floette-Mega stat row and Eternal Flower/Floette learnset rows until the generated source has an exact Eternal-Mega form key.'
     }
   };
 
@@ -88,6 +90,11 @@
     (rule.aliases || []).forEach(function(alias) {
       speciesIndex[toId(alias)] = key;
     });
+  });
+
+  Object.keys(FORM_LEARNSET_SUPPLEMENTS).forEach(function(key) {
+    if (!data || !data.species || data.species[key]) return;
+    speciesIndex[toId(key)] = key;
   });
 
   function canonicalSpeciesKey(speciesKey) {

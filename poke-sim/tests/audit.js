@@ -140,9 +140,10 @@ for (const t of available) {
   const total = c.wins + c.losses + c.draws;
   const wr = total > 0 ? (c.wins/total*100).toFixed(0) : '--';
   const hardFail = total > 0 && (c.wins / total < 0.15 || c.wins / total > 0.85);
-  const flag = hardFail ? ' [FAIL: mirror WR outside 15-85%]' :
-    (total > 0 && Math.abs(c.wins/total - 0.5) > 0.25) ? ' [FLAG: >25% off 50%]' : '';
-  if (hardFail) mirrorFlags.push({ team: t, wins: c.wins, losses: c.losses, draws: c.draws, total: total });
+  const softFlag = !hardFail && total > 0 && Math.abs(c.wins/total - 0.5) > 0.25;
+  const flag = hardFail ? ' [FAIL: mirror WR outside 15-85%]' : softFlag ? ' [FLAG: >25% off 50%]' : '';
+  if (hardFail) mirrorFlags.push({ team: t, severity: 'fail', wins: c.wins, losses: c.losses, draws: c.draws, total: total, winRate: total > 0 ? Math.round(c.wins/total*100) : 0 });
+  if (softFlag)  mirrorFlags.push({ team: t, severity: 'flag', wins: c.wins, losses: c.losses, draws: c.draws, total: total, winRate: total > 0 ? Math.round(c.wins/total*100) : 0 });
   console.log(`  ${t.padEnd(22)} ${wr}% (${c.wins}w/${c.losses}l/${c.draws}d)${flag}`);
 }
 
@@ -224,11 +225,11 @@ fs.writeFileSync(require('path').join(__dirname, 'audit_matrix.json'), JSON.stri
 }, null, 2));
 console.log('\n[wrote tests/audit_matrix.json]');
 
-if (mirrorFlags.length > 0) {
+const hardFailFlags = mirrorFlags.filter(function(f) { return f.severity === 'fail'; });
+if (hardFailFlags.length > 0) {
   console.error('\nFATAL: mirror-match win-rate hard failures detected:');
-  mirrorFlags.forEach(function(f){
-    const wr = f.total > 0 ? Math.round(f.wins / f.total * 100) : 0;
-    console.error(`  ${f.team}: ${wr}% (${f.wins}w/${f.losses}l/${f.draws}d)`);
+  hardFailFlags.forEach(function(f){
+    console.error(`  ${f.team}: ${f.winRate}% (${f.wins}w/${f.losses}l/${f.draws}d)`);
   });
   process.exit(1);
 }

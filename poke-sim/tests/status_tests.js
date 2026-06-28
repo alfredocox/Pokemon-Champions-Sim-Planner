@@ -178,5 +178,25 @@ T('27. Constructor new fields exist on every mon', () => {
   truthy('toxicCounter' in m && 'frozenTurns' in m && 'sleepTurns' in m, 'fields must exist');
 });
 
+// ---- Misty Terrain status blocking
+console.log('\nMisty Terrain:');
+T('28. canInflictStatus returns false under Misty Terrain for grounded mon', () => {
+  const f = new Field(); f.terrain = 'misty';
+  const grounded = mk('Garchomp');
+  falsy(canInflictStatus(grounded, 'sleep', f, null), 'Misty Terrain must block sleep on grounded mon');
+  falsy(canInflictStatus(grounded, 'burn', f, null), 'Misty Terrain must block burn on grounded mon');
+});
+T('29. canInflictStatus allows status on flying/ungrounded mon under Misty Terrain', () => {
+  const f = new Field(); f.terrain = 'misty';
+  const flying = mk('Garchomp'); flying.flying = true;
+  truthy(canInflictStatus(flying, 'sleep', f, null), 'Misty Terrain must NOT block status on ungrounded mon');
+});
+T('30. canInflictStatus returns false for sleep under Electric Terrain for grounded mon', () => {
+  const f = new Field(); f.terrain = 'electric';
+  const grounded = mk('Garchomp');
+  falsy(canInflictStatus(grounded, 'sleep', f, null), 'Electric Terrain must block sleep on grounded mon');
+  truthy(canInflictStatus(grounded, 'burn', f, null), 'Electric Terrain must NOT block burn on grounded mon');
+});
+
 console.log(`\nRESULT: ${pass}/${pass+fail} PASS`);
 process.exit(fail === 0 ? 0 : 1);

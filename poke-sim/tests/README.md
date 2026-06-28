@@ -101,7 +101,7 @@ N=500 node tests/nightly_bring_harness.js    # end-to-end bring picker wiring ch
 | recoil_faint_turn_log | 3/3 | Recoil KOs mark the attacker fainted before replacement snapshots; imported move metadata uses Showdown first |
 | turn_log_export_validator | 7/7 | Exported log checks for stable identity, item drift, key maps, and priority/speed order |
 | showdown_priority_drift | 4/4 | Shipped move priorities mirror generated Showdown metadata unless explicitly overridden |
-| showdown_approved_data_generator | 4/4 | Approved DB entity/override migration contract + generated runtime compatibility |
+| showdown_approved_data_generator | 7/7 | Approved DB entity/override migration contract + generated runtime compatibility alias |
 | phase6 | 9/9 | PRE/IN/POST coaching voice, banned phrasing linter, RNG gate, footer/proximity |
 | logger | 5/5 | Structured logger, default level, error fields, no raw runtime console calls |
 | export | 4/4 | My Data JSON export for persisted history, reports, and DB analyses |

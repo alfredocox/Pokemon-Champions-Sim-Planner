@@ -24,6 +24,9 @@ load('data.js');
 load('engine.js');
 vm.runInContext([
   'this.simulateBattle = simulateBattle;',
+  'this.Pokemon = Pokemon;',
+  'this.Field = Field;',
+  'this.applySecondary = _applyDamagingMoveSecondary;',
 ].join('\n'), ctx);
 
 let pass = 0, fail = 0;
@@ -82,41 +85,39 @@ T('1. Icy Wind drops Speed on all hit foes', () => {
 });
 
 T('2. Muddy Water can drop accuracy with the expected ratio', () => {
-  const playerTeam = {
-    name: 'Accuracy Check',
-    format: 'champions',
-    legality_status: 'legal',
-    members: [{
-      name: 'Swampert',
-      item: '',
-      ability: '',
-      nature: 'Serious',
-      level: 50,
-      moves: ['Muddy Water'],
-      evs: { hp: 32, atk: 0, def: 0, spa: 32, spd: 2, spe: 0 }
-    }]
-  };
+  const attacker = new ctx.Pokemon({
+    name: 'Swampert',
+    item: '',
+    ability: '',
+    nature: 'Serious',
+    level: 50,
+    moves: ['Muddy Water'],
+    evs: { hp: 32, atk: 0, def: 0, spa: 32, spd: 2, spe: 0 }
+  });
+  const target = new ctx.Pokemon({
+    name: 'Blissey',
+    item: '',
+    ability: '',
+    nature: 'Serious',
+    level: 50,
+    moves: ['Tackle'],
+    evs: { hp: 32, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
+  });
+  const field = new ctx.Field({ format: 'doubles' });
+  const log = [];
+  attacker.side = field.playerSide;
+  target.side = field.oppSide;
+  field.playerSide.activeMons = [attacker];
+  field.oppSide.activeMons = [target];
 
-  const oppTeam = {
-    name: 'Accuracy Targets',
-    format: 'champions',
-    legality_status: 'legal',
-    members: [{
-      name: 'Blissey',
-      item: '',
-      ability: '',
-      nature: 'Serious',
-      level: 50,
-      moves: ['Tackle'],
-      evs: { hp: 32, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
-    }]
-  };
+  truthy(ctx.applySecondary(attacker, 'Muddy Water', target, field, log, () => 0.29),
+    'Muddy Water should apply accuracy drop below 30% threshold');
+  truthy(target.statBoosts.acc === -1, 'Muddy Water accuracy drop missing');
+  truthy(log.some(line => String(line).includes("Blissey's accuracy fell!")),
+    'Muddy Water accuracy drop log missing');
 
-  const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'doubles', seed: [2, 3, 4, 5], maxTurns: 3 });
-  truthy(Array.isArray(battle.log), 'battle log missing');
-  truthy(battle.log.some(line => String(line).includes('used Muddy Water!')), 'Muddy Water did not resolve');
-  truthy(battle.log.some(line => String(line).includes("Blissey's accuracy fell!")),
-    'Muddy Water should occasionally lower accuracy');
+  const blocked = ctx.applySecondary(attacker, 'Muddy Water', target, field, log, () => 0.30);
+  truthy(blocked === false, 'Muddy Water should not apply at or above 30% threshold');
 });
 
 if (fail > 0) {

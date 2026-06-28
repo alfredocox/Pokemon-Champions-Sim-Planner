@@ -7,6 +7,7 @@ const ROOT = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
 const ui = fs.readFileSync(path.join(ROOT, 'ui.js'), 'utf8');
+const engine = fs.readFileSync(path.join(ROOT, 'engine.js'), 'utf8');
 
 let pass = 0;
 let fail = 0;
@@ -28,6 +29,16 @@ T('1. Review remains a separate tab from Strategy', () => {
   inc(html, '<script src="replay_learning.js"></script>');
   inc(html, 'id="replay-coach-url"');
   inc(html, 'id="replay-coach-fetch-btn"');
+  inc(html, 'id="replay-coach-full-roster"');
+  inc(html, 'Know the full 6?');
+  inc(html, 'accept=".txt,.log,.html,.htm,text/plain,text/html"');
+  inc(html, 'Upload Replay');
+  inc(html, 'In series play');
+  inc(html, 'v2.2.8-drain-rule-source-audit');
+  inc(ui, 'v2.2.8-drain-rule-source-audit');
+  if (/Bo10|data-bo="10"/.test(html)) throw new Error('Bo10 should not be exposed as a series format');
+  if (/Bo10/.test(ui)) throw new Error('Bo10 should not be referenced in UI guidance');
+  if (/Bo10/.test(engine)) throw new Error('Bo10 should not be referenced in engine guidance');
 });
 
 T('2. summary renders selected-four confidence and team preview read', () => {
@@ -44,6 +55,7 @@ T('2. summary renders selected-four confidence and team preview read', () => {
   inc(ui, '<strong>Limit</strong>');
   inc(ui, 'bringChoiceReviewable');
   inc(ui, 'selectedFourConfidence');
+  inc(ui, 'manualTeamPreview: rosterEl ? rosterEl.value :');
 });
 
 T('3. timeline renders coaching read, better line, severity, and confidence', () => {
@@ -81,6 +93,10 @@ T('5. learning report renders scorecard, critical turns, win path, and practice 
   inc(ui, '<h3 class="replay-coach-h3">Win Path + Opponent Plan</h3>');
   inc(ui, '<strong>Opponent plan evidence</strong>');
   inc(ui, '<h3 class="replay-coach-h3">Sim Comparison</h3>');
+  inc(ui, '<strong>BO3 swap options</strong>');
+  inc(ui, '<strong>Series format</strong>');
+  inc(ui, '<strong>Lineup matrix</strong>');
+  inc(ui, '<strong>Series lineup context</strong>');
   inc(ui, '<h3 class="replay-coach-h3">Sim Feedback Packet</h3>');
   inc(ui, 'Single replay signals do not automatically rewrite sim models.');
   inc(ui, 'Scenario queue');

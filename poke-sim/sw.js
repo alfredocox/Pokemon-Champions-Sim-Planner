@@ -81,7 +81,33 @@
 // v92-tactical-depth-selector [2026-06-24] - Tactical Sweep exposes Quick/Deep/Full branch-depth caps.
 // v93-team-evidence-dashboard [2026-06-24] - Strategy Dashboard merges per-team sim and tactical evidence.
 // v94-tactical-sweep-watchdog [2026-06-24] - Prevent single-opponent tactical sweep from stalling on DB reads/writes.
-const CACHE_NAME = 'champions-sim-v95-terrain-gaps-documented';
+// v95-terrain-gaps-documented [2026-06-25] - Overview/docs keep terrain gap notes visible.
+// v96-approved-db-runtime-contract [2026-06-25] - Narrow Alfredo #241 after live approved DB generation, alias bridge, and source-truth proof.
+// v100-terrain-gaps-fixed [2026-06-26] - All 4 terrain mechanics wired (PR #141); sw_local_credentials test updated.
+// v101-v2.1.70-release [2026-06-26] - Close stale terrain gap entries in Overview; bump build version to v2.1.70.
+// v102-bring-choice-coaching [2026-06-26] - #220: expose benchedTwo in review summary + bring_choice_review coaching tag.
+// v103-tactical-turn-log-labels [2026-06-27] - Add tactical_speed_summary labels to turn-log and QA exports.
+// v104-tailwind-window-labels [2026-06-27] - Classify first visible active Tailwind windows as converted or without pressure.
+// v105-decision-ledger [2026-06-27] - Add first Decision Opportunity Ledger export from tactical speed labels.
+// v106-coach-brain-summary [2026-06-27] - Add evidence-bound coach brain summary over decision ledger.
+// v107-coach-brain-loop [2026-06-27] - Add observed pattern, root problem, risk, solution, expected result, and shared-learning direction.
+// v120-ruleset-team-sections [2026-06-27] - Add regulation-aware team filters and review-only Reg M-B coverage sections.
+// v121-regmb-review-cards [2026-06-27] - Render Reg M-B coverage sections as review-only Teams tab cards.
+// v122-regmb-addition-rows [2026-06-27] - Add explicit review-only Reg M-B addition rows from Victory Road.
+// v123-regmb-visual-review-grid [2026-06-27] - Render visual Reg M-B allowlist rows for human review.
+// v124-regmb-sprite-aliases [2026-06-27] - Add explicit form sprite aliases for Reg M-B visual review.
+// v125-shared-sprite-aliases [2026-06-27] - Share form sprite aliases across Teams, Simulator, and replay cards.
+// v126-paldea-tauros-sprites [2026-06-27] - Correct Paldean Tauros Showdown sprite slugs.
+// v127-sprite-fallback-chain [2026-06-27] - Add shared animated-to-static sprite fallback handler.
+// v128-alola-raichu-sprite-fallbacks [2026-06-27] - Add Alolan Raichu animated sprite and cover bring/replay fallbacks.
+// v129-hisui-zoroark-gif [2026-06-27] - Map Hisuian Zoroark to verified animated and static Showdown sprites.
+// v130-gif-primary-sprite-audit [2026-06-27] - Prefer Showdown animated GIFs across standard Pokemon sprite rendering.
+// v131-regmb-promotion-gate [2026-06-27] - Surface Reg M-B promotion checklist and data-trust gate.
+// v132-regmb-stone-source-pass [2026-06-27] - Source-verify Reg M-B Mega stone names, review-only.
+// v133-regmb-stats-types-abilities-source-pass [2026-06-27] - Source-verify Reg M-B Mega stats/types/abilities, review-only.
+// v139-secondary-table-consolidation [2026-06-27] - Consolidate simple Showdown secondary effects into one audited table.
+// v140-drain-rule-source-audit [2026-06-27] - Read generated Showdown drain metadata for all supported drain moves.
+const CACHE_NAME = 'champions-sim-v140-drain-rule-source-audit';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [
@@ -96,6 +122,8 @@ const APP_ASSETS = [
   './generated/pokemon_showdown_species_weights.js',
   './runtime_data.js',
   './engine.js',
+  './rulesets.js',
+  './regmb_source_conversion.js',
   './move_legality.js',
   './move_support.js',
   './replay_coach.js',

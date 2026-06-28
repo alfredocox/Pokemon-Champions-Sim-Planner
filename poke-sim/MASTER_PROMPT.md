@@ -428,6 +428,128 @@ $node = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microso
 
 ---
 
+## SESSION LOG — 2026-06-27 (Battle Audit Verification)
+
+### Branch
+`audit/battle-audit-verification-2026-06-27`
+
+### Outcome
+- **4 → 2 failing test files** — fixed `qa_baseline_snapshot_tests.js` T7 (Windows PATH) and `sw_local_credentials_tests.js` T4 (stale CACHE_NAME)
+- **4,500-battle audit**: 0 JS errors, all 15 teams legality CLEAN, no hard mirror-match failures
+- **3 reporting gaps** documented for Josh in `reports/battle-audit-findings-2026-06-27.md`
+- **QA baseline snapshot** regenerated (hash: `a009c1022a21751a` → `4c489bd573de29a2`)
+- **Gap A fix**: soft `[FLAG]` mirror warnings now written to `audit_matrix.json` (not just console)
+
+### What was done
+
+| Fix | Location | Description |
+|---|---|---|
+| A | `tests/audit.js` | Soft FLAGs now captured in `mirrorFlags[]` with `severity: 'flag'`; hard-fail exit only triggers on `severity: 'fail'` entries |
+| B | `tests/qa_baseline_snapshot_tests.js` T7 | `spawnSync('node', ...)` → `spawnSync(process.execPath, ...)` — cross-platform fix |
+| C | `tests/sw_local_credentials_tests.js` T4 | Updated to expect `champions-sim-v112-artifact-summary-split` |
+| D | `reports/champion_qa_baseline_snapshot.md` | Regenerated from current source (hash updated) |
+
+### Key findings for Josh
+
+| Finding | Type | Severity |
+|---|---|---|
+| All terrain engine fixes pass (Grassy/Electric/Misty/Psychic Surge) | ✅ Logic correct | — |
+| `cofagrigus_tr` mirror: 20% (4w/2l/14d) — 70% draw rate | ⚠️ Soft FLAG, expected | Low |
+| `aurora_veil_froslass` mirror: 25% (5w/15l/0d) | 👀 Watch | Low |
+| Soft FLAGs not in JSON before this fix | 🐛 Reporting gap | Medium |
+| QA snapshot was stale after PRs #141, #143 | 🐛 Reporting gap | Low |
+| T7 `spawnSync('node')` fails on Windows | 🐛 Environment issue | Low |
+
+### Test verification commands
+```powershell
+$node = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VisualStudio\NodeJs\node.exe"
+& $node poke-sim/tests/qa_baseline_snapshot_tests.js
+& $node poke-sim/tests/sw_local_credentials_tests.js
+& $node poke-sim/tests/audit.js
+```
+
+### Pre-existing failures (unrelated to this branch)
+- `showdown_damage_oracle_tests.js` — requires `npm install` (@smogon/calc)
+- `showdown_db_writer_tests.js` — requires `npm install` + DB credentials
+
+---
+
+## SESSION LOG — 2026-06-26 (Bring-Choice Coaching — #220 TDD Fix)
+
+### Branch
+`feat/bring-choice-coaching-220`
+
+### Outcome
+- **+4 new coaching tests** (T1–T4 in `t220_bring_choice_tests.js`) — all GREEN, zero regressions in 98 test files
+- Closed the `Replay parser full-roster gap (#220)` entry in the Overview
+- `replay_coach.js` modified: `benchedTwo` computation + `bring_choice_review` tag + `addIssue` custom-field forwarding
+- `CACHE_NAME` → `champions-sim-v102-bring-choice-coaching`
+
+### What was done
+
+| Fix | Location | Description |
+|---|---|---|
+| A | `buildReplayCoachReview` | Compute `benchedTwo` = preview − selected when `bringChoiceReviewable` |
+| B | `buildReplayCoachReview` | Fire `bring_choice_review` tag with `benchedSpecies`, `whatHappened`, `whyMattered`, `doInstead` |
+| C | `review.summary` | Expose `benchedTwo` array in summary output |
+| D | `addIssue` | Forward unrecognized `extra` keys onto pushed issue object (enables future custom coaching fields) |
+
+### Tests added
+| File | Tests | Status |
+|---|---|---|
+| `t220_bring_choice_tests.js` (new) | T1: benchedTwo array correct; T2: tag fires with all fields; T3: no overclaim without preview; T4: no overclaim with partial bring | GREEN |
+
+### Test verification commands
+```powershell
+$node = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VisualStudio\NodeJs\node.exe"
+& $node poke-sim/tests/t220_bring_choice_tests.js
+& $node poke-sim/tests/t188_battle_sensei_parser_tests.js
+& $node poke-sim/tests/t192_battle_sensei_learning_tests.js
+& $node poke-sim/tests/sw_local_credentials_tests.js
+```
+
+---
+
+## SESSION LOG — 2026-06-26 (Engine Terrain Gaps — TDD Fix)
+
+### Branch
+`fix/engine-terrain-gaps`
+
+### Outcome
+- **+9 new engine tests** (T28–T30 in `status_tests.js`, T1–T7 in `engine_terrain_tests.js`) — all GREEN, zero regressions in 4,500-battle audit
+- Closed 2 terrain GAPs (T8, T9 in `screens_terrain_item_tests.js`) — both flipped to `[IMPLEMENTED]`
+- `engine.js` modified: all 4 terrain rules (status block, priority block, HP recovery, Surge wiring)
+- Bundle rebuilt: 10,433,996 bytes; `CACHE_NAME` → `champions-sim-v100-terrain-gaps-fixed`
+
+### What was done
+
+| Fix | Location | Description |
+|---|---|---|
+| A | `canInflictStatus` | Misty Terrain blocks ALL major statuses on grounded mons |
+| B | After `applyWeatherAbility` | New `applyTerrainAbility(mon, field, log)` for Grassy/Electric/Misty/Psychic Surge |
+| C | `applyEntryAbility` | Call `applyTerrainAbility` after `applyWeatherAbility` on switch-in |
+| D | End-of-turn loop | Grassy Terrain heals grounded mons floor(maxHp/16)/turn |
+| E | `canInflictStatus` | Electric Terrain blocks sleep on grounded mons |
+| F | Priority move target filter | Psychic Terrain blocks priority moves from hitting grounded mons |
+
+### Tests added
+| File | Tests | Status |
+|---|---|---|
+| `status_tests.js` | T28 (Misty blocks all/grounded), T29 (flying unaffected), T30 (Electric blocks sleep only) | GREEN |
+| `engine_terrain_tests.js` (new) | T1–T5: Surge on-entry + unit + Grassy heal; T6: Electric sleep block; T7: Psychic priority block | GREEN |
+| `screens_terrain_item_tests.js` | T8, T9 relabelled `[IMPLEMENTED]` | GREEN |
+
+### Test verification commands
+```powershell
+$node = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VisualStudio\NodeJs\node.exe"
+& $node poke-sim/tests/status_tests.js
+& $node poke-sim/tests/engine_terrain_tests.js
+& $node poke-sim/tests/screens_terrain_item_tests.js
+& $node poke-sim/tests/audit.js
+```
+
+---
+
 ## SESSION LOG — 2026-04-27 (M1 landing)
 
 ### Outcome

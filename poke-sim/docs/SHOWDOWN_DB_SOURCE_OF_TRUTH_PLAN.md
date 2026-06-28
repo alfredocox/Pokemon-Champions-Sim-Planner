@@ -35,7 +35,7 @@ As of 2026-06-10, battle construction also prefers generated Showdown species st
 
 Damage-based recoil is now resolved from Showdown-compatible recoil metadata when present, with a checked local bridge table for the current generated file. This covers common imported recoil moves such as Brave Bird, Double-Edge, Wild Charge, Volt Tackle, Wood Hammer, Take Down, Submission, Head Charge, Head Smash, Flare Blitz, Wave Crash, and Light of Ruin.
 
-This is not the final DB state. As of 2026-06-07, the repo has a migration candidate for `showdown_entities`, `showdown_entity_diffs`, `champions_overrides`, `approved_showdown_entities`, and `approved_champions_data`, plus a deterministic approved-data generator. The live Supabase project still needs the migration applied before approved DB rows can become the reviewed generation source.
+This is not the final DB state. As of 2026-06-25, the repo has the `showdown_entities`, `showdown_entity_diffs`, `champions_overrides`, `approved_showdown_entities`, and `approved_champions_data` migrations; live approved views generated the committed runtime asset with 8,653 approved entities and 0 active overrides; and the repo has a deterministic approved-data generator with the Phase 4 compatibility alias `tools/generate_showdown_data.mjs`. The remaining source-truth gate is seeding/reviewing Champions overrides and keeping static offline fallback visible.
 
 ## Source Boundaries
 
@@ -251,10 +251,12 @@ Unknown or blocker findings should stop release promotion.
 1. Done in repo: add the missing DB tables/views for `showdown_entities`, `showdown_entity_diffs`, and `champions_overrides`.
 2. Done in repo: add tests proving anon read-only approved/active behavior and no anon write policy.
 3. Done in repo: add a deterministic generator from approved rows to `ChampionsSim.pokemonDataAudit`.
-4. Next: apply the migration to live Supabase through the migration workflow.
-5. Next: extend `fetch_showdown_data.mjs` to produce DB-ready entity/diff rows locally first.
-6. Next: add a dry-run report that lists changed move priority/target/type/category/BP rows.
-7. Only after dry-run is stable, wire GitHub Actions to upload artifacts or write DB rows.
+4. Done in live project per Alfredo #241: approved Showdown entity rows exist in Supabase.
+5. Done in repo: `write_showdown_data_to_db.mjs` produces DB-ready entity/diff rows from sync artifacts.
+6. Done in repo: dry-run/report paths list sync and entity counts before writes.
+7. Done in repo: GitHub Actions can dry-run, write, and approve-promote rows.
+8. Done locally: live approved-view generation produced the committed runtime asset with 8,653 approved entities and 0 active overrides.
+9. Next: seed/review Champions-specific override rows or explicitly sign off that no active overrides are required.
 
 ## Acceptance Criteria
 

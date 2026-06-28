@@ -99,12 +99,13 @@ describe('Module 1 \u2014 Wiring suite (16 cases)', function () {
   });
 
   T('T-wiring-6', function () {
-    // Bundle size < 5.30 MiB. Battle Sensei, Supabase-js UMD, and generated
-    // Showdown legality data are intentionally inlined so GitHub Pages/local
-    // previews do not depend on stale split-file cache state.
+    // Bundle size < 11.00 MiB. Battle Sensei, Supabase-js UMD, and the full
+    // live approved DB-generated Showdown runtime asset are intentionally
+    // inlined so GitHub Pages/local previews do not depend on stale split-file
+    // cache state.
     // If this trips, investigate before raising further — it's our bloat canary.
     var stats = fs.statSync(bundlePath);
-    eq(stats.size < 5428 * 1024, true, 'bundle size < 5.30 MiB (got ' + stats.size + ')');
+    eq(stats.size < 11264 * 1024, true, 'bundle size < 11.00 MiB (got ' + stats.size + ')');
   });
 
   T('T-wiring-7', function () {

@@ -69,8 +69,10 @@ T('1. runtime bridge exposes generated move/species lookups', () => {
   truthy(runtimeData, 'runtimeData missing');
   const move = runtimeData.getMoveRow('Thunderbolt');
   const species = runtimeData.getSpeciesRow('Arcanine-Hisui');
+  const floetteMega = runtimeData.getSpeciesRow('Floette (Eternal Flower)-Mega');
   truthy(move && move.type === 'Electric', 'Thunderbolt move row missing');
   truthy(species && species.types && species.types[0] === 'Fire', 'Arcanine-Hisui species row missing');
+  truthy(floetteMega && floetteMega.id === 'floettemega', 'Champion Floette Eternal Mega should bridge to generated Floette-Mega stats');
 });
 
 T('2. champions damage roll window is explicit in runtime overrides', () => {

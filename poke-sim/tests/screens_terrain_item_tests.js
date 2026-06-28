@@ -223,14 +223,14 @@ T('7. Misty Terrain halves Dragon-type move damage', () => {
 });
 
 // =============================================================================
-// SECTION 3 — TERRAIN GAPS [DIAGNOSTIC — EXPECTED TO FAIL]
+// SECTION 3 — TERRAIN MECHANICS [IMPLEMENTED]
 // =============================================================================
-// These tests EXPOSE missing terrain mechanics. FAIL = gap confirmed, needs fix.
+// These tests verify implemented terrain mechanics. PASS = wired correctly.
 // =============================================================================
-console.log('\n=== SECTION 3: Terrain gaps [diagnostic — expect FAIL if not implemented] ===');
-console.log('These tests reveal whether terrain status immunity and HP recovery are wired in.');
+console.log('\n=== SECTION 3: Terrain mechanics [implemented] ===');
+console.log('These tests verify terrain status immunity and HP recovery are wired in.');
 
-T('8. [GAP] Misty Terrain blocks sleep infliction on grounded mons', () => {
+T('8. [IMPLEMENTED] Misty Terrain blocks sleep infliction on grounded mons', () => {
   // Misty Terrain should prevent sleep (and other major statuses) on grounded mons.
   // Checked via canInflictStatus — if Misty Terrain is wired in, returns false.
   // If this FAILS: canInflictStatus does not check field.terrain for Misty Terrain.
@@ -243,7 +243,7 @@ T('8. [GAP] Misty Terrain blocks sleep infliction on grounded mons', () => {
     `Misty Terrain must block sleep on grounded Garchomp — canInflictStatus returned ${canSleep} (terrain check NOT wired in canInflictStatus)`);
 });
 
-T('9. [GAP] Grassy Terrain restores 1/16 max HP at end of each turn', () => {
+T('9. [IMPLEMENTED] Grassy Terrain restores 1/16 max HP at end of each turn', () => {
   // Grassy Terrain should heal grounded mons 1/16 max HP per turn.
   // Champions EVs: max 32 per stat, max 66 total — use minimal EVs to pass legality.
   // Two sub-checks:

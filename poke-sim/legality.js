@@ -1,4 +1,4 @@
-// legality.js - Pokemon Champions Reg M-A legality checks (Issue #T4)
+// legality.js - Pokemon Champions Reg M-A historical legality checks with Reg M-B source-review guard (Issue #T4)
 // Loaded before engine.js. Exposes globals:
 //   CHAMPIONS_BANNED_POKEMON  - ban list (Legendary/Mythical/Restricted/Paradox/sub-legends)
 //   FAKEMON_BLOCKLIST         - known fabricated/non-existent forms
@@ -46,7 +46,30 @@ var FAKEMON_BLOCKLIST = new Set([
   // empty; add only truly fabricated forms here
 ]);
 
-// Items verified in the Champions launch item pool. Reg M-A teams may carry
+// Source-reviewed Reg M-B deltas that are NOT runtime-promoted yet.
+// Victory Road states Reg M-B adds 16 new Mega Evolutions over Reg M-A.
+// Keep this as audit evidence until each base species, Mega form, stone/item,
+// stats, ability, move data, and fixtures are promoted together.
+var CHAMPIONS_REGMB_REVIEW_NEW_MEGAS = [
+  'Raichu-Mega-X',
+  'Raichu-Mega-Y',
+  'Sceptile-Mega',
+  'Blaziken-Mega',
+  'Swampert-Mega',
+  'Mawile-Mega',
+  'Metagross-Mega',
+  'Staraptor-Mega',
+  'Scolipede-Mega',
+  'Scrafty-Mega',
+  'Eelektross-Mega',
+  'Pyroar-Mega',
+  'Malamar-Mega',
+  'Barbaracle-Mega',
+  'Dragalge-Mega',
+  'Falinks-Mega'
+];
+
+// Items verified in the Champions launch item pool. Implemented Champions teams may carry
 // only this pool until a newer source confirms additions. Item effects still
 // come from Showdown/generated runtime data; this list is only the Champions
 // availability gate. Source:
@@ -95,6 +118,17 @@ var CHAMPIONS_BANNED_ITEMS = new Set([
   'Heat Rock','Damp Rock','Smooth Rock','Icy Rock','Terrain Extender',
   'Toxic Orb','Flame Orb','Safety Goggles','Covert Cloak','Clear Amulet',
   'Booster Energy','Loaded Dice'
+]);
+
+// Battle mechanics that must not appear in the current active Champions
+// Reg M-A lane unless a reviewed ruleset source explicitly enables them.
+var CHAMPIONS_BANNED_MECHANIC_MOVES = new Set([
+  'Tera Blast'
+]);
+
+var CHAMPIONS_BANNED_MECHANIC_ABILITIES = new Set([
+  'Protosynthesis',
+  'Quark Drive'
 ]);
 
 // Mega Stone -> required base species. Built from CHAMPIONS_MEGAS at load.
@@ -155,7 +189,7 @@ function validateChampionsLegality(team) {
       violations.push({
         severity: 'error',
         code: 'BANNED',
-        message: name + ': banned in Reg M-A (Legendary/Mythical/Restricted/Paradox)'
+        message: name + ': banned in the implemented Champions ruleset lane (Legendary/Mythical/Restricted/Paradox)'
       });
     }
 
@@ -166,8 +200,37 @@ function validateChampionsLegality(team) {
       violations.push({
         severity: 'error',
         code: knownAbsent ? 'ITEM_ABSENT' : 'ITEM_NOT_IN_CHAMPIONS_POOL',
-        message: name + ': item "' + item + '" is not in verified Champions Reg M-A item pool'
+        message: name + ': item "' + item + '" is not in verified implemented Champions item pool'
       });
+    }
+
+    var tera = mon && (mon.tera || mon.teraType || mon.tera_type);
+    if (tera) {
+      violations.push({
+        severity: 'error',
+        code: 'TERA_NOT_CHAMPIONS_LEGAL',
+        message: name + ': Tera type "' + tera + '" is not legal in current implemented Champions teams'
+      });
+    }
+
+    var ability = mon && mon.ability ? mon.ability : '';
+    if (ability && CHAMPIONS_BANNED_MECHANIC_ABILITIES.has(ability)) {
+      violations.push({
+        severity: 'error',
+        code: 'ABILITY_NOT_CHAMPIONS_LEGAL',
+        message: name + ': ability "' + ability + '" belongs to an unapproved mechanic for current Champions Reg M-A'
+      });
+    }
+
+    var moves = mon && Array.isArray(mon.moves) ? mon.moves : [];
+    for (var mv = 0; mv < moves.length; mv++) {
+      if (CHAMPIONS_BANNED_MECHANIC_MOVES.has(moves[mv])) {
+        violations.push({
+          severity: 'error',
+          code: 'MOVE_NOT_CHAMPIONS_LEGAL',
+          message: name + ': move "' + moves[mv] + '" belongs to an unapproved mechanic for current Champions Reg M-A'
+        });
+      }
     }
 
     // Mega stone must match holder species
@@ -194,15 +257,54 @@ function validateChampionsLegality(team) {
   return { violations: violations };
 }
 
+function validateTeamForRuleset(team, rulesetId) {
+  var ruleset = typeof getChampionsRuleset === 'function' ? getChampionsRuleset(rulesetId) : null;
+  var violations = [];
+  if (ruleset && !ruleset.runtimePromotable) {
+    violations.push({
+      severity: 'error',
+      code: 'RULESET_NOT_RUNTIME_PROMOTED',
+      message: ruleset.label + ': source-review ruleset is blocked from legal sim until source conversion, fixtures, and runtime promotion are complete',
+      ruleset_id: ruleset.id,
+      ruleset_status: ruleset.status,
+      data_policy: ruleset.dataPolicy || 'do_not_write_trusted_stats',
+      coaching_policy: ruleset.coachingPolicy || 'review_only_no_matchup_learning',
+      blocker: ruleset.blocker || null
+    });
+    return {
+      ruleset_id: ruleset.id,
+      ruleset_status: ruleset.status,
+      allowed: false,
+      learning_eligible: false,
+      poisoning_guard: 'review_only_do_not_train_or_rank',
+      violations: violations
+    };
+  }
+  var base = validateChampionsLegality(team);
+  var hardErrors = (base.violations || []).filter(function(v){ return v && v.severity === 'error'; });
+  return {
+    ruleset_id: ruleset && ruleset.id || 'champions_reg_m_a_2026',
+    ruleset_status: ruleset && ruleset.status || 'historical',
+    allowed: hardErrors.length === 0,
+    learning_eligible: hardErrors.length === 0,
+    poisoning_guard: hardErrors.length === 0 ? 'trusted_stats_allowed' : 'illegal_team_do_not_train_or_rank',
+    violations: base.violations || []
+  };
+}
+
 // CommonJS export for Node tests; harmless in browser.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CHAMPIONS_BANNED_POKEMON: CHAMPIONS_BANNED_POKEMON,
     FAKEMON_BLOCKLIST: FAKEMON_BLOCKLIST,
+    CHAMPIONS_REGMB_REVIEW_NEW_MEGAS: CHAMPIONS_REGMB_REVIEW_NEW_MEGAS,
     CHAMPIONS_LEGAL_ITEMS: CHAMPIONS_LEGAL_ITEMS,
     CHAMPIONS_BANNED_ITEMS: CHAMPIONS_BANNED_ITEMS,
+    CHAMPIONS_BANNED_MECHANIC_MOVES: CHAMPIONS_BANNED_MECHANIC_MOVES,
+    CHAMPIONS_BANNED_MECHANIC_ABILITIES: CHAMPIONS_BANNED_MECHANIC_ABILITIES,
     CHAMPIONS_STONE_TO_SPECIES: CHAMPIONS_STONE_TO_SPECIES,
     CHAMPIONS_HOME_TRANSFER_MEGAS: CHAMPIONS_HOME_TRANSFER_MEGAS,
-    validateChampionsLegality: validateChampionsLegality
+    validateChampionsLegality: validateChampionsLegality,
+    validateTeamForRuleset: validateTeamForRuleset
   };
 }

@@ -1,4 +1,4 @@
-// Issue #152 - Tera activation should happen on the first action.
+// Issue #152 - Tera activation must be explicit and must not leak into Champion format.
 
 const fs = require('fs');
 const path = require('path');
@@ -36,7 +36,7 @@ console.log('\n=== Tera activation tests ===\n');
 
 const playerTeam = {
   name: 'Tera User',
-  format: 'champions',
+  format: 'sv',
   legality_status: 'legal',
   members: [{
     name: 'Garchomp',
@@ -52,7 +52,7 @@ const playerTeam = {
 
 const oppTeam = {
   name: 'Slow Target',
-  format: 'champions',
+  format: 'sv',
   legality_status: 'legal',
   members: [{
     name: 'Blissey',
@@ -65,10 +65,18 @@ const oppTeam = {
   }]
 };
 
-T('1. first action triggers Tera activation log', () => {
-  const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'singles', seed: [7, 8, 9, 10] });
+T('1. explicit non-Champion parity context can trigger Tera activation log', () => {
+  const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'singles', allowTera: true, seed: [7, 8, 9, 10] });
   truthy(Array.isArray(battle.log), 'battle log missing');
   truthy(battle.log.some(line => String(line).includes('Terastallized into Fire')), 'tera activation log missing');
+});
+
+T('2. Champion format ignores legacy Tera fields and does not Terastallize', () => {
+  const championPlayer = Object.assign({}, playerTeam, { format: 'champions' });
+  const championOpp = Object.assign({}, oppTeam, { format: 'champions' });
+  const battle = ctx.simulateBattle(championPlayer, championOpp, { format: 'singles', seed: [7, 8, 9, 10] });
+  truthy(Array.isArray(battle.log), 'battle log missing');
+  truthy(!battle.log.some(line => String(line).includes('Terastallized')), 'Champion format should not Terastallize');
 });
 
 console.log(`\ntera activation: ${pass} pass, ${fail} fail\n`);

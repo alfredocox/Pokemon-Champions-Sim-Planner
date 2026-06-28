@@ -227,7 +227,7 @@ const POKEMON_MOVE_LOG = {
     keyInteractions: 'Prankster Tailwind is the strongest speed control tool in VGC. Encore can lock TR for a dead turn. Fairy STAB hard-checks Dragon Mega leads.'
   },
   'Flutter Mane': {
-    role: 'Paradox Sweeper', tags: ['Protosynthesis','Fairy STAB','Ghost STAB','Ultra Fast'],
+    role: 'Special Attacker', tags: ['Fairy STAB','Ghost STAB','Ultra Fast'],
     moves: {
       'Moonblast': { purpose:'95 BP Fairy STAB. 30% SpA drop. Hits Dragon/Dark/Fighting.', useWhen:'Primary coverage vs most of meta.' },
       'Shadow Ball': { purpose:'80 BP Ghost STAB. Hits Ghost/Psychic.', useWhen:'Mirror matches, TR setters, Gholdengo.' },
@@ -235,7 +235,7 @@ const POKEMON_MOVE_LOG = {
       'Psyshock': { purpose:'80 BP Psychic hits Defense not SpDef.', useWhen:'vs specially bulky mons (Cresselia, Blissey).' },
     },
     counters: ['Kingambit (Steel+Dark resists Fairy+Ghost)','Incineroar (Dark immune Ghost)','Amoonguss (Rage Powder)','Iron Hands'],
-    keyInteractions: 'Protosynthesis under Sun boosts SpA 1.3x. 135 SpA + Protosynthesis rivals Choice Specs without the lock. 135 Spe outspeeds almost everything except Dragapult/Sneasler.'
+    keyInteractions: 'Fast Fairy/Ghost pressure. Use as a matchup reference only after its ability, item, and Champion legality are source-approved for the current ruleset.'
   },
   'Tyranitar': {
     role: 'Sand Setter + Physical Tank', tags: ['Sand Stream','Rock STAB','Dark STAB','Specially Bulky'],

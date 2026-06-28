@@ -139,6 +139,8 @@ If `--require-stable` fails on a newly downloaded log, hard-refresh the GitHub P
 ### `generate-approved-data-from-db.mjs`
 Builds the runtime Showdown data file from approved Supabase rows.
 
+Compatibility alias: `tools/generate_showdown_data.mjs` runs this same generator so older Phase 4 issue/checklist references use the canonical approved-view path.
+
 Default live path reads:
 - `approved_showdown_entities`
 - `approved_champions_data`

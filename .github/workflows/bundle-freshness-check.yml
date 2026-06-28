@@ -28,7 +28,7 @@ jobs:
           echo "$CHANGED"
 
           APP_CHANGED=$(echo "$CHANGED" | grep -E \
-            'poke-sim/(engine|data|ui|style|strategy-injectable|replay_coach|replay_learning|move_legality|move_support|legality|index)\.(js|css|html)|poke-sim/generated/pokemon_showdown_legal_data\.js' \
+            'poke-sim/(engine|data|ui|style|strategy-injectable|replay_coach|replay_learning|move_legality|move_support|legality|rulesets|regmb_source_conversion|index)\.(js|css|html)|poke-sim/generated/pokemon_showdown_legal_data\.js' \
             | grep -v 'pokemon-champion-2026\.html' || true)
 
           if [ -n "$APP_CHANGED" ]; then

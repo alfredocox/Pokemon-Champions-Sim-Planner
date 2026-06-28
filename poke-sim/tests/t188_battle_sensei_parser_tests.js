@@ -171,13 +171,13 @@ T('8. accepts replay-only visible four without full six overclaiming', () => {
   const analysis = replayCoach.analyzeShowdownReplay(visibleFourOnly, { selectedSide: 'p1' });
   const ids = analysis.review.coachingTags.map((t) => t.id);
   eq(analysis.review.summary.selectedFourConfidence.level, 'medium', 'visible four confidence should stay medium without preview');
-  eq(analysis.review.summary.selectedFourConfidence.label, 'Visible four inferred', 'visible four label');
+  eq(analysis.review.summary.selectedFourConfidence.label, 'Visible lineup inferred', 'visible lineup label');
   eq(analysis.review.summary.selectedFourConfidence.previewCount, 0, 'no full preview count');
   eq(analysis.review.summary.selectedFourConfidence.selectedCount, 4, 'four visible selected count');
   eq(analysis.review.summary.selectedFourConfidence.fullRosterKnown, false, 'full roster not known');
   eq(analysis.review.summary.selectedFourConfidence.selectedFourKnown, true, 'selected four known');
   eq(analysis.review.summary.selectedFourConfidence.bringChoiceReviewable, false, 'bring choice not reviewable without full six');
-  truthy(/full six/i.test(analysis.review.summary.selectedFourConfidence.limitation), 'full six limitation');
+  truthy(/registered six/i.test(analysis.review.summary.selectedFourConfidence.limitation), 'registered six limitation');
   if (ids.includes('questionable_bring')) throw new Error('visible four should not be blocked by questionable_bring');
 });
 
@@ -197,7 +197,24 @@ T('9. normalizes copied replay page text down to raw log lines', () => {
   truthy(normalized.indexOf('|move|p1a: Incineroar|Fake Out|p2a: Indeedee-F') >= 0, 'move line preserved');
 });
 
-T('10. converts replay URLs to .log endpoints and fetches them through the helper', async () => {
+T('10. extracts pipe-delimited log lines from exported replay HTML', () => {
+  const replayHtml = [
+    '<!doctype html>',
+    '<html><body>',
+    '<script>',
+    'var replayLog = "|player|p1|Alice\\n|player|p2|Bob\\n|turn|1\\n|move|p1a: Incineroar|Fake Out|p2a: Indeedee-F";',
+    '</script>',
+    '<div>Download replay</div>',
+    '</body></html>'
+  ].join('\n');
+  const normalized = replayCoach.normalizeReplayLogInput(replayHtml);
+  eq(normalized.split('\n').length, 4, 'html normalized replay line count');
+  truthy(normalized.indexOf('<script>') < 0, 'html chrome removed');
+  truthy(normalized.indexOf('|player|p1|Alice') >= 0, 'player line preserved');
+  truthy(normalized.indexOf('|move|p1a: Incineroar|Fake Out|p2a: Indeedee-F') >= 0, 'html move line preserved');
+});
+
+T('11. converts replay URLs to .log endpoints and fetches them through the helper', async () => {
   const logUrl = replayCoach.replayUrlToLogUrl('https://replay.pokemonshowdown.com/gen9vgc2026-123456');
   eq(logUrl, 'https://replay.pokemonshowdown.com/gen9vgc2026-123456.log', 'log endpoint');
   let fetched = '';
@@ -212,6 +229,143 @@ T('10. converts replay URLs to .log endpoints and fetches them through the helpe
   });
   eq(fetched, logUrl, 'helper fetch target');
   eq(text, '|player|p1|Alice\n|turn|1', 'fetched log normalized');
+});
+
+T('12. recognizes Trick Room reversing opposing Tailwind without false speed penalty', () => {
+  const log = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|start',
+    '|switch|p1a: Hatterene|Hatterene, L50, F|100/100',
+    '|switch|p1b: Incineroar|Incineroar, L50, M|100/100',
+    '|switch|p2a: Whimsicott|Whimsicott, L50, F|100/100',
+    '|switch|p2b: Garchomp|Garchomp, L50, M|100/100',
+    '|turn|1',
+    '|move|p2a: Whimsicott|Tailwind|p2a: Whimsicott',
+    '|move|p1a: Hatterene|Trick Room|p1a: Hatterene',
+    '|turn|2',
+    '|move|p1a: Hatterene|Psychic|p2a: Whimsicott',
+    '|faint|p2a: Whimsicott',
+    '|win|Alice'
+  ].join('\n');
+  const analysis = replayCoach.analyzeShowdownReplay(log, { selectedSide: 'p1' });
+  const ids = analysis.review.coachingTags.map((tag) => tag.id);
+  includes(ids, 'speed_control_reversal', 'speed reversal tag');
+  if (ids.includes('speed_control_without_pressure')) throw new Error('reversal should not be penalized as no-pressure speed control');
+  const turn = analysis.review.turnTimeline.find((row) => row.turn === 1);
+  eq(turn.stateShift, 'Speed control reversed', 'turn state shift');
+});
+
+T('13. recognizes same-turn Tailwind neutralization', () => {
+  const log = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|start',
+    '|switch|p1a: Whimsicott|Whimsicott, L50, F|100/100',
+    '|switch|p1b: Garchomp|Garchomp, L50, M|100/100',
+    '|switch|p2a: Talonflame|Talonflame, L50, M|100/100',
+    '|switch|p2b: Rotom-Wash|Rotom-Wash, L50|100/100',
+    '|turn|1',
+    '|move|p1a: Whimsicott|Tailwind|p1a: Whimsicott',
+    '|move|p2a: Talonflame|Tailwind|p2a: Talonflame',
+    '|win|Bob'
+  ].join('\n');
+  const analysis = replayCoach.analyzeShowdownReplay(log, { selectedSide: 'p1' });
+  const ids = analysis.review.coachingTags.map((tag) => tag.id);
+  includes(ids, 'speed_control_neutralized', 'speed neutralized tag');
+  const turn = analysis.review.turnTimeline.find((row) => row.turn === 1);
+  eq(turn.stateShift, 'Speed control neutralized', 'turn state shift');
+});
+
+T('14. recognizes deferred payoff within three turns', () => {
+  const log = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|start',
+    '|switch|p1a: Whimsicott|Whimsicott, L50, F|100/100',
+    '|switch|p1b: Garchomp|Garchomp, L50, M|100/100',
+    '|switch|p2a: Rotom-Wash|Rotom-Wash, L50|100/100',
+    '|switch|p2b: Altaria|Altaria, L50|100/100',
+    '|turn|1',
+    '|move|p1a: Whimsicott|Tailwind|p1a: Whimsicott',
+    '|move|p2a: Rotom-Wash|Protect|p2a: Rotom-Wash',
+    '|turn|2',
+    '|move|p1b: Garchomp|Earthquake|p2a: Rotom-Wash',
+    '|-damage|p2a: Rotom-Wash|65/100',
+    '|turn|3',
+    '|move|p1b: Garchomp|Dragon Claw|p2a: Rotom-Wash',
+    '|faint|p2a: Rotom-Wash',
+    '|win|Alice'
+  ].join('\n');
+  const analysis = replayCoach.analyzeShowdownReplay(log, { selectedSide: 'p1' });
+  const ids = analysis.review.coachingTags.map((tag) => tag.id);
+  includes(ids, 'deferred_payoff', 'deferred payoff tag');
+  if (ids.includes('speed_control_without_pressure')) throw new Error('deferred payoff should not be penalized as no-pressure speed control');
+  const turn = analysis.review.turnTimeline.find((row) => row.turn === 1);
+  eq(turn.stateShift, 'Setup paid off later', 'turn state shift');
+});
+
+T('15. recognizes complementary setup turn payoff', () => {
+  const log = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|start',
+    '|switch|p1a: Amoonguss|Amoonguss, L50, F|100/100',
+    '|switch|p1b: Garchomp|Garchomp, L50, M|100/100',
+    '|switch|p2a: Rotom-Wash|Rotom-Wash, L50|100/100',
+    '|switch|p2b: Altaria|Altaria, L50|100/100',
+    '|turn|1',
+    '|move|p1a: Amoonguss|Protect|p1a: Amoonguss',
+    '|move|p2a: Rotom-Wash|Hydro Pump|p1a: Amoonguss',
+    '|turn|2',
+    '|move|p1b: Garchomp|Earthquake|p2a: Rotom-Wash',
+    '|faint|p2a: Rotom-Wash',
+    '|win|Alice'
+  ].join('\n');
+  const analysis = replayCoach.analyzeShowdownReplay(log, { selectedSide: 'p1' });
+  const ids = analysis.review.coachingTags.map((tag) => tag.id);
+  includes(ids, 'complementary_turn_payoff', 'complementary payoff tag');
+  const turn = analysis.review.turnTimeline.find((row) => row.turn === 1);
+  eq(turn.stateShift, 'Complementary turn paid off', 'turn state shift');
+});
+
+T('16. recognizes planned speed transition after Trick Room ends from structured speed evidence', () => {
+  const parsed = replayCoach.parseShowdownLog([
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|start',
+    '|switch|p1a: Dragapult|Dragapult, L50|100/100',
+    '|switch|p2a: Torkoal|Torkoal, L50|100/100',
+    '|turn|1',
+    '|move|p2a: Torkoal|Protect|p2a: Torkoal',
+    '|turn|2',
+    '|move|p1a: Dragapult|Dragon Darts|p2a: Torkoal',
+    '|win|Alice'
+  ].join('\n'), { selectedSide: 'p1' });
+  parsed.turns[0].post = {
+    field: { trick_room: 1 },
+    speed_order_details: [
+      { side: 'p2', calculated_speed: 40 },
+      { side: 'p1', calculated_speed: 213 }
+    ]
+  };
+  parsed.turns[1].pre = {
+    field: { trick_room: 0 },
+    speed_order_details: [
+      { side: 'p1', calculated_speed: 213 },
+      { side: 'p2', calculated_speed: 40 }
+    ]
+  };
+  const review = replayCoach.buildReplayCoachReview(parsed, { selectedSide: 'p1' });
+  const ids = review.coachingTags.map((tag) => tag.id);
+  includes(ids, 'planned_speed_transition', 'planned transition tag');
+  const turn = review.turnTimeline.find((row) => row.turn === 2);
+  eq(turn.stateShift, 'Planned speed transition', 'turn state shift');
 });
 
 runTests().then(() => {

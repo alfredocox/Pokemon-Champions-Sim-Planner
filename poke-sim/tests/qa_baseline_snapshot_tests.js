@@ -112,7 +112,7 @@ T('6. snapshot exposes broader effect-math context for QA', () => {
 });
 
 T('7. generated snapshot is current with source data', () => {
-  const res = spawnSync('node', ['tools/generate-qa-baseline-snapshot.mjs', '--check'], {
+  const res = spawnSync(process.execPath, ['tools/generate-qa-baseline-snapshot.mjs', '--check'], {
     cwd: ROOT,
     encoding: 'utf8'
   });

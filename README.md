@@ -74,7 +74,7 @@ Pokemon-Champions-Sim-Planner/
 
 ## Features
 
-- Bo1 / Bo3 / Bo5 / Bo10 Monte Carlo simulation
+- Bo1 / Bo3 / Bo5 Monte Carlo simulation
 - Doubles and Singles format toggle
 - 29 curated teams preloaded (Champions Arena, Chuppa, Rin Sand, Suica Sun, Mega variants, and review imports)
 - Poképaste + Showdown import/export
@@ -150,4 +150,5 @@ print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
 
 - [`DEVELOPMENT_RUNBOOK.md`](./DEVELOPMENT_RUNBOOK.md) — full dev history, QA log, replication steps, known issues
 - [`MASTER_PROMPT.md`](./MASTER_PROMPT.md) — copy-paste context for resuming in a new AI session
+- [`docs/repo-sync-playbook.md`](./docs/repo-sync-playbook.md) — fastest safe process for syncing validated fixes into mirror repos
 - [`CHAMPIONS_VALIDATOR_FRAMEWORK.md`](./CHAMPIONS_VALIDATOR_FRAMEWORK.md) — validator framework governing engine change tickets

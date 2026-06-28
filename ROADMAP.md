@@ -135,6 +135,39 @@ Older coaching-first roadmap items remain useful product research, but they are 
 | #60 | Compact mobile layout | P3 |
 | #61 | Packet Preview tab | P3 |
 
+## Backlog — Battle Sensei Player-Learning Expansion
+
+These items define the coaching flow needed to turn sim and replay evidence into player-useful decisions. They remain gated by simulation truth and evidence confidence.
+
+| Item | What it teaches | Required data |
+|---|---|---|
+| Lineup Matrix Report | Best roster subset for BO1/BO3/BO5 | registered six, format, series format, all legal lineup combos, scored/evaluated lineups |
+| Lead Matrix Report | Best opener and what it answers | selected lineup, opponent lead, turn-one board, speed order, field state |
+| Move Tree Turning-Point Report | Better move/target/protect/switch on the critical turn | legal options, actual actions, targets, damage/effect events, post-turn position score, alternative branch scores |
+| Speed-Control Payoff Interpreter | Whether Tailwind, Trick Room, Icy Wind, and priority created advantage, got neutralized, or reversed the opponent plan | turn-by-turn speed moves, TR/Tailwind state, natural speed order, KOs/damage within T+3, position-score delta |
+| Switch and Preservation Report | When to pivot, sacrifice, or preserve the win condition | roster state, HP, field state, speed order, threats, win-condition role |
+| Decision Opportunity Ledger | Denominator-based coaching: how many meaningful decisions existed and how many were executed correctly | decision nodes, category, outcome quadrant, positive/negative notes, score contribution |
+| Loss Cause Classifier | Why the player lost | result, turning point, issue tags, position-score path, key KOs/field events |
+| Practice Drill Generator | What to practice next | repeated mistake pattern, confidence, matchup context, recommended correction |
+
+Required loss-cause labels:
+
+- lineup choice
+- lead choice
+- move choice
+- target choice
+- switch timing
+- speed control
+- resource trade
+- variance
+- matchup disadvantage
+
+Current alignment note:
+
+- `#223` is the foundation layer: speed-control state interpretation plus deferred payoff checks. It prevents false negatives like penalizing Trick Room when it correctly reverses Tailwind.
+- `#224` comes after `#223`: the Decision Opportunity Ledger should score opportunities only after the tactical interpreter can classify speed-control contests correctly.
+- Later items remain: move-tree alternatives, target-choice comparison, switch/preservation logic, lineup/lead matrix ranking, and practice drill generation from repeated patterns.
+
 ---
 
 ## Backlog — Community & Sharing (M4)

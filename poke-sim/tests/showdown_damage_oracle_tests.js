@@ -1102,6 +1102,51 @@ T('56. baseline special-case damage rules match Showdown', () => {
     ),
     'Foul Play uses target Attack boosts'
   );
+  eqRange(
+    simRange(
+      simMon('Mandibuzz', { nature: 'Bold', moves: ['Foul Play'], evs: { atk: 0 }, status: 'burn' }),
+      simMon('Dragonite', { nature: 'Adamant', evs: { atk: 252 } }),
+      'Foul Play',
+      new Field({ format: 'doubles' })
+    ),
+    oracleRange(
+      calcMon('Mandibuzz', { nature: 'Bold', evs: { atk: 0 }, status: 'brn' }),
+      calcMon('Dragonite', { nature: 'Adamant', evs: { atk: 252 } }),
+      'Foul Play',
+      new calc.Field({ gameType: 'Doubles' })
+    ),
+    'Foul Play burned-user damage stays aligned with Showdown'
+  );
+  eqRange(
+    simRange(
+      simMon('Corviknight', { nature: 'Impish', moves: ['Body Press'], evs: { def: 252 } }),
+      simMon('Snorlax', { nature: 'Careful' }),
+      'Body Press',
+      new Field({ format: 'doubles' })
+    ),
+    oracleRange(
+      calcMon('Corviknight', { nature: 'Impish', evs: { def: 252 } }),
+      calcMon('Snorlax', { nature: 'Careful' }),
+      'Body Press',
+      new calc.Field({ gameType: 'Doubles' })
+    ),
+    'Body Press uses user Defense as its offensive stat'
+  );
+  eqRange(
+    simRange(
+      simMon('Latios', { nature: 'Modest', moves: ['Psyshock'], evs: { spa: 252 } }),
+      simMon('Blissey', { nature: 'Calm', evs: { spd: 252 } }),
+      'Psyshock',
+      new Field({ format: 'doubles' })
+    ),
+    oracleRange(
+      calcMon('Latios', { nature: 'Modest', evs: { spa: 252 } }),
+      calcMon('Blissey', { nature: 'Calm', evs: { spd: 252 } }),
+      'Psyshock',
+      new calc.Field({ gameType: 'Doubles' })
+    ),
+    'Psyshock targets Defense instead of Special Defense'
+  );
 });
 
 console.log('\nshowdown damage oracle:', pass + ' pass, ' + fail + ' fail\n');

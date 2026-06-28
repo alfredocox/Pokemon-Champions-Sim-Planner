@@ -11,6 +11,7 @@ const auditMigrationPath = path.join(ROOT, 'db', 'migrations', '2026_06_06_showd
 const migrationPath = path.join(ROOT, 'db', 'migrations', '2026_06_07_showdown_entities_approved_views.sql');
 const speciesMoveViewPath = path.join(ROOT, 'db', 'migrations', '2026_06_23_approved_species_move_legality_view.sql');
 const generatorPath = path.join(ROOT, 'tools', 'generate-approved-data-from-db.mjs');
+const generatorAliasPath = path.join(ROOT, 'tools', 'generate_showdown_data.mjs');
 
 let pass = 0;
 let fail = 0;
@@ -127,7 +128,7 @@ function fixtureRows() {
   };
 }
 
-function generateFixtureRuntime() {
+function generateFixtureRuntime(scriptPath) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'champions-approved-data-'));
   const rows = fixtureRows();
   const entitiesPath = path.join(dir, 'entities.json');
@@ -136,7 +137,7 @@ function generateFixtureRuntime() {
   fs.writeFileSync(entitiesPath, JSON.stringify(rows.entities, null, 2));
   fs.writeFileSync(overridesPath, JSON.stringify(rows.overrides, null, 2));
   const result = childProcess.spawnSync(process.execPath, [
-    generatorPath,
+    scriptPath || generatorPath,
     '--entities', entitiesPath,
     '--overrides', overridesPath,
     '--out', outPath,
@@ -227,7 +228,17 @@ T('4. generator emits approved runtime data and excludes unapproved rows', () =>
   truthy(runtime.meta.warnings.some((line) => line.includes('missingmove')), 'missing override warning absent');
 });
 
-T('5. generated DB-style rows are compatible with the battle engine helpers', () => {
+T('5. Phase 4 compatibility generator path emits the same runtime contract', () => {
+  truthy(fs.existsSync(generatorAliasPath), 'tools/generate_showdown_data.mjs missing');
+  const generated = generateFixtureRuntime(generatorAliasPath);
+  const runtime = generated.runtime;
+  eq(runtime.dataSource, 'approved-db', 'compat generator should keep approved-db data source');
+  truthy(runtime.moves.bravebird, 'compat generator Brave Bird missing');
+  truthy(runtime.species.Charizard, 'compat generator Charizard missing');
+  eq(runtime.moves.bravebird.priority, 1, 'compat generator should apply Champions override');
+});
+
+T('6. generated DB-style rows are compatible with the battle engine helpers', () => {
   const generated = generateFixtureRuntime();
   const ctx = {
     console,

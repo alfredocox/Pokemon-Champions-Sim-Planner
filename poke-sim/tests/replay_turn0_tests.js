@@ -124,5 +124,98 @@ T('7. Same-turn Mega timing is shown in replay event order', () => {
   truthy(events[charizardIndex].includes('timing shown in replay order'), 'timing note missing');
 });
 
+T('8. Bring-four replay without preview remains reviewable with a limitation', () => {
+  const bringFourOnlyLog = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|start',
+    '|switch|p1a: Tyranitar|Tyranitar, L50, M|100/100',
+    '|switch|p1b: Excadrill|Excadrill, L50, M|100/100',
+    '|switch|p2a: Amoonguss|Amoonguss, L50, M|100/100',
+    '|switch|p2b: Indeedee|Indeedee-F, L50, F|100/100',
+    '|turn|1',
+    '|switch|p1a: Corviknight|Corviknight, L50, F|100/100',
+    '|switch|p1b: Primarina|Primarina, L50, F|100/100',
+    '|move|p2a: Amoonguss|Pollen Puff|p1a: Corviknight',
+    '|win|Alice'
+  ].join('\n');
+  const analysis = replayCoach.analyzeShowdownReplay(bringFourOnlyLog, { selectedSide: 'p1' });
+  const confidence = analysis.review.summary.selectedFourConfidence;
+  truthy(analysis.parsed.ok, 'four-visible replay should parse');
+  eq(confidence.selectedCount, 4, 'visible selected count');
+  eq(confidence.fullRosterKnown, false, 'full roster should be unknown');
+  truthy(confidence.limitation.includes('registered six were not fully revealed'), 'bring-four limitation missing');
+  truthy(analysis.review.coachingTags.some((tag) => tag.id === 'bring_four_limited'), 'bring-four limitation tag missing');
+});
+
+T('9. Manual full roster completion makes bring-choice reviewable', () => {
+  const bringFourOnlyLog = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|start',
+    '|switch|p1a: Tyranitar|Tyranitar, L50, M|100/100',
+    '|switch|p1b: Excadrill|Excadrill, L50, M|100/100',
+    '|switch|p2a: Amoonguss|Amoonguss, L50, M|100/100',
+    '|switch|p2b: Indeedee|Indeedee-F, L50, F|100/100',
+    '|turn|1',
+    '|switch|p1a: Corviknight|Corviknight, L50, F|100/100',
+    '|switch|p1b: Primarina|Primarina, L50, F|100/100',
+    '|move|p2a: Amoonguss|Pollen Puff|p1a: Corviknight',
+    '|win|Alice'
+  ].join('\n');
+  const analysis = replayCoach.analyzeShowdownReplay(bringFourOnlyLog, {
+    selectedSide: 'p1',
+    manualTeamPreview: [
+      'Tyranitar',
+      'Excadrill',
+      'Corviknight',
+      'Primarina',
+      'Incineroar',
+      'Sinistcha'
+    ].join('\n')
+  });
+  const confidence = analysis.review.summary.selectedFourConfidence;
+  eq(analysis.parsed.teamPreview.p1.length, 6, 'manual full roster count');
+  eq(confidence.fullRosterKnown, true, 'manual roster should count as full preview');
+  eq(confidence.bringChoiceReviewable, true, 'bring-choice should be reviewable');
+  truthy(analysis.parsed.turn0.sides.p1.roster.some((row) => row.species === 'Incineroar' && row.status === 'bench'), 'manual bench Incineroar missing');
+  truthy(!analysis.review.coachingTags.some((tag) => tag.id === 'bring_four_limited'), 'limited tag should clear with full roster');
+});
+
+T('10. Singles three-of-six lineup is reviewable when registered roster is known', () => {
+  const singlesLog = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|singles',
+    '|start',
+    '|switch|p1a: Dragonite|Dragonite, L50, M|100/100',
+    '|switch|p2a: Rotom|Rotom-Wash, L50|100/100',
+    '|turn|1',
+    '|switch|p1a: Gholdengo|Gholdengo, L50|100/100',
+    '|move|p2a: Rotom|Thunderbolt|p1a: Gholdengo',
+    '|turn|2',
+    '|switch|p1a: Chien-Pao|Chien-Pao, L50|100/100',
+    '|move|p2a: Rotom|Hydro Pump|p1a: Chien-Pao',
+    '|win|Alice'
+  ].join('\n');
+  const analysis = replayCoach.analyzeShowdownReplay(singlesLog, {
+    selectedSide: 'p1',
+    manualTeamPreview: [
+      'Dragonite',
+      'Gholdengo',
+      'Chien-Pao',
+      'Ursaluna-Bloodmoon',
+      'Amoonguss',
+      'Incineroar'
+    ].join('\n')
+  });
+  const confidence = analysis.review.summary.selectedFourConfidence;
+  eq(confidence.expectedLineupSize, 3, 'singles expected lineup size');
+  eq(confidence.selectedCount, 3, 'singles selected count');
+  eq(confidence.bringChoiceReviewable, true, 'singles lineup should be reviewable');
+});
+
 console.log(`\nreplay Turn 0: ${pass} pass, ${fail} fail\n`);
 process.exit(fail ? 1 : 0);

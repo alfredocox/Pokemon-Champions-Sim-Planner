@@ -302,7 +302,7 @@
       .replace(/\u00a0/g, ' ')
       .replace(/\r\n?/g, '\n');
     if (!text.trim()) return '';
-    if (text.indexOf('\n') < 0 && text.indexOf('\\n|') >= 0) {
+    if (text.indexOf('\\n|') >= 0 || text.indexOf('|\\n') >= 0) {
       text = text.replace(/\\n/g, '\n');
     }
     var directLines = [];
@@ -588,6 +588,30 @@
     };
   }
 
+  function parseManualReplayRoster(input) {
+    var text = String(input || '').trim();
+    if (!text) return [];
+    var chunks = text.split(/\r?\n|;/);
+    if (chunks.length === 1 && text.indexOf(',') >= 0 && !/\bL(?:evel)?\s*\d+\b/i.test(text)) {
+      chunks = text.split(',');
+    }
+    var out = [];
+    chunks.forEach(function(chunk) {
+      var line = cleanText(chunk);
+      if (!line) return;
+      if (line.indexOf('|poke|') >= 0) {
+        var parts = line.split('|');
+        line = cleanText(parts[3] || '');
+      }
+      line = line.replace(/^[\s*#\-\d.)]+/, '');
+      line = line.replace(/\s+\((?:M|F|N)\)\s*$/i, '');
+      if (line.indexOf('@') >= 0) line = line.split('@')[0];
+      var details = normalizeReplayPokemonDetails('', line);
+      addUnique(out, details.species || line);
+    });
+    return out.slice(0, 6);
+  }
+
   function parseShowdownLog(rawLog, opts) {
     opts = opts || {};
     var selectedSide = normalizeSide(opts.selectedSide || 'p1');
@@ -608,6 +632,8 @@
       turns: [],
       warnings: [],
       turn0: null,
+      expectedLineupSize: opts.lineupSize || opts.bringCount || null,
+      manualTeamPreview: { p1: [], p2: [] },
       rawLineCount: text ? text.split(/\r?\n/).length : 0,
       rawPreviewLines: []
     };
@@ -876,6 +902,33 @@
     if (!model.players.p1 && !model.players.p2) model.warnings.push('Player names were not found in the log.');
     if (!model.leads.p1.length || !model.leads.p2.length) model.warnings.push('Lead Pokemon could not be fully inferred.');
     if (!model.teamPreview.p1.length && !model.teamPreview.p2.length) model.warnings.push('Team preview was not present; selected Pokemon are inferred from revealed actions.');
+    var manualRoster = parseManualReplayRoster(opts.manualTeamPreview || opts.manualFullRoster || opts.fullRoster || '');
+    if (manualRoster.length) {
+      model.manualTeamPreview[selectedSide] = manualRoster.slice();
+      manualRoster.forEach(function(species) {
+        var details = normalizeReplayPokemonDetails('', species);
+        var mon = details.species || species;
+        addUnique(model.teamPreview[selectedSide], mon);
+        if (!previewDetails[selectedSide].some(function(row) { return row && row.species === mon; })) {
+          previewDetails[selectedSide].push(details);
+        }
+        if (model.selectedPokemon[selectedSide].indexOf(mon) < 0) {
+          ensureRosterEntry(rosterState, selectedSide, mon, {
+            side: selectedSide,
+            status: 'bench',
+            hp: 100,
+            displayName: mon,
+            baseSpecies: details.baseSpecies || replayBaseSpecies(mon),
+            gender: details.gender,
+            level: details.level,
+            item: details.item,
+            ability: details.ability,
+            source: 'manual-full-roster'
+          });
+        }
+      });
+      addReplayWarning(parserWarnings, 'Manual full roster was used to complete missing replay preview data.');
+    }
     model.turn0 = buildReplayTurn0Snapshot(model, {
       previewDetails: previewDetails,
       startingSlots: startingSlots,
@@ -905,7 +958,10 @@
     var whatHappened = extra.whatHappened || message || 'The replay showed a coaching-relevant event.';
     var whyMattered = extra.whyMattered || 'This can change tempo, board position, or the path to your win condition.';
     var doInstead = extra.doInstead || recommendation || 'Review the board state and choose the line that preserves your win condition.';
-    issues.push({
+    var knownExtraKeys = { id: 1, category: 1, whatHappened: 1, whyMattered: 1, doInstead: 1, evidence: 1 };
+    var customFields = {};
+    Object.keys(extra).forEach(function(k) { if (!knownExtraKeys[k]) customFields[k] = extra[k]; });
+    issues.push(Object.assign({
       id: id,
       tag: tag,
       category: extra.category || id,
@@ -918,7 +974,7 @@
       whyMattered: whyMattered,
       doInstead: doInstead,
       recommendation: recommendation || doInstead
-    });
+    }, customFields));
   }
 
   function moveNames(moves) {
@@ -946,11 +1002,14 @@
     var selected = parsed.selectedPokemon && parsed.selectedPokemon[side] ? parsed.selectedPokemon[side] : [];
     var previewCount = preview.length;
     var selectedCount = selected.length;
+    var format = cleanText(parsed.format || '').toLowerCase();
+    var expectedLineupSize = parsed.expectedLineupSize || (/singles|1v1|battle stadium singles|bss/.test(format) ? 3 : 4);
     var fullRosterKnown = previewCount >= 6;
-    var selectedFourKnown = selectedCount >= 4;
+    var selectedFourKnown = selectedCount >= expectedLineupSize;
     var base = {
       previewCount: previewCount,
       selectedCount: selectedCount,
+      expectedLineupSize: expectedLineupSize,
       fullRosterKnown: fullRosterKnown,
       selectedFourKnown: selectedFourKnown,
       bringChoiceReviewable: fullRosterKnown && selectedFourKnown,
@@ -959,24 +1018,24 @@
     if (fullRosterKnown && selectedFourKnown) {
       return Object.assign(base, {
         level: 'high',
-        label: 'Full preview + four inferred',
-        reason: 'Team preview showed the full six and at least four selected Pokemon appeared in the log.'
+        label: 'Full preview + lineup inferred',
+        reason: 'Team preview showed the registered six and the expected game-specific lineup appeared in the log, so the squad choice can be reviewed.'
       });
     }
     if (selectedFourKnown) {
       return Object.assign(base, {
         level: 'medium',
-        label: 'Visible four inferred',
-        reason: 'At least four brought Pokemon appeared in the log, so replay review can continue.',
-        limitation: 'Bring-choice analysis is limited because the full six were not available from this replay.'
+        label: 'Visible lineup inferred',
+        reason: 'The expected brought Pokemon count appeared in the log, so replay review can continue.',
+        limitation: 'Lineup analysis is limited — the registered six were not fully revealed, so benched swap options are unknown.'
       });
     }
     if (fullRosterKnown && selectedCount > 0) {
       return Object.assign(base, {
         level: 'medium',
         label: 'Partial bring',
-        reason: 'Team preview showed the full six, but fewer than four brought Pokemon were revealed.',
-        limitation: 'Bring-four analysis is limited until the missing brought Pokemon appear in the log or are entered manually.'
+        reason: 'Team preview showed the registered six, but fewer than the expected brought Pokemon were revealed.',
+        limitation: 'Lineup analysis is limited until the missing game-specific squad Pokemon appear in the log or are entered manually.'
       });
     }
     if (selectedCount > 0) {
@@ -1041,6 +1100,7 @@
       var oppSwitches = turn.switches.filter(function(s) { return s.side === names.opp; });
       var userSpeed = userMoves.filter(function(m) { return classifyMove(m.move) === 'speed_control'; });
       var oppSpeed = oppMoves.filter(function(m) { return classifyMove(m.move) === 'speed_control'; });
+      var tactical = turn.tacticalRead || {};
       var userProtect = userMoves.filter(function(m) { return classifyMove(m.move) === 'protection'; });
       var fieldEvents = turn.field || [];
       var rngEvents = turn.rng || [];
@@ -1068,24 +1128,30 @@
         stateShift = 'Material trade';
         coachingRead = 'Both sides lost a Pokemon. The key question is whether your fainted Pokemon was more important to the matchup plan than the one you removed.';
       }
-      if (userSpeed.length && !oppFaints.length) {
+      if (tactical.stateShift) {
+        severity = tactical.severity || severity;
+        confidence = tactical.confidence || confidence;
+        stateShift = tactical.stateShift;
+        coachingRead = tactical.coachingRead || coachingRead;
+        betterLine = tactical.betterLine || betterLine;
+      } else if (userSpeed.length && !oppFaints.length) {
         severity = severity === 'high' ? severity : 'medium';
         stateShift = 'Speed control set without clear payoff';
         coachingRead = 'You used speed control. The next coaching check is whether it created immediate pressure, protected a win condition, or just spent a turn.';
         betterLine = betterLine || 'After setting speed control, plan the next two turns before clicking it: target, forced Protect, or preserved closer.';
       }
-      if (oppSpeed.length) {
+      if (!tactical.stateShift && oppSpeed.length) {
         severity = severity === 'high' ? severity : 'medium';
         stateShift = 'Opponent advanced speed control';
         coachingRead = 'The opponent advanced speed control. If this was not denied or punished, your next turns may be played from behind.';
       }
-      if (userProtect.length && (oppSpeed.length || fieldEvents.length)) {
+      if (!tactical.stateShift && userProtect.length && (oppSpeed.length || fieldEvents.length)) {
         severity = severity === 'high' ? severity : 'medium';
         stateShift = 'Protect gave space';
         coachingRead = 'Your Protect may have preserved HP, but the opponent also improved the field or speed state. That trade needs a clear reason.';
         betterLine = betterLine || 'Use Protect when it preserves the actual win condition or stalls a limited field turn, not as a default pause.';
       }
-      if (userSwitches.length && !oppFaints.length && (oppSpeed.length || fieldEvents.length || oppSwitches.length)) {
+      if (!tactical.stateShift && userSwitches.length && !oppFaints.length && (oppSpeed.length || fieldEvents.length || oppSwitches.length)) {
         severity = severity === 'high' ? severity : 'medium';
         stateShift = 'Positioning risk';
         coachingRead = 'You changed position while the opponent also improved theirs. The switch needs to either preserve a key piece or deny their next payoff.';
@@ -1125,6 +1191,212 @@
     });
   }
 
+  function replayMoveName(move) {
+    return cleanText((move && move.move) || move || '');
+  }
+
+  function isTailwindMove(move) {
+    return /^tailwind$/i.test(replayMoveName(move));
+  }
+
+  function isTrickRoomMove(move) {
+    return /^trick room$/i.test(replayMoveName(move));
+  }
+
+  function isSpeedControlMove(move) {
+    return classifyMove(replayMoveName(move)) === 'speed_control';
+  }
+
+  function isSetupOrProtectionMove(move) {
+    var kind = classifyMove(replayMoveName(move));
+    return kind === 'setup' || kind === 'protection' || kind === 'redirection';
+  }
+
+  function turnSideMoves(turn, side) {
+    return ((turn && turn.moves) || []).filter(function(m) { return m.side === side; });
+  }
+
+  function turnSideFaints(turn, side) {
+    return ((turn && turn.faints) || []).filter(function(f) { return f.side === side; });
+  }
+
+  function turnSideTookMajorDamage(turn, side) {
+    return ((turn && turn.damage) || []).some(function(d) {
+      return d.side === side && d.hp != null && Number(d.hp) <= 70;
+    });
+  }
+
+  function turnSideGainedMaterial(turn, side, opp) {
+    return turnSideFaints(turn, opp).length > turnSideFaints(turn, side).length ||
+      (turnSideTookMajorDamage(turn, opp) && !turnSideFaints(turn, side).length);
+  }
+
+  function sideHasNaturalSpeedLead(turn, side, opp) {
+    var details = (((turn || {}).pre || {}).speed_order_details) || (((turn || {}).post || {}).speed_order_details) || [];
+    if (!details.length) return false;
+    var firstUser = null;
+    var firstOpp = null;
+    details.forEach(function(row) {
+      if (!row) return;
+      var rowSide = row.side;
+      var base = row.calculated_speed != null ? Number(row.calculated_speed) : Number(row.base_speed || row.effective_speed || 0);
+      if (rowSide === side && (firstUser == null || base > firstUser)) firstUser = base;
+      if (rowSide === opp && (firstOpp == null || base > firstOpp)) firstOpp = base;
+    });
+    return firstUser != null && firstOpp != null && firstUser > firstOpp;
+  }
+
+  function trickRoomActive(turn) {
+    var pre = (((turn || {}).pre || {}).field || {}).trick_room || 0;
+    var post = (((turn || {}).post || {}).field || {}).trick_room || 0;
+    return Number(pre) > 0 || Number(post) > 0;
+  }
+
+  function buildSpeedControlInsights(parsed, side) {
+    var opp = side === 'p1' ? 'p2' : 'p1';
+    var turns = (parsed && parsed.turns) || [];
+    var byTurn = {};
+    turns.forEach(function(turn, idx) {
+      var userSpeed = turnSideMoves(turn, side).filter(isSpeedControlMove);
+      var oppSpeed = turnSideMoves(turn, opp).filter(isSpeedControlMove);
+      var userSetup = turnSideMoves(turn, side).filter(isSetupOrProtectionMove);
+      var userTR = userSpeed.some(isTrickRoomMove);
+      var oppTR = oppSpeed.some(isTrickRoomMove);
+      var userTW = userSpeed.some(isTailwindMove);
+      var oppTW = oppSpeed.some(isTailwindMove);
+      var userSpeedNames = userSpeed.map(replayMoveName).filter(Boolean).join(', ');
+      var oppSpeedNames = oppSpeed.map(replayMoveName).filter(Boolean).join(', ');
+      var immediatePayoff = turnSideGainedMaterial(turn, side, opp);
+      var deferredPayoffTurn = null;
+      turns.slice(idx + 1, idx + 4).some(function(future) {
+        if (turnSideGainedMaterial(future, side, opp)) {
+          deferredPayoffTurn = future.number;
+          return true;
+        }
+        return false;
+      });
+      var insight = {
+        turn: turn.number,
+        userSpeed: userSpeed,
+        oppSpeed: oppSpeed,
+        immediatePayoff: immediatePayoff,
+        deferredPayoffTurn: deferredPayoffTurn,
+        suppressSpeedNoPressure: false,
+        suppressFieldFailure: false,
+        notes: []
+      };
+      var previousTurn = idx > 0 ? turns[idx - 1] : null;
+      var previousTrickRoom = previousTurn && trickRoomActive(previousTurn);
+      var currentTrickRoom = trickRoomActive(turn);
+      var plannedTransition = previousTrickRoom && !currentTrickRoom && sideHasNaturalSpeedLead(turn, side, opp);
+
+      if (!userSpeed.length && !oppSpeed.length && !userSetup.length && !plannedTransition) return;
+
+      if (plannedTransition) {
+        insight.stateShift = 'Planned speed transition';
+        insight.severity = 'good';
+        insight.confidence = 'medium';
+        insight.coachingRead = 'Trick Room was no longer active and your visible natural speed order was favorable, so the line transitioned back into normal speed advantage.';
+        insight.notes.push({
+          id: 'planned_speed_transition',
+          tag: 'Planned Speed Transition',
+          category: 'speed_control',
+          severity: 'good',
+          confidence: 'medium',
+          message: 'Trick Room ended and the visible natural speed order favored your side.',
+          whatHappened: 'The turn after Trick Room ended, your side appeared to hold the faster visible board.',
+          whyMattered: 'A good speed plan includes the turn after the field state ends; preserving fast attackers can convert the transition instead of losing tempo.',
+          doInstead: 'When Trick Room is expiring, preserve or bring in the Pokemon that wins normal speed order.',
+          evidence: 'Trick Room inactive after previous active state; visible speed order favors selected side'
+        });
+      } else if (userTR && oppTW) {
+        insight.stateShift = 'Speed control reversed';
+        insight.severity = 'good';
+        insight.confidence = 'high';
+        insight.coachingRead = 'You answered Tailwind with Trick Room, flipping the move-order plan instead of trying to race it.';
+        insight.suppressSpeedNoPressure = true;
+        insight.suppressFieldFailure = true;
+        insight.notes.push({
+          id: 'speed_control_reversal',
+          tag: 'Speed Control Reversal',
+          category: 'speed_control',
+          severity: 'good',
+          confidence: 'high',
+          message: 'Trick Room reversed the opponent Tailwind plan.',
+          whatHappened: 'You used Trick Room into opposing Tailwind.',
+          whyMattered: 'Trick Room overrides the normal speed race, so their Tailwind plan no longer gives the same offensive tempo.',
+          doInstead: 'When the opponent commits Tailwind, either reverse it with Trick Room or punish the setter immediately.',
+          evidence: userSpeedNames + ' into ' + oppSpeedNames
+        });
+      } else if (oppTR && userTW) {
+        insight.stateShift = 'Speed control got reversed';
+        insight.severity = 'high';
+        insight.confidence = 'high';
+        insight.coachingRead = 'Your Tailwind line ran into Trick Room, so the speed advantage likely flipped against the intended plan.';
+        insight.betterLine = 'When Trick Room is available, pressure or deny the setter before spending a turn on Tailwind.';
+      } else if (userTW && oppTW) {
+        insight.stateShift = 'Speed control neutralized';
+        insight.severity = 'medium';
+        insight.confidence = 'high';
+        insight.coachingRead = 'Both sides used Tailwind, so the speed plan became closer to neutral instead of a clean advantage.';
+        insight.suppressSpeedNoPressure = true;
+        insight.notes.push({
+          id: 'speed_control_neutralized',
+          tag: 'Speed Control Neutralized',
+          category: 'speed_control',
+          severity: 'low',
+          confidence: 'high',
+          message: 'Tailwind was matched by opposing Tailwind.',
+          whatHappened: 'Both sides established Tailwind on the same turn.',
+          whyMattered: 'Dual Tailwind removes the clean move-order edge; the next decision should be target pressure, preservation, or stalling their window.',
+          doInstead: 'After neutralized Tailwind, switch from speed racing to board pressure: force Protect, remove the setter, or preserve the closer.',
+          evidence: userSpeedNames + ' vs ' + oppSpeedNames
+        });
+      } else if (userSpeed.length && (immediatePayoff || deferredPayoffTurn)) {
+        insight.stateShift = immediatePayoff ? 'Speed control converted' : 'Setup paid off later';
+        insight.severity = 'good';
+        insight.confidence = deferredPayoffTurn ? 'medium' : 'high';
+        insight.coachingRead = immediatePayoff
+          ? 'Your speed-control turn converted into immediate pressure or material.'
+          : 'This speed-control turn paid off within the next three turns, so it should not be graded as a passive setup turn.';
+        insight.suppressSpeedNoPressure = true;
+        insight.notes.push({
+          id: deferredPayoffTurn ? 'deferred_payoff' : 'speed_control_converted',
+          tag: deferredPayoffTurn ? 'Deferred Payoff Recognized' : 'Speed Control Converted',
+          category: 'speed_control',
+          severity: 'good',
+          confidence: deferredPayoffTurn ? 'medium' : 'high',
+          message: deferredPayoffTurn ? 'Setup paid off on turn ' + deferredPayoffTurn + '.' : 'Speed control created immediate pressure.',
+          whatHappened: 'You used ' + userSpeedNames + (deferredPayoffTurn ? ' and gained payoff by turn ' + deferredPayoffTurn + '.' : ' and gained pressure immediately.'),
+          whyMattered: 'Good speed control is not just the field state; it must become damage, a KO, forced Protect, or preserved win condition.',
+          doInstead: 'Keep this pattern: name the next two turns before setting speed control, then convert the window before it expires.',
+          evidence: deferredPayoffTurn ? 'Payoff detected within T+3' : 'Immediate material or damage pressure'
+        });
+      } else if (userSetup.length && deferredPayoffTurn) {
+        insight.stateShift = 'Complementary turn paid off';
+        insight.severity = 'good';
+        insight.confidence = 'medium';
+        insight.coachingRead = 'This setup or protection turn enabled material within the next three turns, so it should be credited as part of the line.';
+        insight.notes.push({
+          id: 'complementary_turn_payoff',
+          tag: 'Complementary Turn Payoff',
+          category: 'turn_execution',
+          severity: 'good',
+          confidence: 'medium',
+          message: 'Setup or protection paid off on turn ' + deferredPayoffTurn + '.',
+          whatHappened: 'You used ' + userSetup.map(replayMoveName).filter(Boolean).join(', ') + ' and gained payoff by turn ' + deferredPayoffTurn + '.',
+          whyMattered: 'Some correct turns are enabling turns, not immediate damage turns. They should be credited when the next board proves the payoff.',
+          doInstead: 'Keep linking setup/protection turns to a concrete next-turn conversion instead of treating them as isolated pauses.',
+          evidence: 'Payoff detected within T+3'
+        });
+      }
+
+      byTurn[turn.number] = insight;
+      turn.tacticalRead = insight;
+    });
+    return byTurn;
+  }
+
   function buildReplayCoachReview(parsed, opts) {
     opts = opts || {};
     var side = normalizeSide(opts.selectedSide || parsed.selectedSide || 'p1');
@@ -1137,7 +1409,28 @@
     var userSelected = parsed.selectedPokemon[side] || [];
     var oppSelected = parsed.selectedPokemon[opp] || [];
     var bringConfidence = selectedFourConfidence(parsed, side);
+    var benchedTwo = bringConfidence.bringChoiceReviewable
+      ? (parsed.teamPreview[side] || []).filter(function(s) { return userSelected.indexOf(s) < 0; })
+      : [];
     var speedControlPieces = {};
+    var speedInsights = buildSpeedControlInsights(parsed, side);
+
+    if (bringConfidence.bringChoiceReviewable && benchedTwo.length) {
+      addIssue(issues, 'Bring Choice Review', 'low', null,
+        'You left ' + benchedTwo.join(' and ') + ' on the bench.',
+        'medium',
+        'After each game, ask whether either benched Pokemon would have answered a key threat you struggled to handle.',
+        {
+          id: 'bring_choice_review',
+          category: 'bring_four',
+          benchedSpecies: benchedTwo.slice(),
+          whatHappened: 'You brought ' + userSelected.join(', ') + ' and left ' + benchedTwo.join(' and ') + ' on the bench.',
+          whyMattered: 'In VGC doubles, the bring-four choice shapes every matchup plan. The two mons you left behind could have offered different speed control, redirection, or win conditions against this opponent.',
+          doInstead: 'After each game, check whether either benched Pokemon would have handled a key threat better than one of your brought four.',
+          evidence: 'Preview: ' + (parsed.teamPreview[side] || []).join(', ')
+        }
+      );
+    }
 
     if (!userLead.length || !oppLead.length) {
       addIssue(issues, 'Lead Unclear', 'medium', null, 'The log does not expose a complete opening board.', 'medium', 'Use a full Showdown replay export when possible so lead coaching can be more precise.', {
@@ -1157,6 +1450,16 @@
         whyMattered: 'Bring-four coaching can overclaim when the backline is hidden, especially in VGC-style games where the benched two explain the matchup plan.',
         doInstead: 'Use the bring-four read as provisional until the full selected four are visible or entered manually.',
         evidence: 'Preview count ' + parsed.teamPreview[side].length + ', revealed selected count ' + userSelected.length
+      });
+    }
+    if (bringConfidence.selectedFourKnown && !bringConfidence.fullRosterKnown) {
+      addIssue(issues, 'Lineup Limited', 'low', null, bringConfidence.limitation, 'medium', 'Add the registered six in the optional roster field after upload when Showdown does not expose team preview.', {
+        id: 'bring_four_limited',
+        category: 'bring_four',
+        whatHappened: 'The replay exposed the game-specific lineup, but did not reveal the full registered six.',
+        whyMattered: 'In best-of-three, you can change the game-specific lineup from the same registered six between games, so coaching needs the benched swap options to judge the squad choice.',
+        doInstead: 'Paste the registered six into the optional roster completion field before analysis when the replay log only exposes selected Pokemon.',
+        evidence: 'Preview count ' + bringConfidence.previewCount + ', revealed selected count ' + bringConfidence.selectedCount
       });
     }
 
@@ -1181,11 +1484,16 @@
       var userMoveText = moveNames(userMoves);
       var oppMoveText = moveNames(oppMoves);
       var turnEvidence = [userMoveText, oppMoveText, fieldNames(turn.field)].filter(Boolean).join(' | ');
+      var speedInsight = speedInsights[turn.number] || {};
+
+      (speedInsight.notes || []).forEach(function(note) {
+        addIssue(issues, note.tag, note.severity || 'low', turn.number, note.message || note.whatHappened, note.confidence || 'medium', note.doInstead, note);
+      });
 
       if (userSpeed.length) {
         speedTurns.push(turn.number);
         userSpeed.forEach(function(move) { if (move.pokemon) speedControlPieces[move.pokemon] = true; });
-        if (!oppFaints.length && !turn.damage.some(function(d) { return d.side === opp && d.hp != null && d.hp < 75; })) {
+        if (!speedInsight.suppressSpeedNoPressure && !oppFaints.length && !turn.damage.some(function(d) { return d.side === opp && d.hp != null && d.hp < 75; })) {
           addIssue(issues, 'Speed Control Without Pressure', 'high', turn.number, 'You used speed control but did not immediately create clear damage or KO pressure.', 'medium', 'After Tailwind, Trick Room, Icy Wind, or Electroweb, convert the speed edge into a KO, forced Protect, or preserved win condition.', {
             id: 'speed_control_without_pressure',
             category: 'speed_control',
@@ -1248,12 +1556,12 @@
         });
       }
       if (opponentProgress && !oppFaints.length && !userField.length) {
-        addIssue(issues, 'Field Control Failure', turn.number === 1 ? 'high' : 'medium', turn.number, 'The opponent advanced field control or setup without being punished.', 'medium', 'When the opponent sets Trick Room, Tailwind, terrain, weather, or redirection, answer it immediately or use the turn to take a meaningful trade.', {
+        addIssue(issues, 'Field Control Failure', speedInsight.suppressFieldFailure ? 'low' : (turn.number === 1 ? 'high' : 'medium'), turn.number, speedInsight.suppressFieldFailure ? 'The opponent advanced field control, but your line also reversed or answered the speed state.' : 'The opponent advanced field control or setup without being punished.', speedInsight.suppressFieldFailure ? 'low' : 'medium', speedInsight.suppressFieldFailure ? 'Do not over-penalize this turn; check whether the reversal converted into pressure before the field window expired.' : 'When the opponent sets Trick Room, Tailwind, terrain, weather, or redirection, answer it immediately or use the turn to take a meaningful trade.', {
           id: 'field_control_failure',
           category: 'field_control',
-          whatHappened: 'The opponent gained setup, redirection, speed control, or field control and you did not take a knockout back.',
-          whyMattered: 'Field control changes what moves first, what survives, and which side gets to dictate defensive choices on the next turn.',
-          doInstead: 'Deny the field effect when possible; if denial is impossible, punish the setter or switch into a board that can stall or reverse the field state.',
+          whatHappened: speedInsight.suppressFieldFailure ? 'The opponent advanced a field or speed state, but your response created a speed-state answer.' : 'The opponent gained setup, redirection, speed control, or field control and you did not take a knockout back.',
+          whyMattered: speedInsight.suppressFieldFailure ? 'A field-control tag should not stay high confidence when the same turn or short window contains the answer.' : 'Field control changes what moves first, what survives, and which side gets to dictate defensive choices on the next turn.',
+          doInstead: speedInsight.suppressFieldFailure ? 'Judge this as a speed-control contest: did your answer convert into material, preservation, or a forced defensive turn?' : 'Deny the field effect when possible; if denial is impossible, punish the setter or switch into a board that can stall or reverse the field state.',
           evidence: turnEvidence
         });
       }
@@ -1316,6 +1624,7 @@
         opponentFour: oppSelected,
         yourPreview: parsed.teamPreview[side] || [],
         opponentPreview: parsed.teamPreview[opp] || [],
+        benchedTwo: benchedTwo.slice(),
         selectedFourConfidence: bringConfidence,
         leadGrade: userLead.length && oppLead.length ? 'Reviewable' : 'Unknown',
         criticalTurn: criticalTurn,
@@ -1360,6 +1669,7 @@
   ChampionsSim.replayCoach.normalizeReplayPokemonDetails = normalizeReplayPokemonDetails;
   ChampionsSim.replayCoach.resolveReplayMegaSpecies = resolveReplayMegaSpecies;
   ChampionsSim.replayCoach.normalizeReplayLogInput = normalizeReplayLogInput;
+  ChampionsSim.replayCoach.parseManualReplayRoster = parseManualReplayRoster;
   ChampionsSim.replayCoach.replayUrlToLogUrl = replayUrlToLogUrl;
   ChampionsSim.replayCoach.fetchReplayLog = fetchReplayLog;
   ChampionsSim.replayCoach.buildReplayCoachReview = buildReplayCoachReview;

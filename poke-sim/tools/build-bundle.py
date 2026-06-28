@@ -67,6 +67,8 @@ runtime_data = read('runtime_data.js')
 engine  = read('engine.js')
 ui      = read('ui.js')
 legality = read('legality.js')
+rulesets = read('rulesets.js')
+regmb_source_conversion = read('regmb_source_conversion.js')
 strategy = read('strategy-injectable.js')
 storage = read('storage_adapter.js')
 supabase = read('supabase_adapter.js')
@@ -83,6 +85,8 @@ html = html.replace('<script src="logger.js"></script>', '')
 html = html.replace('<script src="runtime_data.js"></script>', '')
 html = html.replace('<script src="engine.js"></script>', '')
 html = html.replace('<script src="ui.js"></script>', '')
+html = html.replace('<script src="rulesets.js"></script>', '')
+html = html.replace('<script src="regmb_source_conversion.js"></script>', '')
 html = html.replace('<script src="storage_adapter.js"></script>', '')
 html = html.replace('<script src="supabase_adapter.js"></script>', '')
 html = html.replace('<script src="generated/pokemon_showdown_legal_data.js"></script>', '')
@@ -129,6 +133,8 @@ inline_js = (
     + sanitize_inline_js(pokemon_weight_data) + '\n\n'
     + sanitize_inline_js(runtime_data) + '\n\n'
     + sanitize_inline_js(engine) + '\n\n'
+    + sanitize_inline_js(rulesets) + '\n\n'
+    + sanitize_inline_js(regmb_source_conversion) + '\n\n'
     + sanitize_inline_js(storage) + '\n\n'
     + sanitize_inline_js(supabase) + '\n\n'
     + sanitize_inline_js(move_legality) + '\n\n'
