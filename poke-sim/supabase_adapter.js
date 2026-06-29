@@ -42,6 +42,8 @@
 
   // Canonical ruleset_id — must match seed_teams_v2.sql (M2)
   const DEFAULT_RULESET_ID = 'champions_reg_m_doubles_bo3';
+  const TEAM_LAB_SIM_JOBS_TABLE = 'team_lab_sim_jobs';
+  const TEAM_LAB_REPLAYS_TABLE = 'team_lab_replays';
 
   if (!ENABLED) {
     log.info('No credentials; running in local-only mode');
@@ -1308,6 +1310,160 @@
     }
   }
 
+  function teamLabTrustedWriteError(err) {
+    var normalized = normalizeDbError(err) || {};
+    var text = [
+      normalized.message,
+      normalized.details,
+      normalized.hint,
+      normalized.code,
+      normalized.status,
+      normalized.statusText
+    ].filter(Boolean).join(' ');
+    return /row-level security|permission denied|not authorized|42501|401|403/i.test(text);
+  }
+
+  function teamLabEvidenceUnavailableResult(reason, payload) {
+    return {
+      ok: false,
+      reason: reason,
+      message: reason === 'trusted_writer_required'
+        ? 'Team Lab evidence writes require a trusted server-side workflow; browser anon clients must remain read-only under RLS.'
+        : 'Team Lab evidence was not persisted.',
+      payload: payload || null
+    };
+  }
+
+  function normalizeTeamLabEvidenceLimit(limit) {
+    var n = Number(limit || 50);
+    if (!Number.isFinite(n) || n <= 0) return 50;
+    return Math.max(1, Math.min(250, Math.floor(n)));
+  }
+
+  function applyTeamLabEvidenceFilters(query, filters) {
+    filters = filters || {};
+    [
+      'id',
+      'job_id',
+      'sim_run_id',
+      'team_a_id',
+      'team_b_id',
+      'owner_user_id',
+      'regulation_id',
+      'format',
+      'engine_version',
+      'ruleset_version',
+      'status',
+      'job_type'
+    ].forEach(function(key) {
+      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        query = query.eq(key, filters[key]);
+      }
+    });
+    return query;
+  }
+
+  async function createSimJob(job) {
+    const sb = getClient();
+    if (!sb) return teamLabEvidenceUnavailableResult('supabase_unavailable', job);
+    try {
+      const { data, error } = await sb
+        .from(TEAM_LAB_SIM_JOBS_TABLE)
+        .insert(job)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data || job;
+    } catch (err) {
+      log.warn('createSimJob failed', err);
+      if (teamLabTrustedWriteError(err)) return teamLabEvidenceUnavailableResult('trusted_writer_required', job);
+      return teamLabEvidenceUnavailableResult('write_failed', { error: normalizeDbError(err), job: job });
+    }
+  }
+
+  async function updateSimJobStatus(jobId, status, statusReport) {
+    const sb = getClient();
+    var now = new Date().toISOString();
+    var patch = {
+      status: status,
+      status_report: statusReport || {},
+      updated_at: now
+    };
+    if (status === 'running') patch.started_at = now;
+    if (status === 'completed' || status === 'failed' || status === 'cancelled') patch.finished_at = now;
+    if (!sb) return teamLabEvidenceUnavailableResult('supabase_unavailable', { id: jobId, patch: patch });
+    try {
+      const { data, error } = await sb
+        .from(TEAM_LAB_SIM_JOBS_TABLE)
+        .update(patch)
+        .eq('id', jobId)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data || Object.assign({ id: jobId }, patch);
+    } catch (err) {
+      log.warn('updateSimJobStatus failed', err);
+      if (teamLabTrustedWriteError(err)) return teamLabEvidenceUnavailableResult('trusted_writer_required', { id: jobId, patch: patch });
+      return teamLabEvidenceUnavailableResult('write_failed', { error: normalizeDbError(err), id: jobId, patch: patch });
+    }
+  }
+
+  async function saveReplayRecord(replay) {
+    const sb = getClient();
+    if (!sb) return teamLabEvidenceUnavailableResult('supabase_unavailable', replay);
+    try {
+      const { data, error } = await sb
+        .from(TEAM_LAB_REPLAYS_TABLE)
+        .insert(replay)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data || replay;
+    } catch (err) {
+      log.warn('saveReplayRecord failed', err);
+      if (teamLabTrustedWriteError(err)) return teamLabEvidenceUnavailableResult('trusted_writer_required', replay);
+      return teamLabEvidenceUnavailableResult('write_failed', { error: normalizeDbError(err), replay: replay });
+    }
+  }
+
+  async function listSimJobs(filters) {
+    const sb = getClient();
+    if (!sb) return [];
+    try {
+      var query = sb
+        .from(TEAM_LAB_SIM_JOBS_TABLE)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(normalizeTeamLabEvidenceLimit(filters && filters.limit));
+      query = applyTeamLabEvidenceFilters(query, filters);
+      const { data, error } = await query;
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      log.warn('listSimJobs failed', err);
+      return [];
+    }
+  }
+
+  async function listReplays(filters) {
+    const sb = getClient();
+    if (!sb) return [];
+    try {
+      var query = sb
+        .from(TEAM_LAB_REPLAYS_TABLE)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(normalizeTeamLabEvidenceLimit(filters && filters.limit));
+      query = applyTeamLabEvidenceFilters(query, filters);
+      const { data, error } = await query;
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      log.warn('listReplays failed', err);
+      return [];
+    }
+  }
+
   // ── Public API ────────────────────────────────────────────────────────────
   window.SupabaseAdapter = {
     enabled:            ENABLED,
@@ -1325,7 +1481,12 @@
     loadShowdownDbSnapshot,
     loadShowdownEntities,
     loadBranchCoverageSummary,
-    saveBranchCoverageRuns
+    saveBranchCoverageRuns,
+    createSimJob,
+    updateSimJobStatus,
+    saveReplayRecord,
+    listSimJobs,
+    listReplays
   };
 
   // M3 NOTE: Auto-merge of DB teams into TEAMS has moved to ui.js's

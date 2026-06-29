@@ -108,3 +108,46 @@ This keeps Team Lab rankings tied to replay-verifiable evidence while preserving
 - Targeted/tactical sweep summary evidence is preserved at job level until individual branch runs are exported as replay records.
 
 This is intentionally backend-only. It does not make leaderboard claims by itself; it gives future import/drop-folder workflows a safe normalization layer so QA artifacts can become auditable evidence.
+
+
+## 2026-06-29 implementation update: Supabase evidence adapter boundary
+
+`v2.2.50-sim-evidence-adapter` connects the Team Lab evidence model to the existing Supabase adapter boundary:
+
+- `SupabaseAdapter.createSimJob` can insert normalized rows into `team_lab_sim_jobs` when called from a trusted writer context.
+- `SupabaseAdapter.updateSimJobStatus` can move jobs through queued/running/completed/failed/cancelled states with status reports and timestamps.
+- `SupabaseAdapter.saveReplayRecord` can persist normalized replay evidence into `team_lab_replays`.
+- `SupabaseAdapter.listSimJobs` and `SupabaseAdapter.listReplays` expose versioned, scoped reads by regulation, format, engine version, ruleset version, job, run, team, and status.
+- Browser anon writes remain intentionally blocked by Supabase RLS. The adapter surfaces `trusted_writer_required` instead of pretending evidence was persisted.
+
+This prepares the QA artifact drop-folder/import pipeline without weakening the security model or turning local browser evidence into official leaderboard truth.
+
+### Missing pieces added to the active plan
+
+The adapter boundary is not the full import pipeline. These items remain open and should be implemented before any Team Lab leaderboard is treated as public ranking evidence:
+
+1. Trusted evidence import worker: accepts normalized artifacts, runs server-side validation, writes `team_lab_sim_jobs` and `team_lab_replays`, and records import audit metadata without exposing service credentials to the browser.
+2. Artifact team-ID mapping resolver: maps local artifact keys to reviewed Team Lab team UUIDs and refuses promotion when mapping is ambiguous.
+3. Leaderboard evidence promotion rules: separates official benchmark/recalculation jobs from dev/experimental evidence, with minimum sample sizes and source-gap gates.
+4. Recalculation queue: rebuilds leaderboard and matchup rows after trusted imports, engine updates, or ruleset updates, then marks old rows stale.
+5. Poisoning controls: prevents unknown, illegal, stale, private, or unreviewed evidence from improving public/global leaderboard rank.
+
+### GitHub M15 issue alignment update
+
+As of the `v2.2.50-sim-evidence-adapter` QA check, the Team Lab surface may look empty because the repo has backend/schema/evidence plumbing but not the public read UI or trusted evidence promotion path yet. That is not a simulation regression; it is an unfinished M15 product surface.
+
+Current M15 GitHub issue map:
+
+1. #179 Team Lab read UI: makes leaderboard/cards/detail/trust badges visible.
+2. #180 Custom team submission/edit flow and legality validation.
+3. #181 Leaderboard recalculation, stale guards, and official ranking gates.
+4. #182 QA artifact import pipeline into sim_jobs and replays.
+5. #183 Compare My Team matchup matrix.
+6. #184 Hidden-details privacy and public evidence API contract.
+7. #185 Account profile analytics.
+8. #186 Global vs personal analytics trust boundary.
+9. #187 Trusted Team Lab evidence import worker.
+10. #188 Artifact team-ID mapping resolver.
+11. #189 Team Lab leaderboard evidence promotion rules.
+
+Do not close the Team Lab milestone while the UI is empty. The current backend work is valid only as foundation until the read UI, trusted writer, mapping resolver, and promotion rules are implemented and tested.

@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.49-qa-artifact-evidence-intake'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.51-team-lab-milestone-align'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -11849,6 +11849,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Team Lab evidence adapter boundary added',
+      detail: 'v2.2.50 wires SupabaseAdapter methods for Team Lab sim jobs and replay evidence so future QA artifact imports can persist versioned evidence through trusted writers, while browser anon writes remain blocked by RLS and surface trusted_writer_required instead of silently claiming storage.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -12854,6 +12859,21 @@ function csRenderOverviewTeamLabPlan() {
       detail: 'Convert turn-log and QA artifacts into sim_jobs/replays evidence while preserving source gaps for team mapping, regulation, ruleset, and summary-only sweep data.'
     },
     {
+      status: 'gap',
+      title: 'Trusted evidence import worker (#187)',
+      detail: 'Missing follow-up: browser exports can normalize evidence, but protected Supabase writes must happen through a trusted worker/server action with audit logging, not through anon browser clients.'
+    },
+    {
+      status: 'gap',
+      title: 'Artifact team-ID mapping resolver (#188)',
+      detail: 'Missing follow-up: QA artifacts still use local keys like player or bundled opponent IDs until a reviewed resolver maps them to Team Lab team UUIDs without poisoning leaderboard data.'
+    },
+    {
+      status: 'gap',
+      title: 'Leaderboard evidence promotion rules (#189)',
+      detail: 'Missing follow-up: define which sim_jobs can promote replay rows into official leaderboard scopes versus experimental/dev evidence, including benchmark pool approval and minimum sample requirements.'
+    },
+    {
       status: 'next',
       title: 'Compare My Team matchup matrix (#183)',
       detail: 'Compare a user team against top leaderboard teams and archetypes with simulator-derived win rate, confidence, best/worst matchups, stale warnings, and source gaps.'
@@ -12879,7 +12899,7 @@ function csRenderOverviewTeamLabPlan() {
       '<div><h3>Team Lab / Leaderboard Plan</h3><span class="overview-kicker">M15 issue plan</span></div>' +
       '<strong>' + rows.length + '</strong>' +
     '</summary>' +
-    '<p class="overview-source-note">Team Lab rankings must read as evidence, not absolute truth: every ranking needs regulation, ruleset, engine version, sample size, confidence, legality, stale status, and hidden-detail privacy controls.</p>' +
+    '<p class="overview-source-note">Team Lab rankings must read as evidence, not absolute truth: every ranking needs regulation, ruleset, engine version, sample size, confidence, legality, stale status, and hidden-detail privacy controls. If the Team Lab surface is empty today, that is expected until the read UI (#179), trusted import worker (#187), and evidence promotion rules (#189) are complete.</p>' +
     '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
   '</details>';
 }
