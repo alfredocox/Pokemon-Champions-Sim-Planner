@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.48-overview-milestone-board'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.49-qa-artifact-evidence-intake'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -12792,10 +12792,108 @@ function csRenderOverviewSourceDocs(data) {
       '<td>' + _escapeHtml(doc.notes) + '</td></tr>';
   }).join('');
   return '<div class="overview-section overview-source-map">' +
-    '<div class="overview-section-head"><h3>Source Doc Map</h3><span class="overview-kicker">canonical vs archive</span></div>' +
-    '<p class="overview-source-note">Use this map to challenge sources without duplicating truth. Canonical docs own current decisions; planning/archive docs preserve context but must not override runtime truth.</p>' +
+    '<div class="overview-section-head"><h3>Repo Docs Guide</h3><span class="overview-kicker">what to read first</span></div>' +
+    '<p class="overview-source-note">Start here when the repo feels confusing. These are the main documents for source truth, architecture, Team Lab, and audits; archive docs preserve context but should not override the current source-truth files.</p>' +
     '<div class="overview-db-table-wrap"><table class="overview-db-table"><thead><tr><th>Document</th><th>Role</th><th>Status</th><th>Use rule</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
   '</div>';
+}
+
+function csRenderOverviewQaJoshIssues() {
+  var rows = [
+    {
+      status: 'gap',
+      title: 'Josh review: Pokemon data audit workbook (#123)',
+      detail: 'Open QA/reviewer gate under M9. Treat this as the human data-audit checkpoint before stronger legality or coaching claims.'
+    },
+    {
+      status: 'next',
+      title: 'Manual QA: Champion Replay Intelligence smoke test (#105)',
+      detail: 'Open launch proof item. Needs fresh browser evidence after releases so replay intelligence, damage/effect rows, and QA exports stay trustworthy.'
+    },
+    {
+      status: 'next',
+      title: 'Second verified Champion replay artifact (#104)',
+      detail: 'Open Stage 3 replay-proof item. Adds another verified artifact for Compliance Checker and Battle IQ calibration.'
+    },
+    {
+      status: 'validated',
+      title: 'Mechanics truth audit beta gate (#149)',
+      detail: 'Closed June 29, 2026. Keep as proof history for multi-effect moves, field/status interactions, and Fake Out suppression.'
+    }
+  ];
+  return '<details class="overview-section overview-qa-josh-issues" open>' +
+    '<summary class="overview-closed-proof-summary">' +
+      '<div><h3>QA / Josh Review Issues</h3><span class="overview-kicker">review gates</span></div>' +
+      '<strong>' + rows.length + '</strong>' +
+    '</summary>' +
+    '<p class="overview-source-note">This section is the human-review lane: Josh/data audit, manual replay QA, verified artifact requests, and closed proof gates that should not get lost inside source docs.</p>' +
+    '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
+  '</details>';
+}
+
+function csRenderOverviewTeamLabPlan() {
+  var rows = [
+    {
+      status: 'next',
+      title: 'Team Lab read UI (#179)',
+      detail: 'Leaderboard page, TeamCard, detail panel, TrustBadge, VersionBanner, filters, stale/current warnings, and hidden-detail-safe rendering.'
+    },
+    {
+      status: 'next',
+      title: 'Custom team submission and validation (#180)',
+      detail: 'Create/edit teams, set private/hidden/public visibility, validate legality, save legality_report, and keep unknown Champion data as needs_verification.'
+    },
+    {
+      status: 'next',
+      title: 'Leaderboard recalculation and stale guards (#181)',
+      detail: 'Exclude illegal teams, route needs_verification to experimental scopes, require sample-size/version gates, and mark old rankings stale after rules or engine changes.'
+    },
+    {
+      status: 'next',
+      title: 'QA artifact import pipeline (#182)',
+      detail: 'Convert turn-log and QA artifacts into sim_jobs/replays evidence while preserving source gaps for team mapping, regulation, ruleset, and summary-only sweep data.'
+    },
+    {
+      status: 'next',
+      title: 'Compare My Team matchup matrix (#183)',
+      detail: 'Compare a user team against top leaderboard teams and archetypes with simulator-derived win rate, confidence, best/worst matchups, stale warnings, and source gaps.'
+    },
+    {
+      status: 'next',
+      title: 'Hidden-details privacy and public API contract (#184)',
+      detail: 'Ensure hidden_details teams show public summary evidence without leaking moves, items, EVs, IVs, natures, or tech choices to non-owners.'
+    },
+    {
+      status: 'next',
+      title: 'Account profile analytics (#185)',
+      detail: 'Future login should store private teams, sim history, replay summaries, personal trends, tailored reports, and team-change progress separately from global aggregate analytics.'
+    },
+    {
+      status: 'decision',
+      title: 'Global vs personal analytics boundary (#186)',
+      detail: 'Global evidence can improve aggregate recommendations only when versioned, anonymized, consented, and poison-resistant; personal coaching data stays private by default.'
+    }
+  ];
+  return '<details class="overview-section overview-team-lab-plan" open>' +
+    '<summary class="overview-closed-proof-summary">' +
+      '<div><h3>Team Lab / Leaderboard Plan</h3><span class="overview-kicker">M15 issue plan</span></div>' +
+      '<strong>' + rows.length + '</strong>' +
+    '</summary>' +
+    '<p class="overview-source-note">Team Lab rankings must read as evidence, not absolute truth: every ranking needs regulation, ruleset, engine version, sample size, confidence, legality, stale status, and hidden-detail privacy controls.</p>' +
+    '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
+  '</details>';
+}
+
+function csRenderOverviewClosedProofArchive(data) {
+  var rows = data && Array.isArray(data.validation) ? data.validation : [];
+  return '<details class="overview-section overview-closed-proof-archive">' +
+    '<summary class="overview-closed-proof-summary">' +
+      '<div><h3>Closed Proof Archive</h3><span class="overview-kicker">validated / closed</span></div>' +
+      '<strong>' + rows.length + '</strong>' +
+    '</summary>' +
+    '<p class="overview-source-note">Validated proof stays available for audit, but it starts collapsed so open gates and next work stay easier to scan.</p>' +
+    '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
+  '</details>';
 }
 
 function csOverviewStatusLabel(status) {
@@ -12930,8 +13028,10 @@ function renderOverviewTab() {
     '</div>' +
     '<div class="overview-grid">' +
       '<div class="overview-list">' +
+        csRenderOverviewQaJoshIssues() +
+        csRenderOverviewTeamLabPlan() +
         csRenderOverviewSourceDocs(data) +
-        csRenderOverviewSection('Closed Proof Archive', 'closed', data.validation) +
+        csRenderOverviewClosedProofArchive(data) +
       '</div>' +
       '<div class="overview-list">' +
         '<div class="overview-section">' +

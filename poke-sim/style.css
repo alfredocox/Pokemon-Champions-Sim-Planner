@@ -391,6 +391,19 @@ table{border-collapse:collapse;width:100%}
 .overview-bucket>summary strong{font-family:var(--font-mono);font-size:10px;color:var(--text-m)}
 .overview-bucket .overview-list{padding:0 10px 10px}
 .overview-source-map .overview-db-table{min-width:760px}
+.overview-closed-proof-archive{padding:0;overflow:hidden}
+.overview-closed-proof-summary{display:flex;align-items:center;justify-content:space-between;gap:var(--sp3);padding:var(--sp4);cursor:pointer;list-style:none}
+.overview-closed-proof-summary::-webkit-details-marker{display:none}
+.overview-closed-proof-summary h3{font-size:var(--text-lg);font-weight:900;line-height:1.15}
+.overview-closed-proof-summary strong{font-family:var(--font-mono);font-size:10px;color:var(--green);border:1px solid rgba(78,201,148,.45);background:rgba(78,201,148,.08);border-radius:var(--r-full);padding:4px 8px}
+.overview-closed-proof-archive>.overview-source-note{padding:0 var(--sp4);margin:0 0 var(--sp3)}
+.overview-closed-proof-archive>.overview-list{padding:0 var(--sp4) var(--sp4)}
+.overview-qa-josh-issues{border-color:rgba(245,197,66,.4);background:linear-gradient(135deg,rgba(245,197,66,.08),rgba(240,84,100,.05))}
+.overview-qa-josh-issues>.overview-source-note{padding:0 var(--sp4);margin:0 0 var(--sp3)}
+.overview-qa-josh-issues>.overview-list{padding:0 var(--sp4) var(--sp4)}
+.overview-team-lab-plan{border-color:rgba(91,164,245,.4);background:linear-gradient(135deg,rgba(91,164,245,.08),rgba(78,201,148,.05))}
+.overview-team-lab-plan>.overview-source-note{padding:0 var(--sp4);margin:0 0 var(--sp3)}
+.overview-team-lab-plan>.overview-list{padding:0 var(--sp4) var(--sp4)}
 @media(max-width:700px){.overview-milestone-summary{flex-direction:column}.overview-milestone-counts{justify-content:flex-start;min-width:0}.overview-buckets{padding:0 var(--sp3) var(--sp3)}}
 
 @media(max-width:900px){.overview-grid{grid-template-columns:1fr}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-db-summary,.overview-db-counts{grid-template-columns:repeat(2,minmax(0,1fr))}}
