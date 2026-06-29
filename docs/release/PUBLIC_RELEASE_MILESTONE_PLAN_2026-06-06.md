@@ -52,7 +52,7 @@ Current release checklist:
 
 | Milestone | Name | Goal | Exit Criteria | Status |
 |---|---|---|---|---|
-| R0 | Repo Alignment | Make TheYfactora and Alfredo repos share one reviewed release candidate | Candidate PR is open, CI is green, branch parity is confirmed, merge path is documented | Open |
+| R0 | Repo Alignment | Make TheYfactora and Alfredo repos share one reviewed release candidate | Candidate PR is open, CI is green, branch parity is confirmed, merge path is documented | Current through v2.2.30 |
 | R1 | Public Hosting Foundation | Make one stable public site URL deploy from `main` | Pages deploys through Actions, HTTPS works, canonical URL is documented, service worker cache is current | In progress |
 | R2 | PR And CI Gates | Prevent untested bundle, data, or sim changes from reaching public users | Required checks include CI, bundle freshness, cache bump, priority/order tests, and relevant audit gates | In progress |
 | R3 | Showdown Data Pipeline | Use Showdown-mirrored data plus Champions overrides as approved release input | Sync/audit tables exist, diffs are reviewed, approved views generate deterministic app assets | Planned |
@@ -65,6 +65,8 @@ Current release checklist:
 ## Issue Layout
 
 ### R0 - Repo Alignment
+
+2026-06-29 status: TheYfactora12 PR #160 merged `v2.2.30-replay-detail-rows` into `main`, then Alfredo PR #256 synced the same tree and passed the required checks plus the 5,070-battle Battle Audit before merge. Keep this milestone active as a repeating process, but the current repo alignment slice is closed.
 
 | Issue | Owner | Close When |
 |---|---|---|
@@ -84,6 +86,8 @@ Current release checklist:
 | Document rollback steps | Engineering | Known-good SHA and redeploy/revert process are written |
 
 ### R2 - PR And CI Gates
+
+2026-06-29 status: the replay-detail slice proved the current gate stack on both repos: Syntax Check, Test Suite, bundle freshness, service-worker cache bump, Detect Engine/Data Changes, and Battle Audit where engine/replay changes require it.
 
 | Issue | Owner | Close When |
 |---|---|---|

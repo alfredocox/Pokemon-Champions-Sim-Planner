@@ -119,7 +119,8 @@
 // v160-move-failure-evidence [2026-06-28] - Refresh app shell for structured move-failure evidence rows.
 // v161-replay-log-dedupe [2026-06-28] - Refresh app shell for cleaner resolved replay log display.
 // v162-replay-detail-rows [2026-06-28] - Refresh app shell for grouped replay damage/miss/failure details.
-const CACHE_NAME = 'champions-sim-v162-replay-detail-rows';
+// v163-overview-closeout [2026-06-29] - Refresh Overview/release closeout notes and issue status.
+const CACHE_NAME = 'champions-sim-v163-overview-closeout';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [

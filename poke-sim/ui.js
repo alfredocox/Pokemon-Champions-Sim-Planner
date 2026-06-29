@@ -116,9 +116,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.30-replay-detail-rows';
+    return txt || 'v2.2.31-overview-closeout';
   } catch (e) {
-    return 'v2.2.30-replay-detail-rows';
+    return 'v2.2.31-overview-closeout';
   }
 }
 
@@ -11538,6 +11538,36 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Editor and import UX closed out',
+      detail: 'v2.2.26 and v2.2.27 add explicit editor save/cancel controls plus Showdown/text-file import feedback. The custom-team workflow now gives users visible parser results, edit rollback, and legality-gated saves instead of failing silently when uploaded sets have missing or malformed moves.'
+    },
+    {
+      status: 'done',
+      title: 'Move failure evidence added',
+      detail: 'v2.2.28 adds structured move-failure rows so replay and QA evidence can show misses, immunities, invalid targets, blocked attempts, and other non-damage outcomes instead of leaving players to infer why a move did nothing.'
+    },
+    {
+      status: 'done',
+      title: 'Replay log duplication cleaned up',
+      detail: 'v2.2.29 removes the duplicate pre-call replay lines and keeps the resolved action row as the visible trainer-facing line, so move order, damage, misses, failures, and KOs are easier to audit in order.'
+    },
+    {
+      status: 'done',
+      title: 'Detailed replay event rows shipped',
+      detail: 'v2.2.30 groups richer replay details by resolved action. Spread and doubles moves can show every target hit in the same action row, while miss/failure rows expose reason and accuracy evidence when available.'
+    },
+    {
+      status: 'done',
+      title: 'Y and Alfredo repos synced through v2.2.30',
+      detail: 'TheYfactora12 PR #160 merged with green CI and Pages deploy, then Alfredo PR #256 synced the same tree through v2.2.30 and passed Syntax Check, Test Suite, bundle freshness, service-worker cache, Detect Engine/Data Changes, and the 5,070-battle Battle Audit before merge.'
+    },
+    {
+      status: 'done',
+      title: 'Overview closeout status refreshed',
+      detail: 'v2.2.31 updates the Overview and release docs so closed work, still-open beta gates, and repo sync proof are visible from the app instead of trapped in chat history.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -12065,6 +12095,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'validated',
+      title: 'v2.2.30 replay detail release is validated',
+      detail: 'TheYfactora12 main CI completed successfully on merge commit 880b2e4 for PR #160, and Alfredo PR #256 merged the same v2.2.30 tree after all required checks passed, including the 5,070-battle Battle Audit. This closes the repo-sync proof for the replay detail row slice.'
+    },
+    {
+      status: 'validated',
       title: 'Previous Y/Alfredo source sync completed',
       detail: 'Alfredo PR #245 merged the prior Champion parity tree after required checks passed, and TheYfactora12 main was fast-forwarded to the same merge commit. The current local damage-log and approved-team-gate slice should prove out on the Y fork first; Alfredo sync is lower priority until the browser proof gate is clean.'
     }
@@ -12140,7 +12175,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'next',
       title: 'Stress-test, rebuild, and prove the new truth board',
-      detail: 'Before pushing to GitHub Pages, run focused legality/damage tests, the broader non-DB suite, rebuild `pokemon-champion-2026.html`, check the bundle, then use a fresh deployed URL to export one single-run log, one Run All log, and one QA Artifact. This also feeds Y #105/#104 and Alfredo #216 for replay/artifact proof.'
+      detail: 'After v2.2.31 deploys, use the fresh cache-busted URL to export one single-run log, one Run All or Stress Lite artifact depending on device safety, and one QA Artifact. Confirm build_id/source_url, detailed replay rows, move-failure evidence, retained coverage totals, and no stale cache before using the result as public proof.'
     },
     {
       status: 'next',

@@ -11,6 +11,17 @@ Audience: partners, Josh, reviewers, and anyone picking up simulator accuracy wo
 - Downloaded turn logs now include schema, build, timestamp, and source URL metadata, so future debug logs can prove which deployed build produced them.
 - This validates the current data/load/item guardrails; it does not close full damage, move, ability, or mechanics parity.
 
+## 2026-06-29 Closeout Update
+
+- TheYfactora12 `main` is now merged through PR #160 at commit `880b2e4` with build `v2.2.30-replay-detail-rows`.
+- Alfredo is synced through PR #256 at commit `f3efe74` after passing Syntax Check, Test Suite, bundle freshness, service-worker cache, Detect Engine/Data Changes, and the 5,070-battle Battle Audit.
+- The current replay layer now exposes cleaner resolved action rows, structured move-failure evidence, and detailed replay event rows for spread/doubles damage, misses, failures, and grouped target effects.
+- Issue #120 is closeable because the replay input/import friction slice has shipped and is now superseded by richer replay evidence work.
+- Issue #106 is closeable because Sources/Data Provenance, no-drift release alignment, bundle freshness, cache bumping, and cross-repo sync proof are now documented and checked.
+- Issue #103 remains open for public deployment hardening: mobile Safari/Android smoke evidence and abuse/rate-limit strategy are still not fully closed.
+- Issue #149 remains open as the mechanics-truth beta gate until the source-backed inventory covers multi-effect moves, field/status interactions, Fake Out/action-denial windows, and visible replay/QA proof for each family.
+- Issue #105 remains open as the continuing manual QA lane for Josh/JD browser evidence rather than being treated as a single completed implementation ticket.
+
 ## Current Status
 
 The simulator is in a better review state today, but it is still not ready for strong "fully accurate" claims.
@@ -22,6 +33,8 @@ What is true right now:
 - the local fast suite passes
 - the offline DB suite passes
 - the UI smoke path passes
+- TheYfactora12 and Alfredo repos are synced through `v2.2.30-replay-detail-rows`
+- detailed replay rows and move-failure evidence are now available for QA review
 - the visible shipped catalog is now Champions-only
 - SV-format teams are no longer surfaced in the live team list
 - the preferred live DB catalog migration is generator-backed from `poke-sim/data.js`
@@ -32,6 +45,7 @@ What is not true yet:
 
 - full simulator parity is not proven across all mechanics
 - the issue #149 mechanics-truth beta gate is still open until long-tail field/status/multi-effect interactions are inventory-backed and regression-proven
+- public security/deployment hardening remains tracked by issue #103
 - future live GitHub Pages builds should not be treated as updated until the matching deploy run is green and the exported log `build_id` confirms the tested build
 - approved Supabase views are not yet the final public runtime source
 

@@ -1,6 +1,6 @@
 # Champion Sim Architecture and Evidence Map
 
-Status: current for source-truth architecture and `v2.1.83-champions-tera-gate` follow-up docs on 2026-06-27.
+Status: current for source-truth architecture and `v2.2.31-overview-closeout` follow-up docs on 2026-06-29.
 
 Use this file when QA, data reviewers, or repo maintainers need to understand how the simulator works, where source truth enters the system, what Supabase does, and what evidence proves a battle result.
 
@@ -107,6 +107,8 @@ The Stress Lite artifact must also stay readable at a glance. The export now mir
 - best observed line, avoid move, and next coaching focus
 
 `v2.2.19-hard-beta-guard` adds public-device guardrails for release safety. Mobile/coarse-pointer and low-memory browsers are forced toward `Stress Lite + QA`; `Run All` and `Run All + QA Artifact` are disabled on those risky public devices; large series counts and full branch-coverage depth are capped so phone users do not become accidental load tests.
+
+`v2.2.30-replay-detail-rows` closes the current replay-transparency slice. The replay display now prefers resolved action rows over duplicated move pre-call lines, carries structured move-failure evidence, and groups spread/doubles target damage so one move can show every affected target, miss, failure, and KO reason from the same exported evidence. TheYfactora12 PR #160 and Alfredo sync PR #256 both passed required checks before merge; Alfredo also passed the 5,070-battle Battle Audit.
 
 Process challenge for coach-memory work:
 
@@ -326,8 +328,8 @@ Recent learned failure modes:
 
 Do not claim broad 100% accuracy until these are closed or explicitly accepted:
 
-- Fresh deployed-browser `v2.2.16` single-run, Run All, Tactical Sweep, and QA Artifact proof for the coach-memory/sequence-why candidate.
-- The deployed QA Artifact must report `ready_for_codex: true` and `next_missing_proof: []` before `v2.2.16` replaces `v2.2.15` as the live proof baseline.
+- Fresh deployed-browser `v2.2.31` single-run, safe Run All or Stress Lite, Tactical Sweep, and QA Artifact proof for the current closeout candidate.
+- The deployed QA Artifact must report the expected `build_id`, `source_url`, detailed replay row fields, and no unreviewed missing targeted proof before `v2.2.31` becomes the current live proof baseline.
 - Live DB runtime-source promotion or explicit static fallback signoff.
 - Full DB forensic-log retention design if Supabase must be the long-term audit store.
 - Remaining grouped battle-system mechanics beyond shipped move coverage: redirection, Protect family, switching/replacement, status, item edge cases, terrain/weather edge cases, and Champion-specific overrides.
