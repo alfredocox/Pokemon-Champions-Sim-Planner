@@ -218,6 +218,9 @@ T('5. Overview styles are responsive and scan-friendly', () => {
   inc(css, '.overview-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp3)}');
   inc(css, '.overview-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:var(--sp4);align-items:start}');
   inc(css, '.overview-db-inspector');
+  inc(css, '.overview-milestone-board');
+  inc(css, '.overview-milestone-summary');
+  inc(css, '.overview-bucket');
   inc(css, '.overview-db-counts');
   inc(css, '.overview-db-table');
   inc(css, '.overview-status.done');
@@ -227,6 +230,18 @@ T('5. Overview styles are responsive and scan-friendly', () => {
 
 T('6. Overview renders through a reusable function for future growth', () => {
   inc(ui, 'function renderOverviewTab()');
+  inc(ui, 'csBuildOverviewMilestones');
+  inc(ui, 'overview-milestone-board');
+  inc(ui, 'Milestone Board');
+  inc(ui, 'Done / Open / Next');
+  inc(ui, 'Simulation Truth & Mechanics Accuracy');
+  inc(ui, 'Source Truth, Regulations & Data Governance');
+  inc(ui, 'Team Lab, Saved Teams & Evidence Pipeline');
+  inc(ui, 'Release Reliability, Security & Repo Sync');
+  inc(ui, 'Coaching, UX & Player Learning');
+  inc(ui, 'Source Doc Map');
+  inc(ui, 'canonical vs archive');
+  inc(ui, 'Canonical Team Lab trust roadmap');
   inc(ui, 'ChampionsSim.overview');
   inc(ui, 'renderOverviewTab();');
   inc(ui, '.tab-btn[data-tab="overview"]');

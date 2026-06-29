@@ -410,6 +410,28 @@ table{border-collapse:collapse;width:100%}
 .overview-doc-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--sp3)}
 .overview-doc-links a{display:inline-flex;align-items:center;min-height:30px;padding:5px 10px;border:1px solid rgba(91,164,245,.35);border-radius:var(--r-full);color:var(--blue);font-size:11px;font-weight:800;text-decoration:none;background:rgba(91,164,245,.07)}
 .overview-doc-links a:hover{border-color:var(--blue);color:var(--text)}
+.overview-milestone-board{display:flex;flex-direction:column;gap:var(--sp3)}
+.overview-board-intro{border-color:rgba(91,164,245,.35);background:linear-gradient(135deg,rgba(91,164,245,.08),rgba(78,201,148,.05))}
+.overview-milestone{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--sh-sm);overflow:hidden;min-width:0}
+.overview-milestone-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp4);padding:var(--sp4);cursor:pointer;list-style:none}
+.overview-milestone-summary::-webkit-details-marker{display:none}
+.overview-milestone-summary h3{font-size:var(--text-lg);font-weight:900;line-height:1.15;margin-top:3px}
+.overview-milestone-summary p,.overview-source-note{color:var(--text-m);font-size:12px;margin-top:5px;line-height:1.45}
+.overview-milestone-counts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;min-width:220px}
+.overview-count{display:inline-flex;align-items:center;border-radius:var(--r-full);padding:4px 8px;font-family:var(--font-mono);font-size:9px;font-weight:900;text-transform:uppercase;border:1px solid var(--border);white-space:nowrap}
+.overview-count.open{color:var(--red);border-color:rgba(240,84,100,.45);background:rgba(240,84,100,.08)}
+.overview-count.next{color:var(--gold);border-color:rgba(245,197,66,.45);background:rgba(245,197,66,.08)}
+.overview-count.done{color:var(--green);border-color:rgba(78,201,148,.45);background:rgba(78,201,148,.08)}
+.overview-count.decision{color:var(--orange);border-color:rgba(245,140,66,.45);background:rgba(245,140,66,.08)}
+.overview-buckets{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--border);padding:0 var(--sp4) var(--sp4)}
+.overview-bucket{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface2);overflow:hidden}
+.overview-bucket>summary{display:flex;align-items:center;justify-content:space-between;gap:var(--sp3);padding:9px 10px;cursor:pointer;font-weight:900;font-size:12px;list-style:none;color:var(--text)}
+.overview-bucket>summary::-webkit-details-marker{display:none}
+.overview-bucket>summary strong{font-family:var(--font-mono);font-size:10px;color:var(--text-m)}
+.overview-bucket .overview-list{padding:0 10px 10px}
+.overview-source-map .overview-db-table{min-width:760px}
+@media(max-width:700px){.overview-milestone-summary{flex-direction:column}.overview-milestone-counts{justify-content:flex-start;min-width:0}.overview-buckets{padding:0 var(--sp3) var(--sp3)}}
+
 @media(max-width:900px){.overview-grid{grid-template-columns:1fr}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-db-summary,.overview-db-counts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.overview-header{gap:var(--sp3)}.overview-updated{white-space:normal}.overview-metrics{grid-template-columns:1fr}.overview-section{padding:var(--sp3)}.overview-item{grid-template-columns:1fr;gap:6px}.overview-status{justify-self:start}.overview-section-head{align-items:flex-start;flex-direction:column;gap:6px}.overview-kicker{white-space:normal}.overview-db-summary,.overview-db-counts{grid-template-columns:1fr}}
 
@@ -2394,8 +2416,8 @@ table{border-collapse:collapse;width:100%}
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-      <!-- build history: v2.1.68-speed-transition v2.1.69-source-truth-audit v2.1.70-terrain-gaps-fixed v2.1.83-champions-tera-gate v2.1.86-regmb-source-audit v2.1.87-ruleset-lifecycle v2.1.88-ruleset-team-sections v2.1.89-regmb-review-cards v2.1.94-paldea-tauros-sprites v2.1.95-sprite-fallback-chain v2.1.96-alola-raichu-sprite-fallbacks v2.1.97-hisui-zoroark-gif v2.1.98-gif-primary-sprite-audit v2.1.99-regmb-promotion-gate v2.2.0-regmb-stone-source-pass v2.2.1-regmb-stats-types-abilities-source-pass v2.2.2-learnset-policy-pass v2.2.3-damage-stat-override-audit v2.2.4-contact-flag-audit v2.2.5-secondary-effect-audit v2.2.6-complex-secondary-state v2.2.7-secondary-table-consolidation v2.2.8-drain-rule-source-audit v2.2.9-foul-play-stat-source-audit v2.2.10-move-rule-trace-qa v2.2.11-codex-qa-context-drop v2.2.12-codex-qa-drop-folder v2.2.13-tactical-sweep-schema v2.2.14-stat-source-proof-team v2.2.15-live-db-pages-guard v2.2.16-coach-sequence-why v2.2.17-stress-lite-qa v2.2.18-stress-lite-summary v2.2.19-hard-beta-guard v2.2.20-data-sources-matrix v2.2.21-source-sync-stamps v2.2.22-source-sync-runtime v2.2.23-sources-ui-polish v2.2.26-editor-save-cancel v2.2.27-import-file-feedback v2.2.28-move-failure-evidence v2.2.29-replay-log-dedupe v2.2.30-replay-detail-rows v2.2.31-overview-closeout v2.2.32-action-denial-priority v2.2.33-status-lock-proof v2.2.34-status-resolution-proof v2.2.43-move-effect-logic-matrix v2.2.44-source-confidence-intake v2.2.45-team-lab-foundation v2.2.46-source-truth-packages -->
-      <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version comes from release_manifest.js so deployed bundle, exports, and service worker cache agree">v2.2.46-source-truth-packages</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
+      <!-- build history: v2.1.68-speed-transition v2.1.69-source-truth-audit v2.1.70-terrain-gaps-fixed v2.1.83-champions-tera-gate v2.1.86-regmb-source-audit v2.1.87-ruleset-lifecycle v2.1.88-ruleset-team-sections v2.1.89-regmb-review-cards v2.1.94-paldea-tauros-sprites v2.1.95-sprite-fallback-chain v2.1.96-alola-raichu-sprite-fallbacks v2.1.97-hisui-zoroark-gif v2.1.98-gif-primary-sprite-audit v2.1.99-regmb-promotion-gate v2.2.0-regmb-stone-source-pass v2.2.1-regmb-stats-types-abilities-source-pass v2.2.2-learnset-policy-pass v2.2.3-damage-stat-override-audit v2.2.4-contact-flag-audit v2.2.5-secondary-effect-audit v2.2.6-complex-secondary-state v2.2.7-secondary-table-consolidation v2.2.8-drain-rule-source-audit v2.2.9-foul-play-stat-source-audit v2.2.10-move-rule-trace-qa v2.2.11-codex-qa-context-drop v2.2.12-codex-qa-drop-folder v2.2.13-tactical-sweep-schema v2.2.14-stat-source-proof-team v2.2.15-live-db-pages-guard v2.2.16-coach-sequence-why v2.2.17-stress-lite-qa v2.2.18-stress-lite-summary v2.2.19-hard-beta-guard v2.2.20-data-sources-matrix v2.2.21-source-sync-stamps v2.2.22-source-sync-runtime v2.2.23-sources-ui-polish v2.2.26-editor-save-cancel v2.2.27-import-file-feedback v2.2.28-move-failure-evidence v2.2.29-replay-log-dedupe v2.2.30-replay-detail-rows v2.2.31-overview-closeout v2.2.32-action-denial-priority v2.2.33-status-lock-proof v2.2.34-status-resolution-proof v2.2.43-move-effect-logic-matrix v2.2.44-source-confidence-intake v2.2.45-team-lab-foundation v2.2.46-source-truth-packages v2.2.47-sim-evidence-foundation v2.2.48-overview-milestone-board -->
+      <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version comes from release_manifest.js so deployed bundle, exports, and service worker cache agree">v2.2.48-overview-milestone-board</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
         <p class="site-sub">Champions 2026 Preview · Singles + Doubles Simulator</p>
       </div>
     </div>
@@ -3160,6 +3182,7 @@ table{border-collapse:collapse;width:100%}
 
 
 
+
 <script>
 // Service Worker registration
 if ('serviceWorker' in navigator) {
@@ -3192,9 +3215,9 @@ var supabase=function(e){function t(e,t){var r={};for(var s in e)Object.prototyp
 (function(root) {
   var manifest = {
     schema_version: 'champions-release-manifest-v1',
-    build_id: 'v2.2.46-source-truth-packages',
+    build_id: 'v2.2.48-overview-milestone-board',
     release_date: '2026-06-29',
-    service_worker_cache: 'champions-sim-v178-source-truth-packages',
+    service_worker_cache: 'champions-sim-v180-overview-milestone-board',
     bundle_name: 'pokemon-champion-2026.html',
     pages_path: 'poke-sim/pokemon-champion-2026.html',
     artifact_manifest: 'generated/release_artifact.json',
@@ -3268,9 +3291,9 @@ var supabase=function(e){function t(e,t){var r={};for(var s in e)Object.prototyp
       if (manifest && manifest.build_id) return String(manifest.build_id);
       var el = root.document && root.document.getElementById('build-version');
       var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-      return txt || 'v2.2.46-source-truth-packages';
+      return txt || 'v2.2.48-overview-milestone-board';
     } catch (e) {
-      return 'v2.2.46-source-truth-packages';
+      return 'v2.2.48-overview-milestone-board';
     }
   }
 
@@ -22123,6 +22146,242 @@ if (typeof module !== 'undefined' && module.exports) {
 })(typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : globalThis));
 
 
+// ============================================================
+// TEAM LAB SIM EVIDENCE FOUNDATION
+// ============================================================
+// First-class replay records and simulation jobs for Team Lab evidence.
+// This module does not run battles. It normalizes metadata so future runners,
+// replays, and leaderboard aggregation can stay versioned and auditable.
+(function(root) {
+  'use strict';
+
+  /** @typedef {'team_vs_team'|'team_vs_leaderboard'|'archetype_sweep'|'full_leaderboard_recalc'|'qa_regression'} SimJobType */
+  /** @typedef {'queued'|'running'|'completed'|'failed'|'cancelled'} SimJobStatus */
+  /** @typedef {'ko'|'timer'|'forfeit'|'draw'|'error'} SimResultReason */
+  /**
+   * @typedef {Object} SimJob
+   * @property {string=} id
+   * @property {SimJobType} job_type
+   * @property {string} regulation_id
+   * @property {string} ruleset_version
+   * @property {string} engine_version
+   * @property {'singles'|'doubles'} format
+   * @property {string[]} team_ids
+   * @property {string[]=} opponent_team_ids
+   * @property {string[]=} opponent_archetypes
+   * @property {number} games_per_matchup
+   * @property {SimJobStatus} status
+   * @property {Object=} status_report
+   * @property {string[]=} confidence_flags
+   * @property {string[]=} source_gaps
+   */
+  /**
+   * @typedef {Object} ReplayRecord
+   * @property {string=} id
+   * @property {string=} sim_run_id
+   * @property {string=} job_id
+   * @property {string} team_a_id
+   * @property {string} team_b_id
+   * @property {string} regulation_id
+   * @property {'singles'|'doubles'} format
+   * @property {string} engine_version
+   * @property {string} ruleset_version
+   * @property {string} seed
+   * @property {string=} winner_team_id
+   * @property {SimResultReason} result_reason
+   * @property {number=} turns
+   * @property {Object[]} event_log
+   * @property {Object[]=} turn_log
+   * @property {Object[]=} damage_events
+   * @property {Object[]=} effect_events
+   * @property {Object=} qa_coverage_summary
+   * @property {string[]=} confidence_flags
+   * @property {string[]=} source_gaps
+   */
+   /**
+    * @typedef {Object} ReplayEvidenceSummary
+    * @property {number} events
+    * @property {number} turns
+    * @property {number} damage_events
+    * @property {number} effect_events
+    * @property {boolean} has_qa_coverage
+    * @property {string[]} confidence_flags
+    * @property {string[]} source_gaps
+    */
+
+  var VALID_JOB_TYPES = ['team_vs_team', 'team_vs_leaderboard', 'archetype_sweep', 'full_leaderboard_recalc', 'qa_regression'];
+  var VALID_JOB_STATUS = ['queued', 'running', 'completed', 'failed', 'cancelled'];
+  var VALID_FORMATS = ['singles', 'doubles'];
+  var VALID_RESULT_REASONS = ['ko', 'timer', 'forfeit', 'draw', 'error'];
+
+  function cloneArray(value) {
+    return Array.isArray(value) ? value.slice() : [];
+  }
+
+  function unique(values) {
+    var out = [];
+    (values || []).forEach(function(value) {
+      if (value == null || value === '') return;
+      if (out.indexOf(value) === -1) out.push(value);
+    });
+    return out;
+  }
+
+  function issue(code, message) {
+    return { code: code, message: message };
+  }
+
+  function requireVersionedScope(input, errors) {
+    if (!input.regulation_id) errors.push(issue('REGULATION_ID_MISSING', 'regulation_id is required.'));
+    if (!input.ruleset_version) errors.push(issue('RULESET_VERSION_MISSING', 'ruleset_version is required.'));
+    if (!input.engine_version) errors.push(issue('ENGINE_VERSION_MISSING', 'engine_version is required.'));
+    if (VALID_FORMATS.indexOf(input.format) === -1) errors.push(issue('FORMAT_INVALID', 'format must be singles or doubles.'));
+  }
+
+  function validateSimJob(job) {
+    var errors = [];
+    if (!job || typeof job !== 'object') {
+      return { valid: false, errors: [issue('SIM_JOB_MISSING', 'Sim job payload is missing.')], warnings: [] };
+    }
+    if (VALID_JOB_TYPES.indexOf(job.job_type) === -1) errors.push(issue('JOB_TYPE_INVALID', 'job_type is invalid.'));
+    if (VALID_JOB_STATUS.indexOf(job.status || 'queued') === -1) errors.push(issue('JOB_STATUS_INVALID', 'status is invalid.'));
+    requireVersionedScope(job, errors);
+    if (!Array.isArray(job.team_ids) || job.team_ids.length === 0) errors.push(issue('TEAM_IDS_MISSING', 'At least one team id is required.'));
+    if (job.games_per_matchup == null || Number(job.games_per_matchup) < 1) errors.push(issue('GAMES_PER_MATCHUP_INVALID', 'games_per_matchup must be at least 1.'));
+    return { valid: errors.length === 0, errors: errors, warnings: [] };
+  }
+
+  function normalizeSimJob(job) {
+    var now = new Date().toISOString();
+    var copy = Object.assign({}, job || {});
+    copy.status = copy.status || 'queued';
+    copy.team_ids = unique(copy.team_ids || []);
+    copy.opponent_team_ids = unique(copy.opponent_team_ids || []);
+    copy.opponent_archetypes = unique(copy.opponent_archetypes || []);
+    copy.games_per_matchup = Number(copy.games_per_matchup || 0);
+    copy.confidence_flags = unique(copy.confidence_flags || []);
+    copy.source_gaps = unique(copy.source_gaps || []);
+    copy.status_report = copy.status_report || {};
+    copy.created_at = copy.created_at || now;
+    copy.updated_at = now;
+    return copy;
+  }
+
+  function replayEvidenceSummary(replay) {
+    var turnLog = cloneArray(replay && replay.turn_log);
+    var eventLog = cloneArray(replay && replay.event_log);
+    var damageRows = cloneArray(replay && replay.damage_events);
+    var effectRows = cloneArray(replay && replay.effect_events);
+    if (!damageRows.length && turnLog.length) {
+      turnLog.forEach(function(turn) { damageRows = damageRows.concat((turn && turn.damage_events) || []); });
+    }
+    if (!effectRows.length && turnLog.length) {
+      turnLog.forEach(function(turn) { effectRows = effectRows.concat((turn && turn.effect_events) || []); });
+    }
+    return {
+      events: eventLog.length,
+      turns: Number((replay && replay.turns) || turnLog.length || 0),
+      damage_events: damageRows.length,
+      effect_events: effectRows.length,
+      has_qa_coverage: !!(replay && replay.qa_coverage_summary && typeof replay.qa_coverage_summary === 'object'),
+      confidence_flags: unique(replay && replay.confidence_flags || []),
+      source_gaps: unique(replay && replay.source_gaps || [])
+    };
+  }
+
+  function validateReplayRecord(replay) {
+    var errors = [];
+    var warnings = [];
+    if (!replay || typeof replay !== 'object') {
+      return { valid: false, errors: [issue('REPLAY_MISSING', 'Replay payload is missing.')], warnings: warnings };
+    }
+    requireVersionedScope(replay, errors);
+    if (!replay.team_a_id) errors.push(issue('TEAM_A_ID_MISSING', 'team_a_id is required.'));
+    if (!replay.team_b_id) errors.push(issue('TEAM_B_ID_MISSING', 'team_b_id is required.'));
+    if (!replay.seed) errors.push(issue('SEED_MISSING', 'seed is required for deterministic replay evidence.'));
+    if (VALID_RESULT_REASONS.indexOf(replay.result_reason) === -1) errors.push(issue('RESULT_REASON_INVALID', 'result_reason is invalid.'));
+    if (!Array.isArray(replay.event_log)) errors.push(issue('EVENT_LOG_MISSING', 'event_log must be an array.'));
+    if (replay.turn_log != null && !Array.isArray(replay.turn_log)) errors.push(issue('TURN_LOG_INVALID', 'turn_log must be an array when present.'));
+    var summary = replayEvidenceSummary(replay || {});
+    if (!summary.events && !summary.turns) warnings.push(issue('REPLAY_EVIDENCE_EMPTY', 'Replay has no event_log rows and no turn_log rows.'));
+    return { valid: errors.length === 0, errors: errors, warnings: warnings, summary: summary };
+  }
+
+  function normalizeReplayRecord(replay) {
+    var now = new Date().toISOString();
+    var copy = Object.assign({}, replay || {});
+    copy.event_log = cloneArray(copy.event_log);
+    copy.turn_log = cloneArray(copy.turn_log);
+    copy.damage_events = cloneArray(copy.damage_events);
+    copy.effect_events = cloneArray(copy.effect_events);
+    copy.confidence_flags = unique(copy.confidence_flags || []);
+    copy.source_gaps = unique(copy.source_gaps || []);
+    copy.evidence_summary = replayEvidenceSummary(copy);
+    copy.created_at = copy.created_at || now;
+    return copy;
+  }
+
+  function attachReplayToSimRun(simRun, replay) {
+    var replayValidation = validateReplayRecord(replay);
+    if (!replayValidation.valid) return { ok: false, errors: replayValidation.errors, warnings: replayValidation.warnings };
+    var run = Object.assign({}, simRun || {});
+    var normalized = normalizeReplayRecord(replay);
+    run.replay_id = normalized.id || run.replay_id || null;
+    run.job_id = normalized.job_id || run.job_id || null;
+    run.confidence_flags = unique((run.confidence_flags || []).concat(normalized.confidence_flags || []));
+    run.replay_evidence_summary = normalized.evidence_summary;
+    return { ok: true, sim_run: run, replay: normalized, warnings: replayValidation.warnings };
+  }
+
+  function createSimEvidenceService(adapter) {
+    var db = adapter || {};
+    return {
+      createSimJob: function(input) {
+        var job = normalizeSimJob(input);
+        var validation = validateSimJob(job);
+        if (!validation.valid) return Promise.reject(Object.assign(new Error('Invalid sim job'), { validation: validation }));
+        return db.createSimJob ? db.createSimJob(job) : Promise.resolve(job);
+      },
+      updateSimJobStatus: function(jobId, status, statusReport) {
+        if (VALID_JOB_STATUS.indexOf(status) === -1) return Promise.reject(new Error('Invalid sim job status'));
+        return db.updateSimJobStatus ? db.updateSimJobStatus(jobId, status, statusReport || {}) : Promise.resolve({ id: jobId, status: status, status_report: statusReport || {} });
+      },
+      saveReplayRecord: function(input) {
+        var replay = normalizeReplayRecord(input);
+        var validation = validateReplayRecord(replay);
+        if (!validation.valid) return Promise.reject(Object.assign(new Error('Invalid replay record'), { validation: validation }));
+        return db.saveReplayRecord ? db.saveReplayRecord(replay) : Promise.resolve(replay);
+      },
+      attachReplayToSimRun: function(simRun, replay) {
+        return Promise.resolve(attachReplayToSimRun(simRun, replay));
+      },
+      listReplays: function(filters) {
+        return Promise.resolve(db.listReplays ? db.listReplays(filters || {}) : []);
+      },
+      listSimJobs: function(filters) {
+        return Promise.resolve(db.listSimJobs ? db.listSimJobs(filters || {}) : []);
+      }
+    };
+  }
+
+  var api = {
+    VALID_JOB_TYPES: VALID_JOB_TYPES,
+    VALID_JOB_STATUS: VALID_JOB_STATUS,
+    VALID_RESULT_REASONS: VALID_RESULT_REASONS,
+    validateSimJob: validateSimJob,
+    normalizeSimJob: normalizeSimJob,
+    validateReplayRecord: validateReplayRecord,
+    normalizeReplayRecord: normalizeReplayRecord,
+    replayEvidenceSummary: replayEvidenceSummary,
+    attachReplayToSimRun: attachReplayToSimRun,
+    createSimEvidenceService: createSimEvidenceService
+  };
+
+  root.SimEvidence = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : globalThis));
+
+
 // Species/form-specific learnset legality helper.
 // Uses generated Pokemon Showdown audit data when available.
 
@@ -26514,7 +26773,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.46-source-truth-packages'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.48-overview-milestone-board'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -38318,6 +38577,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Team Lab sim evidence foundation added',
+      detail: 'v2.2.47 adds first-class Team Lab sim_jobs and replays so future leaderboard rows can point to versioned batch jobs, deterministic seeds, replay/event logs, QA coverage summaries, confidence flags, and source gaps instead of relying on inline replay blobs.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -39078,8 +39342,194 @@ var CS_OVERVIEW_DATA = {
     { label: 'Runtime Naming Cheat Sheet', href: 'docs/SHOWDOWN_RUNTIME_NAMING_CHEATSHEET.md' },
     { label: 'Showdown Sync Architecture', href: 'docs/SHOWDOWN_SYNC_ARCHITECTURE.md' },
     { label: 'Spec Index', href: 'docs/SPECS_INDEX.md' }
+  ],
+  sourceDocs: [
+    {
+      label: 'Data Source Registry',
+      href: 'docs/DATA_SOURCE_REGISTRY.md',
+      role: 'Canonical source hierarchy and challenge page',
+      status: 'canonical',
+      notes: 'Use first when asking what source tier can prove a claim.'
+    },
+    {
+      label: 'Champion Sim Architecture + Evidence',
+      href: 'docs/CHAMPION_SIM_ARCHITECTURE_AND_EVIDENCE.md',
+      role: 'Canonical architecture and QA evidence contract',
+      status: 'canonical',
+      notes: 'Owns source-to-engine-to-export boundaries and proof workflow.'
+    },
+    {
+      label: 'Team Lab Architecture Alignment',
+      href: 'docs/team-lab/TEAM_LAB_ARCHITECTURE_ALIGNMENT_2026-06-29.md',
+      role: 'Canonical Team Lab trust roadmap',
+      status: 'canonical for Team Lab',
+      notes: 'Owns Team Lab backend/source-truth/sim-evidence sequencing until a broader architecture doc replaces it.'
+    },
+    {
+      label: 'Source Truth Document Audit',
+      href: 'docs/SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md',
+      role: 'Audit and duplication-risk record',
+      status: 'audit/archive',
+      notes: 'Use for cleanup history; do not treat older duplicated claims as newer than canonical docs.'
+    },
+    {
+      label: 'SPECS_INDEX',
+      href: 'docs/SPECS_INDEX.md',
+      role: 'Doc navigation and cleanup queue',
+      status: 'index',
+      notes: 'Tracks canonical vs legacy locations and consolidation work.'
+    }
   ]
 };
+
+
+function csOverviewMilestoneRules() {
+  return [
+    {
+      id: 'simulation-truth',
+      title: 'Simulation Truth & Mechanics Accuracy',
+      kicker: 'engine trust',
+      summary: 'Battle mechanics, damage/effect proof, replay transparency, and Champion-vs-baseline parity gates.',
+      match: /truth|mechanic|damage|effect|move|priority|status|faint|replay|turn-log|turn log|knock off|foul play|low kick|oracle|parity|terrain|weather|ability|item|protect|redirection|switching|qa coverage|qa artifact|battle system/i
+    },
+    {
+      id: 'source-truth',
+      title: 'Source Truth, Regulations & Data Governance',
+      kicker: 'rules/data',
+      summary: 'Official/client-captured source hierarchy, ruleset packages, approved source rows, drift detection, and regulation review.',
+      match: /source|reg m-b|regulation|showdown|approved|champions override|override|ruleset|rule_facts|ruleset_packages|legality|data audit|source refresh|db generation|generated/i
+    },
+    {
+      id: 'team-lab',
+      title: 'Team Lab, Saved Teams & Evidence Pipeline',
+      kicker: 'team lab',
+      summary: 'Versioned teams, sim jobs, replay evidence, leaderboard trust, hidden details, and future compare/coaching profiles.',
+      match: /team lab|sim_jobs|replays|leaderboard|saved profile|login|custom team|team editor|team builder|compare|matchup|team dna|forensic log|retention|history|supabase history/i
+    },
+    {
+      id: 'release-security',
+      title: 'Release Reliability, Security & Repo Sync',
+      kicker: 'launch safety',
+      summary: 'Build identity, cache safety, Pages deploy proof, public security, RLS/privacy, CI gates, and Y/Alfredo repo parity.',
+      match: /release|deploy|pages|cache|security|csp|xss|rls|privacy|public launch|repo|alfredo|fork|manifest|bundle|ci|stress|device|mobile|abuse/i
+    },
+    {
+      id: 'coaching-product',
+      title: 'Coaching, UX & Player Learning',
+      kicker: 'product',
+      summary: 'Battle Sensei, tactical sweep, decision ledgers, Strategy flow, editor UX, player-facing explanations, and coaching trust.',
+      match: /coach|sensei|strategy|tactical|decision|battle iq|learning|player|ux|editor|upload|set editor|flow|practice|recommendation/i
+    }
+  ];
+}
+
+function csOverviewItemText(row) {
+  return String((row && row.title) || '') + ' ' + String((row && row.detail) || '');
+}
+
+function csOverviewItemMilestone(row) {
+  var text = csOverviewItemText(row);
+  var rules = csOverviewMilestoneRules();
+  for (var i = 0; i < rules.length; i++) {
+    if (rules[i].match.test(text)) return rules[i].id;
+  }
+  return 'release-security';
+}
+
+function csOverviewBucketForStatus(status) {
+  if (status === 'done' || status === 'validated') return 'done';
+  if (status === 'gap' || status === 'blocked') return 'open';
+  if (status === 'decision') return 'decision';
+  return 'next';
+}
+
+function csOverviewBucketLabel(bucket) {
+  return bucket === 'done' ? 'Done / Closed' : bucket === 'open' ? 'Open' : bucket === 'decision' ? 'Decision' : 'Next';
+}
+
+function csBuildOverviewMilestones(data) {
+  var groups = {};
+  csOverviewMilestoneRules().forEach(function(rule) {
+    groups[rule.id] = {
+      id: rule.id,
+      title: rule.title,
+      kicker: rule.kicker,
+      summary: rule.summary,
+      buckets: { done: [], open: [], next: [], decision: [] }
+    };
+  });
+  function addRows(rows) {
+    (rows || []).forEach(function(row) {
+      var milestone = csOverviewItemMilestone(row);
+      var bucket = csOverviewBucketForStatus(row && row.status);
+      if (!groups[milestone]) milestone = 'release-security';
+      groups[milestone].buckets[bucket].push(row);
+    });
+  }
+  addRows(data.shipped);
+  addRows(data.validation);
+  addRows(data.gaps);
+  addRows(data.next);
+  addRows(data.decisions);
+  return csOverviewMilestoneRules().map(function(rule) { return groups[rule.id]; });
+}
+
+function csOverviewBucketCount(group, bucket) {
+  return group && group.buckets && group.buckets[bucket] ? group.buckets[bucket].length : 0;
+}
+
+function csRenderOverviewBucket(group, bucket) {
+  var rows = group.buckets[bucket] || [];
+  if (!rows.length) return '';
+  return '<details class="overview-bucket"' + (bucket === 'open' || bucket === 'next' ? ' open' : '') + '>' +
+    '<summary><span>' + _escapeHtml(csOverviewBucketLabel(bucket)) + '</span><strong>' + rows.length + '</strong></summary>' +
+    '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
+  '</details>';
+}
+
+function csRenderOverviewMilestoneSection(group) {
+  var openCount = csOverviewBucketCount(group, 'open');
+  var nextCount = csOverviewBucketCount(group, 'next');
+  var doneCount = csOverviewBucketCount(group, 'done');
+  var decisionCount = csOverviewBucketCount(group, 'decision');
+  return '<details class="overview-milestone" open>' +
+    '<summary class="overview-milestone-summary">' +
+      '<div><span class="overview-kicker">' + _escapeHtml(group.kicker) + '</span><h3>' + _escapeHtml(group.title) + '</h3><p>' + _escapeHtml(group.summary) + '</p></div>' +
+      '<div class="overview-milestone-counts">' +
+        '<span class="overview-count open">Open ' + openCount + '</span>' +
+        '<span class="overview-count next">Next ' + nextCount + '</span>' +
+        '<span class="overview-count done">Done ' + doneCount + '</span>' +
+        '<span class="overview-count decision">Decision ' + decisionCount + '</span>' +
+      '</div>' +
+    '</summary>' +
+    '<div class="overview-buckets">' +
+      csRenderOverviewBucket(group, 'open') +
+      csRenderOverviewBucket(group, 'next') +
+      csRenderOverviewBucket(group, 'decision') +
+      csRenderOverviewBucket(group, 'done') +
+    '</div>' +
+  '</details>';
+}
+
+function csRenderOverviewMilestones(data) {
+  return csBuildOverviewMilestones(data).map(csRenderOverviewMilestoneSection).join('');
+}
+
+function csRenderOverviewSourceDocs(data) {
+  var sourceDocs = data.sourceDocs || [];
+  if (!sourceDocs.length) return '';
+  var rows = sourceDocs.map(function(doc) {
+    return '<tr><td><strong>' + _escapeHtml(doc.label) + '</strong><br><a href="' + _escapeHtml(doc.href) + '" target="_blank" rel="noopener">' + _escapeHtml(doc.href) + '</a></td>' +
+      '<td>' + _escapeHtml(doc.role) + '</td>' +
+      '<td>' + _escapeHtml(doc.status) + '</td>' +
+      '<td>' + _escapeHtml(doc.notes) + '</td></tr>';
+  }).join('');
+  return '<div class="overview-section overview-source-map">' +
+    '<div class="overview-section-head"><h3>Source Doc Map</h3><span class="overview-kicker">canonical vs archive</span></div>' +
+    '<p class="overview-source-note">Use this map to challenge sources without duplicating truth. Canonical docs own current decisions; planning/archive docs preserve context but must not override runtime truth.</p>' +
+    '<div class="overview-db-table-wrap"><table class="overview-db-table"><thead><tr><th>Document</th><th>Role</th><th>Status</th><th>Use rule</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+  '</div>';
+}
 
 function csOverviewStatusLabel(status) {
   var labels = {
@@ -39204,15 +39654,19 @@ function renderOverviewTab() {
   }).join('');
   host.innerHTML =
     '<div class="overview-metrics">' + metrics + '</div>' +
+    '<div class="overview-milestone-board">' +
+      '<div class="overview-section overview-board-intro">' +
+        '<div class="overview-section-head"><h3>Milestone Board</h3><span class="overview-kicker">Done / Open / Next</span></div>' +
+        '<p class="overview-source-note">Completed, open, next, and decision items now live under major milestones. If a milestone no longer fits the work, expand the milestone map before adding more flat rows.</p>' +
+      '</div>' +
+      csRenderOverviewMilestones(data) +
+    '</div>' +
     '<div class="overview-grid">' +
       '<div class="overview-list">' +
-        csRenderOverviewSection('Completed Work', 'shipped', data.shipped) +
-        csRenderOverviewSection('Closed Proof', 'closed', data.validation) +
+        csRenderOverviewSourceDocs(data) +
+        csRenderOverviewSection('Closed Proof Archive', 'closed', data.validation) +
       '</div>' +
       '<div class="overview-list">' +
-        csRenderOverviewSection('Open Issues', 'not done yet', data.gaps) +
-        csRenderOverviewSection('Milestones', 'roadmap', data.next) +
-        csRenderOverviewSection('Open Decisions', 'team review', data.decisions) +
         '<div class="overview-section">' +
           '<div class="overview-section-head"><h3>Source Of Truth Flow</h3><span class="overview-kicker">target</span></div>' +
           '<div class="overview-flow">' + flow + '</div>' +

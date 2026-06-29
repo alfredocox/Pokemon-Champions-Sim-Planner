@@ -78,6 +78,7 @@ storage = read('storage_adapter.js')
 supabase = read('supabase_adapter.js')
 team_lab = read('team_lab.js')
 source_truth = read('source_truth.js')
+sim_evidence = read('sim_evidence.js')
 pokemon_legal_data = read('generated/pokemon_showdown_legal_data.js')
 pokemon_weight_data = read('generated/pokemon_showdown_species_weights.js')
 move_legality = read('move_legality.js')
@@ -99,6 +100,7 @@ html = html.replace('<script src="storage_adapter.js"></script>', '')
 html = html.replace('<script src="supabase_adapter.js"></script>', '')
 html = html.replace('<script src="team_lab.js"></script>', '')
 html = html.replace('<script src="source_truth.js"></script>', '')
+html = html.replace('<script src="sim_evidence.js"></script>', '')
 html = html.replace('<script src="generated/pokemon_showdown_legal_data.js"></script>', '')
 html = html.replace('<script src="generated/pokemon_showdown_species_weights.js"></script>', '')
 html = html.replace('<script src="move_legality.js"></script>', '')
@@ -151,6 +153,7 @@ inline_js = (
     + sanitize_inline_js(supabase) + '\n\n'
     + sanitize_inline_js(team_lab) + '\n\n'
     + sanitize_inline_js(source_truth) + '\n\n'
+    + sanitize_inline_js(sim_evidence) + '\n\n'
     + sanitize_inline_js(move_legality) + '\n\n'
     + sanitize_inline_js(move_support) + '\n\n'
     + sanitize_inline_js(replay_coach) + '\n\n'
@@ -178,7 +181,7 @@ else:
     bundle_sha256 = hashlib.sha256(bundle_bytes).hexdigest()
     artifact = {
         'schema_version': 'champions-release-artifact-v1',
-        'build_id': 'v2.2.46-source-truth-packages',
+        'build_id': 'v2.2.48-overview-milestone-board',
         'release_manifest': 'release_manifest.js',
         'bundle_name': 'pokemon-champion-2026.html',
         'pages_path': 'poke-sim/pokemon-champion-2026.html',
