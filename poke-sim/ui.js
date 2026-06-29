@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.42-qa-proof-manifest'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.43-move-effect-logic-matrix'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -5867,6 +5867,164 @@ function csQaMissingTargetedProof(mechanics) {
   return out;
 }
 
+function csQaFamilyCount(mechanics, keys) {
+  var total = 0;
+  (Array.isArray(keys) ? keys : []).forEach(function(key) {
+    total += Number(mechanics && mechanics[key] || 0);
+  });
+  return total;
+}
+
+function csQaBuildFamilyStatus(id, label, mechanics, requiredKeys, optionalKeys, note) {
+  var required = Array.isArray(requiredKeys) ? requiredKeys : [];
+  var optional = Array.isArray(optionalKeys) ? optionalKeys : [];
+  var provenRequired = required.filter(function(key) {
+    return Number(mechanics && mechanics[key] || 0) > 0;
+  });
+  var missingRequired = required.filter(function(key) {
+    return !Number(mechanics && mechanics[key] || 0);
+  });
+  var optionalSeen = optional.filter(function(key) {
+    return Number(mechanics && mechanics[key] || 0) > 0;
+  });
+  var observedRows = csQaFamilyCount(mechanics, required.concat(optional));
+  var status = !required.length || provenRequired.length === required.length
+    ? 'proven'
+    : (provenRequired.length || optionalSeen.length ? 'partial' : 'missing');
+  return {
+    id: id,
+    label: label,
+    status: status,
+    observed_rows: observedRows,
+    required_mechanics: required,
+    proven_required_mechanics: provenRequired,
+    missing_required_mechanics: missingRequired,
+    optional_mechanics_seen: optionalSeen,
+    note: note || null
+  };
+}
+
+function csBuildMoveEffectLogicMatrix(mechanics, opts) {
+  mechanics = mechanics || {};
+  var options = opts || {};
+  var contact = options.contact_move_audit_summary || {};
+  var contactTotals = contact.totals || {};
+  var faint = options.faint_cause_summary || {};
+  var families = [
+    csQaBuildFamilyStatus(
+      'damage_math',
+      'Damage math and modifiers',
+      mechanics,
+      ['damage_events', 'move_rule_trace_rows', 'stat_stage_damage'],
+      ['super_effective_damage', 'resisted_damage', 'immunity_rows', 'critical_hits', 'spread_damage', 'weather_damage_modifier', 'screen_reduction', 'base_power_modified', 'typed_item_boost', 'knock_off_boost'],
+      'Core proof that damage rows carry enough math detail to audit move results.'
+    ),
+    csQaBuildFamilyStatus(
+      'nonstandard_stat_source',
+      'Non-standard stat-source moves',
+      mechanics,
+      ['nonstandard_stat_source_trace', 'foul_play_trace', 'body_press_trace', 'psyshock_trace'],
+      ['ignored_target_power_ability_trace', 'applied_user_power_ability_trace'],
+      'Protects Foul Play, Body Press, Psyshock-style defense targeting, and related ability-modifier boundaries.'
+    ),
+    csQaBuildFamilyStatus(
+      'hp_effects',
+      'HP-changing move and item effects',
+      mechanics,
+      ['effect_events', 'recoil', 'drain_heal', 'recovery', 'hp_cost', 'delayed_recovery', 'residual_drain', 'item_recovery'],
+      ['recoil_damage_rows', 'drain_damage_rows', 'hp_cap'],
+      'Proof that non-direct-damage HP changes are exported as structured effect_events.'
+    ),
+    csQaBuildFamilyStatus(
+      'status_action_denial',
+      'Status and volatile action denial',
+      mechanics,
+      ['action_denial_events', 'status_action_denials'],
+      ['sleep_action_denials', 'freeze_action_denials', 'paralysis_action_denials', 'flinch_action_denials', 'confusion_action_denials', 'status_resolution_events', 'frozen_thaws', 'sleep_wakes', 'sleep_talk_exceptions', 'paralysis_speed_only', 'confusion_pass_through'],
+      'Covers turns where a Pokemon cannot move and the replay must explain why.'
+    ),
+    csQaBuildFamilyStatus(
+      'move_failure_prevention',
+      'Move failure and prevention rules',
+      mechanics,
+      ['move_lock_failures', 'target_resolution_failures', 'accuracy_misses', 'protect_consecutive_failures'],
+      ['taunt_move_blocks', 'imprison_move_blocks', 'throat_chop_sound_blocks', 'no_valid_target_failures'],
+      'Covers failed move attempts such as Taunt/Imprison/Throat Chop, misses, no valid target, and Protect timing.'
+    ),
+    csQaBuildFamilyStatus(
+      'priority_prevention',
+      'Priority and anti-priority rules',
+      mechanics,
+      ['priority_actions', 'blocked_priority_events'],
+      ['quick_guard_priority_blocks', 'psychic_terrain_priority_blocks', 'priority_ability_blocks', 'fake_out_timing_failures'],
+      'Covers priority ordering plus Quick Guard, Psychic Terrain, ability blockers, and Fake Out timing failures.'
+    ),
+    csQaBuildFamilyStatus(
+      'field_duration_speed_control',
+      'Field duration and speed control',
+      mechanics,
+      ['trick_room_active', 'tailwind_active', 'speed_order_details'],
+      ['speed_control_neutralized', 'speed_control_reversal', 'duration_timing_labels', 'field_effect_expired', 'field_effect_reissued_after_expiry', 'tailwind_reused_while_active', 'tailwind_into_active_trick_room', 'tailwind_delayed_until_trick_room_end'],
+      'Covers duration counters and speed-control state so coaching can reason about timing without guessing.'
+    ),
+    csQaBuildFamilyStatus(
+      'contact_item_damage',
+      'Contact and item damage transparency',
+      mechanics,
+      [],
+      ['effect_events'],
+      'Uses the contact audit plus effect_events to show whether contact damage and item damage are inspectable.'
+    ),
+    csQaBuildFamilyStatus(
+      'faint_transparency',
+      'Faint and HP-drop transparency',
+      mechanics,
+      [],
+      ['damage_events', 'effect_events'],
+      'Every faint or HP drop should trace back to damage_events or HP-changing effect_events.'
+    )
+  ];
+  families.forEach(function(row) {
+    if (row.id === 'contact_item_damage') {
+      var contactKnown = Number(contactTotals.contact_true || 0) + Number(contactTotals.contact_false || 0);
+      var contactUnknown = Number(contactTotals.unknown_contact || 0) + Number(contactTotals.missing_move_metadata || 0);
+      row.observed_rows = Number(contactTotals.action_moves || 0) + Number(contactTotals.contact_damage_events || 0);
+      row.contact_known_rows = contactKnown;
+      row.contact_unknown_rows = contactUnknown;
+      row.status = contactKnown > 0 && contactUnknown === 0 ? 'proven' : (row.observed_rows > 0 ? 'partial' : 'missing');
+      row.missing_required_mechanics = row.status === 'proven' ? [] : ['known contact metadata for observed moves'];
+    }
+    if (row.id === 'faint_transparency') {
+      var faintTotal = Number(faint.total_faints || 0);
+      var unexplained = Number(faint.unexplained_faints || 0) + Number(faint.unexplained_hp_drops || 0);
+      row.observed_rows = faintTotal + Number(faint.hp_drops || 0);
+      row.total_faints = faintTotal;
+      row.unexplained_faints = Number(faint.unexplained_faints || 0);
+      row.unexplained_hp_drops = Number(faint.unexplained_hp_drops || 0);
+      row.status = row.observed_rows > 0 && unexplained === 0 ? 'proven' : (row.observed_rows > 0 ? 'partial' : 'missing');
+      row.missing_required_mechanics = unexplained ? ['all faints and HP drops explained by damage_events/effect_events'] : [];
+    }
+  });
+  var totals = { proven: 0, partial: 0, missing: 0 };
+  families.forEach(function(row) {
+    totals[row.status] = Number(totals[row.status] || 0) + 1;
+  });
+  return {
+    schema_version: 'champions-move-effect-logic-matrix-v1',
+    purpose: 'Coverage gate for move damage, secondary effects, prevention rules, field duration, status denial, contact/item damage, and faint transparency.',
+    scope: options.scope || 'qa-coverage-summary',
+    totals: totals,
+    families: families,
+    missing_families: families.filter(function(row) { return row.status === 'missing'; }).map(function(row) { return row.id; }),
+    partial_families: families.filter(function(row) { return row.status === 'partial'; }).map(function(row) { return row.id; }),
+    notes: [
+      'This matrix proves only mechanics that occurred in exported evidence.',
+      'Missing or partial families are QA targets, not automatic engine bugs.',
+      'Do not use coaching claims from a family until the relevant evidence is proven or explicitly caveated.'
+    ]
+  };
+}
+
 function csBuildQaCoverageSummary(turnLog, opts) {
   var rows = Array.isArray(turnLog) ? turnLog : [];
   var options = opts || {};
@@ -6036,6 +6194,12 @@ function csBuildQaCoverageSummary(turnLog, opts) {
     }
   }
 
+  var moveEffectLogicMatrix = csBuildMoveEffectLogicMatrix(mechanics, {
+    scope: options.scope || 'single-turn-log',
+    contact_move_audit_summary: contactMoveAuditSummary,
+    faint_cause_summary: faintCauseSummary
+  });
+
   return {
     schema_version: 'champions-qa-coverage-v1',
     generated_at: options.generated_at || new Date().toISOString(),
@@ -6055,6 +6219,7 @@ function csBuildQaCoverageSummary(turnLog, opts) {
     decision_opportunity_ledger: decisionLedger,
     faint_cause_summary: faintCauseSummary,
     contact_move_audit_summary: contactMoveAuditSummary,
+    move_effect_logic_matrix: moveEffectLogicMatrix,
     coach_event_rows: coachEventRows,
     coach_event_summary: csSummarizeCoachEventRows(coachEventRows),
     coach_brain_summary: csBuildCoachBrainSummary(decisionLedger, {
@@ -6189,6 +6354,11 @@ function csMergeQaCoverageSummaries(summaries, opts) {
   merged.contact_move_audit_summary = Object.assign({}, mergedContactAudit, {
     unknown_physical_moves: mergedContactAudit.unknown_physical_moves.slice(0, 50),
     contact_damage_events: mergedContactAudit.contact_damage_events.slice(0, 240)
+  });
+  merged.move_effect_logic_matrix = csBuildMoveEffectLogicMatrix(merged.mechanics_seen, {
+    scope: options.scope || 'qa-artifact-retained-replay-cards',
+    contact_move_audit_summary: merged.contact_move_audit_summary,
+    faint_cause_summary: merged.faint_cause_summary
   });
   merged.coach_brain_summary = csBuildCoachBrainSummary(merged.decision_opportunity_ledger, {
     scope: options.scope || 'qa-artifact-retained-replay-cards',
@@ -11655,7 +11825,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'done',
       title: 'DB status chip retry and diagnostics added',
-      detail: 'v2.2.42 adds a top-level QA proof_manifest to exported artifacts so Codex, QA reviewers, and contributors can quickly see the proof tier, retained evidence counts, coverage flags, known limits, and next action before walking the full payload.'
+      detail: 'v2.2.43 adds a move_effect_logic_matrix to QA coverage summaries so damage math, stat-source moves, HP effects, action denial, move failure prevention, priority prevention, field duration, contact/item damage, and faint transparency report proven, partial, or missing evidence before coaching claims are trusted.'
     },
     {
       status: 'done',

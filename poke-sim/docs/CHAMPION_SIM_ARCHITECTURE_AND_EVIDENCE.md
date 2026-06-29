@@ -110,6 +110,8 @@ The Stress Lite artifact must also stay readable at a glance. The export now mir
 
 `v2.2.30-replay-detail-rows` closes the current replay-transparency slice. The replay display now prefers resolved action rows over duplicated move pre-call lines, carries structured move-failure evidence, and groups spread/doubles target damage so one move can show every affected target, miss, failure, and KO reason from the same exported evidence. TheYfactora12 PR #160 and Alfredo sync PR #256 both passed required checks before merge; Alfredo also passed the 5,070-battle Battle Audit.
 
+`v2.2.43-move-effect-logic-matrix` adds a QA coverage matrix for the next simulator-accuracy gate. Every QA coverage summary now reports move/effect families as `proven`, `partial`, or `missing` for damage math, non-standard stat-source moves, HP-changing effects, status/action denial, move-failure prevention, priority prevention, field-duration speed control, contact/item damage, and faint transparency. This is deliberately conservative: a missing family is a next QA target, not an automatic engine bug, and coaching should not make strong claims from a partial/missing family without a caveat.
+
 Process challenge for coach-memory work:
 
 - Do not let the app sound smarter than the evidence. Coach memory may summarize repeated patterns, but it must keep confidence, sample size, matchup scope, and ruleset scope visible.
@@ -212,6 +214,7 @@ The summary is a coverage index, not a replacement for the raw turn log. It coun
 - total turns, action rows, `damage_events`, and `effect_events`
 - super-effective, resisted, immune, crit, spread, HP-cap, screen, weather-modified, typed-item, Knock Off, stat-stage, base-power-modified, priority, Tailwind, Trick Room, recoil, drain, recovery, HP-cost, delayed-recovery, residual-drain, and item-recovery evidence
 - damage/effect moves seen
+- `move_effect_logic_matrix`, which groups mechanic proof into proven, partial, and missing move/effect families
 - source truth versions from the generated Pokemon Showdown audit data
 - `missing_targeted_proof`, which names mechanics not proven by that export
 

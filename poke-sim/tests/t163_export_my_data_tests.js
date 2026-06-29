@@ -325,6 +325,11 @@ async function main() {
     truthy(payload.qa_coverage_summary.mechanics_seen.foul_play_trace > 0, 'targeted sweep should add Foul Play proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.body_press_trace > 0, 'targeted sweep should add Body Press proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.psyshock_trace > 0, 'targeted sweep should add Psyshock proof');
+    truthy(payload.qa_coverage_summary.move_effect_logic_matrix, 'move/effect logic matrix missing');
+    eq(payload.qa_coverage_summary.move_effect_logic_matrix.schema_version, 'champions-move-effect-logic-matrix-v1', 'move/effect logic matrix schema');
+    truthy(Array.isArray(payload.qa_coverage_summary.move_effect_logic_matrix.families), 'move/effect logic matrix families missing');
+    truthy(payload.qa_coverage_summary.move_effect_logic_matrix.families.some(row => row.id === 'damage_math' && row.status !== 'missing'), 'damage math matrix family should have evidence');
+    truthy(payload.qa_coverage_summary.move_effect_logic_matrix.families.some(row => row.id === 'nonstandard_stat_source' && row.status === 'proven'), 'stat-source matrix family should be proven by targeted sweep');
     truthy(payload.retained && payload.retained.sim_log.length >= 1, 'retained sim log missing');
     truthy(payload.retained && payload.retained.replay_cards.length >= 1, 'retained replay cards missing');
     eq(payload.retained.replay_cards[0].seed, 'qa-seed-1');
@@ -444,6 +449,8 @@ async function main() {
     truthy(typeof payload.stress_lite.summary.totals.damage_events === 'number', 'stress lite summary damage total missing');
     truthy(typeof payload.stress_lite.summary.totals.effect_events === 'number', 'stress lite summary effect total missing');
     truthy(payload.stress_lite.summary.coaching_signal, 'stress lite coaching signal missing');
+    truthy(payload.qa_coverage_summary.move_effect_logic_matrix, 'stress lite move/effect logic matrix missing');
+    truthy(payload.qa_coverage_summary.move_effect_logic_matrix.totals.proven >= 1, 'stress lite matrix should prove at least one family');
     eq(payload.turns_total, payload.qa_coverage_summary.totals.turns, 'top-level turns total mismatch');
     eq(payload.action_rows_total, payload.qa_coverage_summary.totals.action_rows, 'top-level action row total mismatch');
     eq(payload.damage_events_total, payload.qa_coverage_summary.totals.damage_events, 'top-level damage total mismatch');
