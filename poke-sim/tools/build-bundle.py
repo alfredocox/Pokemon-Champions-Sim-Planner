@@ -65,6 +65,7 @@ html    = read('index.html')
 css     = read('style.css')
 data    = read('data.js')
 release_manifest = read('release_manifest.js')
+app_shell = read('app_shell.js')
 logger  = read('logger.js')
 runtime_data = read('runtime_data.js')
 engine  = read('engine.js')
@@ -85,6 +86,7 @@ supabase_umd = fetch_supabase_umd()
 
 html = html.replace('<script src="data.js"></script>', '')
 html = html.replace('<script src="release_manifest.js"></script>', '')
+html = html.replace('<script src="app_shell.js"></script>', '')
 html = html.replace('<script src="logger.js"></script>', '')
 html = html.replace('<script src="runtime_data.js"></script>', '')
 html = html.replace('<script src="engine.js"></script>', '')
@@ -132,6 +134,7 @@ inline_js = (
     + '\n</script>\n'
     + '<script>\n'
     + sanitize_inline_js(release_manifest) + '\n\n'
+    + sanitize_inline_js(app_shell) + '\n\n'
     + sanitize_inline_js(data) + '\n\n'
     + sanitize_inline_js(logger) + '\n\n'
     + sanitize_inline_js(pokemon_legal_data) + '\n\n'
@@ -169,7 +172,7 @@ else:
     bundle_sha256 = hashlib.sha256(bundle_bytes).hexdigest()
     artifact = {
         'schema_version': 'champions-release-artifact-v1',
-        'build_id': 'v2.2.38-csp-xss-guard',
+        'build_id': 'v2.2.40-sprite-fallback-chain',
         'release_manifest': 'release_manifest.js',
         'bundle_name': 'pokemon-champion-2026.html',
         'pages_path': 'poke-sim/pokemon-champion-2026.html',

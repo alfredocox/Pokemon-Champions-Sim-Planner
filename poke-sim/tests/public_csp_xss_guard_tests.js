@@ -7,10 +7,12 @@ const SIM = path.join(REPO, 'poke-sim');
 const index = fs.readFileSync(path.join(SIM, 'index.html'), 'utf8');
 const bundle = fs.readFileSync(path.join(SIM, 'pokemon-champion-2026.html'), 'utf8');
 const ui = fs.readFileSync(path.join(SIM, 'ui.js'), 'utf8');
+const appShell = fs.readFileSync(path.join(SIM, 'app_shell.js'), 'utf8');
 const pagesWorkflow = fs.readFileSync(path.join(REPO, '.github', 'workflows', 'pages.yml'), 'utf8');
 
 const runtimeFiles = [
   'index.html',
+  'app_shell.js',
   'ui.js',
   'engine.js',
   'supabase_adapter.js',
@@ -84,11 +86,12 @@ T('5. existing public XSS coverage remains in the test suite', () => {
 });
 
 T('6. removed inline handlers keep delegated UI behavior wired', () => {
-  truthy(ui.includes('function csInitPublicSecurityDelegates()'), 'public security delegate initializer missing');
-  truthy(ui.includes("target.getAttribute('data-fallback-src')"), 'sprite fallback delegate should use data-fallback-src');
-  truthy(ui.includes("csHandleSpriteError(target)"), 'sprite fallback delegate should call fallback handler');
-  truthy(ui.includes("target.closest('.speed-tier-toggle')"), 'speed tier click delegate missing');
-  truthy(ui.includes("classList.toggle('open')"), 'speed tier delegate should still toggle open state');
+  truthy(appShell.includes('function csInitPublicSecurityDelegates()'), 'public security delegate initializer missing');
+  truthy(appShell.includes("target.getAttribute('data-fallback-src')"), 'sprite fallback delegate should use data-fallback-src');
+  truthy(appShell.includes("csHandleSpriteError(target)"), 'sprite fallback delegate should call fallback handler');
+  truthy(appShell.includes("target.closest('.speed-tier-toggle')"), 'speed tier click delegate missing');
+  truthy(appShell.includes("classList.toggle('open')"), 'speed tier delegate should still toggle open state');
+  truthy(!ui.includes('function csInitPublicSecurityDelegates()'), 'delegated security handlers should not live in ui.js');
   truthy(!/onerror="csHandleSpriteError/.test(ui), 'sprite fallback must not use inline onerror');
   truthy(!/onclick="this\.nextElementSibling/.test(ui), 'speed tier toggle must not use inline onclick');
 });

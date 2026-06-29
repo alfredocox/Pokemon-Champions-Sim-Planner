@@ -103,6 +103,8 @@ function load(file) {
 }
 
 [
+  'release_manifest.js',
+  'app_shell.js',
   'data.js',
   'logger.js',
   'engine.js',
@@ -269,14 +271,15 @@ async function main() {
     truthy(/id="tactical-depth"/.test(html), 'Tactical Depth selector missing');
     truthy(/Deep 100 branches/.test(html), 'Tactical Depth deep option missing');
     const ui = fs.readFileSync(path.join(ROOT, 'ui.js'), 'utf8');
+    const appShell = fs.readFileSync(path.join(ROOT, 'app_shell.js'), 'utf8');
     truthy(/function setBranchProgress/.test(ui), 'branch progress helper missing');
     truthy(/saved_rows/.test(ui), 'branch progress saved-row counter missing');
     truthy(/function getTacticalDepthMaxRuns/.test(ui), 'tactical depth helper missing');
     truthy(/function csBuildStressLiteOptions/.test(ui), 'Stress Lite options helper missing');
     truthy(/qaRunType = stressLite \? 'stress_lite_qa'/.test(ui), 'Stress Lite QA run type missing');
     truthy(/branchMatrixMaxRunsPerOpponent:\s*tacticalDepthMaxRuns/.test(ui), 'Tactical Sweep should use selected depth');
-    truthy(/function csReloadAfterBuildCacheReset/.test(ui), 'build cache refresh reload helper missing');
-    truthy(/location\.replace/.test(ui), 'build cache refresh should replace stale page after cleanup');
+    truthy(/function csReloadAfterBuildCacheReset/.test(appShell), 'build cache refresh reload helper missing');
+    truthy(/location\.replace/.test(appShell), 'build cache refresh should replace stale page after cleanup');
   });
 
   await T('6. QA artifact includes retention caps, build, source, and retained evidence', async () => {

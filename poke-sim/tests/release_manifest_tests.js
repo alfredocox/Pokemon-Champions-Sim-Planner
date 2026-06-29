@@ -4,7 +4,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const manifest = require(path.join(ROOT, 'release_manifest.js'));
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-const ui = fs.readFileSync(path.join(ROOT, 'ui.js'), 'utf8');
+const appShell = fs.readFileSync(path.join(ROOT, 'app_shell.js'), 'utf8');
 const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
 const buildScript = fs.readFileSync(path.join(ROOT, 'tools', 'build-bundle.py'), 'utf8');
 const bundlePath = path.join(ROOT, manifest.bundle_name);
@@ -31,15 +31,15 @@ console.log('\n=== release manifest tests ===\n');
 
 T('1. manifest exposes canonical build and cache identity', () => {
   truthy(manifest.schema_version === 'champions-release-manifest-v1', 'schema mismatch');
-  truthy(manifest.build_id === 'v2.2.38-csp-xss-guard', 'build id mismatch');
-  truthy(manifest.service_worker_cache === 'champions-sim-v170-csp-xss-guard', 'cache id mismatch');
+  truthy(manifest.build_id === 'v2.2.40-sprite-fallback-chain', 'build id mismatch');
+  truthy(manifest.service_worker_cache === 'champions-sim-v172-sprite-fallback-chain', 'cache id mismatch');
   truthy(manifest.artifact_manifest === 'generated/release_artifact.json', 'artifact manifest path mismatch');
 });
 
-T('2. visible header and ui fallback mirror manifest build id', () => {
+T('2. visible header and app shell fallback mirror manifest build id', () => {
   truthy(html.includes(manifest.build_id), 'index missing manifest build id');
-  truthy(ui.includes(manifest.build_id), 'ui missing manifest build id fallback');
-  truthy(ui.includes('CHAMPIONS_RELEASE_MANIFEST'), 'ui should read release manifest');
+  truthy(appShell.includes(manifest.build_id), 'app shell missing manifest build id fallback');
+  truthy(appShell.includes('CHAMPIONS_RELEASE_MANIFEST'), 'app shell should read release manifest');
 });
 
 T('3. service worker derives cache from manifest and precaches manifest', () => {
@@ -51,7 +51,9 @@ T('3. service worker derives cache from manifest and precaches manifest', () => 
 
 T('4. bundle builder inlines release manifest before app runtime', () => {
   truthy(buildScript.includes("release_manifest = read('release_manifest.js')"), 'builder should read manifest');
-  truthy(buildScript.indexOf('sanitize_inline_js(release_manifest)') < buildScript.indexOf('sanitize_inline_js(data)'), 'manifest should inline before data/runtime');
+  truthy(buildScript.includes("app_shell = read('app_shell.js')"), 'builder should read app shell');
+  truthy(buildScript.indexOf('sanitize_inline_js(release_manifest)') < buildScript.indexOf('sanitize_inline_js(app_shell)'), 'manifest should inline before app shell');
+  truthy(buildScript.indexOf('sanitize_inline_js(app_shell)') < buildScript.indexOf('sanitize_inline_js(data)'), 'app shell should inline before data/runtime');
 });
 
 T('5. release artifact records committed bundle sha and mirrors manifest identity', () => {

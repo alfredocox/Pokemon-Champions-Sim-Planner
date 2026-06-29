@@ -35,6 +35,16 @@ ChampionsSim.tests = ChampionsSim.tests || {};
 ChampionsSim.logger = ChampionsSim.logger || { debug(){}, info(){}, warn(){}, error(){}, for(){ return this; } };
 var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsSim.logger;
 
+// App-shell API bridge. The real release/security implementations live in
+// app_shell.js; these no-op fallbacks keep older isolated VM tests from loading
+// ui.js without the documented app-shell script order.
+var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
+var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.40-sprite-fallback-chain'; };
+var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
+var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
+var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
+
 function exposeLegacyWindowAlias(name, value) {
   if (typeof window === 'undefined') return;
   try {
@@ -89,96 +99,6 @@ function safeReplaceChild(parent, nextNode, prevNode) {
   return false;
 }
 
-function showRuntimeError(message) {
-  try {
-    var banner = document.getElementById('runtime-error-banner');
-    var text = document.getElementById('runtime-error-text');
-    if (!banner || !text) return;
-    text.textContent = String(message || 'Unexpected runtime error');
-    banner.style.display = '';
-  } catch (e) {
-    // no-op
-  }
-}
-
-if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  window.addEventListener('error', function(ev) {
-    var msg = ev && ev.error && ev.error.stack ? ev.error.stack : (ev && ev.message) || 'Uncaught error';
-    showRuntimeError(msg);
-  });
-  window.addEventListener('unhandledrejection', function(ev) {
-    var reason = ev && ev.reason && ev.reason.stack ? ev.reason.stack : (ev && ev.reason) || 'Unhandled promise rejection';
-    showRuntimeError(reason);
-  });
-}
-
-function csGetBuildId() {
-  try {
-    var manifest = (typeof window !== 'undefined' && window.CHAMPIONS_RELEASE_MANIFEST) ? window.CHAMPIONS_RELEASE_MANIFEST : null;
-    if (manifest && manifest.build_id) return String(manifest.build_id);
-    var el = document.getElementById('build-version');
-    var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.38-csp-xss-guard';
-  } catch (e) {
-    return 'v2.2.38-csp-xss-guard';
-  }
-}
-
-function csGetReleaseManifest() {
-  if (typeof window !== 'undefined' && window.CHAMPIONS_RELEASE_MANIFEST) return window.CHAMPIONS_RELEASE_MANIFEST;
-  return {
-    schema_version: 'champions-release-manifest-v1',
-    build_id: csGetBuildId(),
-    service_worker_cache: null,
-    bundle_name: 'pokemon-champion-2026.html'
-  };
-}
-
-function csApplyReleaseManifestToHeader() {
-  try {
-    var manifest = csGetReleaseManifest();
-    var el = document.getElementById('build-version');
-    if (el && manifest && manifest.build_id) el.textContent = manifest.build_id;
-    if (el && manifest && manifest.service_worker_cache) {
-      el.setAttribute('title', 'Release manifest: ' + manifest.build_id + ' | SW cache: ' + manifest.service_worker_cache);
-    }
-  } catch (e) {
-    // Keep fallback header if manifest application fails.
-  }
-}
-
-function csReloadAfterBuildCacheReset(buildId) {
-  if (typeof window === 'undefined' || !window.location) return false;
-  try {
-    var guardKey = 'champions:build-reload:' + String(buildId || 'unknown');
-    if (window.sessionStorage && window.sessionStorage.getItem(guardKey)) return false;
-    if (window.sessionStorage) window.sessionStorage.setItem(guardKey, '1');
-    var url = new URL(window.location.href);
-    url.searchParams.set('v', String(buildId || Date.now()));
-    url.searchParams.set('fresh', '1');
-    window.location.replace(url.toString());
-    return true;
-  } catch (e) {
-    UILog.warn('build refresh reload skipped', e);
-    return false;
-  }
-}
-
-function csGetSourceUrl() {
-  try {
-    var href = (typeof location !== 'undefined' && location.href)
-      || (typeof window !== 'undefined' && window.location && window.location.href)
-      || null;
-    if (!href) return null;
-    var url = new URL(href);
-    var buildId = (typeof csGetBuildId === 'function') ? csGetBuildId() : null;
-    if (buildId) url.searchParams.set('v', String(buildId));
-    url.searchParams.set('fresh', '1');
-    return url.toString();
-  } catch (_e) {
-    return null;
-  }
-}
 
 async function csHardenClientState() {
   if (typeof Storage === 'undefined') return false;
@@ -697,74 +617,8 @@ function exportTeamToPasteWithOptions(team, opts) {
   return lines.join('\n').trim();
 }
 
-// ---- Helper: sprite URL (defined in data.js; safe no-op re-export for ui.js compat) ----
-// getSpriteUrl is already defined in data.js — do not redefine here
-function csSpriteStaticFallbackUrl(name) {
-  var raw = String(name || '');
-  var aliases = {
-    'Charizard-Mega-X': 'charizard-megax',
-    'Charizard-Mega-Y': 'charizard-megay',
-    'Mewtwo-Mega-X': 'mewtwo-megax',
-    'Mewtwo-Mega-Y': 'mewtwo-megay',
-    'Mr. Rime': 'mrrime',
-    'Kommo-o': 'kommoo',
-    'Ninetales-Alola': 'ninetales-alola',
-    'Arcanine-Hisui': 'arcanine-hisui',
-    'Tauros-Paldea-Combat': 'tauros-paldeacombat',
-    'Tauros-Paldea-Blaze': 'tauros-paldeablaze',
-    'Tauros-Paldea-Aqua': 'tauros-paldeaaqua',
-    'Raichu-Alola': 'raichu-alola',
-    'Zoroark-Hisui': 'zoroark-hisui',
-    'Lycanroc-Midday': 'lycanroc',
-    'Lycanroc-Midnight': 'lycanroc-midnight',
-    'Lycanroc-Dusk': 'lycanroc-dusk',
-    'Meowstic-M': 'meowstic',
-    'Meowstic-F': 'meowstic-f',
-    'Gourgeist-Small': 'gourgeist-small',
-    'Gourgeist-Average': 'gourgeist',
-    'Gourgeist-Large': 'gourgeist-large',
-    'Gourgeist-Super': 'gourgeist-super',
-    'Basculegion-M': 'basculegion',
-    'Basculegion-F': 'basculegion-f'
-  };
-  var slug = aliases[raw] || raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return 'https://play.pokemonshowdown.com/sprites/gen5/' + slug + '.png';
-}
-function csSpriteFallbackAttrs(name) {
-  return ' data-fallback-src="' + _escapeHtml(csSpriteStaticFallbackUrl(name)) + '" data-fallback-stage="0"';
-}
-function csHandleSpriteError(img) {
-  if (!img) return;
-  var stage = Number(img.getAttribute('data-fallback-stage') || '0');
-  var fallback = img.getAttribute('data-fallback-src') || '';
-  if (stage === 0 && fallback && img.src !== fallback) {
-    img.setAttribute('data-fallback-stage', '1');
-    img.src = fallback;
-    return;
-  }
-  img.setAttribute('data-fallback-stage', '2');
-  img.style.opacity = '.3';
-}
+// ---- Helper: sprite URL helpers live in app_shell.js; getSpriteUrl remains in data.js.
 
-function csInitPublicSecurityDelegates() {
-  if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
-  if (!document.__championsPublicSecurityDelegates) {
-    document.__championsPublicSecurityDelegates = true;
-    document.addEventListener('error', function(ev) {
-      var target = ev && ev.target;
-      if (!target || String(target.tagName || '').toUpperCase() !== 'IMG') return;
-      if (!target.getAttribute || !target.getAttribute('data-fallback-src')) return;
-      csHandleSpriteError(target);
-    }, true);
-    document.addEventListener('click', function(ev) {
-      var target = ev && ev.target;
-      var btn = target && target.closest ? target.closest('.speed-tier-toggle') : null;
-      if (!btn) return;
-      var panel = btn.nextElementSibling;
-      if (panel && panel.classList) panel.classList.toggle('open');
-    });
-  }
-}
 
 
 // ---- Type color ----
@@ -11705,6 +11559,21 @@ var CS_OVERVIEW_DATA = {
       status: 'done',
       title: 'CSP and public XSS guardrails added',
       detail: 'v2.2.38 adds a baseline Content Security Policy to the app shell and a CI guard that blocks dynamic code execution, inline event-handler attributes, CSP stripping during Pages deploy, and missing public XSS regression coverage. Inline script/style allowances remain documented as an architecture cleanup target until the bundle is split further.'
+    },
+    {
+      status: 'done',
+      title: 'App shell security module split started',
+      detail: 'v2.2.39 moves release identity, runtime error surfacing, build-cache reload, source URL proof, sprite fallback delegates, and speed-tier delegated click handling out of ui.js into app_shell.js. This gives release/security boot code a smaller owner surface before deeper UI/runtime splitting.'
+    },
+    {
+      status: 'planned',
+      title: 'Future login and saved profile boundary documented',
+      detail: 'Login remains gated until simulator math and exported coaching outputs are trusted. Saved teams, personal sim history, replay summaries, and cross-device profile learning will require Supabase Auth, RLS ownership checks, per-user data separation, export/delete controls, and consent-safe aggregation before launch.'
+    },
+    {
+      status: 'done',
+      title: 'Sprite fallback chain hardened after live GIF report',
+      detail: 'v2.2.40 keeps GIFs as the first visual path but adds a multi-stage fallback chain: exact static Showdown PNG, base-form animated GIF, then base-form static PNG. Live check found Charizard-Mega-X animated GIF returns 404 while exact static charizard-megax.png succeeds, so broken form GIFs should recover instead of staying visually broken.'
     },
     {
       status: 'done',

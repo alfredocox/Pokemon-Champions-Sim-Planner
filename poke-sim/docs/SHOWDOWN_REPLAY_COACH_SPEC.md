@@ -507,7 +507,7 @@ Recommended access model:
 - Account/profile user: can save teams, sim history, replay summaries, player patterns, and cross-device progress.
 - Advanced/full coach report: can be a future paid or gated capability, but the parser and basic replay review should exist before any monetization decision.
 
-Do not require login for the first useful replay review. Require login/profile persistence only when the user wants durable saved data, multi-log history, cross-device sync, or a merged long-term coaching profile.
+Do not require login for the first useful replay review. Require login/profile persistence only when the user wants durable saved teams, personal sim history, replay summaries, multi-log history, cross-device sync, or a merged long-term coaching profile. Any shared learning layer must separate private profile rows from anonymized/consented aggregate patterns so one player cannot poison another player's coaching data.
 
 Future premium/report direction:
 
