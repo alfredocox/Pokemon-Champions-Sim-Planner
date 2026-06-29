@@ -2,7 +2,7 @@
 
 Status: active source-truth control page.
 
-Last repo source review: June 28, 2026.
+Last repo source review: June 29, 2026.
 
 Purpose: give the team one place to inspect, challenge, replace, and improve the sources used by the Pokemon Champions simulator. If a source is stale, weak, contradicted, or not allowed to prove the claim it is being used for, update this page before changing runtime behavior.
 
@@ -10,9 +10,32 @@ Product scope rule: this project is Pokemon Champions only. Non-Champion legacy 
 
 ## Current Ruleset Alert
 
-As of the June 27, 2026 repo review, Champion regulation sources must be treated as ruleset-sensitive. Victory Road lists Reg M-A as April 8, 2026 to June 17, 2026 and Reg M-B as June 17, 2026 to September 2, 2026.
+As of the June 29, 2026 repo review, Champion regulation sources must be treated as ruleset-sensitive. Current research points to Reg M-B as the active live lane, with official/current-source references placing the M-B window around June 16/17, 2026 through September 1/2, 2026 depending on local timezone representation.
 
 Do not casually call Reg M-A the live ladder unless a current source confirms it. The simulator now treats Reg M-B as the active source-review lane while keeping Reg M-A as the implemented historical runtime lane until source-backed legality and mechanic deltas are promoted.
+
+## June 29, 2026 Research Dossier Intake
+
+Status: planning input, not runtime promotion.
+
+The user supplied `/Users/kevinmedeiros/Downloads/deep-research-report-2.md` as a research dossier. Treat it as a useful source-review brief, not as a direct machine-readable authority, until each claim is backed by exact URLs, official page captures, or official in-client screenshots/exported lists.
+
+Engineering conclusions from the dossier that are safe to document:
+
+- Pokemon Champions should be treated as the competitive 2026 battle title for this project, not Scarlet/Violet.
+- Champions supports Singles and Doubles; official VGC-style events should remain modeled as doubles with registered six and selected four where the event rules require that structure.
+- Ranked regulations rotate; legality rows must carry ruleset, effective dates, source tier, verification status, and format scope.
+- HOME compatibility does not equal Champion legality. A Pokemon, form, move, Ability, or item must be Champion-legal for the active lane before it can train trusted sim/coaching data.
+- Mega Evolution is the confirmed current gimmick family in the dossier; Terastallization, Dynamax, Z-Moves, and future Omni Ring features remain blocked unless Champion-specific sources enable them.
+- Official/client-captured eligibility lists should outrank secondary web mirrors for complete legal Pokemon, move, Ability, held-item, Mega Stone, and form tables.
+- Victory Road and tournament result sources are high-value meta/coaching inputs, but they must not rewrite mechanics or legality.
+
+Open conversion work from the dossier:
+
+- Replace citation placeholders with exact official URLs, Victory Road URLs, Serebii/Game8/Pokeos/Bulbapedia URLs, or direct official client captures.
+- Split any imported data into `authoritative_legality`, `working_mirror`, and `meta_evidence` states before runtime use.
+- Add source rows for official battle modes, HOME boundaries, recruitment/training boundaries, M-B regulation dates, Worlds/VGC software usage, and singles/doubles format distinctions.
+- Keep all M-B legality/content deltas provisional until exact source pointers and tests are attached.
 
 ## Reg M-B Source-Review Lane
 
@@ -65,8 +88,8 @@ Smooth-upgrade guard:
 
 | Tier | Source type | Allowed to prove | Not allowed to prove alone |
 |---|---|---|---|
-| 0 | Official Pokemon, Play! Pokemon, or Pokemon Champions notices, rules, patch notes, and event pages | Active ruleset, tournament structure, official mechanics when stated directly | Detailed simulator edge behavior when the official text is ambiguous |
-| 1 | Champion-specific pages from Serebii, Victory Road, Game8, and equivalent reviewed Champion pages | Champion legality, item availability, ranked regulation dates, format deltas | Full engine implementation without executable or test proof |
+| 0 | Official Pokemon, Play! Pokemon, Pokemon Champions notices, rules, patch notes, event pages, and direct official in-client captures | Active ruleset, tournament structure, official mechanics when stated directly, official eligible lists when captured with timestamp and version context | Detailed simulator edge behavior when the official text/capture is ambiguous |
+| 1 | Champion-specific pages from Serebii, Victory Road, Game8, Pokeos, PokeBase, and equivalent reviewed Champion pages | Champion legality, item availability, ranked regulation dates, format deltas, working mirrors pending Tier 0 confirmation | Full engine implementation without executable or test proof |
 | 2 | Pokemon Showdown upstream, Pokemon Showdown data CDN, `@pkmn/sim`, and `@smogon/calc` | Standard Pokemon data, move metadata, type chart, learnsets, target flags, baseline battle behavior, damage oracle checks | Champion legality when Champion sources say the active lane differs |
 | 3 | Human-readable cross-checkers such as Bulbapedia, Serebii dex pages, Smogon strategy pages, RotomLabs, OP.GG, Pikalytics-style usage sources, and community tournament reports | Plain-English confirmation, move wording, common usage, archetypes, coaching context, meta pressure | Hard legality, exact runtime behavior, or active ruleset by itself |
 | 4 | Repo QA artifacts, turn logs, branch-memory rows, source-truth tests, and browser exports | What this app actually executed and proved | External game truth if the app is already wrong |
@@ -110,6 +133,9 @@ June 28, 2026 check note: local network lookup for `www.serebii.net` failed with
 | `showdown_entities` | Normalized source rows | source kind, entity key, source hash |
 | `approved_showdown_entities` | Reviewed rows promoted for app use | approval status, source hash, reviewer/process |
 | `champions_overrides` | Champion-specific differences from Showdown | Champion source URL, review date, status, test reference |
+| `authoritative_legality` | Future official/client-captured Champion legality rows | Tier 0 source pointer, capture timestamp, ruleset, format scope, reviewer/process |
+| `working_mirror` | Future secondary-source convenience rows pending promotion | Mirror URL, source tier, checked timestamp, provisional status, matching authoritative row when promoted |
+| `meta_evidence` | Future tournament/team/result evidence for coaching | Event URL, ruleset, format, player/team context, sample size, and coaching-only status |
 | `generated/pokemon_showdown_legal_data.js` | Offline GitHub Pages runtime data | generated timestamp, source hashes, approved counts |
 | `db/seed_teams_v2.sql` and DB migrations | Approved team catalog seed and live DB alignment | generated from the same reviewed team catalog; live parity checked before Pages publish |
 | `reports/champion_qa_baseline_snapshot.md` | Human-readable approved team and move baseline for QA | generated from current approved catalog; checked by `qa_baseline_snapshot_tests.js` |
