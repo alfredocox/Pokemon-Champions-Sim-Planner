@@ -20,6 +20,8 @@ Rule: a document may cite lower-tier sources, but product behavior should not be
 
 June 28, 2026 update: Serebii should be preferred over Bulbapedia for Champion-specific data. A local DNS check for `www.serebii.net` failed on June 28, 2026, so this audit update is a source-priority policy change only; it does not approve any new runtime legality rows by itself.
 
+June 29, 2026 update: the user supplied a Champion 2026 research dossier at `/Users/kevinmedeiros/Downloads/deep-research-report-2.md`. Treat it as source-review planning input until each citation placeholder is converted into an exact URL, official page capture, or official in-client capture. The direction is useful and aligned with the repo guardrails: official/client-captured Champion sources bind legality and regulation claims; secondary mirrors can speed indexing but stay provisional; tournament results and Victory Road team pages guide meta/coaching but must not change engine mechanics or legality.
+
 ## External Source Anchors Reviewed
 
 These are the source anchors this audit uses:
@@ -129,6 +131,7 @@ Rule: a generated report proves what that run saw at that date/build. It does no
 Some docs use Champions-specific secondary sources such as Serebii, Game8, IGN, games.gg, and GamesRadar. That is acceptable for research, but runtime behavior should be labeled provisional unless backed by:
 
 - official Pokemon rule/source text,
+- direct official Champion in-client captures for eligible lists, rulesets, move legality, item legality, forms, and active regulation details,
 - a verified Champion-specific Serebii or Victory Road source row for the exact Champions legality/availability claim,
 - Pokemon Showdown Champions mod/validator behavior,
 - a repo override file with tests,

@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.43-move-effect-logic-matrix'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.44-source-confidence-intake'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -11824,8 +11824,13 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
-      title: 'DB status chip retry and diagnostics added',
+      title: 'Move/effect logic QA matrix added',
       detail: 'v2.2.43 adds a move_effect_logic_matrix to QA coverage summaries so damage math, stat-source moves, HP effects, action denial, move failure prevention, priority prevention, field duration, contact/item damage, and faint transparency report proven, partial, or missing evidence before coaching claims are trusted.'
+    },
+    {
+      status: 'done',
+      title: 'Champion source-confidence intake added',
+      detail: 'v2.2.44 records the June 29 Champion research dossier as planning input, separates official/client-captured authoritative legality from provisional working mirrors and meta evidence, and keeps M-B legality/content deltas blocked from runtime truth until exact source pointers, timestamps, and tests are attached.'
     },
     {
       status: 'done',
