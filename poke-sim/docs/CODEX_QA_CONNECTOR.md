@@ -4,7 +4,16 @@ This workflow lets downloaded QA evidence feed future Codex work without a backe
 
 ## Site export
 
-QA Artifact exports include `codex_context`, a compact summary of:
+QA Artifact exports include a top-level `proof_manifest`, a compact evidence index for:
+
+- build and source URL
+- QA run type and proof tier
+- retained replay, damage, effect, trace, targeted sweep, and tactical sweep counts
+- coverage flags for tactical, Stress Lite, targeted sweep, and DB status evidence
+- known limits, including browser retention caps and Stress Lite not being exhaustive Run All proof
+- the recommended next action
+
+They also include `codex_context`, a compact summary of:
 
 - build and source URL
 - QA readiness
@@ -37,7 +46,7 @@ On browsers with File System Access support:
 2. Pick `/Users/kevinmedeiros/Champions-QA-Drops`.
 3. Run `Stress Lite + QA`, `Tactical Sweep + QA`, `Run All + QA Artifact`, or `QA Artifact`.
 
-Use `Stress Lite + QA` when full Run All may overload the tester machine. It exports a normal QA Artifact with `qa_run_type: "stress_lite_qa"` plus a `stress_lite` block that records the opponent cap, branch-run cap, memory guard, and boundary that this is capped stress evidence, not exhaustive Run All proof.
+Use `Stress Lite + QA` when full Run All may overload the tester machine. It exports a normal QA Artifact with `qa_run_type: "stress_lite_qa"` plus a `stress_lite` block and `proof_manifest.proof_tier: "stress_lite"` that record the opponent cap, branch-run cap, memory guard, and boundary that this is capped stress evidence, not exhaustive Run All proof.
 
 `v2.2.18` and later also surface a compact `stress_lite.summary` block and top-level totals such as `turns_total`, `action_rows_total`, `damage_events_total`, and `effect_events_total`. That lets Codex and the team judge run size, evidence weight, and coaching signal without re-walking the full `qa_coverage_summary`.
 
@@ -66,7 +75,7 @@ The command writes:
 - `reports/codex-qa-context-latest.json`
 - `reports/codex-qa-context-latest.md`
 
-Codex should read the markdown first, then inspect the source artifact if a readiness item is yellow or red.
+Codex should read the markdown first, then inspect `proof_manifest` and `codex_context` in the source artifact if a readiness item is yellow or red.
 
 ## Boundary
 

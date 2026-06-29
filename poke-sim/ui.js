@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.41-db-status-retry'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.42-qa-proof-manifest'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -8773,6 +8773,82 @@ function csBuildCodexQaContext(args) {
   };
 }
 
+function csBuildQaProofManifest(payload) {
+  payload = payload || {};
+  var coverage = payload.qa_coverage_summary || {};
+  var totals = coverage.totals || {};
+  var mechanics = coverage.mechanics_seen || {};
+  var retained = payload.retained || {};
+  var replayCards = Array.isArray(retained.replay_cards) ? retained.replay_cards : [];
+  var damageEvents = Number(totals.damage_events || mechanics.damage_events || payload.damage_events_total || 0);
+  var effectEvents = Number(totals.effect_events || mechanics.effect_events || payload.effect_events_total || 0);
+  var moveRuleTraceRows = Number(totals.move_rule_trace_rows || mechanics.move_rule_trace_rows || 0);
+  var targetedMissing = Array.isArray(coverage.missing_targeted_proof) ? coverage.missing_targeted_proof : [];
+  var tactical = payload.tactical_sweep || {};
+  var stressLite = payload.stress_lite || null;
+  var proofTier = 'manual';
+  if (stressLite) proofTier = 'stress_lite';
+  else if (payload.qa_run_type === 'tactical_sweep' || tactical.enabled) proofTier = 'tactical';
+  else if (payload.targeted_qa_sweep) proofTier = 'targeted';
+  else if (replayCards.length) proofTier = 'retained_replay';
+  var hasTacticalSweep = !!(tactical && tactical.enabled);
+  var hasStressLite = !!stressLite;
+  var hasTargetedSweep = !!payload.targeted_qa_sweep;
+  var knownLimits = [
+    'Browser history is capped by retention settings; absence beyond caps is not proof the battle never happened.'
+  ];
+  if (hasStressLite) {
+    knownLimits.push('Stress Lite is capped browser-safe evidence, not exhaustive Run All proof.');
+  }
+  if (targetedMissing.length) {
+    knownLimits.push('Named targeted proof gaps remain: ' + targetedMissing.slice(0, 8).join(', ') + '.');
+  }
+  var readiness = payload.ready_for_codex ? 'ready_for_codex' : 'needs_more_evidence';
+  var nextAction = payload.recommended_next_test || 'Run QA Artifact after a representative sim run.';
+  if (!replayCards.length && !hasTacticalSweep && !hasTargetedSweep) {
+    nextAction = 'Run Simulation or Tactical Sweep + QA so the artifact includes retained battle evidence.';
+  } else if (hasStressLite) {
+    nextAction = 'Use this as capped stress evidence; run full Run All on a desktop before claiming exhaustive release proof.';
+  } else if (hasTacticalSweep && tactical.status === 'complete') {
+    nextAction = 'Review tactical_sweep, branch_move_analysis, and retained replay cards for the next coaching or engine fix.';
+  } else if (targetedMissing.length) {
+    nextAction = 'Run targeted QA proof for: ' + targetedMissing.slice(0, 8).join(', ') + '.';
+  }
+  return {
+    schema_version: 'champions-qa-proof-manifest-v1',
+    purpose: 'Fast evidence index for Codex, QA reviewers, and contributors. Use this before walking the full artifact.',
+    build_id: payload.build_id || null,
+    source_url: payload.source_url || null,
+    qa_run_type: payload.qa_run_type || null,
+    artifact_type: payload.artifact_type || null,
+    proof_tier: proofTier,
+    readiness: readiness,
+    evidence_counts: {
+      retained_replay_cards: replayCards.length,
+      retained_sim_log_rows: Array.isArray(retained.sim_log) ? retained.sim_log.length : 0,
+      damage_events: damageEvents,
+      effect_events: effectEvents,
+      move_rule_trace_rows: moveRuleTraceRows,
+      branch_matrix_runs: Number(totals.branch_matrix_runs || payload.branch_matrix_runs || tactical.total_executed_runs || 0),
+      tactical_sweep_opponents: Array.isArray(tactical.opponents) ? tactical.opponents.length : 0,
+      targeted_sweep_runs: Number(totals.targeted_sweep_runs || payload.targeted_sweep_runs || 0),
+      targeted_sweep_missing: targetedMissing.length
+    },
+    coverage_flags: {
+      has_retained_replays: replayCards.length > 0,
+      has_damage_events: damageEvents > 0,
+      has_effect_events: effectEvents > 0,
+      has_move_rule_trace: moveRuleTraceRows > 0,
+      has_tactical_sweep: hasTacticalSweep,
+      has_stress_lite: hasStressLite,
+      has_targeted_sweep: hasTargetedSweep,
+      db_status_available: !!(payload.db && payload.db.branch_coverage)
+    },
+    known_limits: knownLimits,
+    next_action: nextAction
+  };
+}
+
 function csUniqueTeamKeys(keys) {
   var seen = {};
   return (Array.isArray(keys) ? keys : []).filter(function(key) {
@@ -9512,6 +9588,7 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     ]
   } : null;
   payload = csApplyStressLiteArtifactBudget(payload, options);
+  payload.proof_manifest = csBuildQaProofManifest(payload);
   try {
     csRememberCoachBrainSummary(mergedCoverage && mergedCoverage.coach_brain_summary, {
       player_team_id: key,
@@ -11578,7 +11655,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'done',
       title: 'DB status chip retry and diagnostics added',
-      detail: 'v2.2.41 adds a two-attempt live team DB load before falling back to bundled roster data, changes the chip to explicit states like DB connected, DB retrying, Bundled roster, or Local roster, and records adapter status details so transient network issues are not mistaken for missing deploy credentials.'
+      detail: 'v2.2.42 adds a top-level QA proof_manifest to exported artifacts so Codex, QA reviewers, and contributors can quickly see the proof tier, retained evidence counts, coverage flags, known limits, and next action before walking the full payload.'
     },
     {
       status: 'done',
