@@ -103,6 +103,8 @@ The same slice must be valid for singles. If a reason only exists in doubles, su
 
 Implementation start: `v2.2.32-action-denial-priority` adds stable reason IDs and QA counters for the first priority-suppression proof family. Fake Out timing failure, Quick Guard priority block, Psychic Terrain priority block, and Armor Tail/Dazzling/Queenly Majesty priority blocks now emit structured move-failure evidence with `reason_id`, `failure_reason_id`, `blocked_priority`, blocker metadata, target metadata, and format metadata when available.
 
+Slice 2: `v2.2.33-status-lock-proof` keeps battle behavior stable and expands the proof layer. Sleep, freeze, paralysis, flinch, and confusion action denials now group into status/action-denial counters, while Taunt, Imprison, and Throat Chop move-lock failures export named lock metadata for QA and coaching review. Accuracy misses, no-valid-target failures, and consecutive Protect-family failures also get separate QA counters so artifacts can distinguish player decision failure, random miss, target-resolution failure, and state-based move lock.
+
 Deliverables:
 
 - Inventory every current action-denial and priority-suppression reason the engine can emit.
@@ -167,7 +169,7 @@ Do not call slice 1 closed until:
 | Dazzling priority block | singles + doubles shared where ability is legal | structured failure row, same-family regression, and QA counter started |
 | Queenly Majesty priority block | singles + doubles shared where ability is legal | structured failure row, same-family regression, and QA counter started |
 
-Still open in slice 1: full reason inventory for sleep exception, freeze thaw timing, paralysis speed-only versus full-skip, confusion non-hit turns, Taunt/Encore/Disable/Imprison lock reasons, Throat Chop sound lock, Protect ordering, no-valid-target timing, and Pokemon-card chip consistency across singles and doubles.
+Still open after slice 2: source-backed exception inventory for Sleep Talk/Rest and other sleep exceptions, freeze thaw timing rows, paralysis speed-only proof when no action is denied, confusion non-hit pass-through rows, Encore/Disable lock reasons, deeper Protect ordering, replacement/switch timing, spread targeting detail, Pokemon-card chip consistency across singles and doubles, and a smoother Showdown-style team/set/upload editor flow.
 
 ## What Must Not Happen
 

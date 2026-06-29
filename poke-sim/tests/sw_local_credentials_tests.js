@@ -40,7 +40,7 @@ T('3. missing local-credentials.js returns empty JavaScript instead of cached ap
 });
 
 T('4. service worker cache is bumped for current source-registry release', () => {
-  truthy(sw.includes("const CACHE_NAME = 'champions-sim-v164-action-denial-priority'"), 'CACHE_NAME should be v164-action-denial-priority');
+  truthy(sw.includes("const CACHE_NAME = 'champions-sim-v165-status-lock-proof'"), 'CACHE_NAME should be v165-status-lock-proof');
   truthy(sw.includes('./generated/pokemon_showdown_species_weights.js'), 'weight companion file should be pre-cached');
   truthy(sw.includes('./generated/source_sync_status.js'), 'source sync status companion file should be pre-cached');
   truthy(sw.includes("'./rulesets.js'"), 'rulesets.js should be pre-cached');

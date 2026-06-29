@@ -8,7 +8,7 @@ Champion-only source map: [`../docs/CHAMPION_MECHANICS_TRUTH_GATE_2026-06-29.md`
 
 Scope guard: this is a Pokemon Champions mechanics gate. Non-Champion legacy mechanics may be named only as blocked/import-drift examples. They are not product scope and must not train trusted coaching data.
 
-Current slice: `v2.2.32-action-denial-priority` starts slice 1 by normalizing priority-suppression reason IDs and QA counters for Fake Out timing, Quick Guard, Psychic Terrain, Armor Tail, Dazzling, and Queenly Majesty evidence.
+Current slice: `v2.2.33-status-lock-proof` extends the action-denial proof layer by grouping sleep, freeze, paralysis, flinch, confusion, Taunt, Imprison, Throat Chop, accuracy miss, no-valid-target, and consecutive Protect-family failure evidence into separate QA counters.
 
 ## Why this exists
 

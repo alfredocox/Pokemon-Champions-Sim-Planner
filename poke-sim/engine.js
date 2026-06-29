@@ -1266,6 +1266,7 @@ function _recordActionDenialEvent(field, mon, move, kind, reason, details) {
     source: 'engine action gate',
     reason_id: reasonId,
     action_denial_reason: reasonId,
+    action_denial_family: reasonId,
     action_denial: true,
     skipped_move: true,
     skipped_action_move: move || null,
@@ -4017,6 +4018,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (attacker.throatChopTurns > 0 && _isSoundMove(move)) {
       log.push(`${attacker.name} used ${move}! But it failed because of Throat Chop!`);
       _recordMoveFailureEvent(field, attacker, move, 'throat-chop', {
+        move_failure_family: 'move_lock',
+        blocker_kind: 'throat_chop',
+        lock_state: 'throat_chop',
+        sound_move_blocked: true,
         note: 'The selected sound move failed because the user was under Throat Chop.'
       });
       attacker.lastMoveFailed = true;
@@ -4107,6 +4112,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (attacker.tauntedTurns > 0 && _moveCategory(move) === 'status' && move !== 'Sleep Talk') {
       log.push(`${attacker.name} used ${move}! But it failed because of Taunt!`);
       _recordMoveFailureEvent(field, attacker, move, 'taunt', {
+        move_failure_family: 'move_lock',
+        blocker_kind: 'taunt',
+        lock_state: 'taunt',
+        taunted_turns: attacker.tauntedTurns || 0,
         note: 'The selected status move failed because the user was taunted.'
       });
       attacker.lastMoveFailed = true;
@@ -4925,6 +4934,10 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     if (enemySide && enemySide.imprisonedMoves && enemySide.imprisonedMoves.has(move) && !fromSleepTalk) {
       log.push(`${attacker.name} used ${move}! But it failed because of Imprison!`);
       _recordMoveFailureEvent(field, attacker, move, 'imprison', {
+        move_failure_family: 'move_lock',
+        blocker_kind: 'imprison',
+        lock_state: 'imprison',
+        imprisoned_by: enemySide && enemySide.imprisonedBy || null,
         note: 'The selected move failed because an opposing Imprison effect blocked shared moves.'
       });
       attacker.lastMoveFailed = true;

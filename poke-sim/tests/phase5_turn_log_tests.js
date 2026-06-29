@@ -778,5 +778,126 @@ T('T5c-11 QA coverage counts blocked-priority families separately', () => {
   eq(summary.mechanics_seen.fake_out_timing_failures, 1, 'Fake Out timing count mismatch');
 });
 
+T('T5c-12 QA coverage counts status denial and move-lock families separately', () => {
+  const turnLog = [{
+    turn: 1,
+    pre: { active: { player: [], opponent: [] }, bench: { player: [], opponent: [] }, roster: { player: [], opponent: [] }, status: {}, field: {}, speed_control: {} },
+    post: { active: { player: [], opponent: [] }, bench: { player: [], opponent: [] }, roster: { player: [], opponent: [] }, status: {}, field: {}, speed_control: {} },
+    actions: { player: [], opponent: [] },
+    damage_events: [],
+    effect_events: [{
+      actor: 'Amoonguss',
+      effect_kind: 'sleep-skip',
+      move: 'Spore',
+      reason_id: 'sleep',
+      action_denial_reason: 'sleep',
+      action_denial: true,
+      skipped_move: true,
+      skipped_action_move: 'Spore'
+    }, {
+      actor: 'Froslass',
+      effect_kind: 'frozen-skip',
+      move: 'Blizzard',
+      reason_id: 'frozen',
+      action_denial_reason: 'frozen',
+      action_denial: true,
+      skipped_move: true,
+      skipped_action_move: 'Blizzard'
+    }, {
+      actor: 'Dragonite',
+      effect_kind: 'paralysis-skip',
+      move: 'Extreme Speed',
+      reason_id: 'paralysis',
+      action_denial_reason: 'paralysis',
+      action_denial: true,
+      skipped_move: true,
+      skipped_action_move: 'Extreme Speed'
+    }, {
+      actor: 'Incineroar',
+      effect_kind: 'flinch-skip',
+      move: 'Fake Out',
+      reason_id: 'flinch',
+      action_denial_reason: 'flinch',
+      action_denial: true,
+      skipped_move: true,
+      skipped_action_move: 'Fake Out'
+    }, {
+      actor: 'Golduck',
+      effect_kind: 'confusion-self-hit',
+      move: 'Confusion',
+      reason_id: 'confusion',
+      action_denial_reason: 'confusion',
+      action_denial: true,
+      skipped_move: true,
+      skipped_action_move: 'Hydro Pump',
+      damage_applied: 12
+    }, {
+      actor: 'Whimsicott',
+      effect_kind: 'move-failure',
+      move: 'Tailwind',
+      move_failed: true,
+      failure_reason_id: 'taunt',
+      reason_id: 'taunt',
+      move_failure_family: 'move_lock',
+      blocker_kind: 'taunt'
+    }, {
+      actor: 'Toxtricity',
+      effect_kind: 'move-failure',
+      move: 'Boomburst',
+      move_failed: true,
+      failure_reason_id: 'throat_chop',
+      reason_id: 'throat_chop',
+      move_failure_family: 'move_lock',
+      blocker_kind: 'throat_chop',
+      sound_move_blocked: true
+    }, {
+      actor: 'Gengar',
+      effect_kind: 'move-failure',
+      move: 'Protect',
+      move_failed: true,
+      failure_reason_id: 'imprison',
+      reason_id: 'imprison',
+      move_failure_family: 'move_lock',
+      blocker_kind: 'imprison'
+    }, {
+      actor: 'Greninja',
+      effect_kind: 'move-failure',
+      move: 'Hydro Pump',
+      move_failed: true,
+      failure_reason_id: 'accuracy_miss',
+      reason_id: 'accuracy_miss'
+    }, {
+      actor: 'Dragapult',
+      effect_kind: 'move-failure',
+      move: 'Dragon Darts',
+      move_failed: true,
+      failure_reason_id: 'no_valid_target',
+      reason_id: 'no_valid_target'
+    }, {
+      actor: 'Klefki',
+      effect_kind: 'move-failure',
+      move: 'Protect',
+      move_failed: true,
+      failure_reason_id: 'protect_consecutive_fail',
+      reason_id: 'protect_consecutive_fail'
+    }]
+  }];
+  const summary = ctx.csBuildQaCoverageSummary(turnLog);
+  eq(summary.mechanics_seen.status_action_denials, 5, 'status/action denial count mismatch');
+  eq(summary.mechanics_seen.sleep_action_denials, 1, 'sleep denial count mismatch');
+  eq(summary.mechanics_seen.freeze_action_denials, 1, 'freeze denial count mismatch');
+  eq(summary.mechanics_seen.paralysis_action_denials, 1, 'paralysis denial count mismatch');
+  eq(summary.mechanics_seen.flinch_action_denials, 1, 'flinch denial count mismatch');
+  eq(summary.mechanics_seen.confusion_action_denials, 1, 'confusion denial count mismatch');
+  eq(summary.mechanics_seen.move_lock_failures, 3, 'move-lock count mismatch');
+  eq(summary.mechanics_seen.taunt_move_blocks, 1, 'Taunt block count mismatch');
+  eq(summary.mechanics_seen.throat_chop_sound_blocks, 1, 'Throat Chop block count mismatch');
+  eq(summary.mechanics_seen.imprison_move_blocks, 1, 'Imprison block count mismatch');
+  eq(summary.mechanics_seen.accuracy_misses, 1, 'accuracy miss count mismatch');
+  eq(summary.mechanics_seen.no_valid_target_failures, 1, 'no-valid-target count mismatch');
+  eq(summary.mechanics_seen.target_resolution_failures, 1, 'target-resolution count mismatch');
+  eq(summary.mechanics_seen.protect_consecutive_failures, 1, 'Protect consecutive failure count mismatch');
+});
+
 console.log(`\nPhase 5 turn log: ${pass} pass, ${fail} fail\n`);
 if (fail) process.exit(1);

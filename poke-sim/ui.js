@@ -116,9 +116,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.32-action-denial-priority';
+    return txt || 'v2.2.33-status-lock-proof';
   } catch (e) {
-    return 'v2.2.32-action-denial-priority';
+    return 'v2.2.33-status-lock-proof';
   }
 }
 
@@ -4753,6 +4753,20 @@ function csQaBlankMechanicsSeen() {
     fake_out_timing_failures: 0,
     speed_order_details: 0,
     action_denial_events: 0,
+    status_action_denials: 0,
+    sleep_action_denials: 0,
+    freeze_action_denials: 0,
+    paralysis_action_denials: 0,
+    flinch_action_denials: 0,
+    confusion_action_denials: 0,
+    move_lock_failures: 0,
+    taunt_move_blocks: 0,
+    imprison_move_blocks: 0,
+    throat_chop_sound_blocks: 0,
+    target_resolution_failures: 0,
+    no_valid_target_failures: 0,
+    accuracy_misses: 0,
+    protect_consecutive_failures: 0,
     flinch_applied: 0,
     flinch_skip: 0,
     frozen_skip: 0,
@@ -6060,10 +6074,33 @@ function csBuildQaCoverageSummary(turnLog, opts) {
       csQaInc(effectKinds, kind);
       csQaInc(effectMoves, effect.move || 'unknown');
       var lowerKind = String(kind || '').toLowerCase();
-      if (effect.action_denial) mechanics.action_denial_events += 1;
+      var actionDenialReasonId = String(effect.action_denial_reason || effect.reason_id || effect.volatile_status || '').toLowerCase();
+      var failureReasonId = String(effect.failure_reason_id || effect.reason_id || effect.failure_reason || '').toLowerCase();
+      if (effect.action_denial) {
+        mechanics.action_denial_events += 1;
+        if (/sleep|frozen|freeze|paralysis|flinch|confusion/.test(actionDenialReasonId + ' ' + lowerKind)) mechanics.status_action_denials += 1;
+        if (/sleep/.test(actionDenialReasonId + ' ' + lowerKind)) mechanics.sleep_action_denials += 1;
+        else if (/frozen|freeze/.test(actionDenialReasonId + ' ' + lowerKind)) mechanics.freeze_action_denials += 1;
+        else if (/paralysis/.test(actionDenialReasonId + ' ' + lowerKind)) mechanics.paralysis_action_denials += 1;
+        else if (/flinch/.test(actionDenialReasonId + ' ' + lowerKind)) mechanics.flinch_action_denials += 1;
+        else if (/confusion/.test(actionDenialReasonId + ' ' + lowerKind)) mechanics.confusion_action_denials += 1;
+      }
+      if (effect.move_failed) {
+        if (effect.move_failure_family === 'move_lock' || /taunt|imprison|throat[_-]?chop/.test(failureReasonId)) mechanics.move_lock_failures += 1;
+        if (failureReasonId === 'taunt' || effect.blocker_kind === 'taunt') mechanics.taunt_move_blocks += 1;
+        else if (failureReasonId === 'imprison' || effect.blocker_kind === 'imprison') mechanics.imprison_move_blocks += 1;
+        else if (/throat[_-]?chop/.test(failureReasonId) || effect.blocker_kind === 'throat_chop') mechanics.throat_chop_sound_blocks += 1;
+        if (/no[_-]?valid[_-]?target/.test(failureReasonId)) {
+          mechanics.target_resolution_failures += 1;
+          mechanics.no_valid_target_failures += 1;
+        } else if (failureReasonId === 'accuracy_miss' || failureReasonId === 'accuracy-miss') {
+          mechanics.accuracy_misses += 1;
+        } else if (failureReasonId === 'protect_consecutive_fail' || failureReasonId === 'protect-consecutive-fail') {
+          mechanics.protect_consecutive_failures += 1;
+        }
+      }
       if (effect.blocked_priority) {
         mechanics.blocked_priority_events += 1;
-        var failureReasonId = String(effect.failure_reason_id || effect.reason_id || effect.failure_reason || '').toLowerCase();
         var blockerKind = String(effect.blocker_kind || '').toLowerCase();
         if (failureReasonId === 'quick_guard_priority_block' || blockerKind === 'quick_guard') mechanics.quick_guard_priority_blocks += 1;
         else if (failureReasonId === 'psychic_terrain_priority_block' || blockerKind === 'psychic_terrain') mechanics.psychic_terrain_priority_blocks += 1;
@@ -11587,6 +11624,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Status and move-lock proof counters added',
+      detail: 'v2.2.33 expands issue #149 slice 2 by grouping sleep, freeze, paralysis, flinch, confusion, Taunt, Imprison, Throat Chop, accuracy miss, no-valid-target, and consecutive Protect-family failures into distinct QA counters. This lets replay artifacts prove why a Pokemon lost its action or why a selected move failed without mixing random misses, target issues, and lock states.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -12255,6 +12297,11 @@ var CS_OVERVIEW_DATA = {
       status: 'next',
       title: 'Close the mechanics truth beta gate',
       detail: 'Continue issue #149 from the Pokemon Champions mechanics truth gate: finish action-denial and priority-suppression reason inventory for singles and doubles, then move family-by-family through targeting/immunity, Protect/guard, multi-effect moves, field durations, items/abilities, switching/replacement, spread/doubles resolution, singles resolution, and coaching-safe learning.'
+    },
+    {
+      status: 'next',
+      title: 'Smooth the team editor, set editor, and upload edit flow',
+      detail: 'The current edit-team, individual Pokemon, set-editor, and upload/import areas are functional but not smooth enough for public use. Next UX slice should make Showdown-style editing fluid: searchable legal move/item fields, clearer per-Pokemon edit state, upload-to-edit handoff, save/cancel protection, and legality-aware guardrails so players can customize teams without corrupting approved data.'
     },
     {
       status: 'next',
