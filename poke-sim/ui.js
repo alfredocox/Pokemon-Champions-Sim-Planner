@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.49-qa-artifact-evidence-intake'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.50-sim-evidence-adapter'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -11849,6 +11849,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Team Lab evidence adapter boundary added',
+      detail: 'v2.2.50 wires SupabaseAdapter methods for Team Lab sim jobs and replay evidence so future QA artifact imports can persist versioned evidence through trusted writers, while browser anon writes remain blocked by RLS and surface trusted_writer_required instead of silently claiming storage.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -12852,6 +12857,21 @@ function csRenderOverviewTeamLabPlan() {
       status: 'next',
       title: 'QA artifact import pipeline (#182)',
       detail: 'Convert turn-log and QA artifacts into sim_jobs/replays evidence while preserving source gaps for team mapping, regulation, ruleset, and summary-only sweep data.'
+    },
+    {
+      status: 'gap',
+      title: 'Trusted evidence import worker',
+      detail: 'Missing follow-up: browser exports can normalize evidence, but protected Supabase writes must happen through a trusted worker/server action with audit logging, not through anon browser clients.'
+    },
+    {
+      status: 'gap',
+      title: 'Artifact team-ID mapping resolver',
+      detail: 'Missing follow-up: QA artifacts still use local keys like player or bundled opponent IDs until a reviewed resolver maps them to Team Lab team UUIDs without poisoning leaderboard data.'
+    },
+    {
+      status: 'gap',
+      title: 'Leaderboard evidence promotion rules',
+      detail: 'Missing follow-up: define which sim_jobs can promote replay rows into official leaderboard scopes versus experimental/dev evidence, including benchmark pool approval and minimum sample requirements.'
     },
     {
       status: 'next',

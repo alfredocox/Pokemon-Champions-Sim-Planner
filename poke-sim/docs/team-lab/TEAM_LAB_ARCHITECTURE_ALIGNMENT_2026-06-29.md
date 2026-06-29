@@ -108,3 +108,26 @@ This keeps Team Lab rankings tied to replay-verifiable evidence while preserving
 - Targeted/tactical sweep summary evidence is preserved at job level until individual branch runs are exported as replay records.
 
 This is intentionally backend-only. It does not make leaderboard claims by itself; it gives future import/drop-folder workflows a safe normalization layer so QA artifacts can become auditable evidence.
+
+
+## 2026-06-29 implementation update: Supabase evidence adapter boundary
+
+`v2.2.50-sim-evidence-adapter` connects the Team Lab evidence model to the existing Supabase adapter boundary:
+
+- `SupabaseAdapter.createSimJob` can insert normalized rows into `team_lab_sim_jobs` when called from a trusted writer context.
+- `SupabaseAdapter.updateSimJobStatus` can move jobs through queued/running/completed/failed/cancelled states with status reports and timestamps.
+- `SupabaseAdapter.saveReplayRecord` can persist normalized replay evidence into `team_lab_replays`.
+- `SupabaseAdapter.listSimJobs` and `SupabaseAdapter.listReplays` expose versioned, scoped reads by regulation, format, engine version, ruleset version, job, run, team, and status.
+- Browser anon writes remain intentionally blocked by Supabase RLS. The adapter surfaces `trusted_writer_required` instead of pretending evidence was persisted.
+
+This prepares the QA artifact drop-folder/import pipeline without weakening the security model or turning local browser evidence into official leaderboard truth.
+
+### Missing pieces added to the active plan
+
+The adapter boundary is not the full import pipeline. These items remain open and should be implemented before any Team Lab leaderboard is treated as public ranking evidence:
+
+1. Trusted evidence import worker: accepts normalized artifacts, runs server-side validation, writes `team_lab_sim_jobs` and `team_lab_replays`, and records import audit metadata without exposing service credentials to the browser.
+2. Artifact team-ID mapping resolver: maps local artifact keys to reviewed Team Lab team UUIDs and refuses promotion when mapping is ambiguous.
+3. Leaderboard evidence promotion rules: separates official benchmark/recalculation jobs from dev/experimental evidence, with minimum sample sizes and source-gap gates.
+4. Recalculation queue: rebuilds leaderboard and matchup rows after trusted imports, engine updates, or ruleset updates, then marks old rows stale.
+5. Poisoning controls: prevents unknown, illegal, stale, private, or unreviewed evidence from improving public/global leaderboard rank.
