@@ -118,9 +118,9 @@ function csGetBuildId() {
     if (manifest && manifest.build_id) return String(manifest.build_id);
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.37-public-security-guard';
+    return txt || 'v2.2.38-csp-xss-guard';
   } catch (e) {
-    return 'v2.2.37-public-security-guard';
+    return 'v2.2.38-csp-xss-guard';
   }
 }
 
@@ -731,7 +731,7 @@ function csSpriteStaticFallbackUrl(name) {
   return 'https://play.pokemonshowdown.com/sprites/gen5/' + slug + '.png';
 }
 function csSpriteFallbackAttrs(name) {
-  return ' data-fallback-src="' + _escapeHtml(csSpriteStaticFallbackUrl(name)) + '" data-fallback-stage="0" onerror="csHandleSpriteError(this)"';
+  return ' data-fallback-src="' + _escapeHtml(csSpriteStaticFallbackUrl(name)) + '" data-fallback-stage="0"';
 }
 function csHandleSpriteError(img) {
   if (!img) return;
@@ -744,6 +744,26 @@ function csHandleSpriteError(img) {
   }
   img.setAttribute('data-fallback-stage', '2');
   img.style.opacity = '.3';
+}
+
+function csInitPublicSecurityDelegates() {
+  if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+  if (!document.__championsPublicSecurityDelegates) {
+    document.__championsPublicSecurityDelegates = true;
+    document.addEventListener('error', function(ev) {
+      var target = ev && ev.target;
+      if (!target || String(target.tagName || '').toUpperCase() !== 'IMG') return;
+      if (!target.getAttribute || !target.getAttribute('data-fallback-src')) return;
+      csHandleSpriteError(target);
+    }, true);
+    document.addEventListener('click', function(ev) {
+      var target = ev && ev.target;
+      var btn = target && target.closest ? target.closest('.speed-tier-toggle') : null;
+      if (!btn) return;
+      var panel = btn.nextElementSibling;
+      if (panel && panel.classList) panel.classList.toggle('open');
+    });
+  }
 }
 
 
@@ -11683,6 +11703,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'CSP and public XSS guardrails added',
+      detail: 'v2.2.38 adds a baseline Content Security Policy to the app shell and a CI guard that blocks dynamic code execution, inline event-handler attributes, CSP stripping during Pages deploy, and missing public XSS regression coverage. Inline script/style allowances remain documented as an architecture cleanup target until the bundle is split further.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -13074,13 +13099,13 @@ function buildSpeedTierHTML(members) {
   })).sort((a,b) => b.spe - a.spe);
 
   return `<div class="speed-tier-section">
-    <button class="speed-tier-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+    <button class="speed-tier-toggle" type="button">
       ▸ Speed Tiers
     </button>
     <div class="speed-tier-list">
       ${sorted.map((s,i) => `<div class="speed-tier-row">
         <span class="speed-rank">${i+1}</span>
-        <span class="speed-name">${s.name}</span>
+        <span class="speed-name">${_escapeHtml(s.name)}</span>
         <span class="speed-val">${s.spe}${s.note ? ` <em style="color:var(--text-m);font-size:9px">${s.note}</em>` : ''}</span>
       </div>`).join('')}
     </div>
@@ -18414,6 +18439,7 @@ if (typeof window !== 'undefined') {
   // Hook the existing tab-nav click and player-select change after DOM is ready
   document.addEventListener('DOMContentLoaded', async function(){
     csApplyReleaseManifestToHeader();
+    csInitPublicSecurityDelegates();
     var didHardenClientState = await csHardenClientState();
     if (didHardenClientState && csReloadAfterBuildCacheReset(csGetBuildId())) return;
     _csInitEvidenceToggle();

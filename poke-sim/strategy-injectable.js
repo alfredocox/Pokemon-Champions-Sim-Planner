@@ -393,7 +393,7 @@ function renderStrategyGuideTab(teamKey) {
     <div style="padding:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
         <label style="font-size:0.78rem;font-weight:600;color:#aaa">Strategy for:</label>
-        <select id="strategy-team-picker" style="font-size:0.8rem;padding:4px 8px;background:var(--surface2,#1e1e2e);border:1px solid var(--border,#444);color:#ccc;border-radius:6px" onchange="renderStrategyGuideTab(this.value)">
+        <select id="strategy-team-picker" style="font-size:0.8rem;padding:4px 8px;background:var(--surface2,#1e1e2e);border:1px solid var(--border,#444);color:#ccc;border-radius:6px">
           ${Object.keys(TEAMS).map(k=>`<option value="${k}" ${k===teamKey?'selected':''}>${TEAMS[k].name||k}</option>`).join('')}
         </select>
       </div>
@@ -700,6 +700,14 @@ function coachPost(turnLogOrResult, result) {
 }
 
 if (typeof window !== 'undefined') {
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function' && !document.__championsStrategyPickerDelegate) {
+    document.__championsStrategyPickerDelegate = true;
+    document.addEventListener('change', function(ev) {
+      var target = ev && ev.target;
+      if (!target || target.id !== 'strategy-team-picker') return;
+      renderStrategyGuideTab(target.value);
+    });
+  }
   window.ChampionsSim = window.ChampionsSim || {};
   window.ChampionsSim.coaching = {
     coachPre: coachPre,

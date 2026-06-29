@@ -63,15 +63,13 @@ T('3. committed browser runtime does not contain privileged secret names', () =>
 T('4. committed app shell keeps Supabase credentials empty before deploy injection', () => {
   const index = read(path.join(SIM, 'index.html'));
   const bundle = read(path.join(SIM, 'pokemon-champion-2026.html'));
-  const emptyUrl = /window\.__SUPABASE_URL__\s*=\s*window\.__SUPABASE_URL__\s*\|\|\s*'';/;
-  const emptyKey = /window\.__SUPABASE_KEY__\s*=\s*window\.__SUPABASE_KEY__\s*\|\|\s*'';/;
-  truthy(emptyUrl.test(index),
+  truthy(index.includes("window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';"),
     'source index should keep Supabase URL placeholder empty');
-  truthy(emptyKey.test(index),
+  truthy(index.includes("window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';"),
     'source index should keep Supabase key placeholder empty');
-  truthy(emptyUrl.test(bundle),
+  truthy(bundle.includes("window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';"),
     'committed bundle should keep Supabase URL placeholder empty');
-  truthy(emptyKey.test(bundle),
+  truthy(bundle.includes("window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';"),
     'committed bundle should keep Supabase key placeholder empty');
 });
 
