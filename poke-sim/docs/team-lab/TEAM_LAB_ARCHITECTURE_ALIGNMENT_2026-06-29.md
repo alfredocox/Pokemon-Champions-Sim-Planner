@@ -83,3 +83,15 @@ When in doubt, store the uncertainty. Unknown mechanics, legal data, or source c
 - `ruleset_packages` stores compiled regulation packages for validators/sims with legal lists, clauses, mechanics, source status, source gaps, compiled rule-fact IDs, and stale/partial/verified status.
 - `source_truth.js` compiles packages conservatively: official/in-game/replay verified facts can contribute to package truth, while Showdown/community/reference-only facts remain source gaps until Champion-verified.
 - Unit tests prove missing facts become `needs_verification`, reference-only facts do not promote legality, and complete verified facts can produce a rankable package.
+
+
+## 2026-06-29 implementation update: sim evidence foundation
+
+`v2.2.47-sim-evidence-foundation` implements the next backend evidence piece from this alignment note:
+
+- `team_lab_sim_jobs` stores queued/running/completed/failed batch and sweep jobs with regulation, format, engine version, ruleset version, team pools, games per matchup, confidence flags, and source gaps.
+- `team_lab_replays` stores first-class replay/event-log evidence linked to sim runs and jobs with deterministic seed, result, turn log, damage/effect rows, QA coverage, evidence summary, confidence flags, and source gaps.
+- `team_lab_sim_runs` gains optional `job_id`, `replay_id`, and `replay_evidence_summary` pointers.
+- `sim_evidence.js` validates and normalizes sim jobs and replay records without running battles or changing engine behavior.
+
+This keeps Team Lab rankings tied to replay-verifiable evidence while preserving uncertainty and avoiding UI overclaiming.

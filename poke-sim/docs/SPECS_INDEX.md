@@ -54,4 +54,20 @@ When the migration is complete, `poke-sim/*.md` spec files will be deleted from 
 
 ---
 
-*Last updated: 2026-06-27*
+## Canonical Source-Truth Map
+
+Use this section before adding new source-truth documents. The goal is to prevent duplicate truth claims.
+
+| Canonical area | Current owner doc | Supporting / archive docs | Rule |
+|---|---|---|---|
+| Source hierarchy and source challenge process | [`DATA_SOURCE_REGISTRY.md`](DATA_SOURCE_REGISTRY.md) | [`SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md`](SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md) | Registry wins for current source tiers; audit preserves cleanup history. |
+| Architecture and QA evidence contract | [`CHAMPION_SIM_ARCHITECTURE_AND_EVIDENCE.md`](CHAMPION_SIM_ARCHITECTURE_AND_EVIDENCE.md) | Reports and QA artifact docs | Architecture doc wins for source-to-engine-to-export boundaries. |
+| Regulation/source conversion work | [`REG_M_B_SOURCE_CONVERSION_TABLE.md`](REG_M_B_SOURCE_CONVERSION_TABLE.md) | [`CHAMPIONS_LEGALITY.md`](CHAMPIONS_LEGALITY.md), [`CHAMPIONS_MEGA_SYSTEM.md`](CHAMPIONS_MEGA_SYSTEM.md) | Conversion table owns current reviewed rows; support docs explain domain policy. |
+| Team Lab trust pipeline | [`team-lab/TEAM_LAB_ARCHITECTURE_ALIGNMENT_2026-06-29.md`](team-lab/TEAM_LAB_ARCHITECTURE_ALIGNMENT_2026-06-29.md) | [`team-lab/TEAM_LAB_FOUNDATION_SPEC_2026-06-29.md`](team-lab/TEAM_LAB_FOUNDATION_SPEC_2026-06-29.md) | Alignment doc owns current sequencing; foundation spec preserves original input and acceptance criteria. |
+| Showdown sync implementation | [`SHOWDOWN_SYNC_ARCHITECTURE.md`](SHOWDOWN_SYNC_ARCHITECTURE.md) | [`SHOWDOWN_DB_SOURCE_OF_TRUTH_PLAN.md`](SHOWDOWN_DB_SOURCE_OF_TRUTH_PLAN.md), [`SHOWDOWN_RUNTIME_NAMING_CHEATSHEET.md`](SHOWDOWN_RUNTIME_NAMING_CHEATSHEET.md) | Sync architecture wins for current DB/runtime flow; older plan docs are implementation support. |
+
+## Milestone organization rule
+
+Overview work should live under major milestones with Done/Open/Next/Decision buckets. If a new item does not fit an existing milestone, expand the milestone map first instead of adding another flat row.
+
+*Last updated: 2026-06-29*

@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.46-source-truth-packages'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.48-overview-milestone-board'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -11844,6 +11844,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Team Lab sim evidence foundation added',
+      detail: 'v2.2.47 adds first-class Team Lab sim_jobs and replays so future leaderboard rows can point to versioned batch jobs, deterministic seeds, replay/event logs, QA coverage summaries, confidence flags, and source gaps instead of relying on inline replay blobs.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -12604,8 +12609,194 @@ var CS_OVERVIEW_DATA = {
     { label: 'Runtime Naming Cheat Sheet', href: 'docs/SHOWDOWN_RUNTIME_NAMING_CHEATSHEET.md' },
     { label: 'Showdown Sync Architecture', href: 'docs/SHOWDOWN_SYNC_ARCHITECTURE.md' },
     { label: 'Spec Index', href: 'docs/SPECS_INDEX.md' }
+  ],
+  sourceDocs: [
+    {
+      label: 'Data Source Registry',
+      href: 'docs/DATA_SOURCE_REGISTRY.md',
+      role: 'Canonical source hierarchy and challenge page',
+      status: 'canonical',
+      notes: 'Use first when asking what source tier can prove a claim.'
+    },
+    {
+      label: 'Champion Sim Architecture + Evidence',
+      href: 'docs/CHAMPION_SIM_ARCHITECTURE_AND_EVIDENCE.md',
+      role: 'Canonical architecture and QA evidence contract',
+      status: 'canonical',
+      notes: 'Owns source-to-engine-to-export boundaries and proof workflow.'
+    },
+    {
+      label: 'Team Lab Architecture Alignment',
+      href: 'docs/team-lab/TEAM_LAB_ARCHITECTURE_ALIGNMENT_2026-06-29.md',
+      role: 'Canonical Team Lab trust roadmap',
+      status: 'canonical for Team Lab',
+      notes: 'Owns Team Lab backend/source-truth/sim-evidence sequencing until a broader architecture doc replaces it.'
+    },
+    {
+      label: 'Source Truth Document Audit',
+      href: 'docs/SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md',
+      role: 'Audit and duplication-risk record',
+      status: 'audit/archive',
+      notes: 'Use for cleanup history; do not treat older duplicated claims as newer than canonical docs.'
+    },
+    {
+      label: 'SPECS_INDEX',
+      href: 'docs/SPECS_INDEX.md',
+      role: 'Doc navigation and cleanup queue',
+      status: 'index',
+      notes: 'Tracks canonical vs legacy locations and consolidation work.'
+    }
   ]
 };
+
+
+function csOverviewMilestoneRules() {
+  return [
+    {
+      id: 'simulation-truth',
+      title: 'Simulation Truth & Mechanics Accuracy',
+      kicker: 'engine trust',
+      summary: 'Battle mechanics, damage/effect proof, replay transparency, and Champion-vs-baseline parity gates.',
+      match: /truth|mechanic|damage|effect|move|priority|status|faint|replay|turn-log|turn log|knock off|foul play|low kick|oracle|parity|terrain|weather|ability|item|protect|redirection|switching|qa coverage|qa artifact|battle system/i
+    },
+    {
+      id: 'source-truth',
+      title: 'Source Truth, Regulations & Data Governance',
+      kicker: 'rules/data',
+      summary: 'Official/client-captured source hierarchy, ruleset packages, approved source rows, drift detection, and regulation review.',
+      match: /source|reg m-b|regulation|showdown|approved|champions override|override|ruleset|rule_facts|ruleset_packages|legality|data audit|source refresh|db generation|generated/i
+    },
+    {
+      id: 'team-lab',
+      title: 'Team Lab, Saved Teams & Evidence Pipeline',
+      kicker: 'team lab',
+      summary: 'Versioned teams, sim jobs, replay evidence, leaderboard trust, hidden details, and future compare/coaching profiles.',
+      match: /team lab|sim_jobs|replays|leaderboard|saved profile|login|custom team|team editor|team builder|compare|matchup|team dna|forensic log|retention|history|supabase history/i
+    },
+    {
+      id: 'release-security',
+      title: 'Release Reliability, Security & Repo Sync',
+      kicker: 'launch safety',
+      summary: 'Build identity, cache safety, Pages deploy proof, public security, RLS/privacy, CI gates, and Y/Alfredo repo parity.',
+      match: /release|deploy|pages|cache|security|csp|xss|rls|privacy|public launch|repo|alfredo|fork|manifest|bundle|ci|stress|device|mobile|abuse/i
+    },
+    {
+      id: 'coaching-product',
+      title: 'Coaching, UX & Player Learning',
+      kicker: 'product',
+      summary: 'Battle Sensei, tactical sweep, decision ledgers, Strategy flow, editor UX, player-facing explanations, and coaching trust.',
+      match: /coach|sensei|strategy|tactical|decision|battle iq|learning|player|ux|editor|upload|set editor|flow|practice|recommendation/i
+    }
+  ];
+}
+
+function csOverviewItemText(row) {
+  return String((row && row.title) || '') + ' ' + String((row && row.detail) || '');
+}
+
+function csOverviewItemMilestone(row) {
+  var text = csOverviewItemText(row);
+  var rules = csOverviewMilestoneRules();
+  for (var i = 0; i < rules.length; i++) {
+    if (rules[i].match.test(text)) return rules[i].id;
+  }
+  return 'release-security';
+}
+
+function csOverviewBucketForStatus(status) {
+  if (status === 'done' || status === 'validated') return 'done';
+  if (status === 'gap' || status === 'blocked') return 'open';
+  if (status === 'decision') return 'decision';
+  return 'next';
+}
+
+function csOverviewBucketLabel(bucket) {
+  return bucket === 'done' ? 'Done / Closed' : bucket === 'open' ? 'Open' : bucket === 'decision' ? 'Decision' : 'Next';
+}
+
+function csBuildOverviewMilestones(data) {
+  var groups = {};
+  csOverviewMilestoneRules().forEach(function(rule) {
+    groups[rule.id] = {
+      id: rule.id,
+      title: rule.title,
+      kicker: rule.kicker,
+      summary: rule.summary,
+      buckets: { done: [], open: [], next: [], decision: [] }
+    };
+  });
+  function addRows(rows) {
+    (rows || []).forEach(function(row) {
+      var milestone = csOverviewItemMilestone(row);
+      var bucket = csOverviewBucketForStatus(row && row.status);
+      if (!groups[milestone]) milestone = 'release-security';
+      groups[milestone].buckets[bucket].push(row);
+    });
+  }
+  addRows(data.shipped);
+  addRows(data.validation);
+  addRows(data.gaps);
+  addRows(data.next);
+  addRows(data.decisions);
+  return csOverviewMilestoneRules().map(function(rule) { return groups[rule.id]; });
+}
+
+function csOverviewBucketCount(group, bucket) {
+  return group && group.buckets && group.buckets[bucket] ? group.buckets[bucket].length : 0;
+}
+
+function csRenderOverviewBucket(group, bucket) {
+  var rows = group.buckets[bucket] || [];
+  if (!rows.length) return '';
+  return '<details class="overview-bucket"' + (bucket === 'open' || bucket === 'next' ? ' open' : '') + '>' +
+    '<summary><span>' + _escapeHtml(csOverviewBucketLabel(bucket)) + '</span><strong>' + rows.length + '</strong></summary>' +
+    '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
+  '</details>';
+}
+
+function csRenderOverviewMilestoneSection(group) {
+  var openCount = csOverviewBucketCount(group, 'open');
+  var nextCount = csOverviewBucketCount(group, 'next');
+  var doneCount = csOverviewBucketCount(group, 'done');
+  var decisionCount = csOverviewBucketCount(group, 'decision');
+  return '<details class="overview-milestone" open>' +
+    '<summary class="overview-milestone-summary">' +
+      '<div><span class="overview-kicker">' + _escapeHtml(group.kicker) + '</span><h3>' + _escapeHtml(group.title) + '</h3><p>' + _escapeHtml(group.summary) + '</p></div>' +
+      '<div class="overview-milestone-counts">' +
+        '<span class="overview-count open">Open ' + openCount + '</span>' +
+        '<span class="overview-count next">Next ' + nextCount + '</span>' +
+        '<span class="overview-count done">Done ' + doneCount + '</span>' +
+        '<span class="overview-count decision">Decision ' + decisionCount + '</span>' +
+      '</div>' +
+    '</summary>' +
+    '<div class="overview-buckets">' +
+      csRenderOverviewBucket(group, 'open') +
+      csRenderOverviewBucket(group, 'next') +
+      csRenderOverviewBucket(group, 'decision') +
+      csRenderOverviewBucket(group, 'done') +
+    '</div>' +
+  '</details>';
+}
+
+function csRenderOverviewMilestones(data) {
+  return csBuildOverviewMilestones(data).map(csRenderOverviewMilestoneSection).join('');
+}
+
+function csRenderOverviewSourceDocs(data) {
+  var sourceDocs = data.sourceDocs || [];
+  if (!sourceDocs.length) return '';
+  var rows = sourceDocs.map(function(doc) {
+    return '<tr><td><strong>' + _escapeHtml(doc.label) + '</strong><br><a href="' + _escapeHtml(doc.href) + '" target="_blank" rel="noopener">' + _escapeHtml(doc.href) + '</a></td>' +
+      '<td>' + _escapeHtml(doc.role) + '</td>' +
+      '<td>' + _escapeHtml(doc.status) + '</td>' +
+      '<td>' + _escapeHtml(doc.notes) + '</td></tr>';
+  }).join('');
+  return '<div class="overview-section overview-source-map">' +
+    '<div class="overview-section-head"><h3>Source Doc Map</h3><span class="overview-kicker">canonical vs archive</span></div>' +
+    '<p class="overview-source-note">Use this map to challenge sources without duplicating truth. Canonical docs own current decisions; planning/archive docs preserve context but must not override runtime truth.</p>' +
+    '<div class="overview-db-table-wrap"><table class="overview-db-table"><thead><tr><th>Document</th><th>Role</th><th>Status</th><th>Use rule</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+  '</div>';
+}
 
 function csOverviewStatusLabel(status) {
   var labels = {
@@ -12730,15 +12921,19 @@ function renderOverviewTab() {
   }).join('');
   host.innerHTML =
     '<div class="overview-metrics">' + metrics + '</div>' +
+    '<div class="overview-milestone-board">' +
+      '<div class="overview-section overview-board-intro">' +
+        '<div class="overview-section-head"><h3>Milestone Board</h3><span class="overview-kicker">Done / Open / Next</span></div>' +
+        '<p class="overview-source-note">Completed, open, next, and decision items now live under major milestones. If a milestone no longer fits the work, expand the milestone map before adding more flat rows.</p>' +
+      '</div>' +
+      csRenderOverviewMilestones(data) +
+    '</div>' +
     '<div class="overview-grid">' +
       '<div class="overview-list">' +
-        csRenderOverviewSection('Completed Work', 'shipped', data.shipped) +
-        csRenderOverviewSection('Closed Proof', 'closed', data.validation) +
+        csRenderOverviewSourceDocs(data) +
+        csRenderOverviewSection('Closed Proof Archive', 'closed', data.validation) +
       '</div>' +
       '<div class="overview-list">' +
-        csRenderOverviewSection('Open Issues', 'not done yet', data.gaps) +
-        csRenderOverviewSection('Milestones', 'roadmap', data.next) +
-        csRenderOverviewSection('Open Decisions', 'team review', data.decisions) +
         '<div class="overview-section">' +
           '<div class="overview-section-head"><h3>Source Of Truth Flow</h3><span class="overview-kicker">target</span></div>' +
           '<div class="overview-flow">' + flow + '</div>' +
