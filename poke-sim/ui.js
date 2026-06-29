@@ -118,9 +118,9 @@ function csGetBuildId() {
     if (manifest && manifest.build_id) return String(manifest.build_id);
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.36-bundle-sha-proof';
+    return txt || 'v2.2.37-public-security-guard';
   } catch (e) {
-    return 'v2.2.36-bundle-sha-proof';
+    return 'v2.2.37-public-security-guard';
   }
 }
 
@@ -11675,6 +11675,11 @@ var CS_OVERVIEW_DATA = {
       status: 'done',
       title: 'Canonical release manifest added',
       detail: 'v2.2.35 starts the release-reliability cleanup by adding release_manifest.js as the source of truth for visible build ID, export build_id, bundled artifact identity, source-sync policy, and service-worker cache name. The header now derives from the manifest instead of treating scattered README/header/query/cache state as independent truth.'
+    },
+    {
+      status: 'done',
+      title: 'Public launch security guardrails started',
+      detail: 'v2.2.37 adds a CI security guard for the public app shell: local credentials and env files must stay ignored, Pages deploy can inject only anon/public Supabase runtime config, service-role/write/database secrets are blocked from browser runtime files, and committed bundles must keep Supabase placeholders empty before deploy-time injection.'
     },
     {
       status: 'done',
