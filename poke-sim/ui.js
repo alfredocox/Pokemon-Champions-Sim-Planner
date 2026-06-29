@@ -114,11 +114,36 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
 
 function csGetBuildId() {
   try {
+    var manifest = (typeof window !== 'undefined' && window.CHAMPIONS_RELEASE_MANIFEST) ? window.CHAMPIONS_RELEASE_MANIFEST : null;
+    if (manifest && manifest.build_id) return String(manifest.build_id);
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.34-status-resolution-proof';
+    return txt || 'v2.2.35-canonical-release-manifest';
   } catch (e) {
-    return 'v2.2.34-status-resolution-proof';
+    return 'v2.2.35-canonical-release-manifest';
+  }
+}
+
+function csGetReleaseManifest() {
+  if (typeof window !== 'undefined' && window.CHAMPIONS_RELEASE_MANIFEST) return window.CHAMPIONS_RELEASE_MANIFEST;
+  return {
+    schema_version: 'champions-release-manifest-v1',
+    build_id: csGetBuildId(),
+    service_worker_cache: null,
+    bundle_name: 'pokemon-champion-2026.html'
+  };
+}
+
+function csApplyReleaseManifestToHeader() {
+  try {
+    var manifest = csGetReleaseManifest();
+    var el = document.getElementById('build-version');
+    if (el && manifest && manifest.build_id) el.textContent = manifest.build_id;
+    if (el && manifest && manifest.service_worker_cache) {
+      el.setAttribute('title', 'Release manifest: ' + manifest.build_id + ' | SW cache: ' + manifest.service_worker_cache);
+    }
+  } catch (e) {
+    // Keep fallback header if manifest application fails.
   }
 }
 
@@ -11648,6 +11673,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Canonical release manifest added',
+      detail: 'v2.2.35 starts the release-reliability cleanup by adding release_manifest.js as the source of truth for visible build ID, export build_id, bundled artifact identity, source-sync policy, and service-worker cache name. The header now derives from the manifest instead of treating scattered README/header/query/cache state as independent truth.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -18378,6 +18408,7 @@ if (typeof window !== 'undefined') {
 
   // Hook the existing tab-nav click and player-select change after DOM is ready
   document.addEventListener('DOMContentLoaded', async function(){
+    csApplyReleaseManifestToHeader();
     var didHardenClientState = await csHardenClientState();
     if (didHardenClientState && csReloadAfterBuildCacheReset(csGetBuildId())) return;
     _csInitEvidenceToggle();

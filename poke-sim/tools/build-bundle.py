@@ -62,6 +62,7 @@ def fetch_supabase_umd():
 html    = read('index.html')
 css     = read('style.css')
 data    = read('data.js')
+release_manifest = read('release_manifest.js')
 logger  = read('logger.js')
 runtime_data = read('runtime_data.js')
 engine  = read('engine.js')
@@ -81,6 +82,7 @@ replay_learning = read('replay_learning.js')
 supabase_umd = fetch_supabase_umd()
 
 html = html.replace('<script src="data.js"></script>', '')
+html = html.replace('<script src="release_manifest.js"></script>', '')
 html = html.replace('<script src="logger.js"></script>', '')
 html = html.replace('<script src="runtime_data.js"></script>', '')
 html = html.replace('<script src="engine.js"></script>', '')
@@ -127,6 +129,7 @@ inline_js = (
     + supabase_umd
     + '\n</script>\n'
     + '<script>\n'
+    + sanitize_inline_js(release_manifest) + '\n\n'
     + sanitize_inline_js(data) + '\n\n'
     + sanitize_inline_js(logger) + '\n\n'
     + sanitize_inline_js(pokemon_legal_data) + '\n\n'
