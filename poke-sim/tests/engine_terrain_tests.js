@@ -185,5 +185,24 @@ T('7. Psychic Terrain blocks priority moves from hitting grounded mons', () => {
     `Psychic Terrain must log a priority move block. Log: ${log.join(' | ')}`);
 });
 
+// ============================================================
+// T8 — Seed Sower sets Grassy Terrain after taking damage
+// ============================================================
+console.log('\nSeed Sower on-damage terrain activation:');
+T('8. Seed Sower sets Grassy Terrain after the Pokemon takes damage', () => {
+  const playerTeam = team([
+    mon({ name: 'Arboliva', ability: 'Seed Sower', nature: 'Bold',
+      evs: { hp: 32, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }, moves: ['Tackle'] }),
+  ]);
+  const oppTeam = team([
+    mon({ name: 'Garchomp', ability: 'Rough Skin', nature: 'Jolly',
+      evs: { hp: 0, atk: 32, def: 0, spa: 0, spd: 0, spe: 0 }, moves: ['Tackle'] }),
+  ]);
+  const b = simulateBattle(playerTeam, oppTeam, { format: 'singles', seed: [1,2,3,4], maxTurns: 1 });
+  const log = b.log || [];
+  truthy(logHas(log, 'Seed Sower set Grassy Terrain'),
+    `Seed Sower must log Grassy Terrain activation after damage. Log: ${log.join(' | ')}`);
+});
+
 console.log(`\nRESULT: ${pass}/${pass+fail} PASS`);
 process.exit(fail === 0 ? 0 : 1);

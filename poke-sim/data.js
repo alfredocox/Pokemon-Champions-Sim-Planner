@@ -825,6 +825,10 @@ const CUSTOM_FORM_SPRITES = {
 
 const SHOWDOWN_SPRITE_BASE = 'https://play.pokemonshowdown.com/sprites/ani';
 const SHOWDOWN_SPRITE_SLUG_ALIASES = {
+  'Charizard-Mega-X': 'charizard-megax',
+  'Charizard-Mega-Y': 'charizard-megay',
+  'Mewtwo-Mega-X': 'mewtwo-megax',
+  'Mewtwo-Mega-Y': 'mewtwo-megay',
   'Mr. Rime': 'mrrime',
   'Kommo-o': 'kommoo',
   'Ninetales-Alola': 'ninetales-alola',
@@ -4483,6 +4487,87 @@ const TEAMS = {
       }
     ]
   },
+  "targeted_stat_source_proof": {
+    "name": "Targeted Stat Source Proof",
+    "label": "QA STAT",
+    "style": "qa_proof",
+    "description": "Legal Champions QA proof team for non-standard damage stat-source evidence: Foul Play uses the target Attack, Body Press uses the user's Defense, and Psyshock-style special damage targets Defense.",
+    "champion_pack_id": "targeted_stat_source_proof_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "provenance": {
+      "roster_source": "repo QA targeted proof coverage",
+      "spread_source": "legal Champions SP proof spreads",
+      "author": "qa",
+      "url": "",
+      "status": "proof-team"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Purpose-built legal Champions proof team. Species are active runtime-supported Reg M-A entries, moves are already represented in the generated Showdown-backed move tables, items are in the verified Champions pool, and SP spreads obey 32-per-stat/66-total caps.",
+    "assumption_register": [
+      "This is a QA proof team, not a tournament paste.",
+      "Use Sableye to force Foul Play target-Attack traces, Orthworm or Kommo-o to force Body Press user-Defense traces, and Hatterene to force Psyshock target-Defense traces."
+    ],
+    "members": [
+      {
+        "name": "Sableye",
+        "item": "Black Glasses",
+        "ability": "Prankster",
+        "nature": "Impish",
+        "evs": {"hp": 32, "atk": 0, "def": 32, "spa": 0, "spd": 2, "spe": 0},
+        "moves": ["Foul Play", "Recover", "Reflect", "Protect"],
+        "role": "Foul Play Stat-Source Proof"
+      },
+      {
+        "name": "Orthworm",
+        "item": "Sitrus Berry",
+        "ability": "Earth Eater",
+        "nature": "Impish",
+        "evs": {"hp": 32, "atk": 0, "def": 32, "spa": 0, "spd": 2, "spe": 0},
+        "moves": ["Body Press", "Shed Tail", "Protect", "Helping Hand"],
+        "role": "Body Press Stat-Source Proof"
+      },
+      {
+        "name": "Hatterene",
+        "item": "Leftovers",
+        "ability": "Magic Bounce",
+        "nature": "Bold",
+        "evs": {"hp": 32, "atk": 0, "def": 32, "spa": 2, "spd": 0, "spe": 0},
+        "moves": ["Psyshock", "Trick Room", "Recover", "Protect"],
+        "role": "Psyshock Defense-Target Proof"
+      },
+      {
+        "name": "Kommo-o",
+        "item": "Dragon Fang",
+        "ability": "Overcoat",
+        "nature": "Impish",
+        "evs": {"hp": 32, "atk": 0, "def": 32, "spa": 0, "spd": 2, "spe": 0},
+        "moves": ["Body Press", "Clangorous Soul", "Protect", "Clanging Scales"],
+        "role": "Alternate Body Press Proof"
+      },
+      {
+        "name": "Garchomp",
+        "item": "Soft Sand",
+        "ability": "Rough Skin",
+        "nature": "Adamant",
+        "evs": {"hp": 2, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "moves": ["Earthquake", "Dragon Claw", "Rock Slide", "Protect"],
+        "role": "High-Attack Foul Play Target"
+      },
+      {
+        "name": "Pelipper",
+        "item": "Focus Sash",
+        "ability": "Drizzle",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Tailwind", "Weather Ball", "U-turn", "Protect"],
+        "role": "Weather / Speed Support"
+      }
+    ]
+  },
   "targeted_proof_legal": {
     "name": "Targeted Proof Legal",
     "label": "QA PROOF",
@@ -4560,6 +4645,411 @@ const TEAMS = {
         "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
         "moves": ["Protect", "Tailwind", "Weather Ball", "U-turn"],
         "role": "Weather / Speed Support"
+      }
+    ]
+  },
+  "indeedee_hatterene_tr": {
+    "name": "Indeedee Hatterene Trick Room",
+    "label": "REG M",
+    "style": "trick_room",
+    "description": "Psychic Terrain + double Trick Room pressure built around Indeedee-F redirection, Hatterene burst turns, and slow-mode cleanup from Torkoal and Kingambit.",
+    "champion_pack_id": "indeedee_hatterene_tr_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "provenance": {
+      "roster_source": "repo competitive expansion",
+      "spread_source": "legal Champions runtime-supported spreads",
+      "author": "codex",
+      "url": "",
+      "status": "approved-runtime"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added as a safe current-reg style lane without introducing unverified Reg M-B-only Mega rows.",
+    "assumption_register": [
+      "This is a competitive preloaded ladder/team-lab row, not a claimed event paste.",
+      "The goal is to cover Psychic Terrain redirection, Trick Room sequencing, and slow-mode win conditions in the visible approved runtime lane."
+    ],
+    "members": [
+      {
+        "name": "Indeedee-F",
+        "item": "Focus Sash",
+        "ability": "Psychic Surge",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Follow Me", "Helping Hand", "Expanding Force", "Protect"],
+        "role": "Terrain / Redirection"
+      },
+      {
+        "name": "Hatterene",
+        "item": "Leftovers",
+        "ability": "Magic Bounce",
+        "nature": "Quiet",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 32, "spd": 0, "spe": 0},
+        "moves": ["Trick Room", "Expanding Force", "Dazzling Gleam", "Protect"],
+        "role": "Primary Trick Room Breaker"
+      },
+      {
+        "name": "Farigiraf",
+        "item": "Sitrus Berry",
+        "ability": "Armor Tail",
+        "nature": "Sassy",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Trick Room", "Helping Hand", "Hyper Voice", "Protect"],
+        "role": "Secondary Trick Room / Anti-Priority"
+      },
+      {
+        "name": "Torkoal",
+        "item": "Charcoal",
+        "ability": "Drought",
+        "nature": "Quiet",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 32, "spd": 0, "spe": 0},
+        "moves": ["Eruption", "Heat Wave", "Yawn", "Protect"],
+        "role": "Slow-Mode Damage"
+      },
+      {
+        "name": "Amoonguss",
+        "item": "Lum Berry",
+        "ability": "Regenerator",
+        "nature": "Sassy",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Spore", "Rage Powder", "Pollen Puff", "Protect"],
+        "role": "Redirection / Recovery Pivot"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Black Glasses",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "evs": {"hp": 32, "atk": 32, "def": 0, "spa": 0, "spd": 2, "spe": 0},
+        "moves": ["Kowtow Cleave", "Iron Head", "Swords Dance", "Protect"],
+        "role": "Backline Punish"
+      }
+    ]
+  },
+  "rillaboom_archaludon_balance": {
+    "name": "Rillaboom Archaludon Balance",
+    "label": "REG M",
+    "style": "balance",
+    "description": "Modern balance shell using Grassy Surge tempo, Pelipper rain support, Archaludon pressure, and Gholdengo/Kingambit endgames.",
+    "champion_pack_id": "rillaboom_archaludon_balance_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "provenance": {
+      "roster_source": "repo competitive expansion",
+      "spread_source": "legal Champions runtime-supported spreads",
+      "author": "codex",
+      "url": "",
+      "status": "approved-runtime"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added to cover Grassy Terrain pacing, rain-supported pressure, and recovery/tempo lines in the approved lane.",
+    "assumption_register": [
+      "This is a competitive preloaded ladder/team-lab row, not a claimed event paste.",
+      "The goal is to add a current-reg balance shell that exercises terrain, Tailwind, rain pressure, and defensive pivoting."
+    ],
+    "members": [
+      {
+        "name": "Rillaboom",
+        "item": "Miracle Seed",
+        "ability": "Grassy Surge",
+        "nature": "Adamant",
+        "evs": {"hp": 32, "atk": 32, "def": 0, "spa": 0, "spd": 2, "spe": 0},
+        "moves": ["Grassy Glide", "Wood Hammer", "Knock Off", "U-turn"],
+        "role": "Terrain Pivot"
+      },
+      {
+        "name": "Pelipper",
+        "item": "Focus Sash",
+        "ability": "Drizzle",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Tailwind", "Hurricane", "Weather Ball", "Protect"],
+        "role": "Rain / Speed Control"
+      },
+      {
+        "name": "Archaludon",
+        "item": "Metal Coat",
+        "ability": "Stamina",
+        "nature": "Modest",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 32, "spd": 0, "spe": 0},
+        "moves": ["Electro Shot", "Flash Cannon", "Body Press", "Protect"],
+        "role": "Rain Abuse Breaker"
+      },
+      {
+        "name": "Gholdengo",
+        "item": "Spell Tag",
+        "ability": "Good as Gold",
+        "nature": "Timid",
+        "evs": {"hp": 2, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
+        "moves": ["Make It Rain", "Shadow Ball", "Nasty Plot", "Protect"],
+        "role": "Special Cleaner"
+      },
+      {
+        "name": "Amoonguss",
+        "item": "Sitrus Berry",
+        "ability": "Regenerator",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Spore", "Rage Powder", "Pollen Puff", "Protect"],
+        "role": "Disruption / Sustain"
+      },
+      {
+        "name": "Kingambit",
+        "item": "Lum Berry",
+        "ability": "Defiant",
+        "nature": "Adamant",
+        "evs": {"hp": 32, "atk": 32, "def": 0, "spa": 0, "spd": 2, "spe": 0},
+        "moves": ["Kowtow Cleave", "Iron Head", "Swords Dance", "Protect"],
+        "role": "Physical Punish"
+      }
+    ]
+  },
+  "arboliva_seed_sower_balance": {
+    "name": "Arboliva Seed Sower Balance",
+    "label": "REG M",
+    "style": "balance",
+    "description": "Reactive Grassy Terrain balance shell built around Arboliva sustain, Pelipper speed support, and mixed-pressure endgames from Archaludon, Gholdengo, and Garchomp.",
+    "champion_pack_id": "arboliva_seed_sower_balance_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "provenance": {
+      "roster_source": "repo competitive expansion",
+      "spread_source": "legal Champions runtime-supported spreads",
+      "author": "codex",
+      "url": "",
+      "status": "approved-runtime"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added to cover reactive Grassy Terrain, sustain loops, and mixed-speed balance in the approved lane.",
+    "assumption_register": [
+      "This is a competitive preloaded ladder/team-lab row, not a claimed event paste.",
+      "The goal is to create visible approved coverage for terrain flips, sustain sequencing, and cleanup lines after terrain-trigger turns."
+    ],
+    "members": [
+      {
+        "name": "Arboliva",
+        "item": "Leftovers",
+        "ability": "Seed Sower",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Giga Drain", "Pollen Puff", "Terrain Pulse", "Protect"],
+        "role": "Terrain Sustain Core"
+      },
+      {
+        "name": "Pelipper",
+        "item": "Focus Sash",
+        "ability": "Drizzle",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Tailwind", "Hurricane", "Weather Ball", "Protect"],
+        "role": "Rain / Speed Control"
+      },
+      {
+        "name": "Archaludon",
+        "item": "Metal Coat",
+        "ability": "Stamina",
+        "nature": "Modest",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 32, "spd": 0, "spe": 0},
+        "moves": ["Electro Shot", "Flash Cannon", "Body Press", "Protect"],
+        "role": "Special Breaker"
+      },
+      {
+        "name": "Gholdengo",
+        "item": "Spell Tag",
+        "ability": "Good as Gold",
+        "nature": "Timid",
+        "evs": {"hp": 2, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
+        "moves": ["Make It Rain", "Shadow Ball", "Nasty Plot", "Protect"],
+        "role": "Special Cleaner"
+      },
+      {
+        "name": "Garchomp",
+        "item": "Soft Sand",
+        "ability": "Rough Skin",
+        "nature": "Jolly",
+        "evs": {"hp": 2, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "moves": ["Earthquake", "Dragon Claw", "Rock Slide", "Protect"],
+        "role": "Fast Physical Pressure"
+      },
+      {
+        "name": "Amoonguss",
+        "item": "Lum Berry",
+        "ability": "Regenerator",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Spore", "Rage Powder", "Pollen Puff", "Protect"],
+        "role": "Disruption / Sustain"
+      }
+    ]
+  },
+  "pelipper_basculegion_rain": {
+    "name": "Pelipper Basculegion Rain",
+    "label": "REG M",
+    "style": "weather",
+    "description": "Rain offense with Pelipper speed control, Basculegion burst pressure, Rillaboom terrain pivoting, and Gholdengo endgame cleanup.",
+    "champion_pack_id": "pelipper_basculegion_rain_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "provenance": {
+      "roster_source": "repo competitive expansion",
+      "spread_source": "legal Champions runtime-supported spreads",
+      "author": "codex",
+      "url": "",
+      "status": "approved-runtime"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added to cover true rain offense in the approved runtime lane.",
+    "assumption_register": [
+      "This is a competitive preloaded ladder/team-lab row, not a claimed event paste.",
+      "The goal is to add a fast weather shell that exercises rain offense, Tailwind timing, and terrain-weather pivot decisions."
+    ],
+    "members": [
+      {
+        "name": "Pelipper",
+        "item": "Focus Sash",
+        "ability": "Drizzle",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Tailwind", "Hurricane", "Weather Ball", "Protect"],
+        "role": "Rain / Speed Control"
+      },
+      {
+        "name": "Basculegion",
+        "item": "Mystic Water",
+        "ability": "Swift Swim",
+        "nature": "Adamant",
+        "evs": {"hp": 2, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "moves": ["Wave Crash", "Aqua Jet", "Crunch", "Protect"],
+        "role": "Rain Sweeper"
+      },
+      {
+        "name": "Rillaboom",
+        "item": "Miracle Seed",
+        "ability": "Grassy Surge",
+        "nature": "Adamant",
+        "evs": {"hp": 32, "atk": 32, "def": 0, "spa": 0, "spd": 2, "spe": 0},
+        "moves": ["Grassy Glide", "Wood Hammer", "Knock Off", "U-turn"],
+        "role": "Terrain Pivot"
+      },
+      {
+        "name": "Gholdengo",
+        "item": "Spell Tag",
+        "ability": "Good as Gold",
+        "nature": "Timid",
+        "evs": {"hp": 2, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
+        "moves": ["Make It Rain", "Shadow Ball", "Nasty Plot", "Protect"],
+        "role": "Special Cleaner"
+      },
+      {
+        "name": "Archaludon",
+        "item": "Metal Coat",
+        "ability": "Stamina",
+        "nature": "Modest",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 32, "spd": 0, "spe": 0},
+        "moves": ["Electro Shot", "Flash Cannon", "Body Press", "Protect"],
+        "role": "Rain Breaker"
+      },
+      {
+        "name": "Amoonguss",
+        "item": "Sitrus Berry",
+        "ability": "Regenerator",
+        "nature": "Calm",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 32, "spe": 0},
+        "moves": ["Spore", "Rage Powder", "Pollen Puff", "Protect"],
+        "role": "Disruption / Sustain"
+      }
+    ]
+  },
+  "kevin_meta_sun": {
+    "name": "Kevin Meta Sun",
+    "label": "KEVIN",
+    "style": "weather",
+    "description": "High-floor current-meta sun offense for real-play testing: Mega Charizard Y pressure, Venusaur sleep control, Garchomp spread pressure, Sneasler disruption, Incineroar pivoting, and Whimsicott speed control.",
+    "champion_pack_id": "kevin_meta_sun_champions_regma_v1",
+    "format": "champions",
+    "formatid": "champions-vgc-2026-regma",
+    "gametype": "doubles",
+    "ruleset": ["Species Clause", "Item Clause", "Bring 6 Pick 4", "Level 50"],
+    "source": "preloaded",
+    "provenance": {
+      "roster_source": "current meta adaptation from Game8 doubles best teams + doubles tier list",
+      "spread_source": "Game8 listed Champions spreads adapted only where current runtime-supported move legality required it",
+      "author": "codex",
+      "url": "https://game8.co/games/Pokemon-Champions/archives/593949",
+      "status": "approved-runtime"
+    },
+    "legality_status": "legal",
+    "legality_notes": "Built to stay inside the verified Champions item pool and current runtime-supported move/species lane. The shell follows the current Charizard Y sun direction surfaced by Game8 and the current doubles tier list, but uses only moves the app can validate today.",
+    "assumption_register": [
+      "This is a real-play legal Champions team recommendation, not a claim of absolute solved best six.",
+      "The closest public meta source shell was Aaron Zheng's Charizard Y sun team on Game8, but Whimsicott replaces the weaker current runtime Rotom-Wash lane to keep both real-play direction and in-app legality clean."
+    ],
+    "members": [
+      {
+        "name": "Charizard",
+        "item": "Charizardite Y",
+        "ability": "Solar Power",
+        "nature": "Timid",
+        "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 1, "spe": 32},
+        "moves": ["Heat Wave", "Solar Beam", "Weather Ball", "Protect"],
+        "role": "Primary Sun Breaker"
+      },
+      {
+        "name": "Venusaur",
+        "item": "Focus Sash",
+        "ability": "Chlorophyll",
+        "nature": "Modest",
+        "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 1, "spe": 32},
+        "moves": ["Sleep Powder", "Leaf Storm", "Sludge Bomb", "Protect"],
+        "role": "Sun Speed Control / Sleep Pressure"
+      },
+      {
+        "name": "Garchomp",
+        "item": "Choice Scarf",
+        "ability": "Rough Skin",
+        "nature": "Adamant",
+        "evs": {"hp": 1, "atk": 32, "def": 1, "spa": 0, "spd": 0, "spe": 32},
+        "moves": ["Rock Slide", "Dragon Claw", "Earthquake", "Bulldoze"],
+        "role": "Fast Spread Pressure"
+      },
+      {
+        "name": "Sneasler",
+        "item": "White Herb",
+        "ability": "Unburden",
+        "nature": "Jolly",
+        "evs": {"hp": 0, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 32},
+        "moves": ["Dire Claw", "Close Combat", "Rock Slide", "Coaching"],
+        "role": "Fast Disruption / Cleanup"
+      },
+      {
+        "name": "Incineroar",
+        "item": "Sitrus Berry",
+        "ability": "Intimidate",
+        "nature": "Adamant",
+        "evs": {"hp": 32, "atk": 32, "def": 0, "spa": 0, "spd": 0, "spe": 2},
+        "moves": ["Darkest Lariat", "Flare Blitz", "Fake Out", "Knock Off"],
+        "role": "Pivot / Tempo Control"
+      },
+      {
+        "name": "Whimsicott",
+        "item": "Mental Herb",
+        "ability": "Prankster",
+        "nature": "Timid",
+        "evs": {"hp": 32, "atk": 0, "def": 2, "spa": 0, "spd": 0, "spe": 32},
+        "moves": ["Tailwind", "Encore", "Moonblast", "Protect"],
+        "role": "Speed Control / Disruption"
       }
     ]
   }

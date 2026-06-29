@@ -116,9 +116,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.10-move-rule-trace-qa';
+    return txt || 'v2.2.30-replay-detail-rows';
   } catch (e) {
-    return 'v2.2.10-move-rule-trace-qa';
+    return 'v2.2.30-replay-detail-rows';
   }
 }
 
@@ -531,8 +531,15 @@ function buildChampionImportGateErrors(members) {
   (members || []).forEach(function(member) {
     var name = member && member.name ? member.name : 'Pokemon';
     var signals = (member && member.import_format_signals) || {};
-    if (signals.sawEvsLine) {
-      errors.push(name + ': raw Showdown EVs are SV-format data; use Champion SPs instead.');
+    var spreadOk = true;
+    if (typeof spreadFitsChampions === 'function') spreadOk = spreadFitsChampions((member && member.evs) || {});
+    else {
+      var evsForCheck = (member && member.evs) || {};
+      var totalForCheck = ['hp','atk','def','spa','spd','spe'].reduce(function(sum, stat) { return sum + (parseInt(evsForCheck[stat], 10) || 0); }, 0);
+      spreadOk = totalForCheck <= 66 && ['hp','atk','def','spa','spd','spe'].every(function(stat) { return (parseInt(evsForCheck[stat], 10) || 0) <= 32; });
+    }
+    if (signals.sawEvsLine && !spreadOk) {
+      errors.push(name + ': raw Showdown EVs are SV-format data; use Champion SPs or EV values within Champion SP caps.');
     }
     if (signals.sawIvsLine) {
       errors.push(name + ': IVs are not configurable in Champions; remove IVs before import.');
@@ -634,8 +641,14 @@ function getMoveLegalityIssueSeverity(reason) {
 // round-tripping does not re-import SV-format spread lines by mistake.
 // ============================================================
 function exportTeamToPaste(team) {
+  return exportTeamToPasteWithOptions(team, {});
+}
+
+function exportTeamToPasteWithOptions(team, opts) {
+  opts = opts || {};
   if (!team || !team.members) return '';
   const lines = [];
+  var spreadLabel = opts.showdownCompatible ? 'EVs' : 'SPs';
   for (const m of team.members) {
     // Line 1
     const itemStr = m.item ? ` @ ${m.item}` : '';
@@ -651,7 +664,7 @@ function exportTeamToPaste(team) {
       const v = evs[k] || 0;
       if (v > 0) evParts.push(`${v} ${label}`);
     }
-    if (evParts.length) lines.push(`SPs: ${evParts.join(' / ')}`);
+    if (evParts.length) lines.push(`${spreadLabel}: ${evParts.join(' / ')}`);
     if (m.nature) lines.push(`${m.nature} Nature`);
     for (const mv of (m.moves || [])) lines.push(`- ${mv}`);
     lines.push(''); // blank line between mons
@@ -664,6 +677,10 @@ function exportTeamToPaste(team) {
 function csSpriteStaticFallbackUrl(name) {
   var raw = String(name || '');
   var aliases = {
+    'Charizard-Mega-X': 'charizard-megax',
+    'Charizard-Mega-Y': 'charizard-megay',
+    'Mewtwo-Mega-X': 'mewtwo-megax',
+    'Mewtwo-Mega-Y': 'mewtwo-megay',
     'Mr. Rime': 'mrrime',
     'Kommo-o': 'kommoo',
     'Ninetales-Alola': 'ninetales-alola',
@@ -2290,17 +2307,23 @@ function _uniqueTeamName(wanted) {
 }
 
 function importCustomTeamsBulk(teams /* [{name, members}] */) {
-  // Returns { added, skipped, keys:[...] }
-  var added = 0, skipped = 0, keys = [];
-  if (!Array.isArray(teams)) return { added: 0, skipped: 0, keys: [] };
+  // Returns { added, skipped, keys:[...], skippedErrors:[...] } so file-upload
+  // imports can tell users exactly why a parsed team did not enter the sim.
+  var added = 0, skipped = 0, keys = [], skippedErrors = [];
+  if (!Array.isArray(teams)) return { added: 0, skipped: 0, keys: [], skippedErrors: [] };
   for (var i = 0; i < teams.length; i++) {
     var t = teams[i];
-    if (!t || !Array.isArray(t.members) || t.members.length === 0) { skipped++; continue; }
+    if (!t || !Array.isArray(t.members) || t.members.length === 0) {
+      skipped++;
+      skippedErrors.push({ name: (t && t.name) || 'Imported Team', errors: ['No Pokemon or moves were parsed from this team.'], warnings: [] });
+      continue;
+    }
     var key = _uniqueCustomKey(t.name);
     var name = _uniqueTeamName(t.name || 'Imported Team');
     var validation = buildImportedTeamValidation(t.members, { name: name, format: 'champions' });
     if (!validation.valid) {
       skipped++;
+      skippedErrors.push({ name: name, errors: validation.errors.slice(0), warnings: validation.warnings.slice(0) });
       continue;
     }
     TEAMS[key] = {
@@ -2323,7 +2346,7 @@ function importCustomTeamsBulk(teams /* [{name, members}] */) {
     if (typeof _upsertTeamToDB === 'function') _upsertTeamToDB(key, TEAMS[key], 'bulk_import');
   }
   if (added > 0 && typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
-  return { added: added, skipped: skipped, keys: keys };
+  return { added: added, skipped: skipped, keys: keys, skippedErrors: skippedErrors };
 }
 
 function importFromJsonText(jsonText) {
@@ -2363,7 +2386,7 @@ function exportAllCustomAsShowdown() {
   for (var k in TEAMS) {
     if (TEAMS[k] && TEAMS[k].source === 'custom') {
       parts.push('=== [' + (TEAMS[k].name || k) + '] ===');
-      parts.push(exportTeamToPaste(TEAMS[k]));
+      parts.push(exportTeamToPasteWithOptions(TEAMS[k], { showdownCompatible: true }));
       parts.push('');
     }
   }
@@ -2371,6 +2394,40 @@ function exportAllCustomAsShowdown() {
 }
 
 var CS_LAST_DOWNLOAD_URL = null;
+var CS_QA_DROP_DIR_HANDLE = null;
+function csQaDropFolderSupported() {
+  return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
+}
+async function csChooseQaDropFolder() {
+  if (!csQaDropFolderSupported()) {
+    alert('This browser cannot write directly to a Mac folder from the page. Use normal download, then move the JSON into /Users/kevinmedeiros/Champions-QA-Drops.');
+    return null;
+  }
+  CS_QA_DROP_DIR_HANDLE = await window.showDirectoryPicker({
+    id: 'champions-qa-drops',
+    mode: 'readwrite',
+    startIn: 'downloads'
+  });
+  try {
+    var btn = document.getElementById('qa-drop-folder-btn');
+    if (btn) btn.textContent = 'QA Drop Folder Set';
+  } catch (_e) {}
+  return CS_QA_DROP_DIR_HANDLE;
+}
+async function csSaveTextToQaDropFolder(filename, mime, text) {
+  if (!csQaDropFolderSupported()) return false;
+  var handle = CS_QA_DROP_DIR_HANDLE || await csChooseQaDropFolder();
+  if (!handle) return false;
+  if (handle.requestPermission) {
+    var perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return false;
+  }
+  var fileHandle = await handle.getFileHandle(filename, { create: true });
+  var writable = await fileHandle.createWritable();
+  await writable.write(new Blob([text], { type: mime }));
+  await writable.close();
+  return true;
+}
 function _downloadBlob(filename, mime, text) {
   try {
     if (CS_LAST_DOWNLOAD_URL && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
@@ -2399,6 +2456,34 @@ function _downloadBlob(filename, mime, text) {
     fallback.download = filename;
     fallback.textContent = 'Download ready: ' + filename;
   } catch (e) { UILog.warn('Download failed', e); alert('Could not download file: ' + e.message); }
+}
+
+async function _saveQaArtifactBlob(filename, mime, text, opts) {
+  opts = opts || {};
+  if (opts.preferDropFolder !== false && csQaDropFolderSupported()) {
+    try {
+      var saved = await csSaveTextToQaDropFolder(filename, mime, text);
+      if (saved) {
+        var fallback = document.getElementById('download-ready-link');
+        if (!fallback) {
+          var wrap = document.getElementById('progress-wrap') || document.body;
+          fallback = document.createElement('span');
+          fallback.id = 'download-ready-link';
+          fallback.className = 'btn-secondary';
+          fallback.style.display = 'inline-flex';
+          fallback.style.marginTop = '8px';
+          fallback.style.width = 'fit-content';
+          wrap.appendChild(fallback);
+        }
+        fallback.textContent = 'Saved to QA drop folder: ' + filename;
+        return 'drop-folder';
+      }
+    } catch (e) {
+      UILog.warn('QA drop folder save failed; falling back to browser download', e);
+    }
+  }
+  _downloadBlob(filename, mime, text);
+  return 'download';
 }
 
 document.getElementById('bulk-export-json-btn')?.addEventListener('click', function(){
@@ -2441,7 +2526,14 @@ document.getElementById('bulk-import-file')?.addEventListener('change', function
     if (typeof rebuildTeamSelects === 'function') rebuildTeamSelects();
     renderTeamsGrid();
     var msg = 'Imported ' + result.added + ' team' + (result.added === 1 ? '' : 's');
-    if (result.skipped > 0) msg += ' (' + result.skipped + ' skipped)';
+    if (result.skipped > 0) {
+      msg += ' (' + result.skipped + ' skipped)';
+      if (result.skippedErrors && result.skippedErrors.length) {
+        var firstSkip = result.skippedErrors[0] || {};
+        var firstErrors = (firstSkip.errors || []).slice(0, 3).join('; ');
+        if (firstErrors) msg += '\n\nFirst skipped team: ' + (firstSkip.name || 'Imported Team') + '\n' + firstErrors;
+      }
+    }
     alert(msg + '.');
   };
   reader.readAsText(file);
@@ -2640,6 +2732,14 @@ function openTeamStatDetailPanel(teamKey, monName, triggerEl) {
 function renderEditorRoster() {
   const el = document.getElementById('editor-roster');
   const team = getEditablePlayerTeam();
+  const status = document.getElementById('editor-team-status');
+  if (status) {
+    var count = team && Array.isArray(team.members) ? team.members.length : 0;
+    var sourceLabel = team && team.source === 'custom' ? 'Custom team' : 'Preloaded override';
+    status.innerHTML = team
+      ? '<strong>Editing: ' + _escapeHtml(team.name || currentPlayerKey) + '</strong><span>' + _escapeHtml(sourceLabel) + ' · ' + count + '/6 Pokemon · saves affect future sims</span>'
+      : '<strong>No team loaded</strong><span>Select a player team first.</span>';
+  }
   if (!el) return;
   el.innerHTML = '';
   if (!team || !Array.isArray(team.members)) return;
@@ -2650,6 +2750,66 @@ function renderEditorRoster() {
     btn.addEventListener('click', () => { document.querySelectorAll('.editor-poke-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); openEditorForm(i); });
     el.appendChild(btn);
   });
+}
+
+function csBlankChampionMember() {
+  return {
+    name: 'Pikachu',
+    item: '',
+    ability: 'Static',
+    level: 50,
+    nature: 'Hardy',
+    role: '',
+    moves: ['Protect'],
+    evs: { hp:0, atk:0, def:0, spa:0, spd:0, spe:0 }
+  };
+}
+
+function csPersistEditedTeam(team, sourceTag) {
+  if (!team) return;
+  if (team.source === 'custom' && typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
+  else if (team.source !== 'custom' && typeof savePreloadedOverride === 'function') savePreloadedOverride(currentPlayerKey);
+  if (typeof _upsertTeamToDB === 'function') _upsertTeamToDB(currentPlayerKey, team, sourceTag || 'set_editor');
+}
+
+function csRefreshEditorTeamViews(team) {
+  if (!team) return;
+  renderRoster('player-roster', team.members || []);
+  renderEditorRoster();
+  renderTeamsGrid();
+  if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
+}
+
+function addEditorPokemonSlot() {
+  const team = getEditablePlayerTeam();
+  if (!team) return;
+  team.members = Array.isArray(team.members) ? team.members : [];
+  if (team.members.length >= 6) {
+    alert('Champion teams are capped at 6 Pokemon.');
+    return;
+  }
+  team.members.push(csBlankChampionMember());
+  csPersistEditedTeam(team, 'set_editor_add_slot');
+  csRefreshEditorTeamViews(team);
+  openEditorForm(team.members.length - 1);
+}
+
+function removeEditorPokemonSlot() {
+  if (editingIdx === null) return;
+  const team = getEditablePlayerTeam();
+  if (!team || !Array.isArray(team.members) || !team.members[editingIdx]) return;
+  if (team.members.length <= 1) {
+    alert('Keep at least one Pokemon on the team.');
+    return;
+  }
+  var removed = team.members[editingIdx].name || 'this Pokemon';
+  if (!confirm('Remove ' + removed + ' from this team?')) return;
+  team.members.splice(editingIdx, 1);
+  var nextIdx = Math.min(editingIdx, team.members.length - 1);
+  editingIdx = null;
+  csPersistEditedTeam(team, 'set_editor_remove_slot');
+  csRefreshEditorTeamViews(team);
+  if (nextIdx >= 0) openEditorForm(nextIdx);
 }
 
 function buildSetEditorMoveLegalityWarnings(member) {
@@ -2683,18 +2843,134 @@ function renderSetEditorMoveLegalityHtml(member) {
   }).join('') + '</div>';
 }
 
+function csRenderEditorItemDatalist() {
+  var list = document.getElementById('editor-item-list');
+  if (!list || typeof CHAMPIONS_LEGAL_ITEMS === 'undefined' || !CHAMPIONS_LEGAL_ITEMS) return 0;
+  var items = Array.from(CHAMPIONS_LEGAL_ITEMS).sort(function(a, b) { return a.localeCompare(b); });
+  list.innerHTML = items.map(function(item) {
+    return '<option value="' + _escapeHtml(item) + '"></option>';
+  }).join('');
+  return items.length;
+}
+
+function csRenderEditorItemLegalityHtml(member) {
+  var item = member && member.item ? String(member.item).trim() : '';
+  if (!item) return '<div class="editor-legality-ok">No held item selected.</div>';
+  if (typeof CHAMPIONS_LEGAL_ITEMS !== 'undefined' && CHAMPIONS_LEGAL_ITEMS && CHAMPIONS_LEGAL_ITEMS.has(item)) {
+    return '<div class="editor-legality-ok">Item checked against the current Champions item pool.</div>';
+  }
+  var knownAbsent = typeof CHAMPIONS_BANNED_ITEMS !== 'undefined' && CHAMPIONS_BANNED_ITEMS && CHAMPIONS_BANNED_ITEMS.has(item);
+  return '<div class="editor-legality-warnings"><div class="editor-legality-warning error">' +
+    _escapeHtml(item + ': not legal for the current implemented Champions item pool' + (knownAbsent ? ' (confirmed absent).' : '.')) +
+    '</div></div>';
+}
+
+function csRenderEditorMoveDatalist(speciesName) {
+  var list = document.getElementById('editor-move-list');
+  if (!list) return 0;
+  var api = ChampionsSim && ChampionsSim.moveLegality;
+  var moves = api && typeof api.legalMoveDisplayNamesForSpecies === 'function'
+    ? api.legalMoveDisplayNamesForSpecies(speciesName)
+    : [];
+  list.setAttribute('data-moves', JSON.stringify(moves));
+  list.innerHTML = moves.slice(0, 450).map(function(move) {
+    return '<option value="' + _escapeHtml(move) + '"></option>';
+  }).join('');
+  return moves.length;
+}
+
+function csGetEditorLegalMoves() {
+  var list = document.getElementById('editor-move-list');
+  if (!list) return [];
+  try {
+    var parsed = JSON.parse(list.getAttribute('data-moves') || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_e) {
+    return [];
+  }
+}
+
+function csScoreMoveSearch(move, query) {
+  var m = String(move || '').toLowerCase();
+  var q = String(query || '').toLowerCase().trim();
+  if (!q) return 1;
+  if (m === q) return 100;
+  if (m.indexOf(q) === 0) return 80;
+  if (m.indexOf(q) >= 0) return 60;
+  var parts = q.split(/\s+/).filter(Boolean);
+  var matched = parts.filter(function(part) { return m.indexOf(part) >= 0; }).length;
+  return matched ? 30 + matched : 0;
+}
+
+function csRenderMoveSearchMenu(input) {
+  if (!input) return;
+  var idx = input.getAttribute('data-move-index');
+  var menu = document.getElementById('ed-mv-menu-' + idx);
+  if (!menu) return;
+  var query = input.value || '';
+  var moves = csGetEditorLegalMoves();
+  var ranked = moves.map(function(move) {
+    return { move: move, score: csScoreMoveSearch(move, query) };
+  }).filter(function(row) {
+    return row.score > 0;
+  }).sort(function(a, b) {
+    return b.score - a.score || a.move.localeCompare(b.move);
+  }).slice(0, 12);
+  if (!ranked.length) {
+    menu.innerHTML = '<div class="editor-move-empty">No legal move matches. Save will block illegal moves.</div>';
+    menu.style.display = 'block';
+    return;
+  }
+  menu.innerHTML = ranked.map(function(row) {
+    return '<button type="button" class="editor-move-option" data-move="' + _escapeHtml(row.move) + '">' + _escapeHtml(row.move) + '</button>';
+  }).join('');
+  menu.style.display = 'block';
+  menu.querySelectorAll('.editor-move-option').forEach(function(btn) {
+    btn.addEventListener('mousedown', function(ev) {
+      ev.preventDefault();
+      input.value = btn.getAttribute('data-move') || '';
+      menu.style.display = 'none';
+      refreshEditorMoveLegality();
+      input.focus();
+    });
+  });
+}
+
+function csHideMoveSearchMenu(input) {
+  if (!input) return;
+  var idx = input.getAttribute('data-move-index');
+  var menu = document.getElementById('ed-mv-menu-' + idx);
+  if (menu) setTimeout(function() { menu.style.display = 'none'; }, 120);
+}
+
 function currentEditorMemberForLegality(baseMember) {
   var moves = [0,1,2,3].map(function(i) {
     var el = document.getElementById('ed-mv-' + i);
     return el ? (el.value || '').trim() : '';
   }).filter(Boolean);
-  return Object.assign({}, baseMember || {}, { moves: moves });
+  var nameEl = document.getElementById('ed-name');
+  var itemEl = document.getElementById('ed-item');
+  var abilityEl = document.getElementById('ed-ability');
+  return Object.assign({}, baseMember || {}, {
+    name: nameEl ? (nameEl.value || '').trim() : ((baseMember && baseMember.name) || ''),
+    item: itemEl ? (itemEl.value || '').trim() : ((baseMember && baseMember.item) || ''),
+    ability: abilityEl ? (abilityEl.value || '').trim() : ((baseMember && baseMember.ability) || ''),
+    moves: moves
+  });
 }
 
 function refreshEditorMoveLegality(baseMember) {
   var host = document.getElementById('editor-move-legality');
   if (!host) return;
-  host.innerHTML = renderSetEditorMoveLegalityHtml(currentEditorMemberForLegality(baseMember));
+  var current = currentEditorMemberForLegality(baseMember);
+  var legalMoveCount = csRenderEditorMoveDatalist(current.name);
+  csRenderEditorItemDatalist();
+  host.innerHTML = csRenderEditorItemLegalityHtml(current) + renderSetEditorMoveLegalityHtml(current) +
+    '<div class="editor-move-source">' +
+      (legalMoveCount
+        ? _escapeHtml(String(legalMoveCount)) + ' legal move suggestions loaded for ' + _escapeHtml(current.name || 'this Pokemon') + '. You can type a move manually, but Save blocks moves outside this learnset.'
+        : 'No legal move suggestions found for this species/form. Check the spelling or source data before saving.') +
+    '</div>';
 }
 
 function openEditorForm(idx) {
@@ -2712,15 +2988,23 @@ function openEditorForm(idx) {
       <input class="form-input" id="ev-${s}" value="${_escapeHtml(String(m.evs?.[s]||0))}" type="number" min="0" max="32"/>
     </div>`).join('');
   form.innerHTML = `
-    <div class="editor-poke-name">${_escapeHtml(m.name || '')}</div>
+    <div class="editor-builder-head">
+      <div>
+        <div class="editor-team-kicker">Editing ${_escapeHtml(team.name || currentPlayerKey)} · Slot ${idx + 1}</div>
+        <div class="editor-poke-name">${_escapeHtml(m.name || '')}</div>
+      </div>
+      <div class="editor-save-note" id="editor-save-note">Draft mode: changes are local until you click Save. Save validates Champion item pool, SP caps, and species-specific moves.</div>
+    </div>
     <div class="editor-2col">
-      <div class="form-group"><label class="form-label">Item</label><input class="form-input" id="ed-item" value="${_escapeHtml(m.item||'')}"/></div>
+      <div class="form-group"><label class="form-label">Pokémon</label><input class="form-input" id="ed-name" value="${_escapeHtml(m.name||'')}" placeholder="Exact species/form name"/></div>
+      <div class="form-group"><label class="form-label">Item</label><input class="form-input" id="ed-item" list="editor-item-list" value="${_escapeHtml(m.item||'')}" placeholder="Legal held item"/></div>
       <div class="form-group"><label class="form-label">Ability</label><input class="form-input" id="ed-ability" value="${_escapeHtml(m.ability||'')}"/></div>
       <div class="form-group"><label class="form-label">Nature</label><input class="form-input" id="ed-nature" value="${_escapeHtml(m.nature||'Hardy')}"/></div>
+      <div class="form-group"><label class="form-label">Level</label><input class="form-input" id="ed-level" value="${_escapeHtml(String(m.level||50))}" type="number" min="1" max="100"/></div>
       <div class="form-group"><label class="form-label">Role</label><input class="form-input" id="ed-role" value="${_escapeHtml(m.role||'')}"/></div>
     </div>
     <div style="margin-top:var(--sp4)"><label class="form-label" style="display:block;margin-bottom:6px">Moves</label>
-    <div class="moves-2col">${(m.moves||[]).map((mv,i)=>`<input class="form-input" id="ed-mv-${i}" value="${_escapeHtml(mv)}"/>`).join('')}</div></div>
+    <div class="moves-2col">${[0,1,2,3].map((i)=>`<div class="editor-move-combobox"><input class="form-input" id="ed-mv-${i}" data-move-index="${i}" value="${_escapeHtml((m.moves||[])[i] || '')}" placeholder="Search legal move ${i + 1}"/><div class="editor-move-menu" id="ed-mv-menu-${i}" style="display:none"></div></div>`).join('')}</div></div>
     <div id="editor-move-legality">${renderSetEditorMoveLegalityHtml(m)}</div>
     ${renderStatPanelHtml(m)}
     <div style="margin-top:var(--sp4)"><label class="form-label" style="display:block;margin-bottom:6px">SPs (max 66 total, 32 per stat)</label>
@@ -2728,23 +3012,74 @@ function openEditorForm(idx) {
     <div class="sp-guard-row"><span id="sp-total-chip">SP ${currentSpTotal}/66</span><span id="sp-guard-status"></span></div></div>
     <div style="display:flex;gap:var(--sp3);margin-top:var(--sp4)">
       <button class="btn-save" id="save-edits">Save Changes</button>
+      <button class="btn-secondary" style="font-size:11px" id="cancel-edits" title="Discard unsaved field changes and restore the saved set">Cancel</button>
       <button class="btn-secondary" style="font-size:11px" id="export-this-mon" title="Export full team">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Export Team
       </button>
+      <button class="btn-secondary" style="font-size:11px" id="remove-this-mon" title="Remove this Pokemon from the current editable team">Remove</button>
     </div>
-    <p style="font-size:10px;color:var(--text-m);margin-top:6px">Changes apply to all future simulations immediately.</p>`;
+    <p style="font-size:10px;color:var(--text-m);margin-top:6px">Save applies changes to future simulations. Cancel restores the last saved set.</p>`;
   document.getElementById('save-edits').addEventListener('click', saveEdits);
+  document.getElementById('cancel-edits').addEventListener('click', cancelEditorDraft);
   document.getElementById('export-this-mon').addEventListener('click', () => openExportModal(currentPlayerKey));
+  document.getElementById('remove-this-mon').addEventListener('click', removeEditorPokemonSlot);
   [0,1,2,3].forEach(function(i) {
     var el = document.getElementById('ed-mv-' + i);
-    if (el) el.addEventListener('input', function() { refreshEditorMoveLegality(m); });
+    if (el) {
+      el.addEventListener('input', function() { markEditorDraftDirty(); refreshEditorMoveLegality(m); csRenderMoveSearchMenu(el); });
+      el.addEventListener('focus', function() { refreshEditorMoveLegality(m); csRenderMoveSearchMenu(el); });
+      el.addEventListener('blur', function() { csHideMoveSearchMenu(el); });
+      el.addEventListener('keydown', function(ev) {
+        var menu = document.getElementById('ed-mv-menu-' + i);
+        if (ev.key === 'Escape' && menu) menu.style.display = 'none';
+        if (ev.key === 'Enter' && menu && menu.style.display !== 'none') {
+          var first = menu.querySelector('.editor-move-option');
+          if (first) {
+            ev.preventDefault();
+            el.value = first.getAttribute('data-move') || '';
+            menu.style.display = 'none';
+            refreshEditorMoveLegality(m);
+          }
+        }
+      });
+    }
+  });
+  ['ed-name','ed-item','ed-ability'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', function() { markEditorDraftDirty(); refreshEditorMoveLegality(m); });
   });
   ['hp','atk','def','spa','spd','spe'].forEach(function(stat) {
     var el = document.getElementById('ev-' + stat);
-    if (el) el.addEventListener('input', refreshEditorSpreadGuard);
+    if (el) el.addEventListener('input', function() { markEditorDraftDirty(); refreshEditorSpreadGuard(); });
   });
   refreshEditorSpreadGuard();
+  refreshEditorMoveLegality(m);
+}
+
+function markEditorDraftDirty() {
+  var note = document.getElementById('editor-save-note');
+  var cancelBtn = document.getElementById('cancel-edits');
+  if (note) {
+    note.classList.add('dirty');
+    note.textContent = 'Unsaved draft: click Save to apply this set, or Cancel to restore the last saved version.';
+  }
+  if (cancelBtn) cancelBtn.classList.add('dirty');
+}
+
+function clearEditorDraftDirty() {
+  var note = document.getElementById('editor-save-note');
+  var cancelBtn = document.getElementById('cancel-edits');
+  if (note) {
+    note.classList.remove('dirty');
+    note.textContent = 'Draft mode: changes are local until you click Save. Save validates Champion item pool, SP caps, and species-specific moves.';
+  }
+  if (cancelBtn) cancelBtn.classList.remove('dirty');
+}
+
+function cancelEditorDraft() {
+  if (editingIdx === null) return;
+  openEditorForm(editingIdx);
 }
 
 function getEditorSpreadFromInputs() {
@@ -2786,9 +3121,11 @@ function saveEdits() {
   var spreadGuard = refreshEditorSpreadGuard();
   if (spreadGuard.errors.length) return;
   const editedMember = Object.assign({}, team.members[editingIdx], {
+    name: (document.getElementById('ed-name').value.trim() || team.members[editingIdx].name),
     item: document.getElementById('ed-item').value.trim(),
     ability: document.getElementById('ed-ability').value.trim(),
     nature: document.getElementById('ed-nature').value.trim(),
+    level: Math.max(1, Math.min(100, parseInt(document.getElementById('ed-level').value, 10) || 50)),
     role: document.getElementById('ed-role').value.trim(),
     moves: [0,1,2,3].map(i => (document.getElementById(`ed-mv-${i}`)?.value||'').trim()).filter(Boolean),
     evs: spreadGuard.evs
@@ -2808,23 +3145,21 @@ function saveEdits() {
   team.import_warnings = validation.warnings;
   team.import_errors = validation.errors;
   team.showdown_source_version = validation.sourceVersion;
-  if (team.source === 'custom' && typeof saveCustomTeamsToStorage === 'function') saveCustomTeamsToStorage();
-  else if (team.source !== 'custom' && typeof savePreloadedOverride === 'function') savePreloadedOverride(currentPlayerKey);
-  if (typeof _upsertTeamToDB === 'function') _upsertTeamToDB(currentPlayerKey, team, 'set_editor');
-  renderRoster('player-roster', team.members);
-  renderTeamsGrid();
+  csPersistEditedTeam(team, 'set_editor');
+  csRefreshEditorTeamViews(team);
   const btn = document.getElementById('save-edits');
   const orig = btn.textContent;
+  clearEditorDraftDirty();
   btn.textContent = '✓ Saved!'; btn.style.background='var(--green)';
   setTimeout(()=>{ btn.textContent=orig; btn.style.background=''; }, 1500);
   // Update coverage widget when player team changes
-  if (typeof renderCoverageWidget === 'function') renderCoverageWidget();
 }
 
 renderEditorRoster();
 
 document.getElementById('export-team-editor')?.addEventListener('click', ()=>openExportModal(currentPlayerKey));
 document.getElementById('import-team-editor')?.addEventListener('click', ()=>{ openImportModal(); var imp=document.getElementById('import-slot'); if(imp) imp.value=currentPlayerKey; });
+document.getElementById('add-team-mon')?.addEventListener('click', addEditorPokemonSlot);
 
 // ============================================================
 // EXPORT MODAL
@@ -2832,7 +3167,7 @@ document.getElementById('import-team-editor')?.addEventListener('click', ()=>{ o
 function openExportModal(teamKey) {
   const team = TEAMS[teamKey];
   if (!team) return;
-  const paste = exportTeamToPaste(team);
+  const paste = exportTeamToPasteWithOptions(team, { showdownCompatible: true });
   document.getElementById('export-text').value = paste;
   _openModalOverlay('export-modal', { focusSelector: '#export-text', labelledbyId: 'export-modal-title' });
 }
@@ -2958,10 +3293,57 @@ document.getElementById('showdown-paste')?.addEventListener('input', function() 
   else document.getElementById('import-preview').style.display = 'none';
 });
 
+document.getElementById('load-sample-import-team')?.addEventListener('click', function() {
+  var sample = TEAMS.kevin_meta_sun || TEAMS.targeted_proof_legal || TEAMS.player;
+  var ta = document.getElementById('showdown-paste');
+  if (!sample || !ta) return;
+  ta.value = exportTeamToPasteWithOptions(sample, { showdownCompatible: true });
+  var pasteTab = document.querySelector('.import-tab[data-itab="paste"]');
+  if (pasteTab) pasteTab.click();
+  var slot = document.getElementById('import-slot');
+  if (slot) slot.value = '__new__';
+  ta.dispatchEvent(new Event('input'));
+  var statusEl = document.getElementById('import-status');
+  if (statusEl) {
+    statusEl.textContent = 'Sample loaded. Review the checker, then click Load Team.';
+    statusEl.className = 'modal-status ok';
+  }
+});
+
+document.getElementById('import-slot')?.addEventListener('change', function() {
+  var ta = document.getElementById('showdown-paste');
+  if (ta && ta.value.trim()) {
+    var parsed = parseShowdownPaste(ta.value);
+    if (parsed.length) showImportPreview(parsed);
+  }
+});
+
 function showImportPreview(members) {
   const preview = document.getElementById('import-preview');
   const roster = document.getElementById('preview-roster');
   const validation = buildImportedTeamValidation(members, { format: 'champions' });
+  const flow = document.getElementById('import-flow-card');
+  const dest = document.getElementById('import-destination-card');
+  const slotEl = document.getElementById('import-slot');
+  const slot = slotEl ? slotEl.value : '__new__';
+  const destination = slot === '__new__' ? 'New custom team' : ((TEAMS[slot] && TEAMS[slot].name) || slot || 'Selected slot');
+  const memberWarningsTotal = Object.keys(validation.memberWarnings || {}).reduce(function(sum, key) {
+    return sum + ((validation.memberWarnings[key] || []).length);
+  }, 0);
+  if (flow) {
+    flow.innerHTML = '<strong>' + (validation.valid ? 'Ready to load' : 'Blocked until fixed') + '</strong>' +
+      '<span>' + members.length + '/6 Pokemon parsed · ' + validation.errors.length + ' errors · ' + validation.warnings.length + ' warnings · ' + memberWarningsTotal + ' move checks flagged</span>' +
+      '<div class="import-check-chips">' +
+        '<span class="' + (members.length >= 1 && members.length <= 6 ? 'ok' : 'bad') + '">Roster ' + members.length + '/6</span>' +
+        '<span class="' + (validation.errors.length ? 'bad' : 'ok') + '">' + (validation.errors.length ? 'Fix errors' : 'No hard errors') + '</span>' +
+        '<span class="' + (memberWarningsTotal ? 'warn' : 'ok') + '">' + (memberWarningsTotal ? memberWarningsTotal + ' move flags' : 'Moves checked') + '</span>' +
+      '</div>';
+  }
+  if (dest) {
+    dest.innerHTML = '<strong>Destination</strong><span>' + _escapeHtml(destination) + '</span><small>' +
+      _escapeHtml(slot === '__new__' ? 'Creates a saved custom team you can edit and sim.' : 'Replaces this slot after validation; preloaded teams save as overrides.') +
+      '</small>';
+  }
   roster.innerHTML = members.map((m, idx) => {
     const warnings = validation.memberWarnings[String(idx)] || [];
     const warningHtml = warnings.length
@@ -3679,6 +4061,71 @@ function csRenderReplayEffectTags(row) {
   }).join('') + '</div>';
 }
 
+function csReplayFieldTags(snapshot) {
+  var tags = [];
+  var field = snapshot && snapshot.field ? snapshot.field : {};
+  var speed = snapshot && snapshot.speed_control ? snapshot.speed_control : {};
+  function add(label, cls, title) {
+    tags.push({
+      label: label,
+      cls: cls || 'low',
+      title: title || label
+    });
+  }
+  if (field.weather) {
+    add(String(field.weather) + (field.weather_turns ? ' ' + field.weather_turns + 'T' : ''), 'low', 'Weather on this board');
+  }
+  if (field.terrain) {
+    add(String(field.terrain) + (field.terrain_turns ? ' ' + field.terrain_turns + 'T' : ''), 'low', 'Terrain on this board');
+  }
+  if (Number(field.trick_room || field.trickRoom || 0) > 0) {
+    add('Trick Room ' + Number(field.trick_room || field.trickRoom || 0) + 'T', 'medium', 'Trick Room is active on this board');
+  }
+  ['player', 'opponent'].forEach(function(side) {
+    var row = speed && speed[side] ? speed[side] : {};
+    var tailwindTurns = Number(row.tailwind || 0);
+    if (tailwindTurns > 0) {
+      add((side === 'player' ? 'Your Tailwind ' : 'Their Tailwind ') + tailwindTurns + 'T', 'low', 'Tailwind is active for ' + side);
+    }
+    var screens = row.screens || {};
+    if (Number(screens.reflect || 0) > 0) add((side === 'player' ? 'Your Reflect ' : 'Their Reflect ') + Number(screens.reflect || 0) + 'T', 'low', 'Reflect is active for ' + side);
+    if (Number(screens.light || 0) > 0) add((side === 'player' ? 'Your Light Screen ' : 'Their Light Screen ') + Number(screens.light || 0) + 'T', 'low', 'Light Screen is active for ' + side);
+    if (Number(screens.aurora || 0) > 0) add((side === 'player' ? 'Your Aurora Veil ' : 'Their Aurora Veil ') + Number(screens.aurora || 0) + 'T', 'low', 'Aurora Veil is active for ' + side);
+  });
+  if (!tags.length) return '';
+  return '<div class="replay-effect-tags replay-field-tags">' + tags.map(function(tag) {
+    return '<span class="replay-effect-tag ' + _escapeHtml(tag.cls || 'low') + '" title="' + _escapeHtml(tag.title || tag.label || '') + '">' +
+      _escapeHtml(tag.label || 'Field') +
+    '</span>';
+  }).join('') + '</div>';
+}
+
+function csReplayBuildImpactMap(turn) {
+  var out = {};
+  var rows = csHpEvidenceRows(turn);
+  rows.forEach(function(row) {
+    if (!row || !row.key) return;
+    if (!out[row.key]) out[row.key] = [];
+    if (row.kind === 'damage') {
+      out[row.key].push((row.name || 'Pokemon') + ' lost ' + row.amount + ' HP to ' + (row.move || 'an attack'));
+    } else if (row.effect_kind === 'recoil') {
+      out[row.key].push((row.name || 'Pokemon') + ' lost ' + row.amount + ' HP to recoil');
+    } else {
+      out[row.key].push((row.name || 'Pokemon') + ' lost ' + row.amount + ' HP to ' + (row.effect_kind || row.move || 'an effect'));
+    }
+  });
+  (Array.isArray(turn && turn.effect_events) ? turn.effect_events : []).forEach(function(effect) {
+    if (!effect || !effect.actor_key || !effect.skipped_move) return;
+    if (!out[effect.actor_key]) out[effect.actor_key] = [];
+    var reason = csReplayEffectTagLabel(effect.effect_kind, effect);
+    out[effect.actor_key].push((effect.actor || 'Pokemon') + ' lost its move: ' + reason.toLowerCase());
+  });
+  Object.keys(out).forEach(function(key) {
+    out[key] = out[key].filter(Boolean).slice(0, 2);
+  });
+  return out;
+}
+
 function csRenderReplayStadiumMon(row) {
   row = row || {};
   var status = String(row.status || 'bench').toLowerCase();
@@ -3703,6 +4150,9 @@ function csRenderReplayStadiumMon(row) {
         csRenderReplayEffectTags(row) +
         '<div class="replay-hp-track ' + _escapeHtml(hpClass) + '"><span style="width:' + _escapeHtml(String(hp == null ? 0 : hp)) + '%"></span></div>' +
         '<div class="replay-roster-meta"><b>HP:</b> ' + _escapeHtml(row.hpLabel || (hp == null ? 'unknown' : hp + '%')) + (row.faintTurn ? ' · <b>Fainted:</b> Turn ' + _escapeHtml(String(row.faintTurn)) : '') + '</div>' +
+        (Array.isArray(row.replayImpact) && row.replayImpact.length
+          ? '<div class="replay-roster-meta"><b>Impact:</b> ' + _escapeHtml(row.replayImpact.join(' · ')) + '</div>'
+          : '') +
         (meta.length ? '<div class="replay-roster-meta">' + _escapeHtml(meta.join(' · ')) + '</div>' : '') +
         '<div class="replay-roster-meta"><b>Moves:</b> ' + _escapeHtml(moves || 'unknown') + '</div>' +
       '</div>' +
@@ -3740,8 +4190,10 @@ function csRenderReplayStadium(rowsBySide, title, labels) {
   labels = labels || {};
   var yourSide = csRenderReplayStadiumSide(rowsBySide.left || [], labels.left || 'Your team');
   var theirSide = csRenderReplayStadiumSide(rowsBySide.right || [], labels.right || 'Their team');
+  var fieldTags = rowsBySide.fieldTags || '';
   return '<div class="replay-stadium">' +
     (title ? '<div class="replay-stadium-title">' + _escapeHtml(title) + '</div>' : '') +
+    fieldTags +
     '<div class="replay-stadium-field">' +
       csRenderReplayStadiumActive(theirSide, 'opponent') +
       '<div class="replay-stadium-vs">VS</div>' +
@@ -3757,16 +4209,23 @@ function csRenderReplayStadium(rowsBySide, title, labels) {
 function csRenderReplayLogSnapshot(snapshot, title, compact, turn) {
   if (!snapshot) return '';
   var effectTags = csReplayBuildEffectTagMap(turn);
+  var impactMap = csReplayBuildImpactMap(turn);
   function withEffectTags(rows) {
     return rows.map(function(row) {
       var key = row && (row.stable_key || row.stableKey || row.key);
       var tags = key && effectTags[key] ? effectTags[key] : [];
-      return tags.length ? Object.assign({}, row, { replayTags: (row.replayTags || []).concat(tags) }) : row;
+      var impact = key && impactMap[key] ? impactMap[key] : [];
+      if (!tags.length && !impact.length) return row;
+      return Object.assign({}, row, {
+        replayTags: (row.replayTags || []).concat(tags),
+        replayImpact: impact
+      });
     });
   }
   return csRenderReplayStadium({
     left: withEffectTags(_csSnapshotSideRows(snapshot, 'player')),
-    right: withEffectTags(_csSnapshotSideRows(snapshot, 'opponent'))
+    right: withEffectTags(_csSnapshotSideRows(snapshot, 'opponent')),
+    fieldTags: csReplayFieldTags(snapshot)
   }, title || '', {
     left: 'Your team',
     right: 'Their team'
@@ -3786,6 +4245,78 @@ function csRenderReplayLogTurnZero(turnLog) {
 function csRenderReplayPlayByPlay(turn) {
   turn = turn || {};
   var rows = [];
+  function hpText(row) {
+    var after = row && row.target_hp_after != null ? row.target_hp_after : row && row.hp_after;
+    var max = row && row.target_max_hp != null ? row.target_max_hp : row && row.max_hp;
+    return after != null && max != null ? ' (' + after + '/' + max + ' HP)' : '';
+  }
+  function damageNote(row) {
+    var bits = [];
+    if (row.critical || row.crit || row.is_critical) bits.push('critical');
+    var eff = Number(row.type_effectiveness);
+    if (Number.isFinite(eff)) {
+      if (eff > 1) bits.push('super effective');
+      else if (eff > 0 && eff < 1) bits.push('resisted');
+      else if (eff === 0) bits.push('immune');
+    }
+    if (row.spread_mod && Number(row.spread_mod) !== 4096 && Number(row.spread_mod) !== 1) bits.push('spread');
+    if (row.damage_capped_by_hp) bits.push('HP capped');
+    return bits.length ? ' [' + bits.join(', ') + ']' : '';
+  }
+  function failureReasonText(reason) {
+    return String(reason || 'failed').replace(/-/g, ' ');
+  }
+  function structuredDamageRows() {
+    var damage = Array.isArray(turn.damage_events) ? turn.damage_events : [];
+    if (!damage.length) return [];
+    var grouped = [];
+    var byKey = {};
+    damage.forEach(function(row) {
+      if (!row) return;
+      var key = [row.attacker_key || row.attacker || 'Pokemon', row.move || 'Move'].join('|');
+      if (!byKey[key]) {
+        byKey[key] = {
+          attacker: row.attacker || 'Pokemon',
+          move: row.move || 'Move',
+          targets: []
+        };
+        grouped.push(byKey[key]);
+      }
+      byKey[key].targets.push(row);
+    });
+    return grouped.map(function(group) {
+      var targetText = group.targets.map(function(row) {
+        return (row.target || 'target') + ' lost ' + (row.applied_damage != null ? row.applied_damage : row.damage || 0) + ' HP' +
+          hpText(row) + damageNote(row);
+      }).join('; ');
+      return group.attacker + ' used ' + group.move + '! ' + targetText;
+    });
+  }
+  function structuredEffectRows() {
+    var effects = Array.isArray(turn.effect_events) ? turn.effect_events : [];
+    var out = [];
+    effects.forEach(function(effect) {
+      if (!effect) return;
+      var kind = String(effect.effect_kind || '');
+      if (kind === 'move-failure') {
+        var miss = effect.failure_reason === 'accuracy-miss';
+        var target = effect.target ? ' → ' + effect.target : '';
+        var acc = effect.accuracy != null ? ' Accuracy ' + Math.round(Number(effect.accuracy) * 100) + '%.' : '';
+        out.push((effect.actor || 'Pokemon') + ' used ' + (effect.failed_move || effect.move || 'a move') + '!' + target + ' ' +
+          (miss ? 'It missed.' : 'It failed: ' + failureReasonText(effect.failure_reason) + '.') + acc);
+      } else if (kind === 'type-immunity' || kind === 'ability-immunity' || kind === 'ability-immunity-heal') {
+        out.push(effect.note || ((effect.actor || 'Pokemon') + ' was immune to ' + (effect.blocked_move || effect.move || 'the move') + '.'));
+      } else if (effect.action_denial && effect.skipped_move) {
+        out.push((effect.actor || 'Pokemon') + ' could not use ' + (effect.skipped_action_move || 'its move') + ': ' + csReplayEffectTagLabel(kind, effect) + '.');
+      } else if (kind === 'flinch-applied') {
+        out.push((effect.actor || 'Pokemon') + ' flinched from ' + (effect.move || 'the move') + '.');
+      } else if ((effect.hp_delta || 0) !== 0 && (kind === 'recoil' || kind === 'weather-damage' || kind === 'status-damage' || kind === 'ability-recoil' || kind === 'protect-contact-damage' || kind === 'ability-contact-damage')) {
+        var lost = Math.abs(Number(effect.hp_delta || 0));
+        out.push((effect.actor || 'Pokemon') + ' lost ' + lost + ' HP from ' + (effect.move || failureReasonText(kind)) + hpText(effect) + '.');
+      }
+    });
+    return out;
+  }
   function showdownMoveText(action) {
     if (!action || !action.actor || !action.move) return '';
     var text = action.actor + ' used ' + action.move + '!';
@@ -3800,7 +4331,22 @@ function csRenderReplayPlayByPlay(turn) {
     text = text.replace(/\s+/g, ' ');
     return text;
   }
-  if (turn.actions) {
+  var structuredRows = structuredDamageRows().concat(structuredEffectRows());
+  var eventRows = [];
+  (turn.events || []).forEach(function(ev) {
+    if (!ev) return;
+    var text = showdownEventText(ev);
+    if (!text) return;
+    eventRows.push(text);
+  });
+  var eventRowsHaveMoves = eventRows.some(function(text) {
+    return /\bused\b/.test(String(text || ''));
+  });
+  if (structuredRows.length) {
+    rows = structuredRows;
+  } else if (eventRows.length && eventRowsHaveMoves) {
+    rows = eventRows;
+  } else {
     (turn.actions.player || []).forEach(function(action) {
       if (!action) return;
       var line = showdownMoveText(action);
@@ -3811,16 +4357,18 @@ function csRenderReplayPlayByPlay(turn) {
       var line = showdownMoveText(action);
       if (line) rows.push(line);
     });
+    rows = rows.concat(eventRows);
   }
-  (turn.events || []).forEach(function(ev) {
-    if (!ev) return;
-    var text = showdownEventText(ev);
-    if (!text) return;
-    rows.push(text);
+  var seen = {};
+  rows = rows.filter(function(text) {
+    var key = String(text || '').trim();
+    if (!key || seen[key]) return false;
+    seen[key] = true;
+    return true;
   });
   if (!rows.length) return '';
   return '<div class="replay-play-by-play"><strong>Battle log</strong>' +
-    rows.slice(0, 14).map(function(text, idx) {
+    rows.slice(0, 20).map(function(text, idx) {
       return '<div class="replay-play-row">' +
         '<span>' + _escapeHtml(String(idx + 1).padStart(2, '0')) + '</span>' +
         '<b>' + _escapeHtml(text || '') + '</b>' +
@@ -4063,13 +4611,15 @@ function csRenderTurnLogRows(turnLog, opts) {
         return [a.actor, a.move, a.target ? '-> ' + a.target : ''].filter(Boolean).join(' ');
       });
     }
+    var playByPlayHtml = csRenderReplayPlayByPlay(t);
+    var headerText = playByPlayHtml ? 'Resolved action order shown below' : (actions.join(' | ') || t.action || '-');
     var inCoach = (typeof coachIn === 'function') ? coachIn(rows, t && t.turn) : '';
     var turnAudit = audit && audit.byTurn ? audit.byTurn[t && t.turn] : null;
     return '<div class="replay-turn-row' + (t && t.swingTurn ? ' swing' : '') + (turnAudit ? ' decision-gap' : '') + '"' + (turnAudit ? ' style="border-left:4px solid var(--gold);"' : '') + '>' +
-      '<div class="replay-turn-main"><strong>T' + _escapeHtml(t && t.turn) + '</strong><span>' + _escapeHtml(actions.join(' | ') || t.action || '-') + '</span></div>' +
+      '<div class="replay-turn-main"><strong>T' + _escapeHtml(t && t.turn) + '</strong><span>' + _escapeHtml(headerText) + '</span></div>' +
       '<div class="replay-turn-score">Score ' + Math.round(score * 100) + '% · ' + (delta >= 0 ? '+' : '') + Math.round(delta * 100) + '</div>' +
       csRenderDecisionAuditChip(turnAudit) +
-      csRenderReplayPlayByPlay(t) +
+      playByPlayHtml +
       csRenderReplayLogSnapshot(t && t.post, 'After T' + (t && t.turn), true, t) +
       csRenderHpBars(t) +
       (inCoach ? '<pre class="replay-turn-coach">' + _escapeHtml(inCoach) + '</pre>' : '') +
@@ -4775,6 +5325,77 @@ function csCoachBrainDrill(row) {
   return 'Run focused reps for ' + row.label + ' and compare the next ledger.';
 }
 
+function csCoachBrainTacticalInterpretation(row, strength) {
+  var id = row && row.id;
+  var strengthId = strength && strength.id;
+  var base = {
+    schema_version: 'champions-coach-tactical-interpretation-v1',
+    primary_category: id || null,
+    strength_category: strengthId || null,
+    player_question: 'What changed because of this decision, and what happens if the player does nothing different next time?',
+    evidence_boundary: 'This explains observed sim evidence. It does not claim a universal best move until alternative branches and matchup samples agree.'
+  };
+  if (!row) {
+    base.why_good_windows_worked = 'No repeated positive tactical window is proven yet.';
+    base.why_bad_windows_failed = 'No repeated negative tactical window is proven yet.';
+    base.turn_sequence_rule = 'Collect more retained turn logs before changing team structure.';
+    base.coach_checklist = [
+      'Identify the speed-control state.',
+      'Compare the next one to three turns.',
+      'Only call the decision good if it created pressure, material, preservation, or a safer win condition.'
+    ];
+    base.data_to_watch_next = ['opportunities', 'positive_rate_pct', 'negative', 'neutral'];
+    return base;
+  }
+  if (id === 'player_tailwind') {
+    base.why_good_windows_worked = 'Tailwind worked when the next turns converted speed into pressure: damage, KO threat, forced Protect, safer positioning, or preserved win condition.';
+    base.why_bad_windows_failed = 'Tailwind failed when it spent a turn creating speed but the following turns did not change board pressure enough; opponents could trade damage, Protect, reposition, or let Trick Room blunt the payoff.';
+    base.turn_sequence_rule = 'Before clicking Tailwind, name the two-turn payoff: which Pokemon moves first, which target is pressured, what Protect/switch is forced, and what win condition is preserved.';
+    base.coach_checklist = [
+      'Do not click Tailwind just because it is available.',
+      'Check whether Trick Room is active or likely before committing the speed turn.',
+      'Plan the next two attacks or preservation moves before setting Tailwind.',
+      'Score the window by conversion, not by whether Tailwind was successfully set.'
+    ];
+    base.data_to_watch_next = ['tailwind_converted', 'tailwind_without_pressure', 'tailwind_into_active_trick_room', 'field_effect_expired'];
+    return base;
+  }
+  if (id === 'opponent_tailwind_defense') {
+    base.why_good_windows_worked = 'The defense worked when the opponent gained speed but the player preserved material, denied pressure, reversed tempo, or forced low-value attacks.';
+    base.why_bad_windows_failed = 'The defense failed when the opponent used the speed window to force damage before the player could stabilize.';
+    base.turn_sequence_rule = 'When the opponent sets Tailwind, the next two turns should prioritize survival, Protect timing, priority pressure, switching, or speed reversal over blind trades.';
+    base.coach_checklist = [
+      'Identify the fastest opposing threat under Tailwind.',
+      'Protect or reposition the Pokemon that loses the game if it falls.',
+      'Use priority, Fake Out, switching, or reverse speed control to shorten the opponent payoff.'
+    ];
+    base.data_to_watch_next = ['opponent_tailwind_converted', 'opponent_tailwind_without_pressure', 'speed_control_reversal', 'speed_control_neutralized'];
+    return base;
+  }
+  if (id === 'trick_room') {
+    base.why_good_windows_worked = 'Trick Room worked when the setup turn led into safe slow-attacker pressure or immediate material gain.';
+    base.why_bad_windows_failed = 'Trick Room failed when turns were spent setting the room without a protected attacker, clear target, or enough damage during the inverted-speed window.';
+    base.turn_sequence_rule = 'Before setting Trick Room, confirm the next board has a slow attacker ready, a protected setter or pivot path, and a target that creates material or win-condition pressure.';
+    base.coach_checklist = [
+      'Confirm the slow attacker survives the setup turn.',
+      'Avoid setting Trick Room if the opponent can stall all payoff turns with Protect or switches.',
+      'Use the first two Trick Room turns for material, not passive setup.'
+    ];
+    base.data_to_watch_next = ['trick_room_converted', 'trick_room_failed_to_convert', 'speed_order_reversed', 'tailwind_into_active_trick_room'];
+    return base;
+  }
+  base.why_good_windows_worked = 'Speed-control answers worked when they immediately became pressure, material, or safer board position.';
+  base.why_bad_windows_failed = 'Speed-control answers failed when they stopped the opponent temporarily but did not create a useful follow-up.';
+  base.turn_sequence_rule = 'After answering speed control, spend the next action on the target or switch that converts tempo into a measurable board advantage.';
+  base.coach_checklist = [
+    'Name the opposing speed plan.',
+    'Pick the answer: reverse it, neutralize it, stall it, or attack through it.',
+    'Use the next turn to create pressure instead of resetting passively.'
+  ];
+  base.data_to_watch_next = ['speed_control_reversal', 'speed_control_neutralized', 'tailwind_converted', 'trick_room_converted'];
+  return base;
+}
+
 function csBuildCoachBrainSummary(ledger, opts) {
   var options = opts || {};
   var categories = Array.isArray(ledger && ledger.categories) ? ledger.categories : [];
@@ -4827,6 +5448,7 @@ function csBuildCoachBrainSummary(ledger, opts) {
     next_game_plan: csCoachBrainNextPlan(issue),
     expected_result_if_fixed: csCoachBrainExpectedResult(issue),
     practice_drill: csCoachBrainDrill(issue),
+    tactical_interpretation: csCoachBrainTacticalInterpretation(issue, strength),
     learning_direction: {
       next_layer: 'coach_memory',
       purpose: 'Compare this summary against future sessions and broader shared sim evidence before recommending move, lineup, or team changes.',
@@ -5788,6 +6410,104 @@ function csBuildTargetedQaSweepEvidence(opts) {
       opponentTeam: csQaProofTeam('Targeted QA Leech Seed Opponent', [
         csQaProofMon('Pelipper', ['Tackle'])
       ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'stat_source_foul_play',
+      label: 'Stat-source proof: Foul Play target Attack',
+      requireMechanic: 'foul_play_trace',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_foul_play_player',
+      opponentTeamId: 'targeted_qa_foul_play_opponent',
+      maxTurns: 1,
+      playerTeam: csQaProofTeam('Targeted QA Foul Play Player', [
+        csQaProofMon('Sableye', ['Foul Play'], {
+          ability: 'Prankster',
+          item: 'Black Glasses',
+          nature: 'Impish',
+          evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 2, spe: 0 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Foul Play Opponent', [
+        csQaProofMon('Garchomp', ['Tackle'], {
+          ability: 'Rough Skin',
+          nature: 'Adamant',
+          evs: { hp: 2, atk: 32, def: 0, spa: 0, spd: 0, spe: 32 }
+        })
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'stat_source_body_press',
+      label: 'Stat-source proof: Body Press user Defense',
+      requireMechanic: 'body_press_trace',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_body_press_player',
+      opponentTeamId: 'targeted_qa_body_press_opponent',
+      maxTurns: 1,
+      playerTeam: csQaProofTeam('Targeted QA Body Press Player', [
+        csQaProofMon('Orthworm', ['Body Press'], {
+          ability: 'Earth Eater',
+          nature: 'Impish',
+          evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 2, spe: 0 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Body Press Opponent', [
+        csQaProofMon('Tyranitar', ['Tackle'], {
+          ability: 'Sand Stream',
+          nature: 'Careful',
+          evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 2, spe: 0 }
+        })
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'stat_source_psyshock',
+      label: 'Stat-source proof: Psyshock targets Defense',
+      requireMechanic: 'psyshock_trace',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_psyshock_player',
+      opponentTeamId: 'targeted_qa_psyshock_opponent',
+      maxTurns: 1,
+      playerTeam: csQaProofTeam('Targeted QA Psyshock Player', [
+        csQaProofMon('Cresselia', ['Psyshock'], {
+          ability: 'Levitate',
+          nature: 'Modest',
+          evs: { hp: 32, atk: 0, def: 0, spa: 32, spd: 2, spe: 0 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Psyshock Opponent', [
+        csQaProofMon('Amoonguss', ['Tackle'], {
+          ability: 'Regenerator',
+          nature: 'Calm',
+          evs: { hp: 32, atk: 0, def: 2, spa: 0, spd: 32, spe: 0 }
+        })
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'stat_source_foul_play_power_ability_guard',
+      label: 'Stat-source proof: Foul Play ignores target power ability',
+      requireMechanic: 'ignored_target_power_ability_trace',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_foul_play_power_guard_player',
+      opponentTeamId: 'targeted_qa_foul_play_power_guard_opponent',
+      maxTurns: 1,
+      playerTeam: csQaProofTeam('Targeted QA Foul Play Power Guard Player', [
+        csQaProofMon('Sableye', ['Foul Play'], {
+          ability: 'Prankster',
+          item: 'Black Glasses',
+          nature: 'Impish',
+          evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 2, spe: 0 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Foul Play Power Guard Opponent', [
+        csQaProofMon('Medicham', ['Tackle'], {
+          ability: 'Pure Power',
+          nature: 'Adamant',
+          evs: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 0 }
+        })
+      ])
     })
   ];
   var summary = csMergeQaCoverageSummaries(runs.map(function(run) {
@@ -6606,6 +7326,8 @@ function csBranchMoveTrainerSummary(analysis) {
 
 var CS_BRANCH_STRATEGY_MEMORY_KEY = 'champions_branch_strategy_memory_v1';
 var CS_BRANCH_STRATEGY_MEMORY_LIMIT = 12;
+var CS_COACH_BRAIN_MEMORY_KEY = 'champions_coach_brain_memory_v1';
+var CS_COACH_BRAIN_MEMORY_LIMIT = 12;
 
 function csLoadBranchStrategyMemory() {
   try {
@@ -6680,6 +7402,77 @@ function csLatestBranchMoveAnalysisForTeam(teamKey) {
   return analyses.find(function(entry) {
     return entry && entry.player_team_id === teamKey && (!entry.player_team_signature || entry.player_team_signature === sig);
   }) || analyses.find(function(entry) { return entry && entry.player_team_id === teamKey; }) || analyses[0] || null;
+}
+
+function csLoadCoachBrainMemory() {
+  try {
+    var raw = localStorage && localStorage.getItem(CS_COACH_BRAIN_MEMORY_KEY);
+    var parsed = raw ? JSON.parse(raw) : null;
+    return parsed && Array.isArray(parsed.summaries) ? parsed : { schema_version: 1, summaries: [] };
+  } catch (_e) {
+    return { schema_version: 1, summaries: [] };
+  }
+}
+
+function csSaveCoachBrainMemory(memory) {
+  try {
+    if (!localStorage) return false;
+    localStorage.setItem(CS_COACH_BRAIN_MEMORY_KEY, JSON.stringify(memory));
+    return true;
+  } catch (_e) {
+    return false;
+  }
+}
+
+function csRememberCoachBrainSummary(summary, opts) {
+  if (!summary || !summary.tactical_interpretation) return null;
+  opts = opts || {};
+  var playerKey = opts.player_team_id || 'player';
+  var customSignature = opts.player_team_signature || null;
+  var memoryKey = [playerKey, customSignature || 'static', opts.format || 'format', 'coach-brain'].join('::');
+  var entry = {
+    saved_at: new Date().toISOString(),
+    memory_key: memoryKey,
+    player_team_id: playerKey,
+    player_team_signature: customSignature,
+    custom_team: !!customSignature,
+    format: opts.format || null,
+    build_id: (typeof csGetBuildId === 'function') ? csGetBuildId() : null,
+    confidence: summary.confidence || null,
+    primary_issue: summary.primary_issue || null,
+    observed_pattern: summary.observed_pattern || null,
+    root_problem: summary.root_problem || null,
+    risk_if_unchanged: summary.risk_if_unchanged || null,
+    recommended_solution: summary.recommended_solution || null,
+    expected_result_if_fixed: summary.expected_result_if_fixed || null,
+    practice_drill: summary.practice_drill || null,
+    tactical_interpretation: summary.tactical_interpretation,
+    sample: summary.sample || null,
+    boundary: summary.boundary || null
+  };
+  var memory = csLoadCoachBrainMemory();
+  memory.summaries = (memory.summaries || []).filter(function(item) {
+    return item && item.memory_key !== entry.memory_key;
+  });
+  memory.summaries.unshift(entry);
+  memory.summaries = memory.summaries.slice(0, CS_COACH_BRAIN_MEMORY_LIMIT);
+  memory.updated_at = entry.saved_at;
+  csSaveCoachBrainMemory(memory);
+  ChampionsSim.state.lastCoachBrainMemory = memory;
+  return memory;
+}
+
+function csLatestCoachBrainForTeam(teamKey) {
+  var memory = (ChampionsSim && ChampionsSim.state && ChampionsSim.state.lastCoachBrainMemory) || csLoadCoachBrainMemory();
+  var summaries = Array.isArray(memory && memory.summaries) ? memory.summaries : [];
+  if (!teamKey) return summaries[0] || null;
+  var sig = null;
+  try {
+    if (typeof TEAMS !== 'undefined' && TEAMS[teamKey] && typeof teamSignature === 'function') sig = teamSignature(TEAMS[teamKey]);
+  } catch (_e) {}
+  return summaries.find(function(entry) {
+    return entry && entry.player_team_id === teamKey && (!entry.player_team_signature || entry.player_team_signature === sig);
+  }) || summaries.find(function(entry) { return entry && entry.player_team_id === teamKey; }) || null;
 }
 
 function downloadReplayTurnLog(replay, opts) {
@@ -7443,6 +8236,7 @@ function renderReplays() {
     const logCapActive = !!r.logTruncated ||
       (typeof r.logLineCount === 'number' && r.logLineCount > logLen) ||
       logLen > MAX_REPLAY_LOG_LINES;
+    const rawLogHtml = (r.log || []).join('<br>');
     const turning = r.turning_point ? 'Swing T' + r.turning_point.turn : 'No swing';
     const card=document.createElement('div');
     card.className='replay-card';
@@ -7464,7 +8258,9 @@ function renderReplays() {
       <div class="replay-expanded">
         ${showCoachingSummary ? csRenderReplayCoachingSummary(coachingSummary) : ''}
         ${hasTurnLog ? `<div class="replay-v2-tools">${csReplaySparkline(r.turnLog)}<button class="btn-secondary replay-json-btn" type="button">Download JSON</button></div>${csRenderTurnLogRows(r.turnLog, { playerKey: r.playerKey || (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player'), oppKey: r.oppKey || null })}` : ''}
-        <div class="battle-log">${(r.log||[]).join('<br>')}</div>
+        ${hasTurnLog
+          ? `<details class="battle-log-raw"><summary>Raw engine log</summary><div class="battle-log">${rawLogHtml}</div></details>`
+          : `<div class="battle-log">${rawLogHtml}</div>`}
       </div>`;
     const dlBtn = card.querySelector('.replay-json-btn');
     if (dlBtn) dlBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); downloadReplayTurnLog(r); });
@@ -7705,6 +8501,129 @@ function csBuildQaArtifactSummary(simLog, replayCards, teamKey) {
   };
 }
 
+function csSafeNumber(value) {
+  var n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function csBuildStressLiteSummary(stressLite, mergedCoverage, tacticalSweep, branchMoveAnalysis) {
+  if (!stressLite) return null;
+  var coverageTotals = mergedCoverage && mergedCoverage.totals ? mergedCoverage.totals : {};
+  var opponentRows = tacticalSweep && Array.isArray(tacticalSweep.opponents) ? tacticalSweep.opponents : [];
+  var branchRows = [];
+  var results = { win: 0, loss: 0, draw: 0, other: 0 };
+  var slowestMatchup = null;
+  var heaviestMatchup = null;
+  var i;
+  for (i = 0; i < opponentRows.length; i++) {
+    var opponent = opponentRows[i] || {};
+    var space = opponent.coverage_space || {};
+    var turns = csSafeNumber(space.executed_runs) * csSafeNumber(space.max_turns);
+    var density = csSafeNumber(space.executed_runs) + csSafeNumber(opponent.loaded_rows);
+    var opponentSummary = {
+      opponent_team_id: opponent.opponent_team_id || null,
+      executed_runs: csSafeNumber(space.executed_runs),
+      newly_executed_runs: csSafeNumber(space.newly_executed_runs),
+      candidate_runs: csSafeNumber(space.candidate_runs),
+      max_turns: csSafeNumber(space.max_turns),
+      estimated_turn_volume: turns,
+      loaded_rows: csSafeNumber(opponent.loaded_rows)
+    };
+    branchRows.push(opponentSummary);
+    if (!slowestMatchup || opponentSummary.estimated_turn_volume > slowestMatchup.estimated_turn_volume) slowestMatchup = opponentSummary;
+    if (!heaviestMatchup || density > heaviestMatchup.evidence_density) {
+      heaviestMatchup = {
+        opponent_team_id: opponentSummary.opponent_team_id,
+        evidence_density: density,
+        executed_runs: opponentSummary.executed_runs,
+        loaded_rows: opponentSummary.loaded_rows
+      };
+    }
+  }
+  if (tacticalSweep && tacticalSweep.matrices && tacticalSweep.matrices.length) {
+    tacticalSweep.matrices.forEach(function(entry) {
+      var matrix = entry && entry.branch_matrix;
+      var runs = matrix && Array.isArray(matrix.runs) ? matrix.runs : [];
+      runs.forEach(function(run) {
+        var result = run && run.result;
+        if (result === 'win' || result === 'loss' || result === 'draw') results[result]++;
+        else results.other++;
+      });
+    });
+  }
+  var totalRuns = csSafeNumber(stressLite.total_executed_runs);
+  var winRatePct = totalRuns > 0 ? Math.round(((results.win + (results.draw * 0.5)) / totalRuns) * 1000) / 10 : null;
+  var coachBrain = mergedCoverage && mergedCoverage.coach_brain_summary ? mergedCoverage.coach_brain_summary : {};
+  var tacticalInterpretation = coachBrain.tactical_interpretation || {};
+  var bestLine = branchMoveAnalysis && Array.isArray(branchMoveAnalysis.best_lines_overall) && branchMoveAnalysis.best_lines_overall[0]
+    ? branchMoveAnalysis.best_lines_overall[0]
+    : null;
+  var avoidMove = branchMoveAnalysis && Array.isArray(branchMoveAnalysis.avoid_moves) && branchMoveAnalysis.avoid_moves[0]
+    ? branchMoveAnalysis.avoid_moves[0]
+    : null;
+  var tacticalSignal = branchMoveAnalysis && Array.isArray(branchMoveAnalysis.tactical_signals) && branchMoveAnalysis.tactical_signals[0]
+    ? branchMoveAnalysis.tactical_signals[0]
+    : null;
+  return {
+    schema_version: 'champions-stress-lite-summary-v1',
+    status: stressLite.status || null,
+    proof_boundary: stressLite.boundary || null,
+    caps: {
+      opponent_limit: csSafeNumber(stressLite.opponent_limit),
+      opponent_count: csSafeNumber(stressLite.opponent_count),
+      max_runs_per_opponent: csSafeNumber(stressLite.max_runs_per_opponent),
+      branch_scope: stressLite.branch_scope || null,
+      memory_guard: stressLite.memory_guard || null
+    },
+    totals: {
+      branch_runs_executed: totalRuns,
+      branch_runs_newly_executed: csSafeNumber(stressLite.total_newly_executed_runs),
+      targeted_sweep_runs: csSafeNumber(stressLite.targeted_sweep_runs),
+      replay_cards_scanned: csSafeNumber(coverageTotals.replay_cards_scanned),
+      turns: csSafeNumber(coverageTotals.turns),
+      action_rows: csSafeNumber(coverageTotals.action_rows),
+      damage_events: csSafeNumber(coverageTotals.damage_events),
+      effect_events: csSafeNumber(coverageTotals.effect_events),
+      results: results,
+      win_rate_pct: winRatePct
+    },
+    coverage_signal: {
+      slowest_matchup: slowestMatchup,
+      heaviest_evidence_matchup: heaviestMatchup,
+      opponent_breakdown: branchRows
+    },
+    coaching_signal: {
+      best_line: bestLine ? {
+        player_leads: bestLine.player_leads || [],
+        opponent_leads: bestLine.opponent_leads || [],
+        line_key: bestLine.line_key || null,
+        win_rate_pct: bestLine.win_rate_pct || null,
+        confidence: bestLine.confidence || null
+      } : null,
+      avoid_move: avoidMove ? {
+        actor: avoidMove.actor || null,
+        move: avoidMove.move || null,
+        player_leads: avoidMove.player_leads || [],
+        opponent_leads: avoidMove.opponent_leads || [],
+        win_rate_pct: avoidMove.win_rate_pct || null,
+        confidence: avoidMove.confidence || null,
+        reason: avoidMove.reason || null
+      } : null,
+      tactical_pattern: tacticalSignal ? {
+        tactic_tag: tacticalSignal.tactic_tag || null,
+        player_leads: tacticalSignal.player_leads || [],
+        opponent_leads: tacticalSignal.opponent_leads || [],
+        win_rate_pct: tacticalSignal.win_rate_pct || null,
+        confidence: tacticalSignal.confidence || null,
+        coach_note: tacticalSignal.coach_note || null
+      } : null,
+      recommended_focus: coachBrain.recommended_solution || tacticalInterpretation.turn_sequence_rule || null,
+      risk_if_unchanged: coachBrain.risk_if_unchanged || null,
+      practice_drill: coachBrain.practice_drill || null
+    }
+  };
+}
+
 function csCompactQaReplayCard(replay, playerKey) {
   var r = replay || {};
   var log = Array.isArray(r.log) ? r.log : [];
@@ -7762,6 +8681,134 @@ function csCompactQaReplayCard(replay, playerKey) {
   };
 }
 
+function csBuildCodexQaContext(args) {
+  args = args || {};
+  var coverage = args.qa_coverage_summary || {};
+  var mechanics = coverage.mechanics_seen || {};
+  var missing = Array.isArray(coverage.missing_targeted_proof) ? coverage.missing_targeted_proof : [];
+  var branch = args.branch_move_analysis || {};
+  var branchTotals = branch.totals || {};
+  var tactical = args.tactical_sweep || {};
+  var retained = args.retained || {};
+  var replayCards = Array.isArray(retained.replay_cards) ? retained.replay_cards : [];
+  var coachBrain = coverage.coach_brain_summary || {};
+  var coachInterp = coachBrain.tactical_interpretation || {};
+  var moveTraceRows = Number(mechanics.move_rule_trace_rows || 0);
+  var damageEvents = Number(mechanics.damage_events || 0);
+  var effectEvents = Number(mechanics.effect_events || 0);
+  var qaRunType = args.qa_run_type || 'manual_export';
+  var readyForCodex = damageEvents > 0 && moveTraceRows > 0 && missing.length === 0;
+  var recommendedNextTest = missing.length
+    ? 'Run targeted QA proof for: ' + missing.slice(0, 8).join(', ') + '.'
+    : (!damageEvents
+        ? 'Run QA Artifact after battles with retained replay cards so damage_events are available.'
+        : (!moveTraceRows
+            ? 'Run targeted damage QA so move_rule_trace rows are exported for damage math review.'
+            : (qaRunType === 'tactical_sweep'
+                ? 'Artifact is Codex-ready; inspect qa_coverage_summary.coach_brain_summary.tactical_interpretation first, then branch_move_analysis for the next tactical coaching implementation target.'
+                : 'Run Tactical Sweep + QA to add branch learning coverage across lineups, moves, and targets.')));
+  var readiness = [];
+  function addReadiness(id, label, status, detail) {
+    readiness.push({ id: id, label: label, status: status, detail: detail });
+  }
+  addReadiness(
+    'move_rule_trace',
+    'Move rule trace layer',
+    moveTraceRows > 0 ? 'green' : 'yellow',
+    moveTraceRows > 0
+      ? moveTraceRows + ' damage rows include move_rule_trace evidence.'
+      : 'No move_rule_trace rows were observed in this artifact; run a damage-focused QA set or targeted proof.'
+  );
+  addReadiness(
+    'damage_events',
+    'Damage transparency',
+    damageEvents > 0 ? 'green' : 'red',
+    damageEvents > 0
+      ? damageEvents + ' structured damage_events are available.'
+      : 'No damage_events were retained; Codex cannot audit damage math from this artifact.'
+  );
+  addReadiness(
+    'effect_events',
+    'Effect transparency',
+    effectEvents > 0 ? 'green' : 'yellow',
+    effectEvents > 0
+      ? effectEvents + ' structured effect_events are available.'
+      : 'No effect_events were observed; run scenarios with recoil, drain, recovery, status, or field effects.'
+  );
+  addReadiness(
+    'targeted_proof',
+    'Named targeted proof gaps',
+    missing.length === 0 ? 'green' : 'yellow',
+    missing.length === 0
+      ? 'No named targeted proof gaps remain in this artifact.'
+      : 'Missing proof: ' + missing.slice(0, 12).join(', ')
+  );
+  return {
+    schema_version: 'champions-codex-qa-context-v1',
+    purpose: 'Compact handoff for Codex/local agents. Keep this object with QA artifacts so implementation work can start from evidence instead of re-reading raw logs.',
+    generated_at: args.exported_at || new Date().toISOString(),
+    qa_run_type: qaRunType,
+    ready_for_codex: readyForCodex,
+    next_missing_proof: missing.slice(),
+    recommended_next_test: recommendedNextTest,
+    artifact_identity: {
+      schema_version: args.schema_version || 'champions-qa-artifact-v1',
+      build_id: args.build_id || null,
+      source_url: args.source_url || null,
+      player_team_id: args.player_team_id || null,
+      player_team_name: args.player_team_name || null,
+      current_format: args.current_format || null
+    },
+    qa_readiness: readiness,
+    mechanics_seen: {
+      damage_events: damageEvents,
+      effect_events: effectEvents,
+      move_rule_trace_rows: moveTraceRows,
+      nonstandard_stat_source_trace: Number(mechanics.nonstandard_stat_source_trace || 0),
+      foul_play_trace: Number(mechanics.foul_play_trace || 0),
+      ignored_target_power_ability_trace: Number(mechanics.ignored_target_power_ability_trace || 0),
+      applied_user_power_ability_trace: Number(mechanics.applied_user_power_ability_trace || 0),
+      recoil: Number(mechanics.recoil || 0),
+      drain_heal: Number(mechanics.drain_heal || 0),
+      flinch_applied: Number(mechanics.flinch_applied || 0),
+      speed_control_neutralized: Number(mechanics.speed_control_neutralized || 0),
+      trick_room_active: Number(mechanics.trick_room_active || 0),
+      tailwind_active: Number(mechanics.tailwind_active || 0)
+    },
+    missing_targeted_proof: missing,
+    retained_evidence: {
+      replay_cards: replayCards.length,
+      replay_cards_with_turn_logs: replayCards.filter(function(card) {
+        return card && Array.isArray(card.turnLog) && card.turnLog.length;
+      }).length,
+      tactical_sweep_opponents: tactical && Array.isArray(tactical.opponents) ? tactical.opponents.length : 0,
+      tactical_sweep_status: tactical && tactical.status || null,
+      tactical_sweep_total_executed_runs: Number(tactical && tactical.total_executed_runs || 0),
+      branch_analysis_rows: Number(branchTotals.rows || branchTotals.total_rows || 0)
+    },
+    coach_focus: {
+      confidence: coachBrain.confidence || null,
+      primary_issue: coachBrain.primary_issue && coachBrain.primary_issue.category || null,
+      observed_pattern: coachBrain.observed_pattern || null,
+      root_problem: coachBrain.root_problem || null,
+      recommended_solution: coachBrain.recommended_solution || null,
+      practice_drill: coachBrain.practice_drill || null,
+      tactical_interpretation_schema: coachInterp.schema_version || null,
+      tactical_player_question: coachInterp.player_question || null,
+      tactical_turn_rule: coachInterp.turn_sequence_rule || null,
+      tactical_watch_next: Array.isArray(coachInterp.data_to_watch_next) ? coachInterp.data_to_watch_next.slice(0, 8) : []
+    },
+    recommended_codex_prompt: [
+      'Use this QA artifact as evidence. First inspect codex_context.qa_readiness, codex_context.coach_focus, and qa_coverage_summary.mechanics_seen.',
+      'If a mechanic is yellow/red, locate the retained replay card or tactical_sweep run with the missing/weak evidence before changing engine code.',
+      'For coaching work, start from codex_context.coach_focus and qa_coverage_summary.coach_brain_summary.tactical_interpretation before writing new advice.',
+      'For damage issues, inspect turnLog[].damage_events[].move_rule_trace before editing calcDamage.',
+      'Keep fixes source-truth aligned with Pokemon Showdown/Champion rules and add or update targeted QA proof when closing a mechanic gap.'
+    ].join(' '),
+    local_ingest_hint: 'Drop downloaded champions-sim-qa-artifact-*.json or champions-turn-log-*.json into a known folder, then run: cd poke-sim && npm run codex:qa -- <paths>'
+  };
+}
+
 function csUniqueTeamKeys(keys) {
   var seen = {};
   return (Array.isArray(keys) ? keys : []).filter(function(key) {
@@ -7773,27 +8820,179 @@ function csUniqueTeamKeys(keys) {
 
 function csResolveTacticalSweepOpponentKeys(playerKey, options) {
   options = options || {};
+  var resolvedKeys = [];
   if (Array.isArray(options.branchOpponentTeamIds) && options.branchOpponentTeamIds.length) {
-    return csUniqueTeamKeys(options.branchOpponentTeamIds).filter(function(key) {
+    resolvedKeys = csUniqueTeamKeys(options.branchOpponentTeamIds).filter(function(key) {
       return key !== playerKey && typeof TEAMS !== 'undefined' && TEAMS[key];
     });
+    return csLimitTacticalOpponentKeys(resolvedKeys, options);
   }
-  if (options.branchOpponentTeamId) return [options.branchOpponentTeamId].filter(function(key) { return key && key !== playerKey; });
+  if (options.branchOpponentTeamId) {
+    resolvedKeys = [options.branchOpponentTeamId].filter(function(key) { return key && key !== playerKey; });
+    return csLimitTacticalOpponentKeys(resolvedKeys, options);
+  }
   var oppSelect = (typeof document !== 'undefined') ? document.getElementById('opponent-select') : null;
   if (!options.branchMatrixUseScope) {
     var selectedKey = (oppSelect && oppSelect.value) || null;
-    return selectedKey && selectedKey !== playerKey ? [selectedKey] : [];
+    resolvedKeys = selectedKey && selectedKey !== playerKey ? [selectedKey] : [];
+    return csLimitTacticalOpponentKeys(resolvedKeys, options);
   }
   try {
     var simCtx = (typeof resolveSimContext === 'function')
       ? resolveSimContext({ playerKey: playerKey, simScope: options.branchMatrixScope || getSimScopeMode() })
       : { playerKey: playerKey, oppKey: (oppSelect && oppSelect.value) || null, simScope: options.branchMatrixScope || 'selected' };
-    return csUniqueTeamKeys(getRunAllOpponentKeys(playerKey, simCtx));
+    resolvedKeys = csUniqueTeamKeys(getRunAllOpponentKeys(playerKey, simCtx));
+    return csLimitTacticalOpponentKeys(resolvedKeys, options);
   } catch (e) {
     UILog.warn('QA tactical sweep opponent resolution failed', e);
     var fallbackKey = (oppSelect && oppSelect.value) || null;
-    return fallbackKey && fallbackKey !== playerKey ? [fallbackKey] : [];
+    resolvedKeys = fallbackKey && fallbackKey !== playerKey ? [fallbackKey] : [];
+    return csLimitTacticalOpponentKeys(resolvedKeys, options);
   }
+}
+
+function csLimitTacticalOpponentKeys(keys, options) {
+  var out = csUniqueTeamKeys(keys || []);
+  var limit = Number(options && options.branchMatrixOpponentLimit);
+  if (Number.isFinite(limit) && limit > 0 && out.length > limit) return out.slice(0, Math.floor(limit));
+  return out;
+}
+
+var CS_QA_STRESS_LITE_MAX_BYTES = 50 * 1024 * 1024;
+var CS_QA_STRESS_LITE_TARGET_BYTES = 45 * 1024 * 1024;
+var CS_QA_STRESS_LITE_REPLAY_CARD_LIMIT = 80;
+var CS_QA_STRESS_LITE_SIM_LOG_LIMIT = 240;
+var CS_QA_STRESS_LITE_TEAM_HISTORY_LIMIT = 240;
+
+function csEstimateJsonBytes(value) {
+  var json = '';
+  try {
+    json = JSON.stringify(value || {});
+  } catch (_e) {
+    json = '';
+  }
+  try {
+    if (typeof TextEncoder === 'function') return new TextEncoder().encode(json).length;
+  } catch (_e2) {}
+  try {
+    if (typeof Blob === 'function') return new Blob([json]).size;
+  } catch (_e3) {}
+  return json.length;
+}
+
+function csApplyStressLiteArtifactBudget(payload, options) {
+  if (!payload || !payload.stress_lite) return payload;
+  options = options || {};
+  var maxBytes = Number(options.qaArtifactMaxBytes || CS_QA_STRESS_LITE_MAX_BYTES);
+  var targetBytes = Number(options.qaArtifactTargetBytes || CS_QA_STRESS_LITE_TARGET_BYTES);
+  var retained = payload.retained || {};
+  var trimReport = {
+    schema_version: 'champions-stress-lite-artifact-budget-v1',
+    purpose: 'Keep Stress Lite QA export browser-safe while preserving calculation and logic proof.',
+    max_bytes: maxBytes,
+    target_bytes: targetBytes,
+    initial_bytes: csEstimateJsonBytes(payload),
+    trimming_applied: false,
+    preserved_for_josh: [
+      'build_id and source_url',
+      'qa coverage summary',
+      'damage and effect event totals',
+      'contact move audit',
+      'move rule trace coverage',
+      'decision opportunity ledger',
+      'targeted sweep and branch matrix summaries',
+      'database save status'
+    ]
+  };
+  function trimArray(key, limit) {
+    if (!Array.isArray(retained[key])) return;
+    if (retained[key].length > limit) {
+      retained[key] = retained[key].slice(0, limit);
+      trimReport.trimming_applied = true;
+    }
+  }
+  trimArray('replay_cards', Number(options.stressLiteReplayCardLimit || CS_QA_STRESS_LITE_REPLAY_CARD_LIMIT));
+  trimArray('sim_log', Number(options.stressLiteSimLogLimit || CS_QA_STRESS_LITE_SIM_LOG_LIMIT));
+  trimArray('team_history', Number(options.stressLiteTeamHistoryLimit || CS_QA_STRESS_LITE_TEAM_HISTORY_LIMIT));
+  var finalBytes = csEstimateJsonBytes(payload);
+  var replayFallbacks = [40, 20, 10, 0];
+  for (var i = 0; finalBytes > targetBytes && i < replayFallbacks.length; i++) {
+    trimArray('replay_cards', replayFallbacks[i]);
+    finalBytes = csEstimateJsonBytes(payload);
+  }
+  if (finalBytes > targetBytes) {
+    trimArray('sim_log', 120);
+    trimArray('team_history', 120);
+    finalBytes = csEstimateJsonBytes(payload);
+  }
+  if (finalBytes > targetBytes) {
+    trimArray('sim_log', 40);
+    trimArray('team_history', 40);
+    finalBytes = csEstimateJsonBytes(payload);
+  }
+  trimReport.final_bytes = finalBytes;
+  trimReport.under_max_bytes = finalBytes <= maxBytes;
+  trimReport.retained_counts = {
+    replay_cards: Array.isArray(retained.replay_cards) ? retained.replay_cards.length : 0,
+    sim_log: Array.isArray(retained.sim_log) ? retained.sim_log.length : 0,
+    team_history: Array.isArray(retained.team_history) ? retained.team_history.length : 0
+  };
+  payload.retained = retained;
+  payload.artifact_size_guard = trimReport;
+  payload.stress_lite.artifact_budget = trimReport;
+  return payload;
+}
+
+function csBuildStressLiteOptions(simCtx) {
+  simCtx = simCtx || {};
+  var opponentLimit = 4;
+  var maxRunsPerOpponent = 12;
+  var memoryNote = 'safe-default';
+  try {
+    var deviceMemory = Number(navigator && navigator.deviceMemory || 0);
+    if (deviceMemory && deviceMemory <= 4) {
+      opponentLimit = 2;
+      maxRunsPerOpponent = 8;
+      memoryNote = 'low-memory-device';
+    }
+  } catch (_e) {}
+  return {
+    stressLite: {
+      schema_version: 'champions-stress-lite-qa-v1',
+      reason: 'Safe stress proof for browsers where full Run All may overload the device.',
+      opponent_limit: opponentLimit,
+      max_runs_per_opponent: maxRunsPerOpponent,
+      max_artifact_bytes: CS_QA_STRESS_LITE_MAX_BYTES,
+      target_artifact_bytes: CS_QA_STRESS_LITE_TARGET_BYTES,
+      branch_scope: simCtx.simScope || 'selected',
+      includes_targeted_sweep: true,
+      memory_guard: memoryNote,
+      boundary: 'This is capped stress evidence, not exhaustive Run All proof.',
+      size_budget_note: 'Stress Lite QA is designed to stay under 50 MB while keeping the calculation and logic proof needed for review.',
+      josh_validation_data: [
+        'damage totals and retained damage event samples',
+        'effect/status/weather/field event totals',
+        'contact move metadata audit',
+        'move rule trace coverage',
+        'decision opportunity ledger',
+        'targeted sweep and branch matrix summaries',
+        'database save proof'
+      ]
+    },
+    qaArtifactMaxBytes: CS_QA_STRESS_LITE_MAX_BYTES,
+    qaArtifactTargetBytes: CS_QA_STRESS_LITE_TARGET_BYTES,
+    stressLiteReplayCardLimit: CS_QA_STRESS_LITE_REPLAY_CARD_LIMIT,
+    stressLiteSimLogLimit: CS_QA_STRESS_LITE_SIM_LOG_LIMIT,
+    stressLiteTeamHistoryLimit: CS_QA_STRESS_LITE_TEAM_HISTORY_LIMIT,
+    branchMatrixUseScope: true,
+    branchMatrixScope: simCtx.simScope || 'selected',
+    branchMatrixOpponentLimit: opponentLimit,
+    branchMatrixMaxRunsPerOpponent: maxRunsPerOpponent,
+    branchMatrixMaxLeadPairsPerSide: 2,
+    branchMatrixMaxMovesPerMon: 2,
+    branchMatrixMaxTargetsPerMove: 2,
+    branchMatrixMaxTurns: 3
+  };
 }
 
 function csCreateTimedFallbackFallback(ms, fallback) {
@@ -8182,7 +9381,21 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     tacticalSweepCoverageSummary.totals.branch_matrix_runs = branchMatrixRunsTotal;
     tacticalSweepCoverageSummary.totals.branch_matrix_newly_executed = branchMatrixNewTotal;
   }
+  var tacticalSweepOpponents = tacticalSweepMatrices.map(function(entry) {
+    return {
+      opponent_team_id: entry.opponent_team_id,
+      loaded_rows: (entry.loaded_rows || []).length,
+      save_result: entry.save_result,
+      coverage_space: entry.branch_matrix && entry.branch_matrix.coverage_space ? entry.branch_matrix.coverage_space : null,
+      analysis_totals: branchMoveAnalysis && branchMoveAnalysis.totals ? branchMoveAnalysis.totals : null
+    };
+  });
+  var tacticalSweepStatus = tacticalSweepMatrices.length
+    ? 'complete'
+    : (tacticalSweepOpponentKeys.length ? 'no_matrix_runs' : 'not_requested_or_no_opponents');
   var tacticalSweep = {
+    schema_version: 'champions-tactical-sweep-v1',
+    status: tacticalSweepStatus,
     enabled: !!tacticalSweepMatrices.length,
     scope: options.branchMatrixUseScope ? (options.branchMatrixScope || (typeof getSimScopeMode === 'function' ? getSimScopeMode() : 'selected')) : 'selected',
     player_team_id: options.branchPlayerTeamId || key,
@@ -8193,15 +9406,8 @@ async function csBuildQaArtifactExport(teamKey, opts) {
       : (Object.prototype.hasOwnProperty.call(options, 'branchMatrixMaxRuns')
           ? normalizeBranchMaxRuns(options.branchMatrixMaxRuns)
           : getTacticalDepthMaxRuns()),
-    matrices: tacticalSweepMatrices.map(function(entry) {
-      return {
-        opponent_team_id: entry.opponent_team_id,
-        loaded_rows: (entry.loaded_rows || []).length,
-        save_result: entry.save_result,
-        coverage_space: entry.branch_matrix && entry.branch_matrix.coverage_space ? entry.branch_matrix.coverage_space : null,
-        analysis_totals: branchMoveAnalysis && branchMoveAnalysis.totals ? branchMoveAnalysis.totals : null
-      };
-    }),
+    opponents: tacticalSweepOpponents,
+    matrices: tacticalSweepOpponents,
     total_loaded_rows: branchMatrixDbRows.length,
     total_saved_rows: branchMatrixDbSaves.reduce(function(sum, result) { return sum + Number(result && result.saved || 0); }, 0),
     total_inserted_rows: branchMatrixDbSaves.reduce(function(sum, result) { return sum + Number(result && result.inserted || 0); }, 0),
@@ -8209,10 +9415,34 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     total_executed_runs: branchMatrixRunsTotal,
     total_newly_executed_runs: branchMatrixNewTotal
   };
+  var stressLite = options.stressLite ? Object.assign({}, options.stressLite, {
+    status: tacticalSweepMatrices.length ? 'complete' : tacticalSweepStatus,
+    opponent_count: tacticalSweepOpponentKeys.length,
+    opponent_team_ids: tacticalSweepOpponentKeys,
+    total_executed_runs: branchMatrixRunsTotal,
+    total_newly_executed_runs: branchMatrixNewTotal,
+    targeted_sweep_runs: targetedSweep && Array.isArray(targetedSweep.runs) ? targetedSweep.runs.length : 0
+  }) : null;
+  var stressLiteSummary = csBuildStressLiteSummary(stressLite, mergedCoverage, {
+    opponents: tacticalSweepOpponents,
+    matrices: tacticalSweepMatrices
+  }, branchMoveAnalysis);
+  if (stressLite && stressLiteSummary) stressLite.summary = stressLiteSummary;
+  var retainedSimLog = options.includeSimLog === false ? [] : localSimLog;
+  var retainedTeamHistory = options.includeSimLog === false ? [] : localTeamHistory;
+  var retainedReplayCards = options.includeReplayCards === false ? [] : replayCards;
+  if (stressLite) {
+    retainedReplayCards = retainedReplayCards.slice(0, Number(options.stressLiteReplayCardLimit || CS_QA_STRESS_LITE_REPLAY_CARD_LIMIT));
+    retainedSimLog = retainedSimLog.slice(0, Number(options.stressLiteSimLogLimit || CS_QA_STRESS_LITE_SIM_LOG_LIMIT));
+    retainedTeamHistory = retainedTeamHistory.slice(0, Number(options.stressLiteTeamHistoryLimit || CS_QA_STRESS_LITE_TEAM_HISTORY_LIMIT));
+  }
 
-  return {
+  var artifactSummary = csBuildQaArtifactSummary(localSimLog, replayCards, key);
+  var qaRunType = stressLite ? 'stress_lite_qa' : (tacticalSweepMatrices.length ? 'tactical_sweep' : (targetedSweep ? 'qa_artifact_with_targeted_sweep' : 'qa_artifact'));
+  var payload = {
     schema_version: 'champions-qa-artifact-v1',
     artifact_type: 'large-run-qa-retained-evidence',
+    qa_run_type: qaRunType,
     exported_at: exportedAt,
     build_id: buildId,
     source_url: sourceUrl,
@@ -8230,9 +9460,17 @@ async function csBuildQaArtifactExport(teamKey, opts) {
       include_sim_log: options.includeSimLog !== false,
       include_targeted_sweep: !!targetedSweep,
       include_branch_matrix: !!branchMatrix,
-      include_tactical_sweep: !!tacticalSweepMatrices.length
+      include_tactical_sweep: !!tacticalSweepMatrices.length,
+      include_stress_lite: !!stressLite
     },
-    summary: csBuildQaArtifactSummary(localSimLog, replayCards, key),
+    summary: artifactSummary,
+    turns_total: csSafeNumber(mergedCoverage.totals.turns),
+    action_rows_total: csSafeNumber(mergedCoverage.totals.action_rows),
+    damage_events_total: csSafeNumber(mergedCoverage.totals.damage_events),
+    effect_events_total: csSafeNumber(mergedCoverage.totals.effect_events),
+    replay_cards_scanned: csSafeNumber(mergedCoverage.totals.replay_cards_scanned),
+    targeted_sweep_runs: csSafeNumber(mergedCoverage.totals.targeted_sweep_runs),
+    branch_matrix_runs: csSafeNumber(mergedCoverage.totals.branch_matrix_runs),
     qa_coverage_summary: mergedCoverage,
     coverage_breakdown: {
       retained_replay_card_summary: retainedReplayCardSummary,
@@ -8245,11 +9483,13 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     targeted_qa_sweep: targetedSweep,
     forced_branch_matrix: branchMatrix,
     tactical_sweep: tacticalSweep,
+    stress_lite: stressLite,
+    stress_lite_summary: stressLiteSummary,
     branch_move_analysis: branchMoveAnalysis,
     retained: {
-      sim_log: options.includeSimLog === false ? [] : localSimLog,
-      team_history: options.includeSimLog === false ? [] : localTeamHistory,
-      replay_cards: options.includeReplayCards === false ? [] : replayCards
+      sim_log: retainedSimLog,
+      team_history: retainedTeamHistory,
+      replay_cards: retainedReplayCards
     },
     db: {
       enabled: !!(adapter && adapter.enabled),
@@ -8262,12 +9502,67 @@ async function csBuildQaArtifactExport(teamKey, opts) {
       note: 'Supabase stores approved source data, teams, overrides, and saved analysis history. The deterministic browser runtime still uses generated/static data plus runtime_data.js for battle execution.'
     }
   };
+  payload.codex_context = csBuildCodexQaContext({
+    schema_version: payload.schema_version,
+    exported_at: exportedAt,
+    build_id: buildId,
+    source_url: sourceUrl,
+    player_team_id: key,
+    player_team_name: team && team.name ? team.name : null,
+    current_format: payload.current_format,
+    qa_run_type: qaRunType,
+    qa_coverage_summary: mergedCoverage,
+    summary: artifactSummary,
+    retained: payload.retained,
+    tactical_sweep: tacticalSweep,
+    stress_lite: stressLite,
+    stress_lite_summary: stressLiteSummary,
+    branch_move_analysis: branchMoveAnalysis
+  });
+  payload.ready_for_codex = payload.codex_context.ready_for_codex;
+  payload.next_missing_proof = payload.codex_context.next_missing_proof;
+  payload.recommended_next_test = payload.codex_context.recommended_next_test;
+  payload.stress_lite_josh_validation = stressLite ? {
+    schema_version: 'champions-stress-lite-josh-validation-v1',
+    purpose: 'Compact proof that the sim is making the right calculations and applying expected battle logic without requiring a massive file.',
+    calculation_proof: {
+      damage_events_total: csSafeNumber(mergedCoverage.totals.damage_events),
+      effect_events_total: csSafeNumber(mergedCoverage.totals.effect_events),
+      move_rule_trace_rows: csSafeNumber(mergedCoverage.totals.move_rule_trace_rows),
+      replay_cards_retained_for_sampling: retainedReplayCards.length,
+      sim_log_rows_retained_for_sampling: retainedSimLog.length,
+      team_history_rows_retained_for_sampling: retainedTeamHistory.length
+    },
+    logic_proof: {
+      contact_move_audit_summary: mergedCoverage.contact_move_audit_summary || null,
+      decision_opportunity_summary: mergedCoverage.decision_opportunity_summary || null,
+      branch_move_analysis_totals: branchMoveAnalysis && branchMoveAnalysis.totals ? branchMoveAnalysis.totals : null,
+      next_missing_proof: payload.next_missing_proof,
+      ready_for_codex: payload.ready_for_codex
+    },
+    review_notes: [
+      'Use qa_coverage_summary for totals and missing-proof gates.',
+      'Use retained replay cards for concrete damage/effect examples.',
+      'Use contact audit and move rule trace totals to catch bad move metadata.',
+      'Use branch matrix and targeted sweep summaries to verify tactical coverage.'
+    ]
+  } : null;
+  payload = csApplyStressLiteArtifactBudget(payload, options);
+  try {
+    csRememberCoachBrainSummary(mergedCoverage && mergedCoverage.coach_brain_summary, {
+      player_team_id: key,
+      player_team_signature: team && typeof teamSignature === 'function' ? teamSignature(team) : null,
+      format: payload.current_format
+    });
+  } catch (_coachMemoryErr) {}
+  return payload;
 }
 
 async function csExportQaArtifactJson(teamKey, opts) {
+  opts = opts || {};
   var payload = await csBuildQaArtifactExport(teamKey, opts);
   var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  _downloadBlob('champions-sim-qa-artifact-' + ts + '.json', 'application/json', JSON.stringify(payload, null, 2));
+  await _saveQaArtifactBlob('champions-sim-qa-artifact-' + ts + '.json', 'application/json', JSON.stringify(payload, null, 2), opts);
   return payload;
 }
 
@@ -8295,6 +9590,13 @@ document.getElementById('export-qa-artifact-json-btn')?.addEventListener('click'
   });
 });
 
+document.getElementById('qa-drop-folder-btn')?.addEventListener('click', function() {
+  csChooseQaDropFolder().catch(function(e) {
+    UILog.warn('QA drop folder selection failed', e);
+    alert('Could not set QA drop folder: ' + (e && e.message ? e.message : 'unknown error'));
+  });
+});
+
 if (typeof ChampionsSim !== 'undefined') {
   ChampionsSim.history.loadAnalysisHistory = loadAnalysisHistory;
   ChampionsSim.history.renderHistorySection = renderHistorySection;
@@ -8308,8 +9610,14 @@ if (typeof ChampionsSim !== 'undefined') {
   ChampionsSim.history.summarizeBranchTactics = csSummarizeBranchTactics;
   ChampionsSim.history.rememberBranchMoveAnalysis = csRememberBranchMoveAnalysis;
   ChampionsSim.history.loadBranchStrategyMemory = csLoadBranchStrategyMemory;
+  ChampionsSim.history.rememberCoachBrainSummary = csRememberCoachBrainSummary;
+  ChampionsSim.history.loadCoachBrainMemory = csLoadCoachBrainMemory;
+  ChampionsSim.history.latestCoachBrainForTeam = csLatestCoachBrainForTeam;
   ChampionsSim.history.buildQaArtifactExport = csBuildQaArtifactExport;
   ChampionsSim.history.exportQaArtifactJson = csExportQaArtifactJson;
+  ChampionsSim.history.buildCodexQaContext = csBuildCodexQaContext;
+  ChampionsSim.history.buildStressLiteOptions = csBuildStressLiteOptions;
+  ChampionsSim.history.chooseQaDropFolder = csChooseQaDropFolder;
 }
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('loadAnalysisHistory', loadAnalysisHistory);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('renderHistorySection', renderHistorySection);
@@ -8317,9 +9625,14 @@ if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBu
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csExportMyDataJson', csExportMyDataJson);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildQaArtifactExport', csBuildQaArtifactExport);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csExportQaArtifactJson', csExportQaArtifactJson);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildCodexQaContext', csBuildCodexQaContext);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildStressLiteOptions', csBuildStressLiteOptions);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csAnalyzeBranchCoverageRows', csAnalyzeBranchCoverageRows);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSummarizeBranchTactics', csSummarizeBranchTactics);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csLoadBranchStrategyMemory', csLoadBranchStrategyMemory);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csRememberCoachBrainSummary', csRememberCoachBrainSummary);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csLoadCoachBrainMemory', csLoadCoachBrainMemory);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csLatestCoachBrainForTeam', csLatestCoachBrainForTeam);
 // __M6_HISTORY_END__
 
 // ============================================================
@@ -8893,13 +10206,93 @@ function setSimError(err) {
   if (label) label.textContent = 'Simulation failed: ' + msg;
 }
 
+function csGetPublicBetaGuardProfile() {
+  var matchMediaFn = getWindowValue('matchMedia', null);
+  var isCoarsePointer = false;
+  var isNarrowViewport = false;
+  try {
+    isCoarsePointer = !!(matchMediaFn && matchMediaFn('(hover: none) and (pointer: coarse)').matches);
+    isNarrowViewport = !!(matchMediaFn && matchMediaFn('(max-width: 760px)').matches);
+  } catch (_e) {}
+  var deviceMemory = 0;
+  try {
+    deviceMemory = Number(navigator && navigator.deviceMemory || 0);
+  } catch (_e2) {}
+  var isLowMemory = !!(deviceMemory && deviceMemory <= 4);
+  var shouldForceStressLite = isLowMemory || (isCoarsePointer && isNarrowViewport);
+  return {
+    is_coarse_pointer: isCoarsePointer,
+    is_narrow_viewport: isNarrowViewport,
+    device_memory_gb: deviceMemory || null,
+    is_low_memory: isLowMemory,
+    should_force_stress_lite: shouldForceStressLite,
+    max_series_value: shouldForceStressLite ? 500 : 10000,
+    max_tactical_depth_value: shouldForceStressLite ? 250 : null
+  };
+}
+
+function csApplyPublicBetaGuardrails() {
+  var profile = csGetPublicBetaGuardProfile();
+  var noteEl = document.getElementById('beta-guard-note');
+  var runAllBtn = document.getElementById('run-all-btn');
+  var qaRunBtn = document.getElementById('run-all-export-qa-btn');
+  var simCountEl = document.getElementById('sim-count');
+  var tacticalDepthEl = document.getElementById('tactical-depth');
+  if (!profile.should_force_stress_lite) {
+    if (runAllBtn) {
+      runAllBtn.disabled = false;
+      runAllBtn.title = 'Run all matchups across the current scope';
+    }
+    if (qaRunBtn) {
+      qaRunBtn.disabled = false;
+      qaRunBtn.title = 'Run all matchups, then download one retained-evidence QA Artifact JSON';
+    }
+    if (noteEl) noteEl.style.display = 'none';
+    return profile;
+  }
+  if (runAllBtn) {
+    runAllBtn.disabled = true;
+    runAllBtn.title = 'Hard beta guard: Run All is disabled on mobile/low-memory devices. Use Stress Lite + QA.';
+  }
+  if (qaRunBtn) {
+    qaRunBtn.disabled = true;
+    qaRunBtn.title = 'Hard beta guard: Run All + QA is disabled on mobile/low-memory devices. Use Stress Lite + QA.';
+  }
+  if (simCountEl && simCountEl.options) {
+    for (var i = 0; i < simCountEl.options.length; i++) {
+      var simOpt = simCountEl.options[i];
+      var simValue = Number(simOpt && simOpt.value || 0);
+      if (!simValue) continue;
+      simOpt.disabled = simValue > profile.max_series_value;
+    }
+    if (Number(simCountEl.value || 0) > profile.max_series_value) simCountEl.value = String(profile.max_series_value);
+  }
+  if (tacticalDepthEl && tacticalDepthEl.options) {
+    for (var j = 0; j < tacticalDepthEl.options.length; j++) {
+      var depthOpt = tacticalDepthEl.options[j];
+      var depthValue = depthOpt && depthOpt.value;
+      if (!depthValue) continue;
+      depthOpt.disabled = depthValue === 'all' || Number(depthValue) > Number(profile.max_tactical_depth_value || 999999);
+    }
+    if (tacticalDepthEl.value === 'all' || Number(tacticalDepthEl.value || 0) > Number(profile.max_tactical_depth_value || 999999)) {
+      tacticalDepthEl.value = String(profile.max_tactical_depth_value);
+    }
+  }
+  if (noteEl) {
+    noteEl.textContent = 'Hard beta guard active on this device: Run All is disabled, Stress Lite + QA is the safe path, series are capped at 500, and full branch coverage is blocked to protect phones and low-memory browsers.';
+    noteEl.style.display = '';
+  }
+  return profile;
+}
+
 document.getElementById('run-sim-btn')?.addEventListener('click', async function() {
   if (simRunning) return;
   var runBtn = this;
   var allBtn = document.getElementById('run-all-btn');
   var qaRunBtn = document.getElementById('run-all-export-qa-btn');
   var tacticalSweepBtn = document.getElementById('tactical-sweep-qa-btn');
-  simRunning=true; runBtn.disabled=true; if (allBtn) allBtn.disabled=true; if (qaRunBtn) qaRunBtn.disabled=true; if (tacticalSweepBtn) tacticalSweepBtn.disabled=true;
+  var stressLiteBtn = document.getElementById('stress-lite-qa-btn');
+  simRunning=true; runBtn.disabled=true; if (allBtn) allBtn.disabled=true; if (qaRunBtn) qaRunBtn.disabled=true; if (tacticalSweepBtn) tacticalSweepBtn.disabled=true; if (stressLiteBtn) stressLiteBtn.disabled=true;
   try {
     document.getElementById('results-section').style.display='none';
     document.getElementById('progress-wrap').style.display='';
@@ -8943,7 +10336,7 @@ document.getElementById('run-sim-btn')?.addEventListener('click', async function
   } catch (e) {
     setSimError(e);
   } finally {
-    simRunning=false; runBtn.disabled=false; if (allBtn) allBtn.disabled=false; if (qaRunBtn) qaRunBtn.disabled=false; if (tacticalSweepBtn) tacticalSweepBtn.disabled=false;
+    simRunning=false; runBtn.disabled=false; if (allBtn) allBtn.disabled=false; if (qaRunBtn) qaRunBtn.disabled=false; if (tacticalSweepBtn) tacticalSweepBtn.disabled=false; if (stressLiteBtn) stressLiteBtn.disabled=false;
   }
 });
 
@@ -8965,11 +10358,13 @@ async function csRunAllMatchupsFromButton(allBtn, opts) {
   var runBtn = document.getElementById('run-sim-btn');
   var qaRunBtn = document.getElementById('run-all-export-qa-btn');
   var tacticalSweepBtn = document.getElementById('tactical-sweep-qa-btn');
+  var stressLiteBtn = document.getElementById('stress-lite-qa-btn');
   simRunning=true;
   if (allBtn) allBtn.disabled=true;
   if (runBtn) runBtn.disabled=true;
   if (qaRunBtn) qaRunBtn.disabled=true;
   if (tacticalSweepBtn) tacticalSweepBtn.disabled=true;
+  if (stressLiteBtn) stressLiteBtn.disabled=true;
   try {
     document.getElementById('matchup-table-wrap').style.display='';
     document.getElementById('results-section').style.display='none';
@@ -9044,15 +10439,109 @@ async function csRunAllMatchupsFromButton(allBtn, opts) {
     if (runBtn) runBtn.disabled=false;
     if (qaRunBtn) qaRunBtn.disabled=false;
     if (tacticalSweepBtn) tacticalSweepBtn.disabled=false;
+    if (stressLiteBtn) stressLiteBtn.disabled=false;
   }
 }
 
 document.getElementById('run-all-btn')?.addEventListener('click', async function() {
+  if (csGetPublicBetaGuardProfile().should_force_stress_lite) return;
   await csRunAllMatchupsFromButton(this);
 });
 
 document.getElementById('run-all-export-qa-btn')?.addEventListener('click', async function() {
+  if (csGetPublicBetaGuardProfile().should_force_stress_lite) return;
   await csRunAllMatchupsFromButton(this, { autoExportQaArtifact: true });
+});
+
+document.getElementById('stress-lite-qa-btn')?.addEventListener('click', async function() {
+  if (simRunning) return;
+  var stressBtn = this;
+  var runBtn = document.getElementById('run-sim-btn');
+  var allBtn = document.getElementById('run-all-btn');
+  var qaRunBtn = document.getElementById('run-all-export-qa-btn');
+  var tacticalSweepBtn = document.getElementById('tactical-sweep-qa-btn');
+  simRunning = true;
+  stressBtn.disabled = true;
+  if (runBtn) runBtn.disabled = true;
+  if (allBtn) allBtn.disabled = true;
+  if (qaRunBtn) qaRunBtn.disabled = true;
+  if (tacticalSweepBtn) tacticalSweepBtn.disabled = true;
+  try {
+    document.getElementById('progress-wrap').style.display = '';
+    var simCtx = resolveSimContext();
+    var stressOptions = csBuildStressLiteOptions(simCtx);
+    var stressSavedRows = 0;
+    var stressOpponentCount = 0;
+    setBranchProgress(0, 'Starting Stress Lite QA with capped browser-safe limits...', { opponent_count: 0, saved_rows: 0 });
+    await csExportQaArtifactJson(simCtx.playerKey, Object.assign({}, stressOptions, {
+      onBranchMatrixProgress: function(event) {
+        event = event || {};
+        var count = Number(event.opponent_count || 0);
+        var idx = Number(event.opponent_index || 0);
+        if (count) stressOpponentCount = count;
+        var basePct = count && idx ? Math.round(10 + ((idx - 1) / count) * 78) : 5;
+        var teamName = event.opponent_team_id && TEAMS[event.opponent_team_id] && TEAMS[event.opponent_team_id].name
+          ? TEAMS[event.opponent_team_id].name
+          : (event.opponent_team_id || 'opponent');
+        if (event.phase === 'start') {
+          setBranchProgress(5, 'Stress Lite planning ' + count + ' capped opponent' + (count === 1 ? '' : 's') + '...', {
+            opponent_count: count,
+            saved_rows: stressSavedRows
+          });
+        } else if (event.phase === 'load') {
+          setBranchProgress(basePct, 'Stress Lite loading memory ' + idx + ' / ' + count + ': ' + teamName + '...', {
+            opponent_index: idx,
+            opponent_count: count,
+            saved_rows: stressSavedRows
+          });
+        } else if (event.phase === 'build-progress') {
+          var runIndex = Number(event.executed_runs || 0);
+          var runTotal = Number(event.total_planned_runs || 0);
+          var runPct = runTotal ? Math.round((runIndex / Math.max(1, runTotal)) * 70) : 0;
+          setBranchProgress(Math.min(92, basePct + runPct), 'Stress Lite testing ' + idx + ' / ' + count + ': ' + teamName + ' (' + runIndex + ' / ' + (runTotal || '?') + ' capped runs)...', {
+            opponent_index: idx,
+            opponent_count: count,
+            saved_rows: stressSavedRows,
+            executed_runs: runIndex
+          });
+        } else if (event.phase === 'done') {
+          stressSavedRows += Number(event.saved_rows || 0);
+          setBranchProgress(Math.min(96, basePct + 8), 'Stress Lite done ' + idx + ' / ' + count + ': saved ' + Number(event.saved_rows || 0) + ' rows', {
+            opponent_index: idx,
+            opponent_count: count,
+            saved_rows: stressSavedRows
+          });
+        } else if (event.phase === 'analyze') {
+          setBranchProgress(96, 'Stress Lite analyzing ' + Number(event.executed_runs || 0) + ' capped branch runs...', {
+            opponent_index: count,
+            opponent_count: count,
+            saved_rows: stressSavedRows
+          });
+        } else if (event.phase === 'complete') {
+          stressSavedRows = Number(event.saved_rows || stressSavedRows || 0);
+          setBranchProgress(98, 'Stress Lite complete. Preparing QA artifact...', {
+            opponent_index: count,
+            opponent_count: count,
+            saved_rows: stressSavedRows
+          });
+        }
+      }
+    }));
+    setBranchProgress(100, 'Stress Lite QA Artifact downloaded.', {
+      opponent_index: stressOpponentCount,
+      opponent_count: stressOpponentCount,
+      saved_rows: stressSavedRows
+    });
+  } catch (e) {
+    setSimError(e);
+  } finally {
+    simRunning = false;
+    stressBtn.disabled = false;
+    if (runBtn) runBtn.disabled = false;
+    if (allBtn) allBtn.disabled = false;
+    if (qaRunBtn) qaRunBtn.disabled = false;
+    if (tacticalSweepBtn) tacticalSweepBtn.disabled = false;
+  }
 });
 
 document.getElementById('tactical-sweep-qa-btn')?.addEventListener('click', async function() {
@@ -9061,11 +10550,13 @@ document.getElementById('tactical-sweep-qa-btn')?.addEventListener('click', asyn
   var runBtn = document.getElementById('run-sim-btn');
   var allBtn = document.getElementById('run-all-btn');
   var qaRunBtn = document.getElementById('run-all-export-qa-btn');
+  var stressLiteBtn = document.getElementById('stress-lite-qa-btn');
   simRunning = true;
   sweepBtn.disabled = true;
   if (runBtn) runBtn.disabled = true;
   if (allBtn) allBtn.disabled = true;
   if (qaRunBtn) qaRunBtn.disabled = true;
+  if (stressLiteBtn) stressLiteBtn.disabled = true;
   try {
     document.getElementById('progress-wrap').style.display = '';
     setBranchProgress(0, 'Starting tactical sweep...', { opponent_count: 0, saved_rows: 0 });
@@ -9161,6 +10652,7 @@ document.getElementById('tactical-sweep-qa-btn')?.addEventListener('click', asyn
     if (runBtn) runBtn.disabled = false;
     if (allBtn) allBtn.disabled = false;
     if (qaRunBtn) qaRunBtn.disabled = false;
+    if (stressLiteBtn) stressLiteBtn.disabled = false;
   }
 });
 
@@ -9253,7 +10745,7 @@ function generatePilotGuide(oppKey, results, simCtx) {
       threatResponseHtml = renderThreatResponseCard(solveThreatResponse(playerKey, oppKey, {
         simsPerBranch: 30,
         rngSeed: 'pilot-guide'
-      }));
+    }));
     }
   } catch (e) {
     UILog.warn('Threat response render skipped', e);
@@ -9771,8 +11263,15 @@ function analyzeLossTrends(results, playerMembers) {
             }
           }
         }
-      }
-    });
+  }
+});
+
+try { csApplyPublicBetaGuardrails(); } catch (_betaGuardErr) {}
+if (typeof ChampionsSim !== 'undefined') ChampionsSim.publicBeta = ChampionsSim.publicBeta || {};
+if (typeof ChampionsSim !== 'undefined') ChampionsSim.publicBeta.getGuardProfile = csGetPublicBetaGuardProfile;
+if (typeof ChampionsSim !== 'undefined') ChampionsSim.publicBeta.applyGuardrails = csApplyPublicBetaGuardrails;
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csGetPublicBetaGuardProfile', csGetPublicBetaGuardProfile);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csApplyPublicBetaGuardrails', csApplyPublicBetaGuardrails);
   });
   var avgFirstKo = firstKoTurns.length ? (firstKoTurns.reduce(function(s,x){return s+x;},0)/firstKoTurns.length) : 0;
   var topPlayerLost = Object.entries(playerKoCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,2).map(function(e){return e[0];});
@@ -9917,15 +11416,15 @@ function _escapeHtml(s) {
 }
 
 var CS_OVERVIEW_DATA = {
-  updated: '2026-06-24',
+  updated: '2026-06-28',
   metrics: [
     { label: 'Current Truth', value: 'Not 100% yet' },
     { label: 'Damage Logs', value: 'Applied/calc split fixed locally' },
-    { label: 'Release Teams', value: '10 approved runtime rows' },
+    { label: 'Release Teams', value: '15 approved runtime rows' },
     { label: 'Testing Catalog Target', value: 'Top 10 Champion archetypes live' },
     { label: 'Removed Teams', value: '17 legacy/inferred rows' },
     { label: 'DB Team Rule', value: 'Approved rows must pass gates' },
-    { label: 'Stress Status', value: 'Full local non-DB + DB contracts green' },
+    { label: 'Stress Status', value: 'Stress Lite totals + coaching summary live' },
     { label: 'Sim Truth Gate', value: 'Mechanics first' },
     { label: 'Live Supabase', value: 'Teams + analyses, gated' },
     { label: 'DB Log Detail', value: 'Summary/capped; exports are forensic proof' },
@@ -10016,6 +11515,56 @@ var CS_OVERVIEW_DATA = {
       status: 'done',
       title: 'Move rule trace QA layer',
       detail: 'v2.2.10 adds structured move_rule_trace evidence to damage_events so downloaded replay logs, Run All QA, Tactical Sweep QA, and targeted proof artifacts show the stat source, ability modifier decisions, base-power modifiers, screen/weather/spread/STAB/final modifiers, and fixed ruleset flags for Foul Play, Body Press, and Psyshock-style edge cases.'
+    },
+    {
+      status: 'done',
+      title: 'Codex QA context drop connector',
+      detail: 'v2.2.11 adds a compact codex_context block to QA Artifact exports and a local ingest workflow so downloaded QA files can be dropped into the repo and summarized for Codex without a backend bridge from GitHub Pages.'
+    },
+    {
+      status: 'done',
+      title: 'Codex QA drop-folder save',
+      detail: 'v2.2.12 adds a Set QA Drop Folder control. Supported browsers can save QA Artifact exports directly into the local Champions-QA-Drops folder after user folder permission; unsupported browsers fall back to normal JSON download.'
+    },
+    {
+      status: 'done',
+      title: 'Tactical Sweep schema handoff',
+      detail: 'v2.2.13 gives QA Artifact exports explicit qa_run_type, ready_for_codex, next_missing_proof, recommended_next_test, and non-null tactical_sweep schema/status/opponent metadata so Codex and team review can distinguish completed tactical evidence from missing proof.'
+    },
+    {
+      status: 'done',
+      title: 'Stat-source proof team and targeted QA',
+      detail: 'v2.2.14 adds a legal Targeted Stat Source Proof team plus forced targeted QA battles for Foul Play, Body Press, Psyshock, and the Foul Play Pure Power guard so QA Artifacts can deterministically clear non-standard stat-source proof gaps.'
+    },
+    {
+      status: 'done',
+      title: 'Kevin coached baseline team added',
+      detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
+    },
+    {
+      status: 'done',
+      title: 'Pages deploy now gates live DB team parity',
+      detail: 'v2.2.15 makes GitHub Pages run live Supabase seed parity when anon secrets are available, so bundled teams, generated SQL, and live DB team IDs must stay aligned before publish. The follow-up CI repair also refreshed the generated QA baseline snapshot, documenting the broader upgrade rule: approved data changes must update runtime data, seed SQL, live DB, generated reports, bundle, Overview, and QA artifacts together.'
+    },
+    {
+      status: 'done',
+      title: 'Stress Lite QA added',
+      detail: 'v2.2.17 adds a browser-safe Stress Lite + QA path for testers who should not run full Run All on a local machine. It uses capped Tactical Sweep branch coverage, targeted proof, memory-aware limits, and an explicit stress_lite artifact block so the team can collect stress evidence without confusing it with exhaustive Run All proof.'
+    },
+    {
+      status: 'done',
+      title: 'Stress Lite summary made readable',
+      detail: 'v2.2.18 mirrors QA totals at the artifact top level and adds stress_lite.summary so testers, Codex, and the team can immediately see capped run volume, result counts, replay and damage evidence weight, the slowest capped matchup, and the best or riskiest tactical signals without re-reading the full coverage tree.'
+    },
+    {
+      status: 'done',
+      title: 'Hard beta device guardrails added',
+      detail: 'v2.2.19 disables Run All on mobile/coarse-pointer and low-memory devices, caps public phone series volume, blocks full branch-coverage depth on risky browsers, and pushes users toward Stress Lite + QA so public testers do not become accidental load tests.'
+    },
+    {
+      status: 'done',
+      title: 'Coach brain now explains speed-control sequence quality',
+      detail: 'v2.2.16 adds a structured tactical_interpretation block to coach_brain_summary and renders it in the Strategy Priority Board when available. Tactical Sweep QA can now explain why Tailwind, Trick Room, or speed-control answers worked or failed, what the player should check before clicking the setup move, what sequence to practice, and which counters should improve next. If full coach brain data is absent, the board falls back to conservative branch timing signals.'
     },
     {
       status: 'done',
@@ -10501,6 +12050,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'validated',
+      title: 'Priority-suppression family now has same-rule regression proof',
+      detail: 'Issue #149 raised the long-tail risk that Armor Tail could be covered while same-family blockers drifted. ability_priority_targeting_tests.js now keeps Armor Tail, Dazzling, and Queenly Majesty on the same Fake Out suppression contract so coaching and QA do not learn a false opening-turn line from an omitted sibling ability.'
+    },
+    {
+      status: 'validated',
       title: 'Bundle freshness rule remains active',
       detail: 'The standalone GitHub Pages bundle must be rebuilt from source and the service-worker cache must be bumped for every engine, legality, or data-path release. This current local slice is not release-proven until that bundle and deployed-browser proof are complete.'
     },
@@ -10540,6 +12094,11 @@ var CS_OVERVIEW_DATA = {
       status: 'gap',
       title: '100% parity still has non-move gates',
       detail: 'The team-load, item timing, ability inventory, typed held-item damage boosts, Champion-gated legacy Tera data, Low Kick target-weight base power, Knock Off removable-item behavior, stat/speed snapshot evidence, target category bridge, stale opposing-target retarget, and shipped move-support slices are covered. Move support is 120 verified / 0 baseline / 0 incomplete. Remaining 100% proof still needs deployed-browser single/Run All/QA artifacts, DB runtime-source promotion or explicit static fallback signoff, source-drift visibility, and deeper long-tail checks for redirection, Protect-family interactions, switching/replacement, status, items, and Champion overrides as sources change.'
+    },
+    {
+      status: 'gap',
+      title: 'Mechanics truth beta gate remains open',
+      detail: 'Issue #149 stays open until the long-tail mechanics inventory is explicit and source-backed: same-family priority suppression, multi-effect move stacks, field/state legality shifts, Fake Out windows, flinch/status action denial, and replay/QA evidence all need deterministic proof before broader coaching trust claims.'
     },
     {
       status: 'gap',
@@ -10635,6 +12194,16 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'next',
+      title: 'Close the mechanics truth beta gate',
+      detail: 'Build the issue #149 inventory as a real checklist, not a vibe: cover same-family priority blockers, multi-effect moves that change stats/status/HP in one window, field-state move failures, and visible replay/QA evidence so the Overview tab can close that gate with proof instead of memory.'
+    },
+    {
+      status: 'next',
+      title: 'Make replay and QA transparency strong enough for coaching trust',
+      detail: 'Before heavier coaching expansion, the replay/export layer should make field state, volatile/action-denial reasons, HP-loss causes, and move-failure causes obvious enough that a player or reviewer can challenge the sim without reading raw engine code.'
+    },
+    {
+      status: 'next',
       title: 'Rebuild editor into full Champion team builder',
       detail: 'After the current sim-truth gates, replace the clunky set editor with a fluid team builder that lets users customize complete Champion teams while preserving legality guardrails, source-truth validation, Supabase persistence, and clean rollback paths.'
     },
@@ -10692,6 +12261,8 @@ var CS_OVERVIEW_DATA = {
     { label: 'Data Source Registry', href: 'docs/DATA_SOURCE_REGISTRY.md' },
     { label: 'Source Truth Document Audit', href: 'docs/SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md' },
     { label: 'QA Baseline Snapshot', href: 'reports/champion_qa_baseline_snapshot.md' },
+    { label: 'Approved Runtime Team Test Matrix', href: 'reports/approved_runtime_team_test_matrix.md' },
+    { label: 'Mechanics Truth Beta Gate Checklist', href: 'reports/mechanics_truth_beta_gate_checklist.md' },
     { label: 'Champion Parity 100 Checklist', href: 'reports/champion_parity_100_checklist.md' },
     { label: 'Move Support Audit', href: 'reports/move_support_audit.md' },
     { label: 'Type Multiplier Audit', href: 'reports/type_multiplier_audit.md' },
@@ -10888,6 +12459,138 @@ if (typeof ChampionsSim !== 'undefined') {
   };
 }
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('renderOverviewTab', renderOverviewTab);
+
+function csGetGeneratedSourceSyncStatus() {
+  if (typeof window === 'undefined' || !window.ChampionsSim) return null;
+  return window.ChampionsSim.sourceSyncStatus || null;
+}
+
+function csFormatSourceStamp(value) {
+  if (!value) return 'Unknown';
+  if (typeof value === 'string' && /T\d{2}:\d{2}:\d{2}/.test(value)) return csFormatOverviewDate(value);
+  return String(value);
+}
+
+function csRenderSourceSyncRows(status, dbSnapshot) {
+  var generated = status && status.generatedShowdown ? status.generatedShowdown : {};
+  var review = status && status.reviewTracks ? status.reviewTracks : {};
+  var db = status && status.approvedDb ? status.approvedDb : {};
+  var dbLiveRun = dbSnapshot && dbSnapshot.latestRun ? dbSnapshot.latestRun : null;
+  var dbApprovedCounts = dbSnapshot && Array.isArray(dbSnapshot.approvedCounts) ? dbSnapshot.approvedCounts : [];
+  var dbApprovedTotal = dbApprovedCounts.reduce(function(sum, row) {
+    return sum + (Number(row && row.count) || 0);
+  }, 0);
+  return [
+    {
+      track: 'Generated Showdown runtime snapshot',
+      stamp: csFormatSourceStamp(generated.generatedAt),
+      marker: generated.sourceCommitOrVersion || generated.source || 'Unknown',
+      why: 'Offline-safe baseline for runtime species, moves, learnsets, target categories, and legality metadata.'
+    },
+    {
+      track: 'Approved Showdown DB generation',
+      stamp: dbLiveRun && dbLiveRun.finished_at ? csFormatSourceStamp(dbLiveRun.finished_at) : csFormatSourceStamp(db.generatedAt),
+      marker: dbLiveRun && dbLiveRun.sync_run_id
+        ? dbLiveRun.sync_run_id + ' · ' + (dbApprovedTotal || db.approvedEntityCount || 0) + ' approved'
+        : (db.approvedEntityCount || 0) + ' approved · ' + (db.activeOverrideCount || 0) + ' active overrides',
+      why: 'Read-only approved DB snapshot used to inspect live source freshness and promotion state when Supabase is reachable.'
+    },
+    {
+      track: 'Champion regulation review lane',
+      stamp: csFormatSourceStamp(review.regulationReviewAt),
+      marker: review.regulationLabel || 'Review lane',
+      why: 'Human-reviewed regulation and Champion-only source notes that stay blocked until the team approves promotion.'
+    },
+    {
+      track: 'Sources page release snapshot',
+      stamp: csFormatSourceStamp(status && status.sourcesPageReviewedAt),
+      marker: (status && status.buildId) || ((typeof csGetBuildId === 'function') ? csGetBuildId() : 'Unknown build'),
+      why: 'Shows which source assumptions this exact browser build is presenting to users.'
+    }
+  ].map(function(row) {
+    return '<tr><td><strong>' + _escapeHtml(row.track) + '</strong></td>' +
+      '<td style="font-size:12px">' + _escapeHtml(row.stamp) + '</td>' +
+      '<td style="font-size:12px">' + _escapeHtml(row.marker) + '</td>' +
+      '<td style="font-size:12px">' + _escapeHtml(row.why) + '</td></tr>';
+  }).join('');
+}
+
+function csRenderSourceSyncCards(status, dbSnapshot) {
+  var generated = status && status.generatedShowdown ? status.generatedShowdown : {};
+  var db = status && status.approvedDb ? status.approvedDb : {};
+  var dbRun = dbSnapshot && dbSnapshot.latestRun ? dbSnapshot.latestRun : null;
+  var dbStatus = dbSnapshot && dbSnapshot.available ? (dbSnapshot.message || dbSnapshot.mode || 'DB reachable') : 'Static bundle / DB unavailable';
+  return '<div class="sources-summary-grid">' +
+    '<div class="sources-summary-card"><strong>Generated source</strong><span>' + _escapeHtml(generated.source || 'Unknown') + '</span></div>' +
+    '<div class="sources-summary-card"><strong>Generated at</strong><span>' + _escapeHtml(csFormatSourceStamp(generated.generatedAt)) + '</span></div>' +
+    '<div class="sources-summary-card"><strong>Approved DB</strong><span>' + _escapeHtml(dbStatus) + '</span></div>' +
+    '<div class="sources-summary-card"><strong>Latest DB run</strong><span>' + _escapeHtml(dbRun && dbRun.sync_run_id ? dbRun.sync_run_id : (db.syncRunId || 'None visible')) + '</span></div>' +
+  '</div>';
+}
+
+function csRenderSourceSyncTables(status, dbSnapshot) {
+  var rows = csRenderSourceSyncRows(status, dbSnapshot);
+  var files = (dbSnapshot && dbSnapshot.sourceFiles || []).map(function(file) {
+    return '<tr><td>' + _escapeHtml(file.source_name || 'unknown') + '</td>' +
+      '<td>' + _escapeHtml(file.parse_status || 'unknown') + '</td>' +
+      '<td>' + _escapeHtml(csShortHash(file.source_hash || file.normalized_hash || '')) + '</td>' +
+      '<td>' + _escapeHtml(csFormatSourceStamp(file.fetched_at)) + '</td></tr>';
+  }).join('');
+  return '<div class="sources-table-card">' +
+      '<div class="sources-table-head"><div><span class="badge badge-blue">SOURCE TRACKS</span><h3>Current sync and review state</h3></div><p>Automated source stamps and human review checkpoints shown for this build.</p></div>' +
+      '<div class="sources-table-wrap"><table class="series-summary-table sources-table"><thead><tr><th>Source track</th><th>Last synced or reviewed</th><th>Current visible marker</th><th>Why it matters</th></tr></thead><tbody>' +
+      rows +
+      '</tbody></table></div></div>' +
+      '<div class="sources-table-card">' +
+      '<div class="sources-table-head"><div><span class="badge badge-blue">LIVE DB FILES</span><h3>Readable upstream file snapshot</h3></div><p>Shown when the approved Supabase views are reachable from the browser.</p></div>' +
+      '<div class="overview-db-table-wrap"><table class="overview-db-table"><thead><tr><th>Live source file</th><th>Parse</th><th>Hash</th><th>Fetched</th></tr></thead><tbody>' +
+      (files || '<tr><td colspan="4">No live source-file rows readable yet</td></tr>') +
+      '</tbody></table></div></div>';
+}
+
+function renderSourcesTab() {
+  var host = document.getElementById('sources-list');
+  if (!host) return false;
+  var status = csGetGeneratedSourceSyncStatus() || {};
+  host.innerHTML = '<div class="sources-dashboard">' +
+    '<div class="sources-dashboard-head">' +
+      '<div><span class="badge badge-blue">SOURCE DASHBOARD</span><h3>Freshness, release watch, and trust boundaries</h3></div>' +
+      '<p>Readable source-of-truth view for players, QA, and release review.</p>' +
+    '</div>' +
+    csRenderSourceSyncCards(status, null) +
+    csRenderSourceSyncTables(status, null) +
+  '</div>';
+  var adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
+  if (!adapter || !adapter.enabled || typeof adapter.loadShowdownDbSnapshot !== 'function') return true;
+  adapter.loadShowdownDbSnapshot().then(function(snapshot) {
+    host.innerHTML = '<div class="sources-dashboard">' +
+      '<div class="sources-dashboard-head">' +
+        '<div><span class="badge badge-blue">SOURCE DASHBOARD</span><h3>Freshness, release watch, and trust boundaries</h3></div>' +
+        '<p>Readable source-of-truth view for players, QA, and release review.</p>' +
+      '</div>' +
+      csRenderSourceSyncCards(status, snapshot) +
+      csRenderSourceSyncTables(status, snapshot) +
+    '</div>';
+  }).catch(function() {
+    host.innerHTML = '<div class="sources-dashboard">' +
+      '<div class="sources-dashboard-head">' +
+        '<div><span class="badge badge-blue">SOURCE DASHBOARD</span><h3>Freshness, release watch, and trust boundaries</h3></div>' +
+        '<p>Readable source-of-truth view for players, QA, and release review.</p>' +
+      '</div>' +
+      csRenderSourceSyncCards(status, null) +
+      csRenderSourceSyncTables(status, null) +
+    '</div>';
+  });
+  return true;
+}
+
+if (typeof ChampionsSim !== 'undefined') {
+  ChampionsSim.sources = {
+    renderSourcesTab: renderSourcesTab
+  };
+}
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('renderSourcesTab', renderSourcesTab);
+renderSourcesTab();
 
 function generatePDFReport() {
   var container = document.getElementById('pdf-report-container');
@@ -13807,6 +15510,61 @@ function csRenderTeamEvidenceDashboard(teamKey, history, branchAnalysis, report)
   return html;
 }
 
+function csCoachSequenceWhyFromBranch(branchAnalysis) {
+  var tactic = branchAnalysis && Array.isArray(branchAnalysis.tactical_signals) ? branchAnalysis.tactical_signals[0] : null;
+  if (!tactic) return null;
+  var tag = tactic.tactic_tag || 'tactical timing';
+  var delta = Number(tactic.avg_position_delta || 0);
+  var positive = delta >= 0.2 || Number(tactic.win_rate_pct || 0) >= 60;
+  var negative = delta <= -0.2 || Number(tactic.win_rate_pct || 0) <= 35;
+  return {
+    schema_version: 'champions-coach-tactical-interpretation-v1',
+    primary_category: 'branch_tactical_timing',
+    strength_category: positive ? 'branch_tactical_timing' : null,
+    player_question: 'What changed after this timing choice in the branch matrix?',
+    why_good_windows_worked: positive
+      ? tag + ' tended to create pressure or position gain in this matchup branch.'
+      : 'No strong positive timing window is proven from the top branch signal yet.',
+    why_bad_windows_failed: negative
+      ? tag + ' tended to lose position or fail to convert in this matchup branch.'
+      : 'No strong negative timing window is proven from the top branch signal yet.',
+    turn_sequence_rule: 'Use the branch timing signal as a test target: repeat the same lead and opposing lead, then compare attacking, protecting, switching, or delaying the timing move.',
+    coach_checklist: [
+      'Keep the same lead pair and opposing lead when retesting this timing read.',
+      'Compare the branch against an attack, Protect, switch, or delayed setup option.',
+      'Promote the advice only when repeat samples keep the same direction.'
+    ],
+    data_to_watch_next: [tag, 'win_rate_pct', 'avg_position_delta', 'confidence'],
+    evidence_boundary: 'Derived from branch_move_analysis.tactical_signals, not a full coach brain ledger.'
+  };
+}
+
+function csRenderCoachSequenceWhy(report, branchAnalysis, teamKey) {
+  var brain = report && report.coach_brain_summary ? report.coach_brain_summary : null;
+  if (!brain && typeof csLatestCoachBrainForTeam === 'function') brain = csLatestCoachBrainForTeam(teamKey);
+  var interp = brain && brain.tactical_interpretation ? brain.tactical_interpretation : csCoachSequenceWhyFromBranch(branchAnalysis);
+  if (!interp) return '';
+  var checklist = Array.isArray(interp.coach_checklist) ? interp.coach_checklist : [];
+  var watch = Array.isArray(interp.data_to_watch_next) ? interp.data_to_watch_next : [];
+  var html = '';
+  html += '<div class="cs-coach-sequence-why">';
+  html += '<h4 class="cs-h4">Coach sequence why</h4>';
+  html += '<p><strong>Player question:</strong> ' + _csEsc(interp.player_question || 'What changed because of this decision?') + '</p>';
+  html += '<p><strong>Why good windows worked:</strong> ' + _csEsc(interp.why_good_windows_worked || '-') + '</p>';
+  html += '<p><strong>Why bad windows failed:</strong> ' + _csEsc(interp.why_bad_windows_failed || '-') + '</p>';
+  html += '<p><strong>Turn rule:</strong> ' + _csEsc(interp.turn_sequence_rule || '-') + '</p>';
+  if (checklist.length) {
+    html += '<ul class="cs-list cs-coach-checklist">';
+    checklist.slice(0, 4).forEach(function(item) { html += '<li>' + _csEsc(item) + '</li>'; });
+    html += '</ul>';
+  }
+  if (watch.length) {
+    html += '<p class="cs-explain"><strong>Watch next:</strong> ' + _csEsc(watch.slice(0, 6).join(', ')) + '</p>';
+  }
+  html += '</div>';
+  return html;
+}
+
 function csRenderStrategyPriorityBoard(teamKey, history, branchAnalysis, report) {
   history = history || null;
   branchAnalysis = branchAnalysis || null;
@@ -13843,6 +15601,7 @@ function csRenderStrategyPriorityBoard(teamKey, history, branchAnalysis, report)
   html += '<h3 class="cs-h3">Strategy Priority Board</h3>';
   html += csRenderTeamEvidenceDashboard(teamKey, history, branchAnalysis, report);
   html += '<p class="cs-summary-line"><strong>Coach call:</strong> ' + _csEsc(primaryCall) + '</p>';
+  html += csRenderCoachSequenceWhy(report, branchAnalysis, teamKey);
   html += '<div class="cs-detector-table">';
   html += '<div class="cs-detector-row cs-detector-head"><span>Priority</span><span>Evidence</span><span>Player action</span><span>Trust</span></div>';
 

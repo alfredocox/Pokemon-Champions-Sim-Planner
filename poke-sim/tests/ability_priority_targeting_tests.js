@@ -167,6 +167,86 @@ T('3. Armor Tail blocks opposing priority moves for the side', function() {
     'Armor Tail should block Fake Out');
 });
 
+T('3b. Dazzling blocks opposing priority moves for the side', function() {
+  const playerTeam = team([{
+    name: 'Bruxish',
+    item: '',
+    ability: 'Dazzling',
+    nature: 'Adamant',
+    level: 50,
+    moves: ['Tackle'],
+    evs: { hp: 32, atk: 32, def: 0, spa: 0, spd: 0, spe: 4 }
+  }, {
+    name: 'Incineroar',
+    item: '',
+    ability: 'Intimidate',
+    nature: 'Careful',
+    level: 50,
+    moves: ['Protect'],
+    evs: { hp: 32, atk: 0, def: 0, spa: 0, spd: 32, spe: 4 }
+  }]);
+  const oppTeam = team([{
+    name: 'Incineroar',
+    item: '',
+    ability: 'Intimidate',
+    nature: 'Adamant',
+    level: 50,
+    moves: ['Fake Out'],
+    evs: { hp: 32, atk: 32, def: 0, spa: 0, spd: 0, spe: 4 }
+  }, {
+    name: 'Smeargle',
+    item: '',
+    ability: 'Own Tempo',
+    nature: 'Serious',
+    level: 50,
+    moves: ['Protect'],
+    evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
+  }]);
+  const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'doubles', seed: [9, 10, 11, 12], maxTurns: 1 });
+  truthy(battle.log.some(line => String(line).includes('Dazzling blocked Fake Out')),
+    'Dazzling should block Fake Out');
+});
+
+T('3c. Queenly Majesty blocks opposing priority moves for the side', function() {
+  const playerTeam = team([{
+    name: 'Tsareena',
+    item: '',
+    ability: 'Queenly Majesty',
+    nature: 'Adamant',
+    level: 50,
+    moves: ['Tackle'],
+    evs: { hp: 32, atk: 32, def: 0, spa: 0, spd: 0, spe: 4 }
+  }, {
+    name: 'Incineroar',
+    item: '',
+    ability: 'Intimidate',
+    nature: 'Careful',
+    level: 50,
+    moves: ['Protect'],
+    evs: { hp: 32, atk: 0, def: 0, spa: 0, spd: 32, spe: 4 }
+  }]);
+  const oppTeam = team([{
+    name: 'Incineroar',
+    item: '',
+    ability: 'Intimidate',
+    nature: 'Adamant',
+    level: 50,
+    moves: ['Fake Out'],
+    evs: { hp: 32, atk: 32, def: 0, spa: 0, spd: 0, spe: 4 }
+  }, {
+    name: 'Smeargle',
+    item: '',
+    ability: 'Own Tempo',
+    nature: 'Serious',
+    level: 50,
+    moves: ['Protect'],
+    evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
+  }]);
+  const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'doubles', seed: [9, 10, 11, 12], maxTurns: 1 });
+  truthy(battle.log.some(line => String(line).includes('Queenly Majesty blocked Fake Out')),
+    'Queenly Majesty should block Fake Out');
+});
+
 T('4. Good as Gold blocks targeted status moves', function() {
   const playerTeam = team([{
     name: 'Gholdengo',

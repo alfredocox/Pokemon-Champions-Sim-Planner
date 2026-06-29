@@ -25,6 +25,7 @@ When the migration is complete, `poke-sim/*.md` spec files will be deleted from 
 | [`DATA_SOURCE_REGISTRY.md`](DATA_SOURCE_REGISTRY.md) | Sim Truth / Source Registry | TBD | Active source challenge page |
 | [`REG_M_B_SOURCE_CONVERSION_TABLE.md`](REG_M_B_SOURCE_CONVERSION_TABLE.md) | Sim Truth / Reg M-B Conversion | TBD | Active conversion ledger |
 | [`SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md`](SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md) | Sim Truth / Docs Audit | TBD | Active source-truth audit |
+| [`../reports/approved_runtime_team_test_matrix.md`](../reports/approved_runtime_team_test_matrix.md) | Sim Truth / QA Teams | #149 | Active QA guide |
 | [`SHOWDOWN_ORACLE_SIM_TRUTH_PLAN.md`](SHOWDOWN_ORACLE_SIM_TRUTH_PLAN.md) | Sim Truth / Oracle | TBD | Active execution plan |
 | [`SHOWDOWN_SYNC_ARCHITECTURE.md`](SHOWDOWN_SYNC_ARCHITECTURE.md) | Data/DB/Oracle | TBD | Draft architecture |
 | [`SHOWDOWN_DB_SOURCE_OF_TRUTH_PLAN.md`](SHOWDOWN_DB_SOURCE_OF_TRUTH_PLAN.md) | Data/DB/Oracle | TBD | Implementation plan |

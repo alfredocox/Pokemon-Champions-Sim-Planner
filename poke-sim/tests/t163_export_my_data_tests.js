@@ -1,6 +1,6 @@
 // T163 — Export My Data as JSON
 //
-// Coverage targets (9 cases):
+// Coverage targets (10 cases):
 //   1. HTML exposes the export button in the Saved Analyses header.
 //   2. Local export payload includes sim log + cached reports for the active team.
 //   3. DB-backed export payload includes analyses + nested analysis logs.
@@ -10,6 +10,7 @@
 //   7. QA artifact click handler downloads a JSON file with the expected prefix.
 //   8. Tactical Sweep QA can fan branch coverage across multiple opponents.
 //   9. Tactical Sweep QA emits progress callbacks while running.
+//   10. QA Artifact targeted sweep clears stat-source proof gaps.
 
 const fs = require('fs');
 const vm = require('vm');
@@ -118,6 +119,9 @@ vm.runInContext([
   'this.csExportMyDataJson = csExportMyDataJson;',
   'this.csBuildQaArtifactExport = csBuildQaArtifactExport;',
   'this.csExportQaArtifactJson = csExportQaArtifactJson;',
+  'this.csGetPublicBetaGuardProfile = csGetPublicBetaGuardProfile;',
+  'this.csApplyPublicBetaGuardrails = csApplyPublicBetaGuardrails;',
+  'this.csLoadCoachBrainMemory = csLoadCoachBrainMemory;',
   'this.addReplays = addReplays;'
 ].join(' '), ctx);
 
@@ -129,6 +133,8 @@ const {
   csExportMyDataJson,
   csBuildQaArtifactExport,
   csExportQaArtifactJson,
+  csGetPublicBetaGuardProfile,
+  csApplyPublicBetaGuardrails,
   addReplays
 } = ctx;
 
@@ -246,7 +252,16 @@ async function main() {
     truthy(/id="export-qa-artifact-json-btn"/.test(html), 'QA artifact button missing');
     truthy(/QA Artifact/.test(html), 'QA artifact label missing');
     truthy(/id="run-all-export-qa-btn"/.test(html), 'Run All + QA Artifact button missing');
+    truthy(/id="stress-lite-qa-btn"/.test(html), 'Stress Lite + QA button missing');
     truthy(/id="tactical-sweep-qa-btn"/.test(html), 'Tactical Sweep + QA button missing');
+    truthy(/Quick check: runs one matchup/.test(html), 'Run Simulation hover help missing');
+    truthy(/Broad release check: runs many matchups/.test(html), 'Run All hover help missing');
+    truthy(/Release evidence: runs all matchups/.test(html), 'Run All + QA hover help missing');
+    truthy(/Safe stress check: runs capped lower-load coverage/.test(html), 'Stress Lite hover help missing');
+    truthy(/Coaching and strategy check: tests branches/.test(html), 'Tactical Sweep hover help missing');
+    truthy(/Workflow helper: choose a local folder/.test(html), 'QA drop folder hover help missing');
+    truthy(/id="beta-guard-note"/.test(html), 'beta guard note missing');
+    truthy(/id="qa-drop-folder-btn"/.test(html), 'QA drop folder button missing');
     truthy(/Tactical Sweep \+ QA/.test(html), 'Tactical Sweep + QA label missing');
     truthy(/id="sim-scope"/.test(html), 'Test Scope selector missing');
     truthy(/Selected matchup/.test(html), 'Selected matchup scope option missing');
@@ -257,6 +272,8 @@ async function main() {
     truthy(/function setBranchProgress/.test(ui), 'branch progress helper missing');
     truthy(/saved_rows/.test(ui), 'branch progress saved-row counter missing');
     truthy(/function getTacticalDepthMaxRuns/.test(ui), 'tactical depth helper missing');
+    truthy(/function csBuildStressLiteOptions/.test(ui), 'Stress Lite options helper missing');
+    truthy(/qaRunType = stressLite \? 'stress_lite_qa'/.test(ui), 'Stress Lite QA run type missing');
     truthy(/branchMatrixMaxRunsPerOpponent:\s*tacticalDepthMaxRuns/.test(ui), 'Tactical Sweep should use selected depth');
     truthy(/function csReloadAfterBuildCacheReset/.test(ui), 'build cache refresh reload helper missing');
     truthy(/location\.replace/.test(ui), 'build cache refresh should replace stale page after cleanup');
@@ -294,13 +311,17 @@ async function main() {
     truthy(payload.summary.retained_replay_cards >= 1, 'replay summary missing');
     eq(payload.qa_coverage_summary.schema_version, 'champions-qa-coverage-v1', 'QA artifact coverage schema missing');
     eq(payload.qa_coverage_summary.totals.replay_cards_scanned, 1, 'QA artifact coverage replay count mismatch');
-    eq(payload.qa_coverage_summary.totals.targeted_sweep_runs, 5, 'QA artifact targeted sweep count mismatch');
+    eq(payload.qa_coverage_summary.totals.targeted_sweep_runs, 9, 'QA artifact targeted sweep count mismatch');
     truthy(payload.qa_coverage_summary.totals.turns > 1, 'QA artifact merged coverage should include targeted sweep turns');
     truthy(payload.targeted_qa_sweep && payload.targeted_qa_sweep.status === 'complete', 'targeted QA sweep should be complete');
     truthy(payload.qa_coverage_summary.mechanics_seen.screen_reduction > 0, 'targeted sweep should add screen reduction proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.hp_cost > 0, 'targeted sweep should add HP-cost proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.delayed_recovery > 0, 'targeted sweep should add delayed recovery proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.residual_drain > 0, 'targeted sweep should add residual drain proof');
+    truthy(payload.qa_coverage_summary.mechanics_seen.nonstandard_stat_source_trace > 0, 'targeted sweep should add stat-source proof');
+    truthy(payload.qa_coverage_summary.mechanics_seen.foul_play_trace > 0, 'targeted sweep should add Foul Play proof');
+    truthy(payload.qa_coverage_summary.mechanics_seen.body_press_trace > 0, 'targeted sweep should add Body Press proof');
+    truthy(payload.qa_coverage_summary.mechanics_seen.psyshock_trace > 0, 'targeted sweep should add Psyshock proof');
     truthy(payload.retained && payload.retained.sim_log.length >= 1, 'retained sim log missing');
     truthy(payload.retained && payload.retained.replay_cards.length >= 1, 'retained replay cards missing');
     eq(payload.retained.replay_cards[0].seed, 'qa-seed-1');
@@ -311,6 +332,7 @@ async function main() {
     seedLocalHistory();
     ctx.window.SupabaseAdapter = { enabled: false };
     ctx._downloaded = null;
+    ctx.window.showDirectoryPicker = null;
     ctx._downloadBlob = function(filename, mime, text) {
       ctx._downloaded = { filename: filename, mime: mime, text: text };
     };
@@ -336,9 +358,28 @@ async function main() {
       includeTargetedSweep: false
     });
     truthy(payload.tactical_sweep && payload.tactical_sweep.enabled, 'tactical sweep block missing');
+    eq(payload.qa_run_type, 'tactical_sweep', 'qa run type');
+    eq(payload.tactical_sweep.schema_version, 'champions-tactical-sweep-v1', 'tactical schema version');
+    eq(payload.tactical_sweep.status, 'complete', 'tactical status');
     eq(payload.tactical_sweep.opponent_count, 2, 'opponent count');
+    eq(payload.tactical_sweep.opponents.length, 2, 'opponent metadata count');
     eq(payload.tactical_sweep.matrices.length, 2, 'matrix count');
     eq(payload.tactical_sweep.total_executed_runs, 2, 'executed branch total');
+    truthy(payload.tactical_sweep.opponents[0].opponent_team_id, 'opponent id missing');
+    truthy(typeof payload.ready_for_codex === 'boolean', 'ready_for_codex missing');
+    truthy(Array.isArray(payload.next_missing_proof), 'next_missing_proof missing');
+    truthy(typeof payload.recommended_next_test === 'string' && payload.recommended_next_test.length, 'recommended_next_test missing');
+    truthy(payload.qa_coverage_summary.coach_brain_summary && payload.qa_coverage_summary.coach_brain_summary.tactical_interpretation, 'coach tactical interpretation missing');
+    eq(payload.qa_coverage_summary.coach_brain_summary.tactical_interpretation.schema_version, 'champions-coach-tactical-interpretation-v1', 'coach tactical interpretation schema');
+    truthy(Array.isArray(payload.qa_coverage_summary.coach_brain_summary.tactical_interpretation.coach_checklist), 'coach tactical checklist missing');
+    truthy(ctx.csLoadCoachBrainMemory().summaries.length >= 1, 'QA artifact should save compact coach brain memory');
+    truthy(payload.codex_context && payload.codex_context.qa_run_type === 'tactical_sweep', 'codex qa run type missing');
+    truthy(typeof payload.codex_context.ready_for_codex === 'boolean', 'codex readiness missing');
+    truthy(payload.codex_context.coach_focus, 'codex coach focus missing');
+    truthy(Object.prototype.hasOwnProperty.call(payload.codex_context.coach_focus, 'recommended_solution'), 'codex coach solution missing');
+    truthy(Array.isArray(payload.codex_context.coach_focus.tactical_watch_next), 'codex coach watch list missing');
+    eq(payload.codex_context.retained_evidence.tactical_sweep_opponents, 2, 'codex tactical opponent count');
+    eq(payload.codex_context.retained_evidence.tactical_sweep_status, 'complete', 'codex tactical status');
     eq(payload.qa_coverage_summary.totals.branch_matrix_runs, 2, 'coverage branch run total');
     truthy(payload.forced_branch_matrix && payload.forced_branch_matrix.coverage_space.executed_runs === 1, 'compat forced_branch_matrix missing');
     truthy(payload.branch_move_analysis && payload.branch_move_analysis.totals.rows_read >= 2, 'combined branch move analysis missing');
@@ -364,6 +405,80 @@ async function main() {
     truthy(events.includes('save'), 'progress save missing');
     truthy(events.includes('done'), 'progress done missing');
     truthy(events.includes('complete'), 'progress complete missing');
+  });
+
+  await T('10. Stress Lite QA is capped and explicitly labeled', async () => {
+    ctx.window.SupabaseAdapter = { enabled: false };
+    const payload = await csBuildQaArtifactExport('player', Object.assign(ctx.csBuildStressLiteOptions({ simScope: 'preloaded' }), {
+      branchOpponentTeamIds: ['mega_altaria', 'mega_dragonite', 'mega_gengar', 'mega_lapras'],
+      includeReplayCards: false,
+      includeSimLog: false
+    }));
+    eq(payload.qa_run_type, 'stress_lite_qa', 'stress lite run type');
+    truthy(payload.stress_lite && payload.stress_lite.schema_version === 'champions-stress-lite-qa-v1', 'stress lite block missing');
+    truthy(payload.stress_lite.max_runs_per_opponent <= 12, 'stress lite per-opponent cap should not exceed default');
+    truthy(payload.stress_lite.opponent_count <= 4, 'stress lite opponent cap count should not exceed default');
+    truthy(payload.stress_lite.opponent_count >= 1, 'stress lite should keep at least one opponent when available');
+    eq(payload.retention.include_stress_lite, true, 'stress lite retention flag');
+    truthy(payload.stress_lite.boundary.indexOf('not exhaustive Run All proof') >= 0, 'stress lite boundary missing');
+    eq(payload.tactical_sweep.total_executed_runs <= (payload.stress_lite.opponent_count * payload.stress_lite.max_runs_per_opponent), true, 'stress lite should cap total branch runs');
+    truthy(payload.stress_lite.summary && payload.stress_lite.summary.schema_version === 'champions-stress-lite-summary-v1', 'stress lite summary missing');
+    truthy(payload.stress_lite.summary.totals.branch_runs_executed >= 1, 'stress lite summary run total missing');
+    truthy(typeof payload.stress_lite.summary.totals.damage_events === 'number', 'stress lite summary damage total missing');
+    truthy(typeof payload.stress_lite.summary.totals.effect_events === 'number', 'stress lite summary effect total missing');
+    truthy(payload.stress_lite.summary.coaching_signal, 'stress lite coaching signal missing');
+    eq(payload.turns_total, payload.qa_coverage_summary.totals.turns, 'top-level turns total mismatch');
+    eq(payload.action_rows_total, payload.qa_coverage_summary.totals.action_rows, 'top-level action row total mismatch');
+    eq(payload.damage_events_total, payload.qa_coverage_summary.totals.damage_events, 'top-level damage total mismatch');
+    eq(payload.effect_events_total, payload.qa_coverage_summary.totals.effect_events, 'top-level effect total mismatch');
+    eq(payload.branch_matrix_runs, payload.qa_coverage_summary.totals.branch_matrix_runs, 'top-level branch runs mismatch');
+  });
+
+  await T('11. QA Artifact targeted sweep clears stat-source proof gaps', async () => {
+    ctx.window.SupabaseAdapter = { enabled: false };
+    const payload = await csBuildQaArtifactExport('player', {
+      includeReplayCards: false,
+      includeSimLog: false,
+      includeBranchMatrix: false
+    });
+    const mechanics = payload.qa_coverage_summary && payload.qa_coverage_summary.mechanics_seen || {};
+    truthy(TEAMS.targeted_stat_source_proof, 'targeted stat-source proof team missing');
+    truthy(mechanics.nonstandard_stat_source_trace > 0, 'nonstandard stat-source trace missing');
+    truthy(mechanics.foul_play_trace > 0, 'foul play trace missing');
+    truthy(mechanics.body_press_trace > 0, 'body press trace missing');
+    truthy(mechanics.psyshock_trace > 0, 'psyshock trace missing');
+    truthy(mechanics.ignored_target_power_ability_trace > 0, 'Foul Play target power ability guard missing');
+    eq((payload.next_missing_proof || []).includes('non-standard stat-source move trace'), false, 'stat-source proof should not be missing');
+  });
+
+  await T('12. hard beta guardrails force Stress Lite on mobile or low-memory devices', async () => {
+    document.getElementById('sim-count').options = [
+      { value: '10', disabled: false },
+      { value: '50', disabled: false },
+      { value: '100', disabled: false },
+      { value: '500', disabled: false },
+      { value: '1000', disabled: false },
+      { value: '10000', disabled: false }
+    ];
+    document.getElementById('sim-count').value = '10000';
+    document.getElementById('tactical-depth').options = [
+      { value: '24', disabled: false },
+      { value: '100', disabled: false },
+      { value: '250', disabled: false },
+      { value: 'all', disabled: false }
+    ];
+    document.getElementById('tactical-depth').value = 'all';
+    ctx.window.matchMedia = (query) => ({ matches: query.indexOf('pointer: coarse') >= 0 || query.indexOf('max-width: 760px') >= 0, addEventListener(){}, removeEventListener(){} });
+    ctx.matchMedia = ctx.window.matchMedia;
+    ctx.navigator.deviceMemory = 4;
+    const profile = csGetPublicBetaGuardProfile();
+    truthy(profile.should_force_stress_lite, 'hard beta profile should force Stress Lite');
+    csApplyPublicBetaGuardrails();
+    truthy(document.getElementById('run-all-btn').disabled, 'Run All should be disabled by hard beta guard');
+    truthy(document.getElementById('run-all-export-qa-btn').disabled, 'Run All + QA should be disabled by hard beta guard');
+    truthy(document.getElementById('beta-guard-note').textContent.indexOf('Hard beta guard active') >= 0, 'hard beta note missing');
+    eq(document.getElementById('sim-count').value, '500', 'hard beta should cap series count');
+    eq(document.getElementById('tactical-depth').value, '250', 'hard beta should cap tactical depth');
   });
 }
 

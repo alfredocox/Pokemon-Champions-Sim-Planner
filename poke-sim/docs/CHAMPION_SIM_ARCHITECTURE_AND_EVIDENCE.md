@@ -95,6 +95,27 @@ The Tactical Sweep QA button is the accumulation path for this table. In Selecte
 - `branch_move_analysis.suggested_lines` ranks better turn-1 lines against specific teams and leads.
 - Every row carries confidence. `early_signal` means "test this more"; `strong` requires repeated samples and is the only tier intended for meta/team decisions.
 
+`v2.2.16-coach-sequence-why` adds `coach_brain_summary.tactical_interpretation`. This is the structured coaching contract for speed-control sequence quality: why positive Tailwind/Trick Room/speed-answer windows worked, why negative windows failed, the pre-click player question, the turn-sequence rule, a coach checklist, and the next counters to watch. Future UI and DB memory work should consume this object before writing new free-text coaching logic.
+
+`v2.2.17-stress-lite-qa` adds a browser-safe stress proof path for testers who should not run full Run All locally. `Stress Lite + QA` reuses Tactical Sweep branch evidence with hard caps, includes targeted proof, exports `qa_run_type: "stress_lite_qa"`, and writes a `stress_lite` block that records the cap and boundary. This is valid stress evidence, but it is not exhaustive Run All proof.
+
+The Stress Lite artifact must also stay readable at a glance. The export now mirrors normalized totals at the top level (`turns_total`, `action_rows_total`, `damage_events_total`, `effect_events_total`, `branch_matrix_runs`) and includes `stress_lite.summary`, a compact block for:
+
+- capped run totals and result counts
+- replay / damage / effect evidence volume
+- slowest or heaviest capped matchup
+- best observed line, avoid move, and next coaching focus
+
+`v2.2.19-hard-beta-guard` adds public-device guardrails for release safety. Mobile/coarse-pointer and low-memory browsers are forced toward `Stress Lite + QA`; `Run All` and `Run All + QA Artifact` are disabled on those risky public devices; large series counts and full branch-coverage depth are capped so phone users do not become accidental load tests.
+
+Process challenge for coach-memory work:
+
+- Do not let the app sound smarter than the evidence. Coach memory may summarize repeated patterns, but it must keep confidence, sample size, matchup scope, and ruleset scope visible.
+- Do not store raw private replay logs as "shared learning" without an explicit reviewed retention/privacy design. Use compact aggregate coach facts first.
+- Do not promote a branch timing signal into a universal recommendation. It is a test target until repeated samples across matching team, lead, opposing lead, and ruleset keep the same direction.
+- Do not add new advice text without either a structured source field or a test that proves where the advice came from.
+- When Strategy UI consumes saved coach brain memory, it must prefer the latest same-team/signature summary, fall back conservatively, and never override current legality/ruleset gates.
+
 This does not change the simulator. It changes how the Strategy guide consumes saved evidence. The player-facing language should stay close to competitive doubles/VGC vocabulary: team preview, lead pair, opposing lead, game plan, Protect, switching, pivoting, speed control, Trick Room, pressure, positioning, win condition, consistency, cores/modes, and matchup prep.
 
 The Strategy tab now presents branch and sim evidence in player decision order: coach call first, then click plan, move swap, avoid trap, lead mode, matchup health, confidence, and next test. Evidence tables support the call; they should not bury the call.
@@ -116,6 +137,7 @@ Current DB limitations:
 - `showdown_entities` rows are not yet the direct battle runtime source.
 - Saved analysis history is summary/capped storage, not full forensic turn-log storage.
 - Live DB freshness is separate from local DB contract tests. Run live checks only with `RUN_LIVE_DB=1` and valid anon credentials.
+- GitHub Pages deploy enables `RUN_LIVE_DB=1` when Supabase anon secrets are present. That means bundled teams, generated seed SQL, and live Supabase team IDs must match before publish. If a new approved team is added locally, the matching DB migration must be applied before the site can deploy.
 
 Practical QA rule: for detailed math proof, use downloaded turn-log JSON or QA Artifact exports. Do not rely on saved Supabase history as the complete audit trail until the DB forensic-retention work is explicitly shipped.
 
@@ -263,12 +285,38 @@ RUN_LIVE_DB=1 bash tests/_run_all_db.sh --live
 
 Only use the live mode when valid anon credentials are present and it is acceptable to test against remote Supabase.
 
+Approved team/data upgrade checklist:
+
+- Update the source-backed runtime data or team catalog.
+- Regenerate seed SQL and any generated runtime artifacts that derive from it.
+- Regenerate Overview-linked QA reports such as `reports/champion_qa_baseline_snapshot.md` when approved teams, moves, items, rulesets, or proof targets change.
+- Apply or trigger the matching live Supabase migration when the deployed site reads the table.
+- Run local legality/seed/bundle validators.
+- Run the live DB parity path before Pages publish when Supabase anon credentials are present.
+- Bump the visible build label/cache when the browser-facing app or Overview changes.
+- Capture a fresh QA Artifact so Codex and team review can confirm the deployed build, source URL, ruleset, coverage gaps, and next missing proof.
+
+Coach-memory upgrade checklist:
+
+- Add or reuse a structured field first, such as `coach_brain_summary.tactical_interpretation` or `codex_context.coach_focus`.
+- Keep raw logs out of compact memory unless a reviewed forensic-retention design explicitly requires them.
+- Persist only bounded summaries keyed by team, team signature, format, ruleset, and build.
+- Render the memory in Strategy only with confidence/sample/evidence boundaries visible.
+- Prove the export contract, Strategy render path, bundle freshness, and local suites before release.
+
+Recent learned failure modes:
+
+- `Deploy-order drift`: the app bundle can be correct while live Supabase is missing the newly approved team. Guard: Pages now runs live seed parity before publish when Supabase anon secrets exist.
+- `Generated-report drift`: the app and seed SQL can be correct while the Overview-linked QA baseline snapshot is stale. Guard: `qa_baseline_snapshot_tests.js` fails until the generated report includes the current approved catalog and move baseline.
+
 ## How To Classify A New QA Finding
 
 | Finding type | Meaning | First place to inspect |
 | --- | --- | --- |
 | Source-data drift | Upstream data changed or generated assets are stale | Showdown sync docs, generated data, source hashes |
 | DB-source drift | Supabase row differs from bundled approved data | DB views, team gates, `approved_species_move_legality` |
+| Deploy-order drift | Local/generated assets are correct, but live DB migration or remote parity was missed before publish | Pages workflow, `RUN_LIVE_DB=1` seed test, DB migration workflow |
+| Generated-report drift | Runtime and DB are current, but Overview-linked reports or QA snapshots still describe the prior catalog | `reports/`, report generator, `qa_baseline_snapshot_tests.js` |
 | Engine bug | Deterministic mechanics disagree with source truth | `engine.js`, oracle tests, move registry tests |
 | Export bug | Sim result may be right, but logs are missing/wrong evidence | `ui.js`, turn-log serializer, validator |
 | Validator false positive | Export is right, validator assumes wrong identity/timing | `tools/validate-turn-logs.mjs` |
@@ -278,9 +326,11 @@ Only use the live mode when valid anon credentials are present and it is accepta
 
 Do not claim broad 100% accuracy until these are closed or explicitly accepted:
 
-- Fresh deployed-browser `v2.1.44` single-run, Run All, and QA Artifact proof with corrected recoil applied-HP evidence.
+- Fresh deployed-browser `v2.2.16` single-run, Run All, Tactical Sweep, and QA Artifact proof for the coach-memory/sequence-why candidate.
+- The deployed QA Artifact must report `ready_for_codex: true` and `next_missing_proof: []` before `v2.2.16` replaces `v2.2.15` as the live proof baseline.
 - Live DB runtime-source promotion or explicit static fallback signoff.
 - Full DB forensic-log retention design if Supabase must be the long-term audit store.
 - Remaining grouped battle-system mechanics beyond shipped move coverage: redirection, Protect family, switching/replacement, status, item edge cases, terrain/weather edge cases, and Champion-specific overrides.
 - Source-drift visibility that marks the Overview as update-needed when upstream data changes.
 - Long stress automation with preserved failing seeds.
+- Coach-memory and Strategy-page recommendations must keep confidence, sample size, source age, and evidence boundaries visible so coaching output cannot outrank mechanics proof.

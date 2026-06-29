@@ -9,13 +9,16 @@ This document is a control layer. It does not replace the detailed specs. It tel
 Use this order when documents disagree:
 
 1. Official Pokemon / Play! Pokemon rules and tournament resources for tournament structure, clauses, event policy, team-list policy, and official format rules.
-2. Pokemon Showdown source and validator behavior for executable battle mechanics, move data, species data, item data, ability data, learnsets, and current community simulator parity.
-3. `@smogon/calc` for targeted damage formula and damage-range checks.
-4. Repo QA artifacts, replay logs, source-truth tests, and generated runtime parity reports for what this app actually proves.
-5. Serebii, Bulbapedia, Victory Road, Smogon strategy/forum material, and similar references as secondary explainers and cross-checks.
-6. Game8, IGN, GamesRadar, games.gg, and similar coverage as Champions-specific secondary/tertiary evidence only when stronger official or executable sources are unavailable.
+2. Champion-specific Serebii pages, Victory Road Champion regulation pages, and equivalent reviewed Champion pages for Pokemon Champions regulations, availability, item pool, forms, and ruleset deltas.
+3. Pokemon Showdown source and validator behavior for executable battle mechanics, move data, species data, item data, ability data, learnsets, and current community simulator parity.
+4. `@smogon/calc` for targeted damage formula and damage-range checks.
+5. Repo QA artifacts, replay logs, source-truth tests, and generated runtime parity reports for what this app actually proves.
+6. Bulbapedia, Serebii general dex pages, Smogon strategy/forum material, and similar references as secondary explainers and cross-checks.
+7. Game8, IGN, GamesRadar, games.gg, and similar coverage as Champions-specific secondary/tertiary evidence only when stronger official, Serebii Champion-specific, Victory Road, or executable sources are unavailable.
 
 Rule: a document may cite lower-tier sources, but product behavior should not become hard truth unless the claim is also backed by a stronger source, a repo test, a clear Champions override, or an explicit provisional label.
+
+June 28, 2026 update: Serebii should be preferred over Bulbapedia for Champion-specific data. A local DNS check for `www.serebii.net` failed on June 28, 2026, so this audit update is a source-priority policy change only; it does not approve any new runtime legality rows by itself.
 
 ## External Source Anchors Reviewed
 
@@ -126,6 +129,7 @@ Rule: a generated report proves what that run saw at that date/build. It does no
 Some docs use Champions-specific secondary sources such as Serebii, Game8, IGN, games.gg, and GamesRadar. That is acceptable for research, but runtime behavior should be labeled provisional unless backed by:
 
 - official Pokemon rule/source text,
+- a verified Champion-specific Serebii or Victory Road source row for the exact Champions legality/availability claim,
 - Pokemon Showdown Champions mod/validator behavior,
 - a repo override file with tests,
 - or a current QA artifact proving app behavior.

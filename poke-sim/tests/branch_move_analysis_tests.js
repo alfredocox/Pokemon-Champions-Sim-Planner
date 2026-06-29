@@ -67,7 +67,7 @@ load('engine.js');
 load('ui.js');
 
 vm.runInContext('this.csAnalyzeBranchCoverageRows = csAnalyzeBranchCoverageRows;', ctx);
-vm.runInContext('this.csRememberBranchMoveAnalysis = csRememberBranchMoveAnalysis; this.csLoadBranchStrategyMemory = csLoadBranchStrategyMemory; this.csRenderStrategyPriorityBoard = csRenderStrategyPriorityBoard;', ctx);
+vm.runInContext('this.csRememberBranchMoveAnalysis = csRememberBranchMoveAnalysis; this.csLoadBranchStrategyMemory = csLoadBranchStrategyMemory; this.csRememberCoachBrainSummary = csRememberCoachBrainSummary; this.csLoadCoachBrainMemory = csLoadCoachBrainMemory; this.csRenderStrategyPriorityBoard = csRenderStrategyPriorityBoard;', ctx);
 
 let pass = 0;
 let fail = 0;
@@ -198,7 +198,59 @@ T('8. strategy priority board puts player action before evidence rollup', () => 
   truthy(/Next test/.test(html), 'missing next test');
 });
 
+T('8b. strategy priority board renders coach sequence why when coach brain exists', () => {
+  const html = ctx.csRenderStrategyPriorityBoard('player', {
+    record_total: { n: 20, w: 10, l: 10, win_rate: 0.5 },
+    team_confidence_v2: { tier: 'high' }
+  }, null, {
+    coach_brain_summary: {
+      tactical_interpretation: {
+        schema_version: 'champions-coach-tactical-interpretation-v1',
+        player_question: 'What changed because of this decision?',
+        why_good_windows_worked: 'Tailwind worked when the next turns converted speed into pressure.',
+        why_bad_windows_failed: 'Tailwind failed when it spent a turn creating speed without pressure.',
+        turn_sequence_rule: 'Name the two-turn payoff before clicking Tailwind.',
+        coach_checklist: ['Do not click Tailwind just because it is available.', 'Plan the next two attacks.'],
+        data_to_watch_next: ['tailwind_converted', 'tailwind_without_pressure']
+      }
+    }
+  });
+  truthy(/Coach sequence why/.test(html), 'missing coach sequence section');
+  truthy(/What changed because of this decision/.test(html), 'missing player question');
+  truthy(/creating speed without pressure/.test(html), 'missing failure explanation');
+  truthy(/Do not click Tailwind/.test(html), 'missing coach checklist');
+  truthy(/tailwind_converted/.test(html), 'missing watch-next counters');
+});
+
+T('8c. strategy priority board reuses saved coach brain memory for the team', () => {
+  ctx.csRememberCoachBrainSummary({
+    confidence: 'high',
+    observed_pattern: 'Tailwind is not converting.',
+    recommended_solution: 'Plan the next two attacks before Tailwind.',
+    tactical_interpretation: {
+      schema_version: 'champions-coach-tactical-interpretation-v1',
+      player_question: 'What changes after Tailwind?',
+      why_good_windows_worked: 'Tailwind worked when pressure followed.',
+      why_bad_windows_failed: 'Tailwind failed when speed did not become pressure.',
+      turn_sequence_rule: 'Declare the two-turn payoff before Tailwind.',
+      coach_checklist: ['Name the target before Tailwind.'],
+      data_to_watch_next: ['tailwind_converted']
+    }
+  }, { player_team_id: 'player', format: 'doubles' });
+  const memory = ctx.csLoadCoachBrainMemory();
+  truthy(memory.summaries.length >= 1, 'coach brain memory missing');
+  const html = ctx.csRenderStrategyPriorityBoard('player', {
+    record_total: { n: 12, w: 6, l: 6, win_rate: 0.5 },
+    team_confidence_v2: { tier: 'medium' }
+  }, null, {});
+  truthy(/Coach sequence why/.test(html), 'strategy board missing saved coach memory section');
+  truthy(/What changes after Tailwind/.test(html), 'strategy board did not use saved coach memory');
+  truthy(/Declare the two-turn payoff/.test(html), 'strategy board missing saved turn rule');
+});
+
 T('9. analyzes tactical timing tags beside move lines', () => {
+  ctx.localStorage.removeItem('champions_coach_brain_memory_v1');
+  ctx.ChampionsSim.state.lastCoachBrainMemory = null;
   const out = ctx.csAnalyzeBranchCoverageRows([
     row('tactic-bad', 'loss', 8, 'Protect', 'Flare Blitz', 'mega_altaria', {
       timing_tags: ['player_protect_t1', 'early_position_loss', 'first_ko_t2'],
@@ -222,6 +274,8 @@ T('9. analyzes tactical timing tags beside move lines', () => {
   }, out);
   truthy(/Tactical timing/.test(html), 'strategy board missing tactical timing table');
   truthy(/player_protect_t1/.test(html), 'strategy board missing tactical tag');
+  truthy(/Coach sequence why/.test(html), 'strategy board missing branch-derived coach sequence');
+  truthy(/branch matrix/.test(html), 'branch-derived sequence should explain its evidence source');
 });
 
 console.log(`\nbranch move analysis tests: ${pass} pass, ${fail} fail\n`);

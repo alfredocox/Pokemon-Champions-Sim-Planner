@@ -34,6 +34,9 @@ coverage/
 .nyc_output/
 poke-sim/tests/audit_matrix.json
 poke-sim/artifacts/
+Champions-QA-Drops/
+poke-sim/reports/codex-qa-context-latest.json
+poke-sim/reports/codex-qa-context-latest.md
 
 # Build artifacts (bundle is intentionally committed — see poke-sim/pokemon-champion-2026.html)
 # but keep unstaged work-in-progress HTML scratch files out

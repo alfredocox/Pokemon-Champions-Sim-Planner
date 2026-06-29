@@ -241,8 +241,26 @@
     });
   }
 
+  function legalMoveDisplayNamesForSpecies(speciesKey) {
+    if (!data || !data.species || !data.moves) return [];
+    var species = canonicalSpeciesKey(speciesKey);
+    if (!species) return [];
+    var seen = Object.create(null);
+    var out = [];
+    candidateLearnsetKeys(species).forEach(function(key) {
+      var row = data.species[key] || {};
+      Object.keys(row.moves || {}).forEach(function(moveId) {
+        if (seen[moveId]) return;
+        seen[moveId] = true;
+        out.push(moveDisplayName(moveId, moveId));
+      });
+    });
+    return out.sort(function(a, b) { return a.localeCompare(b); });
+  }
+
   ChampionsSim.moveLegality.isMoveLegalForSpecies = isMoveLegalForSpecies;
   ChampionsSim.moveLegality.validateMovesForSet = validateMovesForSet;
+  ChampionsSim.moveLegality.legalMoveDisplayNamesForSpecies = legalMoveDisplayNamesForSpecies;
   ChampionsSim.moveLegality.canonicalSpeciesKey = canonicalSpeciesKey;
   ChampionsSim.moveLegality.canonicalMoveId = canonicalMoveId;
 

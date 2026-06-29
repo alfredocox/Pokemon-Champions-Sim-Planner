@@ -37,8 +37,8 @@ T('2. Overview tracks accomplished work and validation proof', () => {
   inc(ui, 'Top 10 Champion archetypes');
   inc(ui, 'Removed Teams');
   inc(ui, '17 legacy/inferred rows');
-  inc(ui, '10 approved runtime rows');
-  inc(ui, 'Full local non-DB + DB contracts green');
+  inc(ui, '15 approved runtime rows');
+  inc(ui, 'Stress Lite totals + coaching summary live');
   inc(ui, 'DB Log Detail');
   inc(ui, 'Summary/capped; exports are forensic proof');
   inc(ui, 'Current Champion source sweep recorded');
@@ -86,6 +86,8 @@ T('2. Overview tracks accomplished work and validation proof', () => {
   inc(ui, 'Item timing regression reproduced and covered');
   inc(ui, 'Fresh logs exposed a targeting boundary bug');
   inc(ui, 'Ability coverage guard is green');
+  inc(ui, 'Priority-suppression family now has same-rule regression proof');
+  inc(ui, 'Armor Tail, Dazzling, and Queenly Majesty');
   inc(ui, 'Previous v2.1.36 release checks were green');
   inc(ui, 'The current local damage-log and approved-team-gate slice has focused green checks');
   inc(ui, 'Damage applied versus calculated logging fixed locally');
@@ -123,6 +125,7 @@ T('3. Overview names current Supabase and Showdown DB alignment state', () => {
   inc(ui, 'Live logs exposed stale DB item drift');
   inc(ui, 'Pokemon data audit has unresolved reviewer risk');
   inc(ui, '100% parity still has non-move gates');
+  inc(ui, 'Mechanics truth beta gate remains open');
   inc(ui, 'Move support is 120 verified / 0 baseline / 0 incomplete');
   inc(ui, 'Source refresh needed must be visible before trust claims');
   inc(ui, 'Full raw thousand-battle retention is still not automatic');
@@ -153,6 +156,10 @@ T('4. Overview includes next milestones and source docs', () => {
   inc(ui, 'build_id, source_url, and retention metadata');
   inc(ui, 'Prove post-move mechanics by battle system');
   inc(ui, 'With the shipped move audit at 120 verified / 0 baseline / 0 incomplete');
+  inc(ui, 'Close the mechanics truth beta gate');
+  inc(ui, 'Build the issue #149 inventory as a real checklist, not a vibe');
+  inc(ui, 'Make replay and QA transparency strong enough for coaching trust');
+  inc(ui, 'HP-loss causes, and move-failure causes obvious enough');
   inc(ui, 'Rebuild editor into full Champion team builder');
   inc(ui, 'Keep Alfredo and Y fork synced through protected PRs');
   inc(ui, 'Surface source drift as update needed in Overview');
@@ -182,6 +189,10 @@ T('4. Overview includes next milestones and source docs', () => {
   inc(ui, 'CLOSEOUT_2026-06-06.md');
   inc(ui, 'Showdown DB Plan');
   inc(ui, 'SHOWDOWN_DB_SOURCE_OF_TRUTH_PLAN.md');
+  inc(ui, 'Mechanics Truth Beta Gate Checklist');
+  inc(ui, 'mechanics_truth_beta_gate_checklist.md');
+  inc(ui, 'Approved Runtime Team Test Matrix');
+  inc(ui, 'approved_runtime_team_test_matrix.md');
   inc(ui, 'Runtime Naming Cheat Sheet');
   inc(ui, 'SHOWDOWN_RUNTIME_NAMING_CHEATSHEET.md');
   inc(ui, 'SHOWDOWN_SYNC_ARCHITECTURE.md');

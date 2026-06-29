@@ -330,10 +330,14 @@ T('12. Teams UI exposes ruleset sections, tags, and badges', () => {
   inc(data, 'raichu-alola.gif');
   inc(data, 'zoroark-hisui.gif');
   inc(data, 'SHOWDOWN_SPRITE_BASE');
+  inc(data, "'Charizard-Mega-X': 'charizard-megax'");
+  inc(data, "'Charizard-Mega-Y': 'charizard-megay'");
   inc(data, "'Ninetales-Alola': 'ninetales-alola'");
   inc(data, "'Arcanine-Hisui': 'arcanine-hisui'");
   inc(data, 'return showdownAnimatedSpriteUrl(name)');
   inc(ui, "'Ninetales-Alola': 'ninetales-alola'");
+  inc(ui, "'Charizard-Mega-X': 'charizard-megax'");
+  inc(ui, "'Charizard-Mega-Y': 'charizard-megay'");
   inc(ui, "'Arcanine-Hisui': 'arcanine-hisui'");
   inc(ui, "'Zoroark-Hisui': 'zoroark-hisui'");
   inc(ui, 'lycanroc-midnight');

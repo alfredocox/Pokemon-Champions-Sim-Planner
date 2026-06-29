@@ -1,10 +1,28 @@
 # Champions Sim — Database Setup
 
 > **STATUS: ACTIVE**
-> Last reviewed for this branch: 2026-06-19.
-> The live Supabase project is provisioned and the app has DB wiring. Current canonical team seed count is 27 teams, matching `poke-sim/data.js` and the Champions-only shipped catalog.
+> Last reviewed for this branch: 2026-06-28.
+> The live Supabase project is provisioned and the app has DB wiring. Current canonical team seed count is 34 teams, matching `poke-sim/data.js` and the Champions-only shipped catalog.
 > Showdown sync/audit and approved-entity migrations have passed in the Kevin fork workflow, and one unapproved Showdown entity write succeeded. Public bundle generation from approved views remains a review/release gate.
 > Alfredo's repo is a separate remote and must be aligned by review/PR, not by blindly overwriting divergent history.
+
+---
+
+## Legal-only live catalog rule
+
+The live Supabase `teams` table is not allowed to be a loose archive of every team we have ever tested. Active rows are part of the runtime selector/training surface, so active live DB rows must exactly match the current approved, legal `poke-sim/data.js` catalog.
+
+When adding or removing approved teams:
+
+1. Update `poke-sim/data.js`.
+2. Run `python3 poke-sim/tools/generate_seed_from_data.py`.
+3. Commit the regenerated `db/seed_teams_v2.sql`, `db/migrations/2026_04_28_seed_teams_v2.sql`, and `db/migrations/2026_06_20_align_shared_27_team_catalog.sql`.
+4. Apply `2026_06_20_align_shared_27_team_catalog.sql` with the `Supabase DB Migration` workflow before expecting PR CI or Pages deploy to pass.
+5. Run or confirm `RUN_LIVE_DB=1 node tests/db_m2_seed_tests.js`.
+
+Old, non-legal, or superseded teams must be marked retired, for example with `metadata.retired = true`, instead of remaining as active rows. The live DB seed test ignores retired rows and fails if active rows are missing legal catalog teams or include extra active teams. This is intentional: it prevents stale/non-legal teams from appearing in selectors, poisoning sim QA, or contaminating future coaching/training stats.
+
+The generated live alignment migration now enforces this for built-in rows: any `source = 'builtin'` team not in the current legal repo catalog is marked retired with `retired_reason = "not_in_current_legal_repo_catalog"`. Do not remove that clause unless another reviewed active-row gate replaces it.
 
 ---
 
@@ -18,10 +36,10 @@ Supabase (Postgres + RLS) + `supabase-js` v2
 | File | Purpose | Status |
 |---|---|---|
 | `schema_v1.sql` | Creates all 8 tables | Updated 2026-04-27 — includes `metadata` column on `teams` |
-| `seed_teams_v2.sql` | Generated seed for all 27 repo teams | Fresh-DB/reference seed only; delete-first shape is unsafe on live DBs with analysis history |
+| `seed_teams_v2.sql` | Generated seed for all 34 repo teams | Fresh-DB/reference seed only; delete-first shape is unsafe on live DBs with analysis history |
 | `rls_policies_v1.sql` | Row-level security policies | Ready to run |
 | `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql` | Superseded 25-team non-destructive repair seed | Historical reference only |
-| `migrations/2026_06_20_align_shared_27_team_catalog.sql` | Non-destructive 27-team shared catalog alignment | Preferred live-DB migration after SV-pack retirement |
+| `migrations/2026_06_20_align_shared_27_team_catalog.sql` | Non-destructive 34-team shared catalog alignment; filename is historical | Preferred live-DB migration after approved runtime team expansion |
 | `migrations/2026_06_07_showdown_entities_approved_views.sql` | Approved Showdown mirror tables, diff rows, Champions overrides, and approved read views | Applied in review workflow evidence; required before generating app assets from Supabase-approved rows |
 | `README_DB.md` | This file | — |
 
@@ -40,7 +58,7 @@ UI wiring: `poke-sim/ui.js` already loads DB teams on startup and persists analy
 |---|---|---|
 | 1 | `schema_v1.sql` | Creates all 8 tables |
 | 2 | `migrations/2026_04_28_add_teams_metadata_column.sql` | Existing fresh clones may already have this through `schema_v1.sql`; safe no-op review target otherwise |
-| 3 | `seed_teams_v2.sql` | Generated fresh-DB/reference seed for the full 27-team catalog |
+| 3 | `seed_teams_v2.sql` | Generated fresh-DB/reference seed for the full 34-team catalog |
 | 4 | `rls_policies_v1.sql` | Locks down security |
 | 5 | `migrations/2026_06_06_showdown_sync_audit_tables.sql` | Adds Showdown sync/audit evidence tables |
 | 6 | `migrations/2026_06_07_showdown_entities_approved_views.sql` | Adds approved Showdown entity/override layer and read views |
@@ -51,19 +69,19 @@ UI wiring: `poke-sim/ui.js` already loads DB teams on startup and persists analy
 | Step | File | Notes |
 |---|---|---|
 | 1 | `migrations/2026_04_28_add_teams_metadata_column.sql` | Run if the live DB predates the metadata column |
-| 2 | `migrations/2026_06_20_align_shared_27_team_catalog.sql` | Preferred non-destructive catalog alignment; safe with analysis FK history |
+| 2 | `migrations/2026_06_20_align_shared_27_team_catalog.sql` | Preferred non-destructive 34-team catalog alignment; safe with analysis FK history |
 | 3 | `rls_policies_v1.sql` | Run if policies are not yet applied |
 | 4 | `migrations/2026_06_06_showdown_sync_audit_tables.sql` | Adds Showdown sync/audit evidence tables |
 | 5 | `migrations/2026_06_07_showdown_entities_approved_views.sql` | Adds approved Showdown entity/override layer and read views |
 | 6 | Wire local or CI credentials | See below |
 
-## Current Seed Repair Status (2026-05-24)
+## Current Seed Repair Status (2026-06-28)
 
-- Current repo source of truth: `poke-sim/data.js` with 27 `TEAMS` entries.
+- Current repo source of truth: `poke-sim/data.js` with 34 `TEAMS` entries.
 - `seed_teams_v2.sql` and `migrations/2026_06_20_align_shared_27_team_catalog.sql` are both generated from that same `data.js` catalog source.
 - Previous 25-team drift was repaired with `migrations/2026_05_24_upsert_seed_teams_v2_repair.sql`.
-- Current shared 27-team drift should be repaired with `migrations/2026_06_20_align_shared_27_team_catalog.sql`.
-- The shared 27-team alignment migration is intentionally non-destructive for `teams` and `rulesets`: it uses UPSERTs and only replaces `team_members` for canonical repo team IDs.
+- Current shared 34-team drift should be repaired with `migrations/2026_06_20_align_shared_27_team_catalog.sql`.
+- The shared 34-team alignment migration is intentionally non-destructive for `teams` and `rulesets`: it uses UPSERTs and only replaces `team_members` for canonical repo team IDs.
 - The older generated seed files are still useful for fresh DB/bootstrap review, but their delete-first shape can fail or partially apply on a DB with existing `analyses` FK references.
 - GitHub migration workflow evidence: run `26351524164` passed for `2026_05_24_upsert_seed_teams_v2_repair.sql`.
 - PR #121 CI evidence: run `26351547525` passed the test suite with live DB relevance enabled.
@@ -256,11 +274,11 @@ The M10 live DB snapshot warning should be gone once the remote schema includes 
 |---|---|
 | `2026_04_27_baseline_v1.sql` | Baseline: 8 tables, indexes, triggers |
 | `2026_04_28_add_teams_metadata_column.sql` | Adds `teams.metadata` for generated seed metadata |
-| `2026_04_28_seed_teams_v2.sql` | Generated delete-first seed for 27 teams; do not use on live DBs with analysis history |
+| `2026_04_28_seed_teams_v2.sql` | Generated delete-first seed for 34 teams; do not use on live DBs with analysis history |
 | `2026_05_12_align_reg_ma_meta_sources.sql` | Adds `prior_snapshots.usage_data` if missing and seeds the current public Reg M-A source-alignment snapshot |
 | `2026_05_15_refresh_reg_ma_meta_sources.sql` | Refreshes current Reg M-A meta source snapshot data |
 | `2026_05_24_upsert_seed_teams_v2_repair.sql` | Superseded non-destructive 25-team seed repair for live DB alignment |
-| `2026_06_20_align_shared_27_team_catalog.sql` | Non-destructive shared 27-team catalog alignment for existing live DBs |
+| `2026_06_20_align_shared_27_team_catalog.sql` | Non-destructive shared 34-team catalog alignment for existing live DBs; filename is historical |
 | `2026_05_24_fix_champions_arena_2nd_item_clause.sql` | Historical/superseded item correction. Current generated seed and live alignment use `Coba Berry`; `Kouba Berry` is not in the verified Champions item pool until a stronger source proves otherwise. |
 | `2026_06_22_retire_legacy_sv_teams.sql` | Marks retired v1 teams (`chuppa_balance`, `kingambit_sneasler`) inactive and removes their stale member/item rows while preserving team rows for historical FK references |
 | `2026_06_06_showdown_sync_audit_tables.sql` | Adds Showdown sync runs, source files, mechanics validation runs, and findings |
@@ -272,7 +290,7 @@ The M10 live DB snapshot warning should be gone once the remote schema includes 
 
 - [x] Supabase project created and URL/key available
 - [ ] `schema_v1.sql` executed — tables visible in Table Editor
-- [ ] Current canonical seed alignment verified — 27 rows in `teams` table after `2026_06_20_align_shared_27_team_catalog.sql` runs
+- [ ] Current canonical seed alignment verified — 34 rows in `teams` table after `2026_06_20_align_shared_27_team_catalog.sql` runs
 - [ ] Showdown sync/audit migration applied — `showdown_sync_runs` and `showdown_source_files` visible
 - [ ] Showdown approved mirror migration applied — `approved_showdown_entities` and `approved_champions_data` visible
 - [ ] `rls_policies_v1.sql` executed — RLS enabled on all tables

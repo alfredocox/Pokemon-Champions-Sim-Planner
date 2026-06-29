@@ -12,6 +12,8 @@ Last reviewed in repo: June 27, 2026.
 
 Source freshness note: the June 27, 2026 review found that Reg M-A should be treated as a named historical lane unless a stronger source still identifies it as live. The next ruleset migration task is Reg M-B source review and implementation.
 
+June 28, 2026 source policy update: Serebii Champions pages should be treated as a preferred Champion-specific reference over generic Bulbapedia pages for Champions regulations, availability, item pool, forms, and Champion mechanics. This does not demote official Pokemon/TPC notices or Showdown executable source. A local live check of `www.serebii.net` failed with DNS resolution error on June 28, 2026, so this update changes source policy only and does not change runtime legality data.
+
 ---
 
 ## Reg M-B Source-Review Boundary
@@ -153,6 +155,8 @@ The `_stripForm()` helper strips regional/Mega/Therian/etc. suffixes so banned s
 Enforced by `CHAMPIONS_LEGAL_ITEMS` in `legality.js`.
 
 The validator now uses a positive allowlist from the Game8 Champions item list. Game8 marks that page as last updated April 10, 2026 and states that the listed items are the only ones available so far. Item effects still come from Showdown/generated runtime data; the allowlist only controls Champions availability.
+
+Source review rule: before expanding or shrinking the legal item pool for Reg M-B or later rulesets, prefer a verified Serebii Champions item/availability page or official Champion/TPC source over generic item pages. If Serebii and Game8 disagree, mark the item pool `needs_review`, do not train coaching data from affected teams, and add a focused legality fixture before changing runtime behavior.
 
 Known absent SV carryovers are also kept in `CHAMPIONS_BANNED_ITEMS` so error messages stay clear. Examples include Life Orb, Choice Band, Choice Specs, Assault Vest, Rocky Helmet, Safety Goggles, Covert Cloak, Clear Amulet, Booster Energy, and Loaded Dice.
 

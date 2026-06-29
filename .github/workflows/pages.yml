@@ -22,15 +22,29 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
       - name: Validate Champion sim artifact before deploy
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
+          if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_ANON_KEY:-}" ]; then
+            export SUPABASE_KEY="$SUPABASE_ANON_KEY"
+            export RUN_LIVE_DB=1
+            echo "Live Supabase seed parity enabled for Pages deploy."
+          else
+            unset SUPABASE_URL
+            unset SUPABASE_ANON_KEY
+            unset SUPABASE_KEY
+            unset RUN_LIVE_DB
+            echo "::warning::Supabase anon secrets missing; Pages deploy seed parity will run local-only."
+          fi
           node poke-sim/tests/db_m2_seed_tests.js
           node poke-sim/tests/champion_pack_legality_tests.js
           node poke-sim/tests/preloaded_team_legality_tests.js
@@ -38,7 +52,7 @@ jobs:
           node poke-sim/tests/bundle_load_order_tests.js
           bash poke-sim/tools/check-bundle.sh
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
 
@@ -92,9 +106,9 @@ jobs:
           cp .nojekyll pages-dist/.nojekyll
           cp -R poke-sim/. pages-dist/poke-sim/
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: pages-dist
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

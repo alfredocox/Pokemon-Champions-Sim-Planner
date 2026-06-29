@@ -2,7 +2,7 @@
 
 Status: active source-truth control page.
 
-Last repo source review: June 27, 2026.
+Last repo source review: June 28, 2026.
 
 Purpose: give the team one place to inspect, challenge, replace, and improve the sources used by the Champion simulator. If a source is stale, weak, contradicted, or not allowed to prove the claim it is being used for, update this page before changing runtime behavior.
 
@@ -51,22 +51,43 @@ Dataset poisoning guard:
 - Analysis rows must carry ruleset status and poisoning policy before DB or coaching systems aggregate them.
 - Future coaching reports must not mix Reg M-A, Reg M-B, and later regulations unless the report explicitly requests cross-regulation comparison.
 
+Smooth-upgrade guard:
+
+- Any approved team/data change must move as one unit: source note, `data.js` or generated runtime asset, generated seed SQL, generated QA baseline/report snapshots, live Supabase migration, legality tests, bundle rebuild, Overview/build label, and fresh QA artifact.
+- A local-only pass is not enough when the site reads live Supabase. If preloaded team IDs change, run or trigger the live DB parity path before treating the deployed page as validated.
+- Do not add a team purely to force a test if that team is not legal in the active runtime lane. Add targeted QA instrumentation instead, or mark the row review-only so it cannot train coaching data.
+- When a mistake is found, add the failure mode to docs and a drift guard test in the same change whenever practical. The goal is not just to fix the symptom; it is to make the same class of partial upgrade harder to repeat.
+- Generated reports are source-truth surfaces. If a team, move, item, ruleset, or runtime proof target changes, refresh the Overview-linked QA baseline snapshot and let `qa_baseline_snapshot_tests.js` prove it is current before push.
+
 ## Source Priority
 
 | Tier | Source type | Allowed to prove | Not allowed to prove alone |
 |---|---|---|---|
 | 0 | Official Pokemon, Play! Pokemon, or Pokemon Champions notices, rules, patch notes, and event pages | Active ruleset, tournament structure, official mechanics when stated directly | Detailed simulator edge behavior when the official text is ambiguous |
-| 1 | Champion regulation and Champion availability pages from Serebii, Victory Road, Game8, and equivalent reviewed Champion pages | Champion legality, item availability, ranked regulation dates, format deltas | Full engine implementation without executable or test proof |
+| 1 | Champion-specific pages from Serebii, Victory Road, Game8, and equivalent reviewed Champion pages | Champion legality, item availability, ranked regulation dates, format deltas | Full engine implementation without executable or test proof |
 | 2 | Pokemon Showdown upstream, Pokemon Showdown data CDN, `@pkmn/sim`, and `@smogon/calc` | Standard Pokemon data, move metadata, type chart, learnsets, target flags, baseline battle behavior, damage oracle checks | Champion legality when Champion sources say the active lane differs |
 | 3 | Human-readable cross-checkers such as Bulbapedia, Serebii dex pages, Smogon strategy pages, RotomLabs, OP.GG, Pikalytics-style usage sources, and community tournament reports | Plain-English confirmation, move wording, common usage, archetypes, coaching context, meta pressure | Hard legality, exact runtime behavior, or active ruleset by itself |
 | 4 | Repo QA artifacts, turn logs, branch-memory rows, source-truth tests, and browser exports | What this app actually executed and proved | External game truth if the app is already wrong |
+
+## Serebii Champions Source Policy
+
+Status: preferred Champion-specific reference, pending fresh live verification after the June 28, 2026 DNS failure in local tooling.
+
+Use Serebii Champions pages ahead of generic Bulbapedia pages when the claim is about Pokemon Champions itself, including ranked regulations, Champion availability, item pool, Champion forms, and Champion-specific mechanics. Serebii is not a replacement for official Pokemon notices or executable Showdown/oracle checks:
+
+- Official Pokemon/TPC pages still win for official tournament and rules-policy claims.
+- Pokemon Showdown source, `@pkmn/sim`, and `@smogon/calc` still win for executable battle mechanics unless a Champion source requires an explicit override.
+- Bulbapedia remains useful for general Pokemon explanations, but it should not be the primary proof for Champions-specific legality when a Serebii Champions page exists.
+- Any Serebii-sourced runtime change must record the exact URL, `checked_at_utc`, source freshness status, affected ruleset, and a focused test or QA artifact.
+
+June 28, 2026 check note: local network lookup for `www.serebii.net` failed with DNS resolution error, so no new runtime data was changed from Serebii in this pass.
 
 ## Golden Source Links
 
 | Area | Primary source | Cross-check source | Repo owner area |
 |---|---|---|---|
-| Active Champion regulation | Victory Road Champion regulations and official Champion/TPC notices when available | Serebii regulation pages and Game8 Champion regulation pages | `docs/CHAMPIONS_LEGALITY.md`, `legality.js`, Overview |
-| Champion item pool | Champion-specific item pages such as Game8 items list | Serebii and Bulbapedia item pages for descriptions/effects | `CHAMPIONS_LEGAL_ITEMS`, item legality tests |
+| Active Champion regulation | Official Champion/TPC notices when available; Serebii Champions regulation pages and Victory Road Champion regulations as Champion-specific references | Game8 Champion regulation pages; Bulbapedia only for general background | `docs/CHAMPIONS_LEGALITY.md`, `legality.js`, Overview |
+| Champion item pool | Serebii Champions item/availability pages when verified; Champion-specific item pages such as Game8 items list | Bulbapedia item pages for descriptions/effects only | `CHAMPIONS_LEGAL_ITEMS`, item legality tests |
 | Species, forms, stats, types | Pokemon Showdown `pokedex.js` | Bulbapedia and Serebii dex pages | generated Showdown data, `runtime_data.js` |
 | Moves | Pokemon Showdown `moves.js` and `data/text/moves.ts` | Bulbapedia and Serebii move pages | move registry, move-support audit, engine tests |
 | Abilities | Pokemon Showdown `abilities.js` | Serebii and Bulbapedia ability pages | ability inventory, ability parity tests |
@@ -88,6 +109,8 @@ Dataset poisoning guard:
 | `approved_showdown_entities` | Reviewed rows promoted for app use | approval status, source hash, reviewer/process |
 | `champions_overrides` | Champion-specific differences from Showdown | Champion source URL, review date, status, test reference |
 | `generated/pokemon_showdown_legal_data.js` | Offline GitHub Pages runtime data | generated timestamp, source hashes, approved counts |
+| `db/seed_teams_v2.sql` and DB migrations | Approved team catalog seed and live DB alignment | generated from the same reviewed team catalog; live parity checked before Pages publish |
+| `reports/champion_qa_baseline_snapshot.md` | Human-readable approved team and move baseline for QA | generated from current approved catalog; checked by `qa_baseline_snapshot_tests.js` |
 | `legality.js` | Champion ruleset gate | ruleset ID, source review date, violation codes |
 | `engine.js` | Deterministic execution | tests proving behavior against source/oracle |
 | `ui.js` Overview | Human-visible status, docs, source inspector, QA path | build ID and source URL in exported artifacts |

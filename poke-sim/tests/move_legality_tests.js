@@ -87,5 +87,11 @@ T('9. Champion Eternal Flower Mega keeps app form identity for move legality ali
   eq(out.inheritedFrom, 'Floette-Eternal', 'Light of Ruin should come from Eternal Flower learnset');
 });
 
+T('10. legal move display list is species-specific for editor suggestions', () => {
+  const moves = moveLegality.legalMoveDisplayNamesForSpecies('Arcanine');
+  truthy(moves.includes('Protect'), 'Arcanine legal suggestions should include Protect');
+  truthy(!moves.includes('Surf'), 'Arcanine legal suggestions should not include Surf');
+});
+
 console.log(`\nmove legality: ${pass} pass, ${fail} fail\n`);
 process.exit(fail ? 1 : 0);

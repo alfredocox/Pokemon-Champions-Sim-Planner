@@ -31,6 +31,7 @@ What is true right now:
 What is not true yet:
 
 - full simulator parity is not proven across all mechanics
+- the issue #149 mechanics-truth beta gate is still open until long-tail field/status/multi-effect interactions are inventory-backed and regression-proven
 - future live GitHub Pages builds should not be treated as updated until the matching deploy run is green and the exported log `build_id` confirms the tested build
 - approved Supabase views are not yet the final public runtime source
 
@@ -127,8 +128,13 @@ These still block stronger trust claims:
    - exported logs should carry `schema_version`, `build_id`, `exported_at`, and `source_url`
 
 4. A separate SV product mode still does not exist.
-   - the shipped built-in catalog is now Champions-only
-   - add an explicit SV mode later only if there is a real requirement for dual-format support
+ - the shipped built-in catalog is now Champions-only
+ - add an explicit SV mode later only if there is a real requirement for dual-format support
+
+5. The long-tail mechanics gate still needs explicit closure proof.
+ - same-family priority suppression must stay aligned across Armor Tail, Dazzling, and Queenly Majesty
+ - multi-effect moves, field-state legality shifts, Fake Out windows, and action-denial paths need deterministic inventory coverage
+ - replay and QA exports must keep exposing those mechanics clearly enough to audit coaching claims
 
 ## Roadmap From Here
 

@@ -331,6 +331,80 @@ T('T5c-1a Replay Log v2 renders Turn 0 and both board sides', () => {
   truthy(html.includes('0%'), 'zero HP missing');
 });
 
+T('T5c-1ab Replay Log v2 does not duplicate planned move lines when resolved events exist', () => {
+  const html = ctx.csRenderTurnLogRows([{
+    turn: 1,
+    pre: {
+      roster: {
+        player: [{ displayName: 'Kangaskhan', species: 'Kangaskhan', status: 'active', hp: 100, hpLabel: '100%', moves: ['Fake Out'] }],
+        opponent: [{ displayName: 'Tyranitar', species: 'Tyranitar', status: 'active', hp: 100, hpLabel: '100%', moves: ['Rock Slide'] }]
+      }
+    },
+    post: {
+      roster: {
+        player: [{ displayName: 'Kangaskhan', species: 'Kangaskhan', status: 'active', hp: 100, hpLabel: '100%', moves: ['Fake Out'] }],
+        opponent: [{ displayName: 'Tyranitar', species: 'Tyranitar', status: 'active', hp: 82, hpLabel: '82%', moves: ['Rock Slide'] }]
+      },
+      position_score: 0.55
+    },
+    actions: { player: [{ actor: 'Kangaskhan', move: 'Fake Out', target: 'Tyranitar' }], opponent: [] },
+    events: [
+      { type: 'log', text: 'Kangaskhan used Fake Out! -> Tyranitar [18 dmg, 82/100 HP]' },
+      { type: 'log', text: 'Kangaskhan used Fake Out! -> Tyranitar [18 dmg, 82/100 HP]' }
+    ],
+    delta: { position_score: 0.05 }
+  }]);
+  const matches = html.match(/Kangaskhan used Fake Out!/g) || [];
+  eq(matches.length, 1, 'resolved move line should render once');
+  truthy(html.includes('Resolved action order shown below'), 'turn header should not repeat planned actions');
+  truthy(html.includes('lost 18 HP'), 'damage text should stay attached to resolved move line');
+});
+
+T('T5c-1ac Replay Log v2 groups spread damage and surfaces miss/failure details', () => {
+  const html = ctx.csRenderTurnLogRows([{
+    turn: 1,
+    pre: {
+      roster: {
+        player: [{ displayName: 'Charizard', species: 'Charizard', status: 'active', hp: 100, hpLabel: '100%', moves: ['Heat Wave'] }],
+        opponent: [
+          { displayName: 'Tyranitar', species: 'Tyranitar', status: 'active', hp: 100, hpLabel: '100%', moves: ['Rock Slide'] },
+          { displayName: 'Indeedee-F', species: 'Indeedee-F', status: 'active', hp: 100, hpLabel: '100%', moves: ['Follow Me'] }
+        ]
+      }
+    },
+    post: {
+      roster: {
+        player: [{ displayName: 'Charizard', species: 'Charizard', status: 'active', hp: 100, hpLabel: '100%', moves: ['Heat Wave'] }],
+        opponent: [
+          { displayName: 'Tyranitar', species: 'Tyranitar', status: 'active', hp: 76, hpLabel: '76%', moves: ['Rock Slide'] },
+          { displayName: 'Indeedee-F', species: 'Indeedee-F', status: 'active', hp: 69, hpLabel: '69%', moves: ['Follow Me'] }
+        ]
+      },
+      position_score: 0.6
+    },
+    actions: { player: [{ actor: 'Charizard', move: 'Heat Wave' }], opponent: [{ actor: 'Tyranitar', move: 'Stone Edge', target: 'Charizard' }] },
+    events: [{ type: 'log', text: 'Charizard used Heat Wave!' }],
+    damage_events: [
+      { attacker: 'Charizard', attacker_key: 'player:slot:0:Charizard', move: 'Heat Wave', target: 'Tyranitar', target_key: 'opponent:slot:0:Tyranitar', applied_damage: 24, target_hp_after: 76, target_max_hp: 100, type_effectiveness: 0.5, spread_mod: 3072 },
+      { attacker: 'Charizard', attacker_key: 'player:slot:0:Charizard', move: 'Heat Wave', target: 'Indeedee-F', target_key: 'opponent:slot:1:Indeedee-F', applied_damage: 31, target_hp_after: 69, target_max_hp: 100, type_effectiveness: 1, spread_mod: 3072 }
+    ],
+    effect_events: [{
+      actor: 'Tyranitar',
+      actor_key: 'opponent:slot:0:Tyranitar',
+      effect_kind: 'move-failure',
+      failed_move: 'Stone Edge',
+      failure_reason: 'accuracy-miss',
+      target: 'Charizard',
+      accuracy: 0.8,
+      hp_before: 100,
+      hp_after: 100
+    }],
+    delta: { position_score: 0.1 }
+  }]);
+  truthy(html.includes('Charizard used Heat Wave! Tyranitar lost 24 HP (76/100 HP) [resisted, spread]; Indeedee-F lost 31 HP (69/100 HP) [spread]'), 'spread damage should show both targets in one resolved row');
+  truthy(html.includes('Tyranitar used Stone Edge! → Charizard It missed. Accuracy 80%.'), 'accuracy miss detail missing');
+});
+
 T('T5c-1aa Replay Log v2 supports singles and doubles field visibility', () => {
   const singles = ctx.csRenderTurnLogRows([{
     turn: 1,
@@ -415,6 +489,38 @@ T('T5c-1b Battle Sensei renders Turn 0 and both side boards', () => {
   truthy(turnHtml.includes('Tyranitar'), 'Battle Sensei opponent mon missing');
   truthy(turnHtml.includes('fainted'), 'Battle Sensei fainted status missing');
   truthy(turnHtml.includes('0%'), 'Battle Sensei zero HP missing');
+});
+
+T('T5c-1c replay snapshot surfaces field-state chips and impact summaries', () => {
+  const html = ctx.csRenderReplayLogSnapshot({
+    roster: {
+      player: [
+        { stable_key: 'p1a', displayName: 'Incineroar', species: 'Incineroar', status: 'active', hp: 82, hpLabel: '82%', moves: ['Fake Out'] }
+      ],
+      opponent: [
+        { stable_key: 'p2a', displayName: 'Farigiraf', species: 'Farigiraf', status: 'active', hp: 100, hpLabel: '100%', moves: ['Trick Room'] }
+      ]
+    },
+    field: { weather: 'sun', weather_turns: 3, terrain: 'psychic', terrain_turns: 2, trick_room: 4 },
+    speed_control: {
+      player: { tailwind: 2, screens: { reflect: 1 } },
+      opponent: { tailwind: 0, screens: {} }
+    }
+  }, 'Turn 1', false, {
+    damage_events: [
+      { target_key: 'p1a', target: 'Incineroar', attacker: 'Farigiraf', move: 'Psychic', applied_damage: 18, target_hp_before: 100, target_hp_after: 82 }
+    ],
+    effect_events: [
+      { actor_key: 'p1a', actor: 'Incineroar', effect_kind: 'flinch-skip', skipped_move: true, skipped_action_move: 'Fake Out' }
+    ]
+  });
+  truthy(html.includes('sun 3T'), 'weather chip missing');
+  truthy(html.includes('psychic 2T'), 'terrain chip missing');
+  truthy(html.includes('Trick Room 4T'), 'Trick Room chip missing');
+  truthy(html.includes('Your Tailwind 2T'), 'Tailwind chip missing');
+  truthy(html.includes('Impact:'), 'impact summary missing');
+  truthy(html.includes('lost 18 HP to Psychic'), 'damage reason summary missing');
+  truthy(html.includes('lost its move: flinch skipped move'), 'skip reason summary missing');
 });
 
 T('T5c-2 swing turn row is highlighted', () => {

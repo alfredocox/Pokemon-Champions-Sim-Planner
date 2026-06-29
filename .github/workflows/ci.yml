@@ -39,9 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -87,9 +87,9 @@ jobs:
     timeout-minutes: 8
     needs: [syntax, detect-changes]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -214,9 +214,9 @@ jobs:
       engine: ${{ steps.filter.outputs.engine }}
       live_db_relevant: ${{ steps.filter.outputs.live_db_relevant }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -243,9 +243,9 @@ jobs:
     needs: [tests, detect-changes]
     if: needs.detect-changes.outputs.engine == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -275,7 +275,7 @@ jobs:
     needs: tests
     if: success() && github.ref == 'refs/heads/deployment/credential-injection'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       
       - name: Download production bundle
         run: |

@@ -109,7 +109,17 @@
 // v140-drain-rule-source-audit [2026-06-27] - Read generated Showdown drain metadata for all supported drain moves.
 // v141-foul-play-stat-source-audit [2026-06-27] - Correct unusual physical stat-source ability modifiers.
 // v142-move-rule-trace-qa [2026-06-27] - Expose move rule traces in QA/replay damage events.
-const CACHE_NAME = 'champions-sim-v142-move-rule-trace-qa';
+// v143-codex-qa-context-drop [2026-06-27] - Add Codex-ready QA artifact handoff context.
+// v144-codex-qa-drop-folder [2026-06-27] - Save QA artifacts to a user-approved local drop folder when supported.
+// v145-tactical-sweep-schema [2026-06-28] - Add explicit Tactical Sweep schema/status/opponent metadata to QA artifacts.
+// v155-sources-ui-polish [2026-06-28] - Tighten the Sources dashboard layout and refresh the app-shell cache.
+// v156-kevin-team-qa [2026-06-28] - Add coached Kevin baseline team, approved team QA matrix, and Seed Sower terrain evidence.
+// v158-editor-save-cancel [2026-06-28] - Refresh app shell for explicit editor save and cancel draft controls.
+// v159-import-file-feedback [2026-06-28] - Refresh app shell for file import parser feedback and exporter syntax guard.
+// v160-move-failure-evidence [2026-06-28] - Refresh app shell for structured move-failure evidence rows.
+// v161-replay-log-dedupe [2026-06-28] - Refresh app shell for cleaner resolved replay log display.
+// v162-replay-detail-rows [2026-06-28] - Refresh app shell for grouped replay damage/miss/failure details.
+const CACHE_NAME = 'champions-sim-v162-replay-detail-rows';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [
@@ -122,6 +132,7 @@ const APP_ASSETS = [
   './logger.js',
   './generated/pokemon_showdown_legal_data.js',
   './generated/pokemon_showdown_species_weights.js',
+  './generated/source_sync_status.js',
   './runtime_data.js',
   './engine.js',
   './rulesets.js',

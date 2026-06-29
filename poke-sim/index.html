@@ -66,8 +66,8 @@
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-      <!-- build history: v2.1.68-speed-transition v2.1.69-source-truth-audit v2.1.70-terrain-gaps-fixed v2.1.83-champions-tera-gate v2.1.86-regmb-source-audit v2.1.87-ruleset-lifecycle v2.1.88-ruleset-team-sections v2.1.89-regmb-review-cards v2.1.94-paldea-tauros-sprites v2.1.95-sprite-fallback-chain v2.1.96-alola-raichu-sprite-fallbacks v2.1.97-hisui-zoroark-gif v2.1.98-gif-primary-sprite-audit v2.1.99-regmb-promotion-gate v2.2.0-regmb-stone-source-pass v2.2.1-regmb-stats-types-abilities-source-pass v2.2.2-regmb-learnset-policy-pass v2.2.3-damage-stat-override-audit v2.2.4-contact-flag-audit v2.2.5-secondary-effect-audit v2.2.6-complex-secondary-state v2.2.7-secondary-table-consolidation v2.2.8-drain-rule-source-audit v2.2.9-foul-play-stat-source-audit v2.2.10-move-rule-trace-qa -->
-      <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.2.10-move-rule-trace-qa</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
+      <!-- build history: v2.1.68-speed-transition v2.1.69-source-truth-audit v2.1.70-terrain-gaps-fixed v2.1.83-champions-tera-gate v2.1.86-regmb-source-audit v2.1.87-ruleset-lifecycle v2.1.88-ruleset-team-sections v2.1.89-regmb-review-cards v2.1.94-paldea-tauros-sprites v2.1.95-sprite-fallback-chain v2.1.96-alola-raichu-sprite-fallbacks v2.1.97-hisui-zoroark-gif v2.1.98-gif-primary-sprite-audit v2.1.99-regmb-promotion-gate v2.2.0-regmb-stone-source-pass v2.2.1-regmb-stats-types-abilities-source-pass v2.2.2-regmb-learnset-policy-pass v2.2.3-damage-stat-override-audit v2.2.4-contact-flag-audit v2.2.5-secondary-effect-audit v2.2.6-complex-secondary-state v2.2.7-secondary-table-consolidation v2.2.8-drain-rule-source-audit v2.2.9-foul-play-stat-source-audit v2.2.10-move-rule-trace-qa v2.2.11-codex-qa-context-drop v2.2.12-codex-qa-drop-folder v2.2.13-tactical-sweep-schema v2.2.14-stat-source-proof-team v2.2.15-live-db-pages-guard v2.2.16-coach-sequence-why v2.2.17-stress-lite-qa v2.2.18-stress-lite-summary v2.2.19-hard-beta-guard v2.2.20-data-sources-matrix v2.2.21-source-sync-stamps v2.2.22-source-sync-runtime v2.2.23-sources-ui-polish v2.2.26-editor-save-cancel v2.2.27-import-file-feedback v2.2.28-move-failure-evidence v2.2.29-replay-log-dedupe v2.2.30-replay-detail-rows -->
+      <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.2.30-replay-detail-rows</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
         <p class="site-sub">Champions 2026 Preview · VGC Doubles Simulator</p>
       </div>
     </div>
@@ -250,10 +250,13 @@
         </select>
       </div>
 
-      <button class="btn-primary" id="run-sim-btn">▶ Run Simulation</button>
-      <button class="btn-secondary" id="run-all-btn">⚡ Run All Matchups</button>
-      <button class="btn-secondary" id="run-all-export-qa-btn" title="Run all matchups, then download one retained-evidence QA Artifact JSON">Run All + QA Artifact</button>
-      <button class="btn-secondary" id="tactical-sweep-qa-btn" title="Run tactical branch coverage using Test Scope, save unseen branches, then download QA Artifact JSON">Tactical Sweep + QA</button>
+      <button class="btn-primary" id="run-sim-btn" title="Quick check: runs one matchup using the selected teams and settings. Collects one result, replay turns, damage events, effect events, field states, status, and faint causes.">▶ Run Simulation</button>
+      <button class="btn-secondary" id="run-all-btn" title="Broad release check: runs many matchups to find big broken patterns. Collects win/loss totals, matchup stats, replay samples, damage/effect coverage, and crash/error signals. Heavier on your computer.">⚡ Run All Matchups</button>
+      <button class="btn-secondary" id="qa-drop-folder-btn" title="Workflow helper: choose a local folder for QA Artifact saves when your browser supports folder write access. It helps keep artifacts organized for Codex review.">Set QA Drop Folder</button>
+      <button class="btn-secondary" id="run-all-export-qa-btn" title="Release evidence: runs all matchups, then downloads one QA Artifact JSON with build_id, source_url, summary, retained replays, damage_events, effect_events, qa_coverage_summary, codex_context, and DB status.">Run All + QA Artifact</button>
+      <button class="btn-secondary" id="stress-lite-qa-btn" title="Safe stress check: runs capped lower-load coverage for phones or weaker computers. Keeps the QA artifact under 50 MB while preserving Josh-ready damage, effect, contact, move-rule, branch, and summary proof. Not exhaustive Run All proof.">Stress Lite + QA</button>
+      <button class="btn-secondary" id="tactical-sweep-qa-btn" title="Coaching and strategy check: tests branches for the selected scope. Collects speed control, Trick Room, Tailwind, decision opportunities, move/lineup patterns, coaching rows, DB branch saves, and next_missing_proof.">Tactical Sweep + QA</button>
+      <div class="settings-note" id="beta-guard-note" style="display:none"></div>
 
       <div class="progress-wrap" id="progress-wrap" style="display:none">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
@@ -394,8 +397,16 @@
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Import
         </button>
+        <button class="btn-secondary" id="add-team-mon" style="font-size:11px" title="Add one editable Pokemon slot to the current team, up to six.">
+          + Add
+        </button>
       </div>
+      <div class="editor-team-status" id="editor-team-status"></div>
       <div id="editor-roster" class="editor-roster"></div>
+      <datalist id="editor-species-list"></datalist>
+      <datalist id="editor-item-list"></datalist>
+      <datalist id="editor-ability-list"></datalist>
+      <datalist id="editor-move-list"></datalist>
     </div>
     <div id="editor-form" class="editor-form">
       <p style="color:var(--text-m);font-size:13px">Select a Pokémon to edit its set.</p>
@@ -511,6 +522,170 @@
 <section class="tab-panel" id="tab-sources">
   <div class="sources-content">
     <h2 class="section-title">Data Sources</h2>
+    <p style="color:var(--text-m);font-size:13px;margin-bottom:var(--sp4)">This page shows what the sim actually reads from each outside source, what is only used as a cross-check, and how source drift is detected before trust claims are made.</p>
+    <div style="display:grid;gap:12px;margin-bottom:16px">
+      <div class="sim-result-card">
+        <div style="font-weight:700;margin-bottom:6px">Truth policy</div>
+        <div style="color:var(--text-m);font-size:13px;line-height:1.6">
+          Pokemon Showdown is the main upstream baseline for species data, move metadata, learnsets, target categories, and generated runtime legality assets.
+          Champion-specific regulation differences stay separate as reviewed overrides or source-review rows until they are tested and promoted.
+          User imports, replay logs, and QA artifacts are evidence inputs, not source truth.
+        </div>
+      </div>
+      <div class="sim-result-card">
+        <div style="font-weight:700;margin-bottom:6px">Last source sweep</div>
+        <div style="color:var(--text-m);font-size:13px;line-height:1.6">
+          Current UI source matrix refreshed on <strong>June 28, 2026</strong>.
+          If a source changes upstream, the release gate is to update generated assets, approved DB rows, targeted tests, QA proof, and the Overview notes together.
+        </div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px">
+      <table class="series-summary-table" style="min-width:860px">
+        <thead>
+          <tr>
+            <th>Source track</th>
+            <th>Last synced or reviewed</th>
+            <th>Current visible marker</th>
+            <th>Why it matters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Generated Showdown runtime snapshot</strong></td>
+            <td style="font-size:12px">May 24, 2026</td>
+            <td style="font-size:12px">Commit <code>3f5079d395ad018f13e8f785a675a13bd4cbf59e</code></td>
+            <td style="font-size:12px">Baseline for species stats, learnsets, move metadata, target categories, and legal runtime assets.</td>
+          </tr>
+          <tr>
+            <td><strong>Approved Showdown DB generation</strong></td>
+            <td style="font-size:12px">June 25, 2026</td>
+            <td style="font-size:12px">8,653 approved entities, 0 active overrides</td>
+            <td style="font-size:12px">Shows what the reviewed DB layer had approved when the runtime-source proof slice was last aligned.</td>
+          </tr>
+          <tr>
+            <td><strong>Reg M-B source-review lane</strong></td>
+            <td style="font-size:12px">June 27, 2026</td>
+            <td style="font-size:12px">Victory Road review notes and blocked promotion cards</td>
+            <td style="font-size:12px">Keeps upcoming Champion roster changes visible without poisoning current legal/runtime truth.</td>
+          </tr>
+          <tr>
+            <td><strong>Current UI source matrix</strong></td>
+            <td style="font-size:12px">June 28, 2026</td>
+            <td style="font-size:12px">Build <code>v2.2.21-source-sync-stamps</code></td>
+            <td style="font-size:12px">Tells users which source assumptions this exact build is presenting and what should trigger a follow-up update.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px">
+      <table class="series-summary-table" style="min-width:920px">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Used for</th>
+            <th>Not used for</th>
+            <th>How drift is checked</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pokemon Showdown data</strong><br/><span style="color:var(--text-m);font-size:12px">GitHub/CDN upstream baseline</span></td>
+            <td style="font-size:12px">Species stats, typings, abilities, move metadata, priority, target categories, learnsets, species weights, sprite slugs, and generated legality/runtime assets.</td>
+            <td style="font-size:12px">Not the final word on Champion-only regulation differences unless the repo has accepted that behavior for the current lane.</td>
+            <td style="font-size:12px">Showdown sync workflow, generated asset rebuilds, priority drift tests, runtime bridge tests, move support audits, and approved entity review.</td>
+          </tr>
+          <tr>
+            <td><strong>Champion rules / regulation sources</strong><br/><span style="color:var(--text-m);font-size:12px">Ruleset-specific source review</span></td>
+            <td style="font-size:12px">Regulation windows, allowed roster deltas, Champion-only policy differences, and whether a lane is review-only or playable.</td>
+            <td style="font-size:12px">Not a direct replacement for the engine or generated Showdown legality data without explicit conversion and tests.</td>
+            <td style="font-size:12px">Ruleset registry, review-only sections, conversion rows, legality gating, and Overview release notes.</td>
+          </tr>
+          <tr>
+            <td><strong>Victory Road</strong><br/><span style="color:var(--text-m);font-size:12px">Competitive event context</span></td>
+            <td style="font-size:12px">Current regulation dates, event usage context, image-sheet roster review, and source-review discovery for new legal roster slices.</td>
+            <td style="font-size:12px">Not the live battle calculator and not enough on its own to promote runtime legality.</td>
+            <td style="font-size:12px">Manual source-review cards, Reg M-B review rows, and promotion gates before selectors or coaching can trust the data.</td>
+          </tr>
+          <tr>
+            <td><strong>Bulbapedia</strong><br/><span style="color:var(--text-m);font-size:12px">Mechanics citation layer</span></td>
+            <td style="font-size:12px">Move, item, ability, terrain, weather, and status behavior citations when static data does not fully explain the resolution rule.</td>
+            <td style="font-size:12px">Not a generated runtime asset source and not used as a raw import feed.</td>
+            <td style="font-size:12px">Targeted engine tests, mechanics audit cases, turn-log evidence, and source notes in code/docs when behavior is claimed fixed.</td>
+          </tr>
+          <tr>
+            <td><strong>@smogon/calc / Showdown oracle slices</strong><br/><span style="color:var(--text-m);font-size:12px">Behavior cross-check</span></td>
+            <td style="font-size:12px">Selected damage and mechanic parity proofs where static rows alone are not enough.</td>
+            <td style="font-size:12px">Not the full live engine and not a substitute for Champion-specific override review.</td>
+            <td style="font-size:12px">Oracle tests, damage parity slices, move verification registry, and named release proof for the exact mechanic audited.</td>
+          </tr>
+          <tr>
+            <td><strong>Smogon format/meta pages</strong><br/><span style="color:var(--text-m);font-size:12px">Cross-check and meta context</span></td>
+            <td style="font-size:12px">Import/export conventions, archetype language, and current competitive context for team-review notes.</td>
+            <td style="font-size:12px">Not the primary legality calculator for Champion data and not the source of damage logic.</td>
+            <td style="font-size:12px">Manual review, archetype catalog updates, and explicit notes when a page is contextual rather than authoritative.</td>
+          </tr>
+          <tr>
+            <td><strong>Supabase approved rows</strong><br/><span style="color:var(--text-m);font-size:12px">Reviewed storage layer</span></td>
+            <td style="font-size:12px">Approved teams, approved Showdown entities, overrides, audits, and saved analysis history.</td>
+            <td style="font-size:12px">Not the browser damage calculator and not trusted automatically just because a row exists in DB.</td>
+            <td style="font-size:12px">Approved views, runtime DB inspector, source hashes, approved counts, seed parity checks, and local-vs-live drift review.</td>
+          </tr>
+          <tr>
+            <td><strong>User imports / replays / QA artifacts</strong><br/><span style="color:var(--text-m);font-size:12px">Evidence tier</span></td>
+            <td style="font-size:12px">Testing inputs, replay review, retained proof, coaching evidence, and bug reproduction artifacts.</td>
+            <td style="font-size:12px">Not upstream source truth and not trusted meta data until validated against legal/runtime gates.</td>
+            <td style="font-size:12px">Turn-log validator, QA artifact schema, build/source labels, retained evidence counts, and targeted proof checks.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="sim-result-card" style="margin-bottom:16px">
+      <div style="font-weight:700;margin-bottom:6px">What changes should trigger a review?</div>
+      <ul style="margin:0;padding-left:18px;color:var(--text-m);font-size:13px;line-height:1.7">
+        <li>Showdown updates move priority, target type, recoil/drain data, learnsets, species stats, typings, or abilities.</li>
+        <li>Champion regulation windows, legal roster rules, or Champion-only mechanics guidance change.</li>
+        <li>Victory Road or equivalent source-review sheets add new legal roster rows or event-usage context.</li>
+        <li>Approved DB rows no longer match generated assets, seeded teams, or live browser selectors.</li>
+        <li>QA artifacts expose a mechanic the source matrix says is trusted, but the replay evidence disagrees.</li>
+      </ul>
+    </div>
+    <div class="sim-result-card" style="margin-bottom:16px">
+      <div style="font-weight:700;margin-bottom:6px">Release watch and game news</div>
+      <div style="color:var(--text-m);font-size:13px;line-height:1.7;margin-bottom:8px">
+        This section is the user-facing reminder of which outside changes matter. If one of these changes lands upstream, the simulator should treat it as a release-note event and update the relevant rules, data, tests, QA proof, and Overview notes together.
+      </div>
+      <table class="series-summary-table" style="width:100%">
+        <thead>
+          <tr>
+            <th>Change type</th>
+            <th>What users should expect us to update</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Regulation / format update</strong></td>
+            <td style="font-size:12px">Allowed species/forms/items/mechanics, team legality lanes, team filters, source-review cards, and current testing catalog.</td>
+          </tr>
+          <tr>
+            <td><strong>Move or ability behavior update</strong></td>
+            <td style="font-size:12px">Engine logic, move support registry, targeted mechanics tests, QA proof teams, replay evidence wording, and coaching trust level.</td>
+          </tr>
+          <tr>
+            <td><strong>Meta shift or tournament trend change</strong></td>
+            <td style="font-size:12px">Testing catalog priorities, matchup proof teams, strategy notes, and which archetypes we stress first. This should not silently rewrite legality truth.</td>
+          </tr>
+          <tr>
+            <td><strong>Source conflict between trusted sites</strong></td>
+            <td style="font-size:12px">Overview gap note, explicit temporary policy, blocked promotion if needed, and a named follow-up issue until the conflict is resolved.</td>
+          </tr>
+          <tr>
+            <td><strong>DB/source drift</strong></td>
+            <td style="font-size:12px">Generated assets, seed SQL, approved DB rows, live selectors, and browser QA artifacts must be re-aligned before the change is treated as shipped truth.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <p style="color:var(--text-m);font-size:13px;margin-bottom:var(--sp6)">Bundled teams may come from official tournament results, community pastes, or maintained local reconstructions. Custom imports and local simulations are separate evidence tiers, not official event records.</p>
     <div id="sources-list"></div>
   </div>
@@ -551,12 +726,20 @@
       <span class="modal-title" id="import-modal-title">Import Team from Showdown Paste</span>
       <button class="modal-close" id="close-import">✕</button>
     </div>
-    <p class="modal-hint">Paste Showdown-format text directly from <strong>PS! Teambuilder → Export</strong> or from a pokepast.es page. All 6 Pokémon will be parsed automatically.</p>
+    <p class="modal-hint">Paste or fetch a team, then review the Champion legality check before loading. Invalid moves, items, IVs, or over-cap spreads are blocked before they can enter sim data.</p>
+    <div class="import-flow-card" id="import-flow-card">
+      <strong>Upload checker ready</strong>
+      <span>Paste a Showdown team to see parsed Pokémon, item legality, move legality, warnings, and the destination slot.</span>
+    </div>
     <div class="import-tabs">
       <button class="import-tab active" data-itab="paste">Paste Text</button>
       <button class="import-tab" data-itab="url">pokepast.es URL</button>
     </div>
     <div id="itab-paste">
+      <div class="import-helper-row">
+        <button class="btn-secondary" id="load-sample-import-team" type="button">Try legal sample team</button>
+        <span>Loads Kevin Meta Sun so you can test upload, edit, and sim flow.</span>
+      </div>
       <textarea class="export-textarea" id="showdown-paste" placeholder="Paste Showdown export here…" rows="10"></textarea>
     </div>
     <div id="itab-url" style="display:none">
@@ -583,6 +766,7 @@
         <option value="aurora_veil_froslass">Aurora Veil Froslass</option>
       </select>
     </div>
+    <div class="import-destination-card" id="import-destination-card"></div>
     <div id="import-status" class="modal-status"></div>
     <div style="display:flex;gap:var(--sp3);margin-top:var(--sp4)">
       <button class="btn-primary" id="do-import-btn">Load Team</button>
@@ -628,6 +812,7 @@
 <script src="logger.js"></script>
 <script src="generated/pokemon_showdown_legal_data.js"></script>
 <script src="generated/pokemon_showdown_species_weights.js"></script>
+<script src="generated/source_sync_status.js"></script>
 <script src="runtime_data.js"></script>
 <script src="engine.js"></script>
 <script src="rulesets.js"></script>

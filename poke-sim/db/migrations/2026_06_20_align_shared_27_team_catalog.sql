@@ -1,4 +1,4 @@
--- Align shared 27-team catalog across Y Factor, Alfredo, and live Supabase. (auto-generated)
+-- Align shared 34-team catalog across Y Factor, Alfredo, and live Supabase. (auto-generated)
 -- Source: poke-sim/data.js TEAMS literal and poke-sim/tools/generate_seed_from_data.py
 -- Preferred live-DB catalog alignment path. Re-run the generator instead of editing by hand.
 -- Safe shape: transaction + ruleset/team UPSERTs + team_members replace for canonical team IDs only.
@@ -49,7 +49,13 @@ VALUES
   ('sand_bulky_offense', 'Sand Bulky Offense', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'sand_bulky_offense_champions_regma_v1', 'Calibration sand offense built from shipped legal catalog sets and public sample-team archetypes.', '{"assumption_register":["Roster was assembled from already-shipped legal sets to widen calibration coverage.","This is a calibration shell, not a pinned public paste."],"champion_pack_id":"sand_bulky_offense_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Derived sample shell repaired to Champions Reg M-A legality by replacing the banned Gholdengo Choice Specs slot with a legal held item while preserving the same sand-offense role mix.","legality_status":"legal_inferred","provenance":{"author":"calibration","roster_source":"https://www.smogon.com/forums/threads/4v4-doubles-uu-regulation-m-a.3774137/","spread_source":"archetype-derived from shipped catalog","status":"derived","url":"https://www.smogon.com/forums/threads/4v4-doubles-uu-regulation-m-a.3774137/"},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"style":"sand"}'::jsonb),
   ('fire_ice_fullroom', 'Fire and Ice Fullroom', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'fire_ice_fullroom_champions_regma_v1', 'Calibration room team built from shipped legal catalog sets and public sample-team archetypes.', '{"assumption_register":["Roster was assembled from already-shipped legal sets to widen calibration coverage.","This is a calibration shell, not a pinned public paste."],"champion_pack_id":"fire_ice_fullroom_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Derived sample shell repaired to Champions Reg M-A legality by replacing the banned Ursaluna-Bloodmoon Assault Vest slot with a legal held item while preserving the same fullroom structure.","legality_status":"legal_inferred","provenance":{"author":"calibration","roster_source":"https://www.smogon.com/forums/threads/4v4-doubles-uu-regulation-m-a.3774137/","spread_source":"archetype-derived from shipped catalog","status":"derived","url":"https://www.smogon.com/forums/threads/4v4-doubles-uu-regulation-m-a.3774137/"},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"style":"trick_room"}'::jsonb),
   ('zardx_snow_setup', 'ZardX Snow Setup', 'SAMPLE TEAM', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'zardx_snow_setup_champions_regma_v1', 'Calibration snow offense built from shipped legal catalog sets and public sample-team archetypes.', '{"assumption_register":["Roster was assembled from already-shipped legal sets to widen calibration coverage.","This is a calibration shell, not a pinned public paste."],"champion_pack_id":"zardx_snow_setup_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Derived sample shell repaired to Champions Reg M-A legality by replacing the banned Milotic Life Orb slot with a legal held item while preserving the same Zard X snow setup shell.","legality_status":"legal_inferred","provenance":{"author":"calibration","roster_source":"https://www.smogon.com/forums/threads/4v4-doubles-uu-regulation-m-a.3774137/","spread_source":"archetype-derived from shipped catalog","status":"derived","url":"https://www.smogon.com/forums/threads/4v4-doubles-uu-regulation-m-a.3774137/"},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"style":"snow_mega"}'::jsonb),
-  ('targeted_proof_legal', 'Targeted Proof Legal', 'QA PROOF', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'targeted_proof_legal_champions_regma_v1', 'Legal Champions QA proof team for targeted evidence: Shed Tail or Clangorous Soul HP cost, Wish delayed recovery, and Leech Seed residual drain.', '{"assumption_register":["This is a QA proof team, not a tournament paste.","Use Orthworm or Kommo-o for HP-cost proof, Kangaskhan for Wish delayed recovery proof, and Meganium for Leech Seed residual drain proof."],"champion_pack_id":"targeted_proof_legal_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Purpose-built legal Champions proof team. All species are allowed in Reg M-A, items are in the verified Champions pool, SP spreads obey 32-per-stat/66-total caps, and moves pass the generated Showdown-backed species/form legality gate.","legality_status":"legal","provenance":{"author":"qa","roster_source":"repo QA targeted proof coverage","spread_source":"legal Champions SP proof spreads","status":"proof-team","url":""},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"style":"balance"}'::jsonb)
+  ('targeted_stat_source_proof', 'Targeted Stat Source Proof', 'QA STAT', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'targeted_stat_source_proof_champions_regma_v1', 'Legal Champions QA proof team for non-standard damage stat-source evidence: Foul Play uses the target Attack, Body Press uses the user''s Defense, and Psyshock-style special damage targets Defense.', '{"assumption_register":["This is a QA proof team, not a tournament paste.","Use Sableye to force Foul Play target-Attack traces, Orthworm or Kommo-o to force Body Press user-Defense traces, and Hatterene to force Psyshock target-Defense traces."],"champion_pack_id":"targeted_stat_source_proof_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Purpose-built legal Champions proof team. Species are active runtime-supported Reg M-A entries, moves are already represented in the generated Showdown-backed move tables, items are in the verified Champions pool, and SP spreads obey 32-per-stat/66-total caps.","legality_status":"legal","provenance":{"author":"qa","roster_source":"repo QA targeted proof coverage","spread_source":"legal Champions SP proof spreads","status":"proof-team","url":""},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"source":"preloaded","style":"qa_proof"}'::jsonb),
+  ('targeted_proof_legal', 'Targeted Proof Legal', 'QA PROOF', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'targeted_proof_legal_champions_regma_v1', 'Legal Champions QA proof team for targeted evidence: Shed Tail or Clangorous Soul HP cost, Wish delayed recovery, and Leech Seed residual drain.', '{"assumption_register":["This is a QA proof team, not a tournament paste.","Use Orthworm or Kommo-o for HP-cost proof, Kangaskhan for Wish delayed recovery proof, and Meganium for Leech Seed residual drain proof."],"champion_pack_id":"targeted_proof_legal_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Purpose-built legal Champions proof team. All species are allowed in Reg M-A, items are in the verified Champions pool, SP spreads obey 32-per-stat/66-total caps, and moves pass the generated Showdown-backed species/form legality gate.","legality_status":"legal","provenance":{"author":"qa","roster_source":"repo QA targeted proof coverage","spread_source":"legal Champions SP proof spreads","status":"proof-team","url":""},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"style":"balance"}'::jsonb),
+  ('indeedee_hatterene_tr', 'Indeedee Hatterene Trick Room', 'REG M', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'indeedee_hatterene_tr_champions_regma_v1', 'Psychic Terrain + double Trick Room pressure built around Indeedee-F redirection, Hatterene burst turns, and slow-mode cleanup from Torkoal and Kingambit.', '{"assumption_register":["This is a competitive preloaded ladder/team-lab row, not a claimed event paste.","The goal is to cover Psychic Terrain redirection, Trick Room sequencing, and slow-mode win conditions in the visible approved runtime lane."],"champion_pack_id":"indeedee_hatterene_tr_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added as a safe current-reg style lane without introducing unverified Reg M-B-only Mega rows.","legality_status":"legal","provenance":{"author":"codex","roster_source":"repo competitive expansion","spread_source":"legal Champions runtime-supported spreads","status":"approved-runtime","url":""},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"source":"preloaded","style":"trick_room"}'::jsonb),
+  ('rillaboom_archaludon_balance', 'Rillaboom Archaludon Balance', 'REG M', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'rillaboom_archaludon_balance_champions_regma_v1', 'Modern balance shell using Grassy Surge tempo, Pelipper rain support, Archaludon pressure, and Gholdengo/Kingambit endgames.', '{"assumption_register":["This is a competitive preloaded ladder/team-lab row, not a claimed event paste.","The goal is to add a current-reg balance shell that exercises terrain, Tailwind, rain pressure, and defensive pivoting."],"champion_pack_id":"rillaboom_archaludon_balance_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added to cover Grassy Terrain pacing, rain-supported pressure, and recovery/tempo lines in the approved lane.","legality_status":"legal","provenance":{"author":"codex","roster_source":"repo competitive expansion","spread_source":"legal Champions runtime-supported spreads","status":"approved-runtime","url":""},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"source":"preloaded","style":"balance"}'::jsonb),
+  ('arboliva_seed_sower_balance', 'Arboliva Seed Sower Balance', 'REG M', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'arboliva_seed_sower_balance_champions_regma_v1', 'Reactive Grassy Terrain balance shell built around Arboliva sustain, Pelipper speed support, and mixed-pressure endgames from Archaludon, Gholdengo, and Garchomp.', '{"assumption_register":["This is a competitive preloaded ladder/team-lab row, not a claimed event paste.","The goal is to create visible approved coverage for terrain flips, sustain sequencing, and cleanup lines after terrain-trigger turns."],"champion_pack_id":"arboliva_seed_sower_balance_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added to cover reactive Grassy Terrain, sustain loops, and mixed-speed balance in the approved lane.","legality_status":"legal","provenance":{"author":"codex","roster_source":"repo competitive expansion","spread_source":"legal Champions runtime-supported spreads","status":"approved-runtime","url":""},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"source":"preloaded","style":"balance"}'::jsonb),
+  ('pelipper_basculegion_rain', 'Pelipper Basculegion Rain', 'REG M', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'pelipper_basculegion_rain_champions_regma_v1', 'Rain offense with Pelipper speed control, Basculegion burst pressure, Rillaboom terrain pivoting, and Gholdengo endgame cleanup.', '{"assumption_register":["This is a competitive preloaded ladder/team-lab row, not a claimed event paste.","The goal is to add a fast weather shell that exercises rain offense, Tailwind timing, and terrain-weather pivot decisions."],"champion_pack_id":"pelipper_basculegion_rain_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Built only from runtime-supported Champions Reg M-A species/forms with generated Showdown-backed move support and Champions-legal SP spreads. Added to cover true rain offense in the approved runtime lane.","legality_status":"legal","provenance":{"author":"codex","roster_source":"repo competitive expansion","spread_source":"legal Champions runtime-supported spreads","status":"approved-runtime","url":""},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"source":"preloaded","style":"weather"}'::jsonb),
+  ('kevin_meta_sun', 'Kevin Meta Sun', 'KEVIN', 'opponent', 'champions_reg_m_doubles_bo3', 'builtin', 'kevin_meta_sun_champions_regma_v1', 'High-floor current-meta sun offense for real-play testing: Mega Charizard Y pressure, Venusaur sleep control, Garchomp spread pressure, Sneasler disruption, Incineroar pivoting, and Whimsicott speed control.', '{"assumption_register":["This is a real-play legal Champions team recommendation, not a claim of absolute solved best six.","The closest public meta source shell was Aaron Zheng''s Charizard Y sun team on Game8, but Whimsicott replaces the weaker current runtime Rotom-Wash lane to keep both real-play direction and in-app legality clean."],"champion_pack_id":"kevin_meta_sun_champions_regma_v1","format":"champions","formatid":"champions-vgc-2026-regma","gametype":"doubles","legality_notes":"Built to stay inside the verified Champions item pool and current runtime-supported move/species lane. The shell follows the current Charizard Y sun direction surfaced by Game8 and the current doubles tier list, but uses only moves the app can validate today.","legality_status":"legal","provenance":{"author":"codex","roster_source":"current meta adaptation from Game8 doubles best teams + doubles tier list","spread_source":"Game8 listed Champions spreads adapted only where current runtime-supported move legality required it","status":"approved-runtime","url":"https://game8.co/games/Pokemon-Champions/archives/593949"},"ruleset":["Species Clause","Item Clause","Bring 6 Pick 4","Level 50"],"source":"preloaded","style":"weather"}'::jsonb)
 ON CONFLICT (team_id) DO UPDATE SET
   name = EXCLUDED.name,
   label = EXCLUDED.label,
@@ -59,6 +65,49 @@ ON CONFLICT (team_id) DO UPDATE SET
   source_ref = EXCLUDED.source_ref,
   description = EXCLUDED.description,
   metadata = EXCLUDED.metadata;
+
+-- Retire stale built-in rows that are no longer part of the reviewed repo catalog.
+-- They stay available for historical FK references but cannot remain active selector/training rows.
+UPDATE teams
+SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"retired":true,"retired_reason":"not_in_current_legal_repo_catalog"}'::jsonb
+WHERE team_id NOT IN (
+  'player',
+  'mega_altaria',
+  'mega_dragonite',
+  'mega_houndoom',
+  'rin_sand',
+  'suica_sun',
+  'cofagrigus_tr',
+  'champions_arena_1st',
+  'champions_arena_2nd',
+  'champions_arena_3rd',
+  'aurora_veil_froslass',
+  'custom_1776995210260',
+  'perish_trap_gengar',
+  'rain_offense',
+  'trick_room_golurk',
+  'sun_offense_charizard',
+  'z2r_feitosa_mega_floette',
+  'benny_v_mega_froslass',
+  'lukasjoel1_sand_gengar',
+  'hiroto_imai_snow',
+  'fedecampovgc_aerodactyl_ariados',
+  'swirlingroses_meganium_vivillon',
+  'prro_t_floette_aerodactyl',
+  'fabulous_sunroom',
+  'sand_bulky_offense',
+  'fire_ice_fullroom',
+  'zardx_snow_setup',
+  'targeted_stat_source_proof',
+  'targeted_proof_legal',
+  'indeedee_hatterene_tr',
+  'rillaboom_archaludon_balance',
+  'arboliva_seed_sower_balance',
+  'pelipper_basculegion_rain',
+  'kevin_meta_sun'
+)
+  AND source = 'builtin'
+  AND COALESCE(metadata->>'retired', 'false') <> 'true';
 
 -- Replace normalized members for shared canonical repo teams only.
 DELETE FROM team_members WHERE team_id IN (
@@ -89,7 +138,13 @@ DELETE FROM team_members WHERE team_id IN (
   'sand_bulky_offense',
   'fire_ice_fullroom',
   'zardx_snow_setup',
-  'targeted_proof_legal'
+  'targeted_stat_source_proof',
+  'targeted_proof_legal',
+  'indeedee_hatterene_tr',
+  'rillaboom_archaludon_balance',
+  'arboliva_seed_sower_balance',
+  'pelipper_basculegion_rain',
+  'kevin_meta_sun'
 );
 
 -- ============================================================
@@ -339,6 +394,15 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
   ('zardx_snow_setup', 5, 'Kingambit', 'Chople Berry', 'Supreme Overlord', 'Adamant', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Kowtow Cleave","Sucker Punch","Low Kick","Protect"]'::jsonb, NULL, 'Supreme Overlord Sweeper'),
   ('zardx_snow_setup', 6, 'Milotic', 'Leftovers', 'Competitive', 'Modest', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":32,"spe":0}'::jsonb, '["Blizzard","Scald","Weather Ball","Life Dew"]'::jsonb, NULL, 'Utility / Secret Weapon');
 
+-- targeted_stat_source_proof
+INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
+  ('targeted_stat_source_proof', 1, 'Sableye', 'Black Glasses', 'Prankster', 'Impish', 50, '{"atk":0,"def":32,"hp":32,"spa":0,"spd":2,"spe":0}'::jsonb, '["Foul Play","Recover","Reflect","Protect"]'::jsonb, NULL, 'Foul Play Stat-Source Proof'),
+  ('targeted_stat_source_proof', 2, 'Orthworm', 'Sitrus Berry', 'Earth Eater', 'Impish', 50, '{"atk":0,"def":32,"hp":32,"spa":0,"spd":2,"spe":0}'::jsonb, '["Body Press","Shed Tail","Protect","Helping Hand"]'::jsonb, NULL, 'Body Press Stat-Source Proof'),
+  ('targeted_stat_source_proof', 3, 'Hatterene', 'Leftovers', 'Magic Bounce', 'Bold', 50, '{"atk":0,"def":32,"hp":32,"spa":2,"spd":0,"spe":0}'::jsonb, '["Psyshock","Trick Room","Recover","Protect"]'::jsonb, NULL, 'Psyshock Defense-Target Proof'),
+  ('targeted_stat_source_proof', 4, 'Kommo-o', 'Dragon Fang', 'Overcoat', 'Impish', 50, '{"atk":0,"def":32,"hp":32,"spa":0,"spd":2,"spe":0}'::jsonb, '["Body Press","Clangorous Soul","Protect","Clanging Scales"]'::jsonb, NULL, 'Alternate Body Press Proof'),
+  ('targeted_stat_source_proof', 5, 'Garchomp', 'Soft Sand', 'Rough Skin', 'Adamant', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Earthquake","Dragon Claw","Rock Slide","Protect"]'::jsonb, NULL, 'High-Attack Foul Play Target'),
+  ('targeted_stat_source_proof', 6, 'Pelipper', 'Focus Sash', 'Drizzle', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Tailwind","Weather Ball","U-turn","Protect"]'::jsonb, NULL, 'Weather / Speed Support');
+
 -- targeted_proof_legal
 INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
   ('targeted_proof_legal', 1, 'Orthworm', 'Sitrus Berry', 'Earth Eater', 'Careful', 50, '{"atk":1,"def":1,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Shed Tail","Protect","Helping Hand","Iron Head"]'::jsonb, NULL, 'HP-Cost Proof'),
@@ -347,5 +411,50 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
   ('targeted_proof_legal', 4, 'Garchomp', 'Soft Sand', 'Rough Skin', 'Jolly', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Tackle","Protect","Dragon Claw","Earthquake"]'::jsonb, NULL, 'Legal Target / Damage Probe'),
   ('targeted_proof_legal', 5, 'Kommo-o', 'Dragon Fang', 'Overcoat', 'Modest', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":0,"spe":32}'::jsonb, '["Clangorous Soul","Protect","Aura Sphere","Clanging Scales"]'::jsonb, NULL, 'Alternate HP-Cost Proof'),
   ('targeted_proof_legal', 6, 'Pelipper', 'Mystic Water', 'Drizzle', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Protect","Tailwind","Weather Ball","U-turn"]'::jsonb, NULL, 'Weather / Speed Support');
+
+-- indeedee_hatterene_tr
+INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
+  ('indeedee_hatterene_tr', 1, 'Indeedee-F', 'Focus Sash', 'Psychic Surge', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Follow Me","Helping Hand","Expanding Force","Protect"]'::jsonb, NULL, 'Terrain / Redirection'),
+  ('indeedee_hatterene_tr', 2, 'Hatterene', 'Leftovers', 'Magic Bounce', 'Quiet', 50, '{"atk":0,"def":2,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Trick Room","Expanding Force","Dazzling Gleam","Protect"]'::jsonb, NULL, 'Primary Trick Room Breaker'),
+  ('indeedee_hatterene_tr', 3, 'Farigiraf', 'Sitrus Berry', 'Armor Tail', 'Sassy', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Trick Room","Helping Hand","Hyper Voice","Protect"]'::jsonb, NULL, 'Secondary Trick Room / Anti-Priority'),
+  ('indeedee_hatterene_tr', 4, 'Torkoal', 'Charcoal', 'Drought', 'Quiet', 50, '{"atk":0,"def":2,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Eruption","Heat Wave","Yawn","Protect"]'::jsonb, NULL, 'Slow-Mode Damage'),
+  ('indeedee_hatterene_tr', 5, 'Amoonguss', 'Lum Berry', 'Regenerator', 'Sassy', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Spore","Rage Powder","Pollen Puff","Protect"]'::jsonb, NULL, 'Redirection / Recovery Pivot'),
+  ('indeedee_hatterene_tr', 6, 'Kingambit', 'Black Glasses', 'Defiant', 'Adamant', 50, '{"atk":32,"def":0,"hp":32,"spa":0,"spd":2,"spe":0}'::jsonb, '["Kowtow Cleave","Iron Head","Swords Dance","Protect"]'::jsonb, NULL, 'Backline Punish');
+
+-- rillaboom_archaludon_balance
+INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
+  ('rillaboom_archaludon_balance', 1, 'Rillaboom', 'Miracle Seed', 'Grassy Surge', 'Adamant', 50, '{"atk":32,"def":0,"hp":32,"spa":0,"spd":2,"spe":0}'::jsonb, '["Grassy Glide","Wood Hammer","Knock Off","U-turn"]'::jsonb, NULL, 'Terrain Pivot'),
+  ('rillaboom_archaludon_balance', 2, 'Pelipper', 'Focus Sash', 'Drizzle', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Tailwind","Hurricane","Weather Ball","Protect"]'::jsonb, NULL, 'Rain / Speed Control'),
+  ('rillaboom_archaludon_balance', 3, 'Archaludon', 'Metal Coat', 'Stamina', 'Modest', 50, '{"atk":0,"def":2,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Electro Shot","Flash Cannon","Body Press","Protect"]'::jsonb, NULL, 'Rain Abuse Breaker'),
+  ('rillaboom_archaludon_balance', 4, 'Gholdengo', 'Spell Tag', 'Good as Gold', 'Timid', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":0,"spe":32}'::jsonb, '["Make It Rain","Shadow Ball","Nasty Plot","Protect"]'::jsonb, NULL, 'Special Cleaner'),
+  ('rillaboom_archaludon_balance', 5, 'Amoonguss', 'Sitrus Berry', 'Regenerator', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Spore","Rage Powder","Pollen Puff","Protect"]'::jsonb, NULL, 'Disruption / Sustain'),
+  ('rillaboom_archaludon_balance', 6, 'Kingambit', 'Lum Berry', 'Defiant', 'Adamant', 50, '{"atk":32,"def":0,"hp":32,"spa":0,"spd":2,"spe":0}'::jsonb, '["Kowtow Cleave","Iron Head","Swords Dance","Protect"]'::jsonb, NULL, 'Physical Punish');
+
+-- arboliva_seed_sower_balance
+INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
+  ('arboliva_seed_sower_balance', 1, 'Arboliva', 'Leftovers', 'Seed Sower', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Giga Drain","Pollen Puff","Terrain Pulse","Protect"]'::jsonb, NULL, 'Terrain Sustain Core'),
+  ('arboliva_seed_sower_balance', 2, 'Pelipper', 'Focus Sash', 'Drizzle', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Tailwind","Hurricane","Weather Ball","Protect"]'::jsonb, NULL, 'Rain / Speed Control'),
+  ('arboliva_seed_sower_balance', 3, 'Archaludon', 'Metal Coat', 'Stamina', 'Modest', 50, '{"atk":0,"def":2,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Electro Shot","Flash Cannon","Body Press","Protect"]'::jsonb, NULL, 'Special Breaker'),
+  ('arboliva_seed_sower_balance', 4, 'Gholdengo', 'Spell Tag', 'Good as Gold', 'Timid', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":0,"spe":32}'::jsonb, '["Make It Rain","Shadow Ball","Nasty Plot","Protect"]'::jsonb, NULL, 'Special Cleaner'),
+  ('arboliva_seed_sower_balance', 5, 'Garchomp', 'Soft Sand', 'Rough Skin', 'Jolly', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Earthquake","Dragon Claw","Rock Slide","Protect"]'::jsonb, NULL, 'Fast Physical Pressure'),
+  ('arboliva_seed_sower_balance', 6, 'Amoonguss', 'Lum Berry', 'Regenerator', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Spore","Rage Powder","Pollen Puff","Protect"]'::jsonb, NULL, 'Disruption / Sustain');
+
+-- pelipper_basculegion_rain
+INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
+  ('pelipper_basculegion_rain', 1, 'Pelipper', 'Focus Sash', 'Drizzle', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Tailwind","Hurricane","Weather Ball","Protect"]'::jsonb, NULL, 'Rain / Speed Control'),
+  ('pelipper_basculegion_rain', 2, 'Basculegion', 'Mystic Water', 'Swift Swim', 'Adamant', 50, '{"atk":32,"def":0,"hp":2,"spa":0,"spd":0,"spe":32}'::jsonb, '["Wave Crash","Aqua Jet","Crunch","Protect"]'::jsonb, NULL, 'Rain Sweeper'),
+  ('pelipper_basculegion_rain', 3, 'Rillaboom', 'Miracle Seed', 'Grassy Surge', 'Adamant', 50, '{"atk":32,"def":0,"hp":32,"spa":0,"spd":2,"spe":0}'::jsonb, '["Grassy Glide","Wood Hammer","Knock Off","U-turn"]'::jsonb, NULL, 'Terrain Pivot'),
+  ('pelipper_basculegion_rain', 4, 'Gholdengo', 'Spell Tag', 'Good as Gold', 'Timid', 50, '{"atk":0,"def":0,"hp":2,"spa":32,"spd":0,"spe":32}'::jsonb, '["Make It Rain","Shadow Ball","Nasty Plot","Protect"]'::jsonb, NULL, 'Special Cleaner'),
+  ('pelipper_basculegion_rain', 5, 'Archaludon', 'Metal Coat', 'Stamina', 'Modest', 50, '{"atk":0,"def":2,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Electro Shot","Flash Cannon","Body Press","Protect"]'::jsonb, NULL, 'Rain Breaker'),
+  ('pelipper_basculegion_rain', 6, 'Amoonguss', 'Sitrus Berry', 'Regenerator', 'Calm', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":32,"spe":0}'::jsonb, '["Spore","Rage Powder","Pollen Puff","Protect"]'::jsonb, NULL, 'Disruption / Sustain');
+
+-- kevin_meta_sun
+INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
+  ('kevin_meta_sun', 1, 'Charizard', 'Charizardite Y', 'Solar Power', 'Timid', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":1,"spe":32}'::jsonb, '["Heat Wave","Solar Beam","Weather Ball","Protect"]'::jsonb, NULL, 'Primary Sun Breaker'),
+  ('kevin_meta_sun', 2, 'Venusaur', 'Focus Sash', 'Chlorophyll', 'Modest', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":1,"spe":32}'::jsonb, '["Sleep Powder","Leaf Storm","Sludge Bomb","Protect"]'::jsonb, NULL, 'Sun Speed Control / Sleep Pressure'),
+  ('kevin_meta_sun', 3, 'Garchomp', 'Choice Scarf', 'Rough Skin', 'Adamant', 50, '{"atk":32,"def":1,"hp":1,"spa":0,"spd":0,"spe":32}'::jsonb, '["Rock Slide","Dragon Claw","Earthquake","Bulldoze"]'::jsonb, NULL, 'Fast Spread Pressure'),
+  ('kevin_meta_sun', 4, 'Sneasler', 'White Herb', 'Unburden', 'Jolly', 50, '{"atk":32,"def":0,"hp":0,"spa":0,"spd":0,"spe":32}'::jsonb, '["Dire Claw","Close Combat","Rock Slide","Coaching"]'::jsonb, NULL, 'Fast Disruption / Cleanup'),
+  ('kevin_meta_sun', 5, 'Incineroar', 'Sitrus Berry', 'Intimidate', 'Adamant', 50, '{"atk":32,"def":0,"hp":32,"spa":0,"spd":0,"spe":2}'::jsonb, '["Darkest Lariat","Flare Blitz","Fake Out","Knock Off"]'::jsonb, NULL, 'Pivot / Tempo Control'),
+  ('kevin_meta_sun', 6, 'Whimsicott', 'Mental Herb', 'Prankster', 'Timid', 50, '{"atk":0,"def":2,"hp":32,"spa":0,"spd":0,"spe":32}'::jsonb, '["Tailwind","Encore","Moonblast","Protect"]'::jsonb, NULL, 'Speed Control / Disruption');
 
 COMMIT;

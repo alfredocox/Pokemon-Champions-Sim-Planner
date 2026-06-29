@@ -104,6 +104,10 @@ T('4. bundle and cache drift workflows treat legality/ruleset files as app sourc
 T('5. Pages deploy runs Champion source-of-truth checks before publishing', () => {
   [
     'db_m2_seed_tests.js',
+    'RUN_LIVE_DB=1',
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_KEY',
+    'Live Supabase seed parity enabled for Pages deploy.',
     'champion_pack_legality_tests.js',
     'preloaded_team_legality_tests.js',
     't9j11_tests.js',

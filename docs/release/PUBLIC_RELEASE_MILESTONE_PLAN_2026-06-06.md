@@ -44,6 +44,10 @@ Reference links:
 - https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https
 - https://supabase.com/docs/guides/database/postgres/row-level-security
 
+Current release checklist:
+
+- `docs/release/DEPLOYMENT_SECURITY_CHECKLIST_2026-06-28.md`
+
 ## Release Milestones
 
 | Milestone | Name | Goal | Exit Criteria | Status |
@@ -88,6 +92,7 @@ Reference links:
 | Add release-blocking sim truth test group | Engineering | Priority/order/log tests and selected mechanics gates are required for sim changes |
 | Separate docs-only and sim-impact release gates | Engineering | Docs can merge without full audit; sim-impact changes run stricter tests |
 | Add live Pages smoke after deploy | Josh / engineering | Deployed URL is checked for bundle text, Supabase config, service worker version, and core tab load |
+| Add hard-beta mobile/public guardrails | Engineering | Risky public devices are routed to capped paths and cannot trigger unsafe browser stress by default |
 
 ### R3 - Showdown Data Pipeline
 
@@ -117,6 +122,7 @@ Reference links:
 | Expand turn order gate | Engineering | Priority, Trick Room, Tailwind, paralysis, stat boosts, Choice Scarf, and speed ties pass |
 | Expand damage gate | Engineering | Damage formula and Champions damage override path are covered |
 | Expand battlefield gate | Engineering | Terrain, weather, status, Protect-family, Quick Guard, spread, and target behavior pass |
+| Add long-tail public-beta mechanics gate | Engineering | Multi-effect moves, same-family priority suppression, field/state legality shifts, status interactions, and Fake Out suppression have deterministic tests and visible QA proof |
 | Expand Pokemon identity gate | Engineering | Switches, faints, bench movement, leads, item ownership, and consumed items stay stable |
 | Add Showdown oracle smoke harness | Engineering | Selected scenarios compare our behavior to Showdown or `@pkmn/sim` outputs |
 | Require strict fresh live logs | Josh / Kevin | New exported logs pass `tools/validate-turn-logs.mjs --require-stable` |

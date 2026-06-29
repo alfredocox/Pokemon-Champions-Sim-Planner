@@ -3054,5 +3054,54 @@ T('104. Light of Ruin recoil and Ice Shard priority are modeled', () => {
   truthy(shardIndex >= 0 && pulseIndex >= 0 && shardIndex < pulseIndex, 'Ice Shard should act before faster standard-priority moves');
 });
 
+T('105. move failures are exported as structured effect_events', () => {
+  const throatBattle = simulateBattle(team('Failure Player', [{
+    name: 'Sylveon',
+    ability: '',
+    item: '',
+    nature: 'Modest',
+    level: 50,
+    moves: ['Hyper Voice'],
+    throatChopTurns: 1,
+    evs: { hp: 252, spa: 252, spe: 4, atk: 0, def: 0, spd: 0 }
+  }]), team('Failure Opponent', [{
+    name: 'Snorlax',
+    ability: '',
+    item: '',
+    nature: 'Careful',
+    level: 50,
+    moves: ['Tackle'],
+    evs: { hp: 252, def: 252, spd: 4, atk: 0, spa: 0, spe: 0 }
+  }]), { format: 'singles', seed: [1, 2, 3, 4], maxTurns: 1 });
+  const throatEvent = ((throatBattle.turnLog[0] || {}).effect_events || [])
+    .find((row) => row.effect_kind === 'move-failure' && row.failed_move === 'Hyper Voice');
+  truthy(throatEvent, 'Throat Chop move-failure event missing');
+  eq(throatEvent.failure_reason, 'throat-chop', 'Throat Chop failure reason');
+  truthy(throatEvent.move_failed === true && throatEvent.skipped_move === false, 'move failure should not be classified as action denial');
+
+  const poltergeistBattle = simulateBattle(team('Poltergeist Player', [{
+    name: 'Gengar',
+    ability: '',
+    item: '',
+    nature: 'Timid',
+    level: 50,
+    moves: ['Poltergeist'],
+    evs: { hp: 4, spa: 252, spe: 252, atk: 0, def: 0, spd: 0 }
+  }]), team('No Item Target', [{
+    name: 'Snorlax',
+    ability: '',
+    item: '',
+    nature: 'Careful',
+    level: 50,
+    moves: ['Tackle'],
+    evs: { hp: 252, def: 252, spd: 4, atk: 0, spa: 0, spe: 0 }
+  }]), { format: 'singles', seed: [1, 2, 3, 4], maxTurns: 1 });
+  const poltergeistEvent = ((poltergeistBattle.turnLog[0] || {}).effect_events || [])
+    .find((row) => row.effect_kind === 'move-failure' && row.failed_move === 'Poltergeist');
+  truthy(poltergeistEvent, 'Poltergeist move-failure event missing');
+  eq(poltergeistEvent.failure_reason, 'poltergeist-no-item', 'Poltergeist failure reason');
+  truthy(/no usable held item/.test(poltergeistEvent.note || ''), 'Poltergeist failure note should explain no item');
+});
+
 console.log(`\nmove verification registry: ${pass} pass, ${fail} fail\n`);
 process.exit(fail ? 1 : 0);
