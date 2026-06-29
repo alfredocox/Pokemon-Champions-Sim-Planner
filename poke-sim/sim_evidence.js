@@ -141,6 +141,251 @@
     };
   }
 
+  function artifactSourceGap(code, message, pointer) {
+    var row = { code: code, message: message };
+    if (pointer) row.pointer = pointer;
+    return row;
+  }
+
+  function sourceGapId(gap) {
+    if (!gap) return '';
+    return String(gap.code || '') + '::' + String(gap.pointer || '') + '::' + String(gap.message || '');
+  }
+
+  function uniqueGaps(gaps) {
+    var seen = {};
+    var out = [];
+    (gaps || []).forEach(function(gap) {
+      var key = sourceGapId(gap);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push(gap);
+    });
+    return out;
+  }
+
+  function artifactFormat(value) {
+    var fmt = String(value || '').toLowerCase();
+    if (fmt === 'single' || fmt === 'singles') return 'singles';
+    if (fmt === 'double' || fmt === 'doubles') return 'doubles';
+    return null;
+  }
+
+  function artifactResultReason(result) {
+    var value = String(result || '').toLowerCase();
+    if (value === 'draw') return 'draw';
+    if (value === 'timeout' || value === 'timer') return 'timer';
+    if (value === 'forfeit') return 'forfeit';
+    if (value === 'error') return 'error';
+    return 'ko';
+  }
+
+  function artifactWinnerTeamId(result, playerTeamId, opponentTeamId) {
+    var value = String(result || '').toLowerCase();
+    if (value === 'win') return playerTeamId || null;
+    if (value === 'loss') return opponentTeamId || null;
+    return null;
+  }
+
+  function artifactTeamId(rawId, side, opts, sourceGaps) {
+    opts = opts || {};
+    var map = opts.teamIdMap || opts.team_id_map || {};
+    var key = rawId == null || rawId === '' ? side : String(rawId);
+    var mapped = map[key] || map[side] || null;
+    if (mapped) return String(mapped);
+    sourceGaps.push(artifactSourceGap(
+      'TEAM_ID_MAPPING_NEEDED',
+      'Artifact uses a local/team-key identifier that must be mapped to a Team Lab team UUID before database insertion or leaderboard aggregation.',
+      key
+    ));
+    return 'artifact:' + side + ':' + key;
+  }
+
+  function artifactVersionScope(payload, opts, sourceGaps) {
+    opts = opts || {};
+    var buildId = opts.engine_version || payload.engine_version || payload.build_id || 'unknown-engine-version';
+    var rulesetVersion = opts.ruleset_version || payload.ruleset_version || payload.ruleset_id || 'unknown-ruleset-version';
+    var regulationId = opts.regulation_id || payload.regulation_id || (payload.qa_coverage_summary && payload.qa_coverage_summary.regulation_id) || 'unknown-regulation';
+    var fmt = artifactFormat(opts.format || payload.format || payload.current_format || (payload.qa_coverage_summary && payload.qa_coverage_summary.format)) || 'doubles';
+    if (!opts.regulation_id && !payload.regulation_id) {
+      sourceGaps.push(artifactSourceGap('REGULATION_ID_INFERRED', 'Artifact did not include a first-class regulation_id; caller must attach the Champion regulation before ranking.', 'regulation_id'));
+    }
+    if (!opts.ruleset_version && !payload.ruleset_version && !payload.ruleset_id) {
+      sourceGaps.push(artifactSourceGap('RULESET_VERSION_INFERRED', 'Artifact did not include ruleset_version; caller must attach the compiled ruleset package before ranking.', 'ruleset_version'));
+    }
+    if (!opts.engine_version && !payload.engine_version && !payload.build_id) {
+      sourceGaps.push(artifactSourceGap('ENGINE_VERSION_MISSING', 'Artifact did not include build_id or engine_version.', 'engine_version'));
+    }
+    return {
+      engine_version: String(buildId),
+      ruleset_version: String(rulesetVersion),
+      regulation_id: String(regulationId),
+      format: fmt
+    };
+  }
+
+  function artifactRowsFromTextLog(lines) {
+    if (!Array.isArray(lines)) return [];
+    return lines.map(function(line, index) {
+      return { row: index + 1, event_type: 'log_line', message: String(line == null ? '' : line) };
+    });
+  }
+
+  function artifactDamageRows(turnLog) {
+    var out = [];
+    (turnLog || []).forEach(function(turn) {
+      ((turn && turn.damage_events) || []).forEach(function(row) { out.push(row); });
+    });
+    return out;
+  }
+
+  function artifactEffectRows(turnLog) {
+    var out = [];
+    (turnLog || []).forEach(function(turn) {
+      ((turn && turn.effect_events) || []).forEach(function(row) { out.push(row); });
+    });
+    return out;
+  }
+
+  function replayRecordFromArtifactCard(card, payload, opts, parentSourceGaps) {
+    card = card || {};
+    payload = payload || {};
+    opts = opts || {};
+    var sourceGaps = cloneArray(parentSourceGaps);
+    var scope = artifactVersionScope(Object.assign({}, payload, card), opts, sourceGaps);
+    var playerKey = card.player_team_id || card.playerKey || payload.player_team_id || 'player';
+    var opponentKey = card.opponent_team_id || card.oppKey || payload.opponent_team_id || 'opponent';
+    var playerTeamId = artifactTeamId(playerKey, 'player', opts, sourceGaps);
+    var opponentTeamId = artifactTeamId(opponentKey, 'opponent', opts, sourceGaps);
+    var turnLog = Array.isArray(card.turnLog) ? card.turnLog : (Array.isArray(card.turn_log) ? card.turn_log : []);
+    var eventLog = Array.isArray(card.event_log) ? card.event_log : artifactRowsFromTextLog(card.log);
+    var result = card.result || payload.result || null;
+    var replay = {
+      id: card.id || undefined,
+      job_id: opts.job_id || undefined,
+      sim_run_id: card.sim_run_id || undefined,
+      team_a_id: playerTeamId,
+      team_b_id: opponentTeamId,
+      regulation_id: scope.regulation_id,
+      format: artifactFormat(card.format || scope.format) || scope.format,
+      engine_version: scope.engine_version,
+      ruleset_version: scope.ruleset_version,
+      seed: String(card.seed || payload.seed || 'artifact-seed-needed'),
+      winner_team_id: artifactWinnerTeamId(result, playerTeamId, opponentTeamId) || undefined,
+      result_reason: artifactResultReason(result),
+      turns: Number(card.turns || turnLog.length || 0),
+      event_log: eventLog,
+      turn_log: turnLog,
+      damage_events: Array.isArray(card.damage_events) ? card.damage_events : artifactDamageRows(turnLog),
+      effect_events: Array.isArray(card.effect_events) ? card.effect_events : artifactEffectRows(turnLog),
+      qa_coverage_summary: card.qa_coverage_summary || payload.qa_coverage_summary || null,
+      confidence_flags: unique(['imported_artifact'].concat(card.confidence_flags || [])),
+      source_gaps: uniqueGaps(sourceGaps).map(function(gap) { return gap.code; })
+    };
+    if (!card.seed && !payload.seed) {
+      sourceGaps.push(artifactSourceGap('SEED_MISSING_FROM_ARTIFACT', 'Artifact replay card did not include a deterministic seed.', 'seed'));
+      replay.seed = 'artifact-seed-needed';
+    }
+    replay.source_gaps = uniqueGaps(sourceGaps).map(function(gap) { return gap.code; });
+    return { replay: normalizeReplayRecord(replay), source_gaps: uniqueGaps(sourceGaps) };
+  }
+
+  function simJobFromQaArtifact(payload, opts, sourceGaps, replayRecords) {
+    payload = payload || {};
+    opts = opts || {};
+    var scope = artifactVersionScope(payload, opts, sourceGaps);
+    var retained = payload.retained || {};
+    var summary = payload.summary || {};
+    var replayCards = Array.isArray(retained.replay_cards) ? retained.replay_cards : [];
+    var teamIds = unique((replayRecords || []).map(function(row) { return row && row.team_a_id; }).filter(Boolean));
+    var opponentTeamIds = unique((replayRecords || []).map(function(row) { return row && row.team_b_id; }).filter(Boolean));
+    if (!replayCards.length && payload.qa_coverage_summary) {
+      sourceGaps.push(artifactSourceGap(
+        'SUMMARY_ONLY_QA_ARTIFACT',
+        'QA artifact has coverage summary but no retained replay cards; it can support QA coverage review, not replay-level Team Lab aggregation.',
+        'retained.replay_cards'
+      ));
+    }
+    if (payload.targeted_qa_sweep || payload.tactical_sweep || payload.branch_move_analysis) {
+      sourceGaps.push(artifactSourceGap(
+        'SWEEP_SUMMARY_NOT_REPLAY_ROWS',
+        'Targeted/tactical sweep summary evidence is preserved at job level until individual branch runs are exported as replay records.',
+        'targeted_qa_sweep/tactical_sweep'
+      ));
+    }
+    return normalizeSimJob({
+      job_type: 'qa_regression',
+      regulation_id: scope.regulation_id,
+      ruleset_version: scope.ruleset_version,
+      engine_version: scope.engine_version,
+      format: scope.format,
+      team_ids: teamIds.length ? teamIds : ['artifact:player:' + String(payload.player_team_id || 'player')],
+      opponent_team_ids: opponentTeamIds,
+      opponent_archetypes: [],
+      games_per_matchup: Math.max(1, Number(summary.retained_replay_cards || replayCards.length || 1)),
+      status: 'completed',
+      status_report: {
+        schema_version: payload.schema_version || null,
+        artifact_type: payload.artifact_type || null,
+        qa_run_type: payload.qa_run_type || null,
+        retained_replay_cards: replayCards.length,
+        retained_simlog_entries: Array.isArray(retained.sim_log) ? retained.sim_log.length : 0,
+        coverage_totals: payload.qa_coverage_summary && payload.qa_coverage_summary.totals || null,
+        proof_manifest: payload.proof_manifest || null
+      },
+      confidence_flags: unique(['imported_qa_artifact'].concat((sourceGaps || []).map(function(gap) { return gap.code; }))),
+      source_gaps: uniqueGaps(sourceGaps).map(function(gap) { return gap.code; })
+    });
+  }
+
+  function createSimEvidenceFromArtifact(payload, opts) {
+    opts = opts || {};
+    var sourceGaps = [];
+    var warnings = [];
+    if (!payload || typeof payload !== 'object') {
+      return { ok: false, errors: [issue('ARTIFACT_MISSING', 'Artifact payload is missing.')], warnings: warnings, source_gaps: [] };
+    }
+    var schema = payload.schema_version || payload.schemaVersion || null;
+    if (schema === 'champions-turn-log-v2') {
+      var single = replayRecordFromArtifactCard(payload, payload, opts, sourceGaps);
+      return {
+        ok: true,
+        artifact_type: 'turn_log',
+        sim_job: null,
+        replay_records: [single.replay],
+        source_gaps: single.source_gaps,
+        warnings: warnings
+      };
+    }
+    if (schema === 'champions-qa-artifact-v1') {
+      var retained = payload.retained || {};
+      var cards = Array.isArray(retained.replay_cards) ? retained.replay_cards : [];
+      var replayResults = cards.map(function(card) {
+        return replayRecordFromArtifactCard(card, payload, opts, sourceGaps);
+      });
+      replayResults.forEach(function(result) {
+        sourceGaps = sourceGaps.concat(result.source_gaps || []);
+      });
+      sourceGaps = uniqueGaps(sourceGaps);
+      var replays = replayResults.map(function(result) { return result.replay; });
+      var job = simJobFromQaArtifact(payload, opts, sourceGaps, replays);
+      return {
+        ok: true,
+        artifact_type: 'qa_artifact',
+        sim_job: job,
+        replay_records: replays,
+        source_gaps: uniqueGaps(sourceGaps),
+        warnings: warnings
+      };
+    }
+    return {
+      ok: false,
+      errors: [issue('ARTIFACT_SCHEMA_UNSUPPORTED', 'Unsupported artifact schema_version: ' + String(schema || 'missing') + '.')],
+      warnings: warnings,
+      source_gaps: []
+    };
+  }
+
   function validateReplayRecord(replay) {
     var errors = [];
     var warnings = [];
@@ -227,6 +472,8 @@
     replayEvidenceSummary: replayEvidenceSummary,
     attachReplayToSimRun: attachReplayToSimRun,
     createSimEvidenceService: createSimEvidenceService
+    ,
+    createSimEvidenceFromArtifact: createSimEvidenceFromArtifact
   };
 
   root.SimEvidence = api;

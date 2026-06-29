@@ -125,10 +125,10 @@
 // v177-team-lab-foundation [2026-06-29] - Add evidence-bound Team Lab backend foundation.
 // v178-source-truth-packages [2026-06-29] - Add rule facts and compiled ruleset package foundation.
 // v179-sim-evidence-foundation [2026-06-29] - Add Team Lab sim jobs and replay evidence foundation.
-// v180-overview-milestone-board [2026-06-29] - Group Overview work under collapsible milestones and source-doc map.
+// v181-qa-artifact-evidence-intake [2026-06-29] - Convert QA artifacts into Team Lab sim evidence and collapse Overview proof archive.
 try { importScripts('./release_manifest.js'); } catch (e) { /* fallback below */ }
 const RELEASE_MANIFEST = (typeof self !== 'undefined' && self.CHAMPIONS_RELEASE_MANIFEST) ? self.CHAMPIONS_RELEASE_MANIFEST : {};
-const CACHE_NAME = RELEASE_MANIFEST.service_worker_cache || 'champions-sim-v180-overview-milestone-board';
+const CACHE_NAME = RELEASE_MANIFEST.service_worker_cache || 'champions-sim-v181-qa-artifact-evidence-intake';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [

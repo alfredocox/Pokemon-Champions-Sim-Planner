@@ -95,3 +95,16 @@ When in doubt, store the uncertainty. Unknown mechanics, legal data, or source c
 - `sim_evidence.js` validates and normalizes sim jobs and replay records without running battles or changing engine behavior.
 
 This keeps Team Lab rankings tied to replay-verifiable evidence while preserving uncertainty and avoiding UI overclaiming.
+
+
+## 2026-06-29 implementation update: QA artifact evidence intake
+
+`v2.2.49-qa-artifact-evidence-intake` adds the first connector from browser QA exports into the Team Lab evidence model:
+
+- `champions-turn-log-v2` artifacts can be normalized into first-class replay evidence records.
+- `champions-qa-artifact-v1` artifacts can be normalized into one completed `qa_regression` sim job plus retained replay records.
+- Local artifact team keys, such as `player` or bundled opponent keys, are not silently treated as Team Lab UUIDs. They remain artifact-scoped until a caller supplies an explicit team ID map.
+- Missing regulation or ruleset metadata stays visible as source gaps instead of being promoted into verified ranking truth.
+- Targeted/tactical sweep summary evidence is preserved at job level until individual branch runs are exported as replay records.
+
+This is intentionally backend-only. It does not make leaderboard claims by itself; it gives future import/drop-folder workflows a safe normalization layer so QA artifacts can become auditable evidence.

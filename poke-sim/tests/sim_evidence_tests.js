@@ -92,5 +92,74 @@ T('6. attachReplayToSimRun links replay evidence without mutating original run',
   truthy(linked.sim_run.confidence_flags.includes('new'), 'new flag missing');
 });
 
+T('7. turn-log artifact intake creates replay evidence with explicit source gaps', () => {
+  const intake = SimEvidence.createSimEvidenceFromArtifact({
+    schema_version: 'champions-turn-log-v2',
+    build_id: 'v2.2.49-qa-artifact-evidence-intake',
+    seed: 'seed-123',
+    result: 'win',
+    format: 'doubles',
+    player_team_id: 'player',
+    opponent_team_id: 'mega_altaria',
+    qa_coverage_summary: { schema_version: 'champions-qa-coverage-v1', totals: { turns: 1 } },
+    turnLog: [{ turn: 1, damage_events: [{ damage: 44 }], effect_events: [{ effect_kind: 'flinch' }] }],
+    log: ['Turn 1: Player used Fake Out.']
+  }, {
+    regulation_id: 'reg-m-b',
+    ruleset_version: 'ruleset-reg-m-b-verified-test'
+  });
+  eq(intake.ok, true, 'intake should succeed');
+  eq(intake.artifact_type, 'turn_log', 'artifact type');
+  eq(intake.replay_records.length, 1, 'one replay expected');
+  const replay = intake.replay_records[0];
+  eq(replay.engine_version, 'v2.2.49-qa-artifact-evidence-intake', 'engine version should come from build id');
+  eq(replay.regulation_id, 'reg-m-b', 'regulation should come from caller');
+  eq(replay.ruleset_version, 'ruleset-reg-m-b-verified-test', 'ruleset should come from caller');
+  eq(replay.damage_events.length, 1, 'damage events should be lifted from turn log');
+  eq(replay.effect_events.length, 1, 'effect events should be lifted from turn log');
+  truthy(replay.source_gaps.includes('TEAM_ID_MAPPING_NEEDED'), 'team ID mapping gap should be explicit');
+  truthy(String(replay.team_a_id).startsWith('artifact:player:'), 'unmapped player id should stay artifact-scoped');
+});
+
+T('8. QA artifact intake creates a completed QA job and retained replay records without inventing ruleset truth', () => {
+  const intake = SimEvidence.createSimEvidenceFromArtifact({
+    schema_version: 'champions-qa-artifact-v1',
+    artifact_type: 'large-run-qa-retained-evidence',
+    qa_run_type: 'tactical_sweep',
+    build_id: 'v2.2.49-qa-artifact-evidence-intake',
+    player_team_id: 'player',
+    current_format: 'doubles',
+    summary: { retained_replay_cards: 2 },
+    qa_coverage_summary: { schema_version: 'champions-qa-coverage-v1', totals: { turns: 2, damage_events: 1 } },
+    tactical_sweep: { schema_version: 'champions-tactical-sweep-v1', enabled: true },
+    retained: {
+      sim_log: [{ playerKey: 'player', oppKey: 'team-b' }],
+      replay_cards: [
+        { seed: 'qa-1', playerKey: 'player', oppKey: 'team-b', result: 'win', format: 'doubles', turnLog: [{ turn: 1 }], log: ['A'] },
+        { seed: 'qa-2', playerKey: 'player', oppKey: 'team-c', result: 'loss', format: 'doubles', turnLog: [{ turn: 1 }], log: ['B'] }
+      ]
+    }
+  }, {
+    regulation_id: 'reg-m-b',
+    teamIdMap: {
+      player: 'team-player-uuid',
+      'team-b': 'team-b-uuid',
+      'team-c': 'team-c-uuid'
+    }
+  });
+  eq(intake.ok, true, 'QA artifact intake should succeed');
+  eq(intake.artifact_type, 'qa_artifact', 'artifact type');
+  eq(intake.replay_records.length, 2, 'retained replay count');
+  eq(intake.sim_job.job_type, 'qa_regression', 'job type');
+  eq(intake.sim_job.status, 'completed', 'job status');
+  eq(intake.sim_job.games_per_matchup, 2, 'job sample count');
+  eq(intake.sim_job.engine_version, 'v2.2.49-qa-artifact-evidence-intake', 'engine version');
+  eq(intake.sim_job.ruleset_version, 'unknown-ruleset-version', 'missing ruleset must not be invented');
+  truthy(intake.sim_job.source_gaps.includes('RULESET_VERSION_INFERRED'), 'ruleset gap missing');
+  truthy(intake.sim_job.source_gaps.includes('SWEEP_SUMMARY_NOT_REPLAY_ROWS'), 'sweep summary gap missing');
+  truthy(intake.replay_records.every((row) => row.team_a_id === 'team-player-uuid'), 'mapped player team should be used');
+  truthy(intake.replay_records.every((row) => !row.source_gaps.includes('TEAM_ID_MAPPING_NEEDED')), 'mapped teams should not report mapping gap');
+});
+
 console.log(`\nsim evidence foundation: ${pass} pass, ${fail} fail\n`);
 if (fail) process.exit(1);
