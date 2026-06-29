@@ -2393,9 +2393,9 @@ table{border-collapse:collapse;width:100%}
         <path d="M 21 6 L 16.5 16 L 19.5 16 L 15.5 28 L 21.5 15.5 L 18.5 15.5 L 22 6 Z" fill="url(#hBolt)" stroke="#ecfeff" stroke-width="0.5" stroke-linejoin="round"/>
       </svg>
       <div>
-      <!-- build history: v2.1.68-speed-transition v2.1.69-source-truth-audit v2.1.70-terrain-gaps-fixed v2.1.83-champions-tera-gate v2.1.86-regmb-source-audit v2.1.87-ruleset-lifecycle v2.1.88-ruleset-team-sections v2.1.89-regmb-review-cards v2.1.94-paldea-tauros-sprites v2.1.95-sprite-fallback-chain v2.1.96-alola-raichu-sprite-fallbacks v2.1.97-hisui-zoroark-gif v2.1.98-gif-primary-sprite-audit v2.1.99-regmb-promotion-gate v2.2.0-regmb-stone-source-pass v2.2.1-regmb-stats-types-abilities-source-pass v2.2.2-regmb-learnset-policy-pass v2.2.3-damage-stat-override-audit v2.2.4-contact-flag-audit v2.2.5-secondary-effect-audit v2.2.6-complex-secondary-state v2.2.7-secondary-table-consolidation v2.2.8-drain-rule-source-audit v2.2.9-foul-play-stat-source-audit v2.2.10-move-rule-trace-qa v2.2.11-codex-qa-context-drop v2.2.12-codex-qa-drop-folder v2.2.13-tactical-sweep-schema v2.2.14-stat-source-proof-team v2.2.15-live-db-pages-guard v2.2.16-coach-sequence-why v2.2.17-stress-lite-qa v2.2.18-stress-lite-summary v2.2.19-hard-beta-guard v2.2.20-data-sources-matrix v2.2.21-source-sync-stamps v2.2.22-source-sync-runtime v2.2.23-sources-ui-polish v2.2.26-editor-save-cancel v2.2.27-import-file-feedback v2.2.28-move-failure-evidence v2.2.29-replay-log-dedupe v2.2.30-replay-detail-rows v2.2.31-overview-closeout -->
-      <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.2.31-overview-closeout</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
-        <p class="site-sub">Champions 2026 Preview · VGC Doubles Simulator</p>
+      <!-- build history: v2.1.68-speed-transition v2.1.69-source-truth-audit v2.1.70-terrain-gaps-fixed v2.1.83-champions-tera-gate v2.1.86-regmb-source-audit v2.1.87-ruleset-lifecycle v2.1.88-ruleset-team-sections v2.1.89-regmb-review-cards v2.1.94-paldea-tauros-sprites v2.1.95-sprite-fallback-chain v2.1.96-alola-raichu-sprite-fallbacks v2.1.97-hisui-zoroark-gif v2.1.98-gif-primary-sprite-audit v2.1.99-regmb-promotion-gate v2.2.0-regmb-stone-source-pass v2.2.1-regmb-stats-types-abilities-source-pass v2.2.2-learnset-policy-pass v2.2.3-damage-stat-override-audit v2.2.4-contact-flag-audit v2.2.5-secondary-effect-audit v2.2.6-complex-secondary-state v2.2.7-secondary-table-consolidation v2.2.8-drain-rule-source-audit v2.2.9-foul-play-stat-source-audit v2.2.10-move-rule-trace-qa v2.2.11-codex-qa-context-drop v2.2.12-codex-qa-drop-folder v2.2.13-tactical-sweep-schema v2.2.14-stat-source-proof-team v2.2.15-live-db-pages-guard v2.2.16-coach-sequence-why v2.2.17-stress-lite-qa v2.2.18-stress-lite-summary v2.2.19-hard-beta-guard v2.2.20-data-sources-matrix v2.2.21-source-sync-stamps v2.2.22-source-sync-runtime v2.2.23-sources-ui-polish v2.2.26-editor-save-cancel v2.2.27-import-file-feedback v2.2.28-move-failure-evidence v2.2.29-replay-log-dedupe v2.2.30-replay-detail-rows v2.2.31-overview-closeout v2.2.32-action-denial-priority -->
+      <h1 class="site-title">Poke-e-Sim Champion 2026 Preview <span class="build-version" id="build-version" title="Build version - bumps on every commit so you can confirm which build you are testing">v2.2.32-action-denial-priority</span> <span id="db-offline-chip" class="db-offline-chip" title="Live database unavailable — using bundled team data" style="display:none;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:0.3px;margin-left:6px;vertical-align:middle;">[DB offline]</span></h1>
+        <p class="site-sub">Champions 2026 Preview · Singles + Doubles Simulator</p>
       </div>
     </div>
     <div class="header-right">
@@ -10368,9 +10368,21 @@ function _recordEffectEvent(field, mon, move, kind, hpBefore, hpAfter, details) 
   return row;
 }
 
+function _normalizeMechanicsReasonId(value) {
+  return String(value || 'unknown')
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'unknown';
+}
+
 function _recordActionDenialEvent(field, mon, move, kind, reason, details) {
+  var reasonId = _normalizeMechanicsReasonId(reason || kind || 'action-denial');
   return _recordEffectEvent(field, mon, move || reason || 'action-denial', kind || 'action-denial', mon && mon.hp, mon && mon.hp, Object.assign({
     source: 'engine action gate',
+    reason_id: reasonId,
+    action_denial_reason: reasonId,
     action_denial: true,
     skipped_move: true,
     skipped_action_move: move || null,
@@ -10379,8 +10391,11 @@ function _recordActionDenialEvent(field, mon, move, kind, reason, details) {
 }
 
 function _recordMoveFailureEvent(field, mon, move, reason, details) {
+  var reasonId = _normalizeMechanicsReasonId(reason || 'unknown');
   return _recordEffectEvent(field, mon, move || 'move-failure', 'move-failure', mon && mon.hp, mon && mon.hp, Object.assign({
     source: 'engine move failure gate',
+    reason_id: reasonId,
+    failure_reason_id: reasonId,
     move_failed: true,
     failed_move: move || null,
     failure_reason: reason || 'unknown',
@@ -13937,6 +13952,13 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (attacker._fakeDone || (attacker.turnsSinceEntry || 0) > 1) {
         log.push(`${attacker.name} tried Fake Out -- but it failed! (only on first turn out)`);
         attacker.lastMoveFailed = true;
+        _recordMoveFailureEvent(field, attacker, move, 'fake_out_timing', {
+          blocked_priority: true,
+          priority_failure_family: 'fake_out_timing',
+          turns_since_entry: attacker.turnsSinceEntry || 0,
+          fake_out_window_spent: !!attacker._fakeDone,
+          note: 'Fake Out failed because it can only be used on the user first turn out.'
+        });
         // Encore -> Struggle path: deal 1/4 max HP fixed damage to a live
         // enemy and recoil 1/4 max HP. Standard Struggle resolution.
         // Cite: https://bulbapedia.bulbagarden.net/wiki/Struggle
@@ -14445,6 +14467,18 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         if (!t.side || !attacker.side || t.side === attacker.side) return true;
         if (t.side.quickGuard && move !== 'Feint') {
           log.push(`Quick Guard blocked ${move} on ${t.name}!`);
+          _recordMoveFailureEvent(field, attacker, move, 'quick_guard_priority_block', {
+            blocked_priority: true,
+            priority_failure_family: 'guard',
+            blocker: 'Quick Guard',
+            blocker_kind: 'quick_guard',
+            target: t.name || null,
+            target_key: _snapshotMonStableKey(t.side === field.playerSide ? 'player' : 'opponent', t),
+            target_side: t.side === field.playerSide ? 'player' : 'opponent',
+            move_priority: movePriority,
+            format: field && field.format || null,
+            note: 'Quick Guard blocked this positive-priority move.'
+          });
           return false;
         }
         const defenders = (t.side === field.playerSide) ? playerActive : oppActive;
@@ -14453,11 +14487,37 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         });
         if (priorityBlocker) {
           log.push(`${priorityBlocker.ability} blocked ${move} on ${t.name}!`);
+          _recordMoveFailureEvent(field, attacker, move, _normalizeMechanicsReasonId(priorityBlocker.ability) + '_priority_block', {
+            blocked_priority: true,
+            priority_failure_family: 'ability',
+            blocker: priorityBlocker.ability,
+            blocker_kind: _normalizeMechanicsReasonId(priorityBlocker.ability),
+            blocker_key: _snapshotMonStableKey(priorityBlocker.side === field.playerSide ? 'player' : 'opponent', priorityBlocker),
+            target: t.name || null,
+            target_key: _snapshotMonStableKey(t.side === field.playerSide ? 'player' : 'opponent', t),
+            target_side: t.side === field.playerSide ? 'player' : 'opponent',
+            move_priority: movePriority,
+            format: field && field.format || null,
+            note: priorityBlocker.ability + ' blocked this positive-priority move for its side.'
+          });
           return false;
         }
         // Psychic Terrain blocks priority moves from hitting grounded mons.
         if (field && field.terrain === 'psychic' && _isGrounded(t)) {
           log.push(`Psychic Terrain blocked ${move} on ${t.name}!`);
+          _recordMoveFailureEvent(field, attacker, move, 'psychic_terrain_priority_block', {
+            blocked_priority: true,
+            priority_failure_family: 'terrain',
+            blocker: 'Psychic Terrain',
+            blocker_kind: 'psychic_terrain',
+            target: t.name || null,
+            target_key: _snapshotMonStableKey(t.side === field.playerSide ? 'player' : 'opponent', t),
+            target_side: t.side === field.playerSide ? 'player' : 'opponent',
+            target_grounded: true,
+            move_priority: movePriority,
+            format: field && field.format || null,
+            note: 'Psychic Terrain blocked this priority move because the target was grounded.'
+          });
           return false;
         }
         return true;
@@ -15288,6 +15348,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         log.push(`${action.attacker.name} flinched and couldn't move!`);
         _recordEffectEvent(field, action.attacker, _flinchSource.move || action.move || 'Flinch', 'flinch-skip', action.attacker.hp, action.attacker.hp, {
           source: 'volatile flinch state',
+          reason_id: 'flinch',
+          action_denial_reason: 'flinch',
           source_actor: _flinchSource.actor || null,
           source_actor_key: _flinchSource.actor_key || null,
           volatile_status: 'flinch',
@@ -15311,6 +15373,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           log.push(`${action.attacker.name} hurt itself in its confusion! [${confusionDmg} dmg]`);
           _recordEffectEvent(field, action.attacker, 'Confusion', 'confusion-self-hit', hpBeforeConfusion, action.attacker.hp, {
             source: 'volatile confusion state',
+            reason_id: 'confusion',
+            action_denial_reason: 'confusion',
             action_denial: true,
             skipped_move: true,
             skipped_action_move: action.move || null,
@@ -25391,9 +25455,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.31-overview-closeout';
+    return txt || 'v2.2.32-action-denial-priority';
   } catch (e) {
-    return 'v2.2.31-overview-closeout';
+    return 'v2.2.32-action-denial-priority';
   }
 }
 
@@ -30021,6 +30085,11 @@ function csQaBlankMechanicsSeen() {
     weather_damage_modifier: 0,
     screen_reduction: 0,
     priority_actions: 0,
+    blocked_priority_events: 0,
+    quick_guard_priority_blocks: 0,
+    psychic_terrain_priority_blocks: 0,
+    priority_ability_blocks: 0,
+    fake_out_timing_failures: 0,
     speed_order_details: 0,
     action_denial_events: 0,
     flinch_applied: 0,
@@ -31331,6 +31400,15 @@ function csBuildQaCoverageSummary(turnLog, opts) {
       csQaInc(effectMoves, effect.move || 'unknown');
       var lowerKind = String(kind || '').toLowerCase();
       if (effect.action_denial) mechanics.action_denial_events += 1;
+      if (effect.blocked_priority) {
+        mechanics.blocked_priority_events += 1;
+        var failureReasonId = String(effect.failure_reason_id || effect.reason_id || effect.failure_reason || '').toLowerCase();
+        var blockerKind = String(effect.blocker_kind || '').toLowerCase();
+        if (failureReasonId === 'quick_guard_priority_block' || blockerKind === 'quick_guard') mechanics.quick_guard_priority_blocks += 1;
+        else if (failureReasonId === 'psychic_terrain_priority_block' || blockerKind === 'psychic_terrain') mechanics.psychic_terrain_priority_blocks += 1;
+        else if (failureReasonId === 'fake_out_timing') mechanics.fake_out_timing_failures += 1;
+        else if (effect.priority_failure_family === 'ability' || /armor_tail|dazzling|queenly_majesty/.test(failureReasonId + ' ' + blockerKind)) mechanics.priority_ability_blocks += 1;
+      }
       if (lowerKind === 'flinch-applied') mechanics.flinch_applied += 1;
       else if (lowerKind === 'flinch-skip') mechanics.flinch_skip += 1;
       else if (lowerKind === 'frozen-skip') mechanics.frozen_skip += 1;
@@ -36843,6 +36921,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Action-denial and priority-block evidence normalized',
+      detail: 'v2.2.32 starts the Pokemon Champions mechanics truth gate for singles and doubles by adding stable reason IDs for action-denial and priority-suppression evidence. Fake Out timing failures, Quick Guard blocks, Psychic Terrain priority blocks, and Armor Tail/Dazzling/Queenly Majesty blocks now export structured move-failure rows and QA counters instead of relying only on free-text logs.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -37375,6 +37458,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'validated',
+      title: 'Action-denial slice 1 proof started',
+      detail: 'ability_priority_targeting_tests.js now asserts structured failure evidence for Armor Tail, Dazzling, and Queenly Majesty priority suppression, while phase5_turn_log_tests.js proves QA coverage counts blocked priority, ability blockers, Quick Guard, Psychic Terrain, and Fake Out timing separately.'
+    },
+    {
+      status: 'validated',
       title: 'Previous Y/Alfredo source sync completed',
       detail: 'Alfredo PR #245 merged the prior Champion parity tree after required checks passed, and TheYfactora12 main was fast-forwarded to the same merge commit. The current local damage-log and approved-team-gate slice should prove out on the Y fork first; Alfredo sync is lower priority until the browser proof gate is clean.'
     }
@@ -37505,7 +37593,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'next',
       title: 'Close the mechanics truth beta gate',
-      detail: 'Build the issue #149 inventory as a real checklist, not a vibe: cover same-family priority blockers, multi-effect moves that change stats/status/HP in one window, field-state move failures, and visible replay/QA evidence so the Overview tab can close that gate with proof instead of memory.'
+      detail: 'Continue issue #149 from the Pokemon Champions mechanics truth gate: finish action-denial and priority-suppression reason inventory for singles and doubles, then move family-by-family through targeting/immunity, Protect/guard, multi-effect moves, field durations, items/abilities, switching/replacement, spread/doubles resolution, singles resolution, and coaching-safe learning.'
     },
     {
       status: 'next',

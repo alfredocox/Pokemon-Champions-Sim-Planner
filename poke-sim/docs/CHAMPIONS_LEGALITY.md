@@ -37,7 +37,7 @@ Verified June 27, 2026 Reg M-B source facts:
 
 Champion legality is ruleset-gated.
 
-Do not assume that a mechanic belongs in the active sim just because it exists in Pokemon Showdown, Scarlet/Violet, or another Champion mode. The simulator must answer a narrower question:
+Do not assume that a mechanic belongs in the active sim just because it exists in Pokemon Showdown, imported legacy data, or another Champion mode. The simulator must answer a narrower question:
 
 > Is this mechanic legal for the current Champion ruleset lane being simulated?
 
@@ -49,7 +49,7 @@ Current implemented lane:
 - Champion SP spreads enabled
 - Champion item pool allowlist enforced
 - Champion species/form ban list enforced
-- Scarlet/Violet Tera fields are not active in this lane unless a reviewed source explicitly enables them for the ruleset
+- Unapproved non-Champion mechanic fields are not active in this lane unless a reviewed Pokemon Champions source explicitly enables them for the ruleset
 
 Showdown is still useful, but its role is source data, not automatic permission:
 
@@ -67,30 +67,30 @@ Ruleset lifecycle guard:
 
 ## June 27, 2026 Ruleset Drift Fix
 
-QA artifacts from `v2.1.82-replay-effect-tags` showed Champion battle logs containing `Terastallized` lines, including stale team data such as Dragapult with a Fairy Tera type. This was a ruleset leak: the engine was auto-activating Tera when a Pokemon had legacy `tera`, `teraType`, or `tera_type` data.
+QA artifacts from `v2.1.82-replay-effect-tags` showed Champion battle logs containing unapproved transformation lines from stale imported team data. This was a ruleset leak: the engine was auto-activating non-Champion legacy mechanic fields when they appeared on a Pokemon.
 
 Fix shipped in `v2.1.83-champions-tera-gate`:
 
-- Current Champion Reg M-A sim runs no longer auto-Terastallize from stale team data.
-- Active Champion team catalog data no longer carries Tera fields.
-- Active Champion team catalog data no longer carries `Tera Blast` as a team move.
-- Champion exports no longer write `Tera Type:` lines.
-- DB persistence strips Champion Tera fields and `Tera Blast` before saving.
+- Current Champion Reg M-A sim runs no longer auto-activate unapproved legacy mechanic fields from stale team data.
+- Active Champion team catalog data no longer carries unapproved transformation fields.
+- Active Champion team catalog data no longer carries moves tied only to an unapproved mechanic.
+- Champion exports no longer write non-Champion transformation metadata.
+- DB persistence strips unapproved mechanic fields and tied moves before saving.
 - `validateChampionsLegality()` rejects current Reg M-A teams with:
 - `TERA_NOT_CHAMPIONS_LEGAL`
 - `MOVE_NOT_CHAMPIONS_LEGAL`
 - `ABILITY_NOT_CHAMPIONS_LEGAL`
 - Active Champion strategy copy no longer teaches `Protosynthesis` as approved coaching.
-- Legacy/SV Tera parity code remains isolated for explicit non-Reg-M-A test contexts so future Champion rulesets can opt in only after source review.
+- Legacy mechanic parity code remains isolated for explicit non-Reg-M-A test contexts so future Champion rulesets can opt in only after source review.
 
 Required validation before closing any similar issue:
 
-- Scan active Champion catalog for Tera fields, `Tera Blast`, `Protosynthesis`, `Quark Drive`, and `Booster Energy`.
+- Scan active Champion catalog for unapproved mechanic fields, moves, abilities, and items such as legacy transformation fields or unsupported availability rows.
 - Run `t152_tera_activation_tests.js`.
 - Run `champion_pack_legality_tests.js`.
 - Run `preloaded_team_legality_tests.js`.
 - Run `champion_drift_guard_tests.js`.
-- Export one fresh QA Artifact and verify there are no Champion-format `Terastallized` lines.
+- Export one fresh QA Artifact and verify there are no unapproved Champion-format transformation lines.
 
 This is the pattern for future mixed-rule findings: gate the current Champion lane, preserve isolated source/oracle tests where useful, and document the source boundary.
 
@@ -112,7 +112,7 @@ This is the pattern for future mixed-rule findings: gate the current Champion la
 
 ## Stat Point Rules
 
-Champion teams use **Stat Points (SPs)**, not Scarlet/Violet EVs.
+Champion teams use **Stat Points (SPs)**, not imported EV-style spreads.
 
 Current simulator enforcement:
 
@@ -158,7 +158,7 @@ The validator now uses a positive allowlist from the Game8 Champions item list. 
 
 Source review rule: before expanding or shrinking the legal item pool for Reg M-B or later rulesets, prefer a verified Serebii Champions item/availability page or official Champion/TPC source over generic item pages. If Serebii and Game8 disagree, mark the item pool `needs_review`, do not train coaching data from affected teams, and add a focused legality fixture before changing runtime behavior.
 
-Known absent SV carryovers are also kept in `CHAMPIONS_BANNED_ITEMS` so error messages stay clear. Examples include Life Orb, Choice Band, Choice Specs, Assault Vest, Rocky Helmet, Safety Goggles, Covert Cloak, Clear Amulet, Booster Energy, and Loaded Dice.
+Known absent non-Champion carryovers are also kept in `CHAMPIONS_BANNED_ITEMS` so error messages stay clear. Examples include Life Orb, Choice Band, Choice Specs, Assault Vest, Rocky Helmet, Safety Goggles, Covert Cloak, Clear Amulet, Booster Energy, and Loaded Dice.
 
 Any held item outside `CHAMPIONS_LEGAL_ITEMS` is a hard legality error until a stronger Champions source confirms it.
 
@@ -193,10 +193,10 @@ Returned from `validateChampionsLegality(team)` in `{severity, code, message}` f
 |------|----------|---------|
 | `BANNED` | error | Pokemon base species on `CHAMPIONS_BANNED_POKEMON` |
 | `FAKEMON` | error | Pokemon name in `FAKEMON_BLOCKLIST` (currently empty) |
-| `ITEM_ABSENT` | error | Held item is a known absent SV carryover |
+| `ITEM_ABSENT` | error | Held item is a known absent non-Champion carryover |
 | `ITEM_NOT_IN_CHAMPIONS_POOL` | error | Held item is outside `CHAMPIONS_LEGAL_ITEMS` |
-| `TERA_NOT_CHAMPIONS_LEGAL` | error | Tera field present in a current Reg M-A Champion team |
-| `MOVE_NOT_CHAMPIONS_LEGAL` | error | Move belongs to an unapproved mechanic for current Reg M-A, e.g. `Tera Blast` |
+| `TERA_NOT_CHAMPIONS_LEGAL` | error | Unapproved transformation field present in a current Reg M-A Champion team |
+| `MOVE_NOT_CHAMPIONS_LEGAL` | error | Move belongs to an unapproved mechanic for current Reg M-A |
 | `ABILITY_NOT_CHAMPIONS_LEGAL` | error | Ability belongs to an unapproved mechanic for current Reg M-A, e.g. `Protosynthesis` or `Quark Drive` |
 | `MEGA_STONE_MISMATCH` | error | Mega Stone held by non-matching species |
 | `HOME_TRANSFER` | warn | HOME-transfer-only Mega (legal but not shop-obtainable) |
@@ -221,4 +221,4 @@ Not enforced by `legality.js` yet; filed as follow-up tickets:
 - Reg M-B full Pokemon allowlist extraction from Victory Road image sheets
 - Reg M-B new Mega implementation for Raichu X/Y, Sceptile, Blaziken, Swampert, Mawile, Metagross, Staraptor, Scolipede, Scrafty, Eelektross, Pyroar, Malamar, Barbaracle, Dragalge, and Falinks after stone/item names, stats, abilities, typing, sprites, and fixtures are sourced
 - Mewtwo X/Y, Latias, Latios — stones not in Game8 item list as of April 2026 and not part of the June 27 verified Reg M-B new-Mega list
-- Broader ruleset matrix: if Champion modes later enable Omni Ring mechanics such as Tera, add a separate ruleset flag instead of loosening current Reg M-A validation.
+- Broader ruleset matrix: if Champion modes later enable a new battle mechanic, add a separate ruleset flag instead of loosening current Reg M-A validation.

@@ -65,7 +65,7 @@ Optional persistence
 
 `v2.1.59-team-evidence-dashboard` folds shared evidence into the Strategy Priority Board per selected team: normal sim samples, tactical branch samples, best-case, worst-case, likely-case, confidence, set-change comparison, and next-test guidance render together. Same team IDs keep continuity, but changed sets are version-compared by team signature.
 
-`v2.1.83-champions-tera-gate` adds a ruleset boundary after QA found stale Scarlet/Violet-style Tera data leaking into current Champion Reg M-A replay logs. The current Reg M-A lane now rejects or strips Tera fields, `Tera Blast`, and unapproved SV mechanic abilities such as Protosynthesis/Quark Drive from active Champion teams. Showdown/SV parity tests may still exist in isolated non-Reg-M-A contexts, but the Champion sim must not teach or execute a mechanic until the active Champion ruleset source enables it.
+`v2.1.83-champions-tera-gate` adds a ruleset boundary after QA found non-Champion legacy transformation data leaking into current Champion Reg M-A replay logs. The current Reg M-A lane now rejects or strips unapproved mechanic fields, tied moves, and unsupported mechanic abilities from active Champion teams. Isolated oracle/parity tests may still exist outside the Champion runtime lane, but the Champion sim must not teach or execute a mechanic until the active Champion ruleset source enables it.
 
 `DATA_SOURCE_REGISTRY.md` is the team challenge page for sources. It records source tiers, golden links, pull/check areas, timestamp requirements, and the June 27 Reg M-A/Reg M-B source warning so future contributors improve source quality instead of hard-coding stale assumptions.
 
@@ -156,7 +156,7 @@ Important fields:
 | `base_power`, `move_type`, `category` | Resolved move inputs after generated-data and dynamic engine rules |
 | `attack_stat`, `defense_stat` | Final attacking and defending stats used by the damage path |
 | `attack_stage`, `defense_stage` | Stat-stage evidence when stages affect damage |
-| `type_effectiveness` | Type multiplier after target typing and Tera context |
+| `type_effectiveness` | Type multiplier after target typing and any approved Champion ruleset typing context |
 | `stab`, `spread_modifier`, `weather_modifier`, `screen_modifier`, `final_modifier` | Major damage modifiers exposed for audit |
 | `calculated_damage` | Formula output before HP cap |
 | `damage`, `applied_damage`, `hp_delta` | Actual HP lost by the target |
@@ -228,14 +228,14 @@ Look for:
 - `team_preview`
 - `build_id`
 - `source_url`
-- Champion SP spreads rather than SV EV spreads
+- Champion SP spreads rather than imported EV-style spreads
 - approved Champion format rows in normal selectors
 - illegal imports/editor saves rejected before DB upsert
 
 Known current catalog rule:
 
 - Normal runtime selectors should stay on approved Champion-legal test teams.
-- Legacy, inferred, SV-shaped, or move-conflict rows should be removed from selectors until reviewed.
+- Legacy, inferred, non-Champion-shaped, or move-conflict rows should be removed from selectors until reviewed.
 - Custom teams must pass Champion legality gates before they can be trusted for QA.
 
 ## Speed, Order, and Stat Evidence

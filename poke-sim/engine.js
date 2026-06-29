@@ -1251,9 +1251,21 @@ function _recordEffectEvent(field, mon, move, kind, hpBefore, hpAfter, details) 
   return row;
 }
 
+function _normalizeMechanicsReasonId(value) {
+  return String(value || 'unknown')
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'unknown';
+}
+
 function _recordActionDenialEvent(field, mon, move, kind, reason, details) {
+  var reasonId = _normalizeMechanicsReasonId(reason || kind || 'action-denial');
   return _recordEffectEvent(field, mon, move || reason || 'action-denial', kind || 'action-denial', mon && mon.hp, mon && mon.hp, Object.assign({
     source: 'engine action gate',
+    reason_id: reasonId,
+    action_denial_reason: reasonId,
     action_denial: true,
     skipped_move: true,
     skipped_action_move: move || null,
@@ -1262,8 +1274,11 @@ function _recordActionDenialEvent(field, mon, move, kind, reason, details) {
 }
 
 function _recordMoveFailureEvent(field, mon, move, reason, details) {
+  var reasonId = _normalizeMechanicsReasonId(reason || 'unknown');
   return _recordEffectEvent(field, mon, move || 'move-failure', 'move-failure', mon && mon.hp, mon && mon.hp, Object.assign({
     source: 'engine move failure gate',
+    reason_id: reasonId,
+    failure_reason_id: reasonId,
     move_failed: true,
     failed_move: move || null,
     failure_reason: reason || 'unknown',
@@ -4820,6 +4835,13 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (attacker._fakeDone || (attacker.turnsSinceEntry || 0) > 1) {
         log.push(`${attacker.name} tried Fake Out -- but it failed! (only on first turn out)`);
         attacker.lastMoveFailed = true;
+        _recordMoveFailureEvent(field, attacker, move, 'fake_out_timing', {
+          blocked_priority: true,
+          priority_failure_family: 'fake_out_timing',
+          turns_since_entry: attacker.turnsSinceEntry || 0,
+          fake_out_window_spent: !!attacker._fakeDone,
+          note: 'Fake Out failed because it can only be used on the user first turn out.'
+        });
         // Encore -> Struggle path: deal 1/4 max HP fixed damage to a live
         // enemy and recoil 1/4 max HP. Standard Struggle resolution.
         // Cite: https://bulbapedia.bulbagarden.net/wiki/Struggle
@@ -5328,6 +5350,18 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         if (!t.side || !attacker.side || t.side === attacker.side) return true;
         if (t.side.quickGuard && move !== 'Feint') {
           log.push(`Quick Guard blocked ${move} on ${t.name}!`);
+          _recordMoveFailureEvent(field, attacker, move, 'quick_guard_priority_block', {
+            blocked_priority: true,
+            priority_failure_family: 'guard',
+            blocker: 'Quick Guard',
+            blocker_kind: 'quick_guard',
+            target: t.name || null,
+            target_key: _snapshotMonStableKey(t.side === field.playerSide ? 'player' : 'opponent', t),
+            target_side: t.side === field.playerSide ? 'player' : 'opponent',
+            move_priority: movePriority,
+            format: field && field.format || null,
+            note: 'Quick Guard blocked this positive-priority move.'
+          });
           return false;
         }
         const defenders = (t.side === field.playerSide) ? playerActive : oppActive;
@@ -5336,11 +5370,37 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         });
         if (priorityBlocker) {
           log.push(`${priorityBlocker.ability} blocked ${move} on ${t.name}!`);
+          _recordMoveFailureEvent(field, attacker, move, _normalizeMechanicsReasonId(priorityBlocker.ability) + '_priority_block', {
+            blocked_priority: true,
+            priority_failure_family: 'ability',
+            blocker: priorityBlocker.ability,
+            blocker_kind: _normalizeMechanicsReasonId(priorityBlocker.ability),
+            blocker_key: _snapshotMonStableKey(priorityBlocker.side === field.playerSide ? 'player' : 'opponent', priorityBlocker),
+            target: t.name || null,
+            target_key: _snapshotMonStableKey(t.side === field.playerSide ? 'player' : 'opponent', t),
+            target_side: t.side === field.playerSide ? 'player' : 'opponent',
+            move_priority: movePriority,
+            format: field && field.format || null,
+            note: priorityBlocker.ability + ' blocked this positive-priority move for its side.'
+          });
           return false;
         }
         // Psychic Terrain blocks priority moves from hitting grounded mons.
         if (field && field.terrain === 'psychic' && _isGrounded(t)) {
           log.push(`Psychic Terrain blocked ${move} on ${t.name}!`);
+          _recordMoveFailureEvent(field, attacker, move, 'psychic_terrain_priority_block', {
+            blocked_priority: true,
+            priority_failure_family: 'terrain',
+            blocker: 'Psychic Terrain',
+            blocker_kind: 'psychic_terrain',
+            target: t.name || null,
+            target_key: _snapshotMonStableKey(t.side === field.playerSide ? 'player' : 'opponent', t),
+            target_side: t.side === field.playerSide ? 'player' : 'opponent',
+            target_grounded: true,
+            move_priority: movePriority,
+            format: field && field.format || null,
+            note: 'Psychic Terrain blocked this priority move because the target was grounded.'
+          });
           return false;
         }
         return true;
@@ -6171,6 +6231,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         log.push(`${action.attacker.name} flinched and couldn't move!`);
         _recordEffectEvent(field, action.attacker, _flinchSource.move || action.move || 'Flinch', 'flinch-skip', action.attacker.hp, action.attacker.hp, {
           source: 'volatile flinch state',
+          reason_id: 'flinch',
+          action_denial_reason: 'flinch',
           source_actor: _flinchSource.actor || null,
           source_actor_key: _flinchSource.actor_key || null,
           volatile_status: 'flinch',
@@ -6194,6 +6256,8 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           log.push(`${action.attacker.name} hurt itself in its confusion! [${confusionDmg} dmg]`);
           _recordEffectEvent(field, action.attacker, 'Confusion', 'confusion-self-hit', hpBeforeConfusion, action.attacker.hp, {
             source: 'volatile confusion state',
+            reason_id: 'confusion',
+            action_denial_reason: 'confusion',
             action_denial: true,
             skipped_move: true,
             skipped_action_move: action.move || null,

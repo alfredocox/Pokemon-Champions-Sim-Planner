@@ -120,7 +120,8 @@
 // v161-replay-log-dedupe [2026-06-28] - Refresh app shell for cleaner resolved replay log display.
 // v162-replay-detail-rows [2026-06-28] - Refresh app shell for grouped replay damage/miss/failure details.
 // v163-overview-closeout [2026-06-29] - Refresh Overview/release closeout notes and issue status.
-const CACHE_NAME = 'champions-sim-v163-overview-closeout';
+// v164-action-denial-priority [2026-06-29] - Refresh app shell for action-denial and priority-block evidence counters.
+const CACHE_NAME = 'champions-sim-v164-action-denial-priority';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [

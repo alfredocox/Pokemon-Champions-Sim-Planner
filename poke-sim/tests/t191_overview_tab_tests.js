@@ -157,7 +157,8 @@ T('4. Overview includes next milestones and source docs', () => {
   inc(ui, 'Prove post-move mechanics by battle system');
   inc(ui, 'With the shipped move audit at 120 verified / 0 baseline / 0 incomplete');
   inc(ui, 'Close the mechanics truth beta gate');
-  inc(ui, 'Build the issue #149 inventory as a real checklist, not a vibe');
+  inc(ui, 'Pokemon Champions mechanics truth gate');
+  inc(ui, 'finish action-denial and priority-suppression reason inventory for singles and doubles');
   inc(ui, 'Make replay and QA transparency strong enough for coaching trust');
   inc(ui, 'HP-loss causes, and move-failure causes obvious enough');
   inc(ui, 'Rebuild editor into full Champion team builder');

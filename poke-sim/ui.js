@@ -116,9 +116,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.31-overview-closeout';
+    return txt || 'v2.2.32-action-denial-priority';
   } catch (e) {
-    return 'v2.2.31-overview-closeout';
+    return 'v2.2.32-action-denial-priority';
   }
 }
 
@@ -4746,6 +4746,11 @@ function csQaBlankMechanicsSeen() {
     weather_damage_modifier: 0,
     screen_reduction: 0,
     priority_actions: 0,
+    blocked_priority_events: 0,
+    quick_guard_priority_blocks: 0,
+    psychic_terrain_priority_blocks: 0,
+    priority_ability_blocks: 0,
+    fake_out_timing_failures: 0,
     speed_order_details: 0,
     action_denial_events: 0,
     flinch_applied: 0,
@@ -6056,6 +6061,15 @@ function csBuildQaCoverageSummary(turnLog, opts) {
       csQaInc(effectMoves, effect.move || 'unknown');
       var lowerKind = String(kind || '').toLowerCase();
       if (effect.action_denial) mechanics.action_denial_events += 1;
+      if (effect.blocked_priority) {
+        mechanics.blocked_priority_events += 1;
+        var failureReasonId = String(effect.failure_reason_id || effect.reason_id || effect.failure_reason || '').toLowerCase();
+        var blockerKind = String(effect.blocker_kind || '').toLowerCase();
+        if (failureReasonId === 'quick_guard_priority_block' || blockerKind === 'quick_guard') mechanics.quick_guard_priority_blocks += 1;
+        else if (failureReasonId === 'psychic_terrain_priority_block' || blockerKind === 'psychic_terrain') mechanics.psychic_terrain_priority_blocks += 1;
+        else if (failureReasonId === 'fake_out_timing') mechanics.fake_out_timing_failures += 1;
+        else if (effect.priority_failure_family === 'ability' || /armor_tail|dazzling|queenly_majesty/.test(failureReasonId + ' ' + blockerKind)) mechanics.priority_ability_blocks += 1;
+      }
       if (lowerKind === 'flinch-applied') mechanics.flinch_applied += 1;
       else if (lowerKind === 'flinch-skip') mechanics.flinch_skip += 1;
       else if (lowerKind === 'frozen-skip') mechanics.frozen_skip += 1;
@@ -11568,6 +11582,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Action-denial and priority-block evidence normalized',
+      detail: 'v2.2.32 starts the Pokemon Champions mechanics truth gate for singles and doubles by adding stable reason IDs for action-denial and priority-suppression evidence. Fake Out timing failures, Quick Guard blocks, Psychic Terrain priority blocks, and Armor Tail/Dazzling/Queenly Majesty blocks now export structured move-failure rows and QA counters instead of relying only on free-text logs.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -12100,6 +12119,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'validated',
+      title: 'Action-denial slice 1 proof started',
+      detail: 'ability_priority_targeting_tests.js now asserts structured failure evidence for Armor Tail, Dazzling, and Queenly Majesty priority suppression, while phase5_turn_log_tests.js proves QA coverage counts blocked priority, ability blockers, Quick Guard, Psychic Terrain, and Fake Out timing separately.'
+    },
+    {
+      status: 'validated',
       title: 'Previous Y/Alfredo source sync completed',
       detail: 'Alfredo PR #245 merged the prior Champion parity tree after required checks passed, and TheYfactora12 main was fast-forwarded to the same merge commit. The current local damage-log and approved-team-gate slice should prove out on the Y fork first; Alfredo sync is lower priority until the browser proof gate is clean.'
     }
@@ -12230,7 +12254,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'next',
       title: 'Close the mechanics truth beta gate',
-      detail: 'Build the issue #149 inventory as a real checklist, not a vibe: cover same-family priority blockers, multi-effect moves that change stats/status/HP in one window, field-state move failures, and visible replay/QA evidence so the Overview tab can close that gate with proof instead of memory.'
+      detail: 'Continue issue #149 from the Pokemon Champions mechanics truth gate: finish action-denial and priority-suppression reason inventory for singles and doubles, then move family-by-family through targeting/immunity, Protect/guard, multi-effect moves, field durations, items/abilities, switching/replacement, spread/doubles resolution, singles resolution, and coaching-safe learning.'
     },
     {
       status: 'next',

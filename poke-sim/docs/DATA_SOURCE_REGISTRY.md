@@ -4,7 +4,9 @@ Status: active source-truth control page.
 
 Last repo source review: June 28, 2026.
 
-Purpose: give the team one place to inspect, challenge, replace, and improve the sources used by the Champion simulator. If a source is stale, weak, contradicted, or not allowed to prove the claim it is being used for, update this page before changing runtime behavior.
+Purpose: give the team one place to inspect, challenge, replace, and improve the sources used by the Pokemon Champions simulator. If a source is stale, weak, contradicted, or not allowed to prove the claim it is being used for, update this page before changing runtime behavior.
+
+Product scope rule: this project is Pokemon Champions only. Non-Champion legacy mechanics/data may be mentioned only when documenting blocked imports, source drift, or migration hazards. They are not player-facing scope and must not train trusted coaching data.
 
 ## Current Ruleset Alert
 
@@ -43,7 +45,7 @@ Promotion checklist before Reg M-B can become the default implemented lane:
 - Regenerate seed SQL, QA baseline, golden battle hashes, bundle, cache guard, and browser QA artifact.
 - Keep historical Reg M-A artifacts labeled as historical instead of rewriting old replay/team provenance.
 
-Non-goal: do not enable Tera, Omni Ring, legendary forms, items, or moves from assumption alone.
+Non-goal: do not enable any unapproved Champion mechanic, form, item, or move from assumption alone.
 
 Dataset poisoning guard:
 
@@ -157,7 +159,7 @@ When sources disagree:
 ## Current Open Source Questions
 
 - Reg M-B migration: source facts are recorded, but runtime promotion is blocked until image-sheet Pokemon allowlists and the 16 new Mega forms are converted into explicit reviewed data.
-- Champion Omni Ring and Tera-like mechanics: document only after an active ruleset source enables them; do not let Scarlet/Violet Tera data leak into Reg M-A/Reg M-B by default.
+- Unapproved Champion mechanics: document only after an active ruleset source enables them; do not let non-Champion legacy data leak into Reg M-A/Reg M-B by default.
 - Champion SP cap conflict: Showdown currently supports the `32` per-stat / `66` total guardrail, while at least one public preview conflicts. Keep the source conflict documented until a stronger Champion source resolves it.
 - Champion-specific damage roll window: keep any confirmed Champion delta as an override with oracle tests, not a hand-edited hidden constant.
 - Usage/meta sources: use them to guide coaching and team archetype testing, not as legality proof.

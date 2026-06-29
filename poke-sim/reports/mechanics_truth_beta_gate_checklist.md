@@ -4,6 +4,12 @@ Purpose: define the broader mechanics truth gate that must stay explicit before 
 
 Status: open beta gate. This checklist is the inventory behind issue `#149`.
 
+Champion-only source map: [`../docs/CHAMPION_MECHANICS_TRUTH_GATE_2026-06-29.md`](../docs/CHAMPION_MECHANICS_TRUTH_GATE_2026-06-29.md).
+
+Scope guard: this is a Pokemon Champions mechanics gate. Non-Champion legacy mechanics may be named only as blocked/import-drift examples. They are not product scope and must not train trusted coaching data.
+
+Current slice: `v2.2.32-action-denial-priority` starts slice 1 by normalizing priority-suppression reason IDs and QA counters for Fake Out timing, Quick Guard, Psychic Terrain, Armor Tail, Dazzling, and Queenly Majesty evidence.
+
 ## Why this exists
 
 The simulator already has strong coverage in several areas.
@@ -23,7 +29,7 @@ A family is only truly closed when all three are true:
 
 1. deterministic engine tests exist
 2. replay / turn-log / QA evidence can expose the mechanic clearly
-3. the source-truth basis is documented
+3. the source-truth basis is documented using the Data Source Registry hierarchy
 
 If one of those is missing, the family stays open.
 
@@ -50,6 +56,7 @@ Keep watching:
 
 - replay wording for blocked and failed priority actions
 - more cross-family proof whenever a new blocker/suppressor enters the legal lane
+- source-review status for any Reg M-B additions before they affect runtime or coaching
 
 ### 2. Field-state move failures
 
@@ -171,6 +178,22 @@ Still open:
 - full reason visibility for HP loss, KO cause, and skipped actions
 - easier board-state scanning in replay UI
 
+### 9. Champion source hierarchy and ruleset poisoning guard
+
+Status: open
+
+Covered:
+
+- Data Source Registry defines source tiers.
+- Reg M-B source-review lane is documented separately from the implemented runtime lane.
+- QA exports carry build/source metadata.
+
+Still open:
+
+- every mechanics-family closure should cite the source tier used
+- replay/QA/coaching rows should keep ruleset ID and ruleset status visible
+- review-only rows must stay out of trusted aggregate learning until promoted
+
 ## What should be worked next
 
 Recommended order:
@@ -180,6 +203,7 @@ Recommended order:
 3. Field-state move-failure inventory
 4. Switching/replacement timing inventory
 5. Decision Opportunity Ledger on top of those proven mechanics
+6. Ruleset/status guardrails for aggregate coaching so historical, review-only, and future implemented Champion lanes do not poison each other
 
 ## Approved runtime teams used for proof
 
@@ -210,3 +234,4 @@ Issue `#149` can close when:
 - all open families have deterministic proof where claimed
 - replay and QA evidence clearly expose the supported families
 - Overview and release docs point to the same closure state
+- source hierarchy and ruleset status are documented for every family that feeds coaching

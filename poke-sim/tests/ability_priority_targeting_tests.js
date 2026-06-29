@@ -73,6 +73,16 @@ function team(members) {
   return { name: 'Test', format: 'champions', legality_status: 'legal', members };
 }
 
+function effectRows(battle, predicate) {
+  const rows = [];
+  for (const turn of battle.turnLog || []) {
+    for (const row of turn.effect_events || []) {
+      if (!predicate || predicate(row)) rows.push(row);
+    }
+  }
+  return rows;
+}
+
 console.log('\n=== ability priority / targeting tests ===\n');
 
 T('1. Prankster gives Taunt priority over a faster foe', function() {
@@ -165,6 +175,8 @@ T('3. Armor Tail blocks opposing priority moves for the side', function() {
   const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'doubles', seed: [9, 10, 11, 12], maxTurns: 1 });
   truthy(battle.log.some(line => String(line).includes('Armor Tail blocked Fake Out')),
     'Armor Tail should block Fake Out');
+  truthy(effectRows(battle, row => row.effect_kind === 'move-failure' && row.failure_reason_id === 'armor_tail_priority_block' && row.blocked_priority && row.blocker === 'Armor Tail').length > 0,
+    'Armor Tail priority block should export structured failure evidence');
 });
 
 T('3b. Dazzling blocks opposing priority moves for the side', function() {
@@ -205,6 +217,8 @@ T('3b. Dazzling blocks opposing priority moves for the side', function() {
   const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'doubles', seed: [9, 10, 11, 12], maxTurns: 1 });
   truthy(battle.log.some(line => String(line).includes('Dazzling blocked Fake Out')),
     'Dazzling should block Fake Out');
+  truthy(effectRows(battle, row => row.effect_kind === 'move-failure' && row.failure_reason_id === 'dazzling_priority_block' && row.blocked_priority && row.blocker === 'Dazzling').length > 0,
+    'Dazzling priority block should export structured failure evidence');
 });
 
 T('3c. Queenly Majesty blocks opposing priority moves for the side', function() {
@@ -245,6 +259,8 @@ T('3c. Queenly Majesty blocks opposing priority moves for the side', function() 
   const battle = ctx.simulateBattle(playerTeam, oppTeam, { format: 'doubles', seed: [9, 10, 11, 12], maxTurns: 1 });
   truthy(battle.log.some(line => String(line).includes('Queenly Majesty blocked Fake Out')),
     'Queenly Majesty should block Fake Out');
+  truthy(effectRows(battle, row => row.effect_kind === 'move-failure' && row.failure_reason_id === 'queenly_majesty_priority_block' && row.blocked_priority && row.blocker === 'Queenly Majesty').length > 0,
+    'Queenly Majesty priority block should export structured failure evidence');
 });
 
 T('4. Good as Gold blocks targeted status moves', function() {

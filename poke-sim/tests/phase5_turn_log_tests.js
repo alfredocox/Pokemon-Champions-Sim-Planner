@@ -698,5 +698,85 @@ T('T5c-10 replay coaching summary renderer prints the bounded output rows', () =
   truthy(html.includes('Next action'), 'next action row missing');
 });
 
+T('T5c-11 QA coverage counts blocked-priority families separately', () => {
+  const turnLog = [{
+    turn: 1,
+    pre: { active: { player: [], opponent: [] }, bench: { player: [], opponent: [] }, roster: { player: [], opponent: [] }, status: {}, field: {}, speed_control: {} },
+    post: { active: { player: [], opponent: [] }, bench: { player: [], opponent: [] }, roster: { player: [], opponent: [] }, status: {}, field: {}, speed_control: {} },
+    actions: { player: [{ actor: 'Incineroar', move: 'Fake Out', priority: 3, target: 'Farigiraf' }], opponent: [] },
+    damage_events: [],
+    effect_events: [{
+      actor: 'Incineroar',
+      actor_key: 'player:slot:0:Incineroar',
+      effect_kind: 'move-failure',
+      move: 'Fake Out',
+      move_failed: true,
+      failed_move: 'Fake Out',
+      failure_reason: 'armor_tail_priority_block',
+      failure_reason_id: 'armor_tail_priority_block',
+      reason_id: 'armor_tail_priority_block',
+      blocked_priority: true,
+      priority_failure_family: 'ability',
+      blocker: 'Armor Tail',
+      blocker_kind: 'armor_tail',
+      target: 'Farigiraf',
+      target_key: 'opponent:slot:0:Farigiraf',
+      target_side: 'opponent'
+    }, {
+      actor: 'Incineroar',
+      actor_key: 'player:slot:0:Incineroar',
+      effect_kind: 'move-failure',
+      move: 'Fake Out',
+      move_failed: true,
+      failed_move: 'Fake Out',
+      failure_reason: 'quick_guard_priority_block',
+      failure_reason_id: 'quick_guard_priority_block',
+      reason_id: 'quick_guard_priority_block',
+      blocked_priority: true,
+      priority_failure_family: 'guard',
+      blocker: 'Quick Guard',
+      blocker_kind: 'quick_guard',
+      target: 'Whimsicott',
+      target_key: 'opponent:slot:1:Whimsicott',
+      target_side: 'opponent'
+    }, {
+      actor: 'Incineroar',
+      actor_key: 'player:slot:0:Incineroar',
+      effect_kind: 'move-failure',
+      move: 'Fake Out',
+      move_failed: true,
+      failed_move: 'Fake Out',
+      failure_reason: 'psychic_terrain_priority_block',
+      failure_reason_id: 'psychic_terrain_priority_block',
+      reason_id: 'psychic_terrain_priority_block',
+      blocked_priority: true,
+      priority_failure_family: 'terrain',
+      blocker: 'Psychic Terrain',
+      blocker_kind: 'psychic_terrain',
+      target: 'Indeedee-F',
+      target_key: 'opponent:slot:2:Indeedee-F',
+      target_side: 'opponent'
+    }, {
+      actor: 'Incineroar',
+      actor_key: 'player:slot:0:Incineroar',
+      effect_kind: 'move-failure',
+      move: 'Fake Out',
+      move_failed: true,
+      failed_move: 'Fake Out',
+      failure_reason: 'fake_out_timing',
+      failure_reason_id: 'fake_out_timing',
+      reason_id: 'fake_out_timing',
+      blocked_priority: true,
+      priority_failure_family: 'fake_out_timing'
+    }]
+  }];
+  const summary = ctx.csBuildQaCoverageSummary(turnLog);
+  eq(summary.mechanics_seen.blocked_priority_events, 4, 'blocked priority total mismatch');
+  eq(summary.mechanics_seen.priority_ability_blocks, 1, 'ability priority block count mismatch');
+  eq(summary.mechanics_seen.quick_guard_priority_blocks, 1, 'Quick Guard block count mismatch');
+  eq(summary.mechanics_seen.psychic_terrain_priority_blocks, 1, 'Psychic Terrain block count mismatch');
+  eq(summary.mechanics_seen.fake_out_timing_failures, 1, 'Fake Out timing count mismatch');
+});
+
 console.log(`\nPhase 5 turn log: ${pass} pass, ${fail} fail\n`);
 if (fail) process.exit(1);
