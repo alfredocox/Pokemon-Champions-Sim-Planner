@@ -5,9 +5,9 @@
 (function(root) {
   var manifest = {
     schema_version: 'champions-release-manifest-v1',
-    build_id: 'v2.2.50-sim-evidence-adapter',
+    build_id: 'v2.2.51-team-lab-milestone-align',
     release_date: '2026-06-29',
-    service_worker_cache: 'champions-sim-v182-sim-evidence-adapter',
+    service_worker_cache: 'champions-sim-v183-team-lab-milestone-align',
     bundle_name: 'pokemon-champion-2026.html',
     pages_path: 'poke-sim/pokemon-champion-2026.html',
     artifact_manifest: 'generated/release_artifact.json',

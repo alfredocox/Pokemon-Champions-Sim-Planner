@@ -131,3 +131,23 @@ The adapter boundary is not the full import pipeline. These items remain open an
 3. Leaderboard evidence promotion rules: separates official benchmark/recalculation jobs from dev/experimental evidence, with minimum sample sizes and source-gap gates.
 4. Recalculation queue: rebuilds leaderboard and matchup rows after trusted imports, engine updates, or ruleset updates, then marks old rows stale.
 5. Poisoning controls: prevents unknown, illegal, stale, private, or unreviewed evidence from improving public/global leaderboard rank.
+
+### GitHub M15 issue alignment update
+
+As of the `v2.2.50-sim-evidence-adapter` QA check, the Team Lab surface may look empty because the repo has backend/schema/evidence plumbing but not the public read UI or trusted evidence promotion path yet. That is not a simulation regression; it is an unfinished M15 product surface.
+
+Current M15 GitHub issue map:
+
+1. #179 Team Lab read UI: makes leaderboard/cards/detail/trust badges visible.
+2. #180 Custom team submission/edit flow and legality validation.
+3. #181 Leaderboard recalculation, stale guards, and official ranking gates.
+4. #182 QA artifact import pipeline into sim_jobs and replays.
+5. #183 Compare My Team matchup matrix.
+6. #184 Hidden-details privacy and public evidence API contract.
+7. #185 Account profile analytics.
+8. #186 Global vs personal analytics trust boundary.
+9. #187 Trusted Team Lab evidence import worker.
+10. #188 Artifact team-ID mapping resolver.
+11. #189 Team Lab leaderboard evidence promotion rules.
+
+Do not close the Team Lab milestone while the UI is empty. The current backend work is valid only as foundation until the read UI, trusted writer, mapping resolver, and promotion rules are implemented and tested.

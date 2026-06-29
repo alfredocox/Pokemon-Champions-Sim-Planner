@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.50-sim-evidence-adapter'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.51-team-lab-milestone-align'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -12860,17 +12860,17 @@ function csRenderOverviewTeamLabPlan() {
     },
     {
       status: 'gap',
-      title: 'Trusted evidence import worker',
+      title: 'Trusted evidence import worker (#187)',
       detail: 'Missing follow-up: browser exports can normalize evidence, but protected Supabase writes must happen through a trusted worker/server action with audit logging, not through anon browser clients.'
     },
     {
       status: 'gap',
-      title: 'Artifact team-ID mapping resolver',
+      title: 'Artifact team-ID mapping resolver (#188)',
       detail: 'Missing follow-up: QA artifacts still use local keys like player or bundled opponent IDs until a reviewed resolver maps them to Team Lab team UUIDs without poisoning leaderboard data.'
     },
     {
       status: 'gap',
-      title: 'Leaderboard evidence promotion rules',
+      title: 'Leaderboard evidence promotion rules (#189)',
       detail: 'Missing follow-up: define which sim_jobs can promote replay rows into official leaderboard scopes versus experimental/dev evidence, including benchmark pool approval and minimum sample requirements.'
     },
     {
@@ -12899,7 +12899,7 @@ function csRenderOverviewTeamLabPlan() {
       '<div><h3>Team Lab / Leaderboard Plan</h3><span class="overview-kicker">M15 issue plan</span></div>' +
       '<strong>' + rows.length + '</strong>' +
     '</summary>' +
-    '<p class="overview-source-note">Team Lab rankings must read as evidence, not absolute truth: every ranking needs regulation, ruleset, engine version, sample size, confidence, legality, stale status, and hidden-detail privacy controls.</p>' +
+    '<p class="overview-source-note">Team Lab rankings must read as evidence, not absolute truth: every ranking needs regulation, ruleset, engine version, sample size, confidence, legality, stale status, and hidden-detail privacy controls. If the Team Lab surface is empty today, that is expected until the read UI (#179), trusted import worker (#187), and evidence promotion rules (#189) are complete.</p>' +
     '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
   '</details>';
 }
