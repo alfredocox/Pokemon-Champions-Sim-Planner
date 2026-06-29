@@ -1,0 +1,426 @@
+Pokemon Champion Sim
+Team Lab, Leaderboard, and Evidence-Bound Simulator Architecture
+Implementation spec for Codex, app architecture, Supabase schema, QA gates, and future coaching features
+
+North Star
+Build the sim as a versioned evidence pipeline: rules and legality come from source-truth data, teams are validated before official ranking, the battle engine emits replay-verifiable events, analytics aggregates versioned sim runs, and the UI displays rankings with confidence and stale/version warnings.
+
+Document field
+Value
+Status
+Architecture and product specification
+Primary audience
+Codex, developers, product owner, QA
+Main goal
+Create a trusted Pokemon Champion competitive simulator with a Team Lab leaderboard and custom team analytics
+Core warning
+Do not invent Champion-specific data. Unknown legality or mechanics must become needs_verification, not verified.
+Example regulation label
+M-B is used as an example label from prior planning; source-verify before treating any regulation as current truth.
+
+
+Contents
+1. Executive Summary
+2. Non-Negotiable Product Principles
+3. High-Level Architecture
+4. Source of Truth and Ruleset Packages
+5. Team Library and Visibility Model
+6. Team Validator
+7. Battle Engine
+8. Replay and QA Evidence System
+9. Sim Runner and Batch Sweeps
+10. Analytics Aggregator
+11. Team Lab Leaderboard
+12. Matchups, Team DNA, and Compare My Team
+13. Supabase/Postgres Data Model
+14. Service and API Boundaries
+15. Suggested Repository Structure
+16. Codex Implementation Instructions
+17. AGENTS.md Starter Content
+18. MVP Build Roadmap
+19. Acceptance Criteria
+20. Risk Controls and Glossary
+
+1. Executive Summary
+This document defines a practical architecture for a Pokemon Champion competitive battle simulator with a Team Lab leaderboard. The system should not be treated as a simple damage calculator or a popularity ranking. It should be treated as a versioned evidence pipeline.
+The core product idea is that every important output should be explainable: a legality result points to a ruleset and source status; a battle result points to a deterministic seed and replay event log; a leaderboard rank points to sim runs, engine version, ruleset version, regulation, sample size, and confidence.
+Architecture sentence for Codex
+Teams are validated against regulation-specific rulesets. Validated teams enter official or experimental sim pools. The battle engine runs deterministic battles and emits replay logs. Sim runs are stored with engine_version, ruleset_version, regulation_id, format, and seed. Analytics aggregates those runs into ratings, win rates, confidence labels, stale warnings, and matchup matrices. The UI displays rankings as simulator-derived evidence, never as unsupported official truth.
+
+2. Non-Negotiable Product Principles
+Evidence-bound accuracy: No rule, legality claim, or ranking should appear as certain unless it is tied to official data, in-game verification, replay verification, or an explicit source status.
+Version everything: Every sim run, leaderboard entry, and legality report must include regulation_id, ruleset_version, engine_version, and format.
+Unknown is not legal: When Champion-specific data is missing, return needs_verification instead of silently passing the team or mechanic as verified.
+Separate mechanics, legality, and meta: A rule is not a trend, and a popular meta team is not automatically legal. These must remain separate data layers.
+Deterministic simulation: Same teams, same ruleset package, same engine version, same seed, and same inputs should produce the same battle and replay log.
+Stale results must be visible: When the engine or ruleset changes, affected leaderboard entries must be marked stale until recalculated.
+Privacy by design: Custom teams can be private, public, or hidden-details. Hidden moves, items, EVs, IVs, natures, and tech choices must not leak to non-owners.
+3. High-Level Architecture
+The system breaks into three large domains: the Truth System, the Simulation System, and the Team Lab System. Keep them separate so the leaderboard never mutates battle rules and the battle engine never reads popularity data.
+1. Truth System    Source facts, ruleset packages, regulation data, legality data, mechanic verification.  2. Simulation System    Team validator, deterministic battle engine, replay/event logs, sim runner.  3. Team Lab System    Team library, sim-run storage, analytics aggregation, leaderboard, matchups, compare-my-team.
+Source of Truth -> Team Validator -> Battle Engine -> Replay/Event Logs                       ^                    |                       |                    v                 Team Library          Sim Runner                                            |                                            v                                 Analytics Aggregator                                            |                                            v                                   Team Lab Leaderboard
+Layer
+Responsibility
+Must not do
+Source of Truth
+Store verified rules, regulations, source status, and source gaps.
+Must not rank teams or generate coaching advice.
+Team Validator
+Check teams against a ruleset package and return structured legality reports.
+Must not silently allow unknown data.
+Battle Engine
+Run one deterministic battle and emit events.
+Must not know about leaderboard rank or meta popularity.
+Replay System
+Store and display event logs for debugging, QA, and evidence.
+Must not alter the canonical battle result.
+Sim Runner
+Run batches and sweeps using the engine.
+Must not calculate rankings by itself.
+Analytics Aggregator
+Aggregate sim runs into ratings, confidence, stale flags, and matchups.
+Must not simulate battle mechanics.
+Team Lab UI
+Display teams, rankings, matchups, trust badges, and comparisons.
+Must not guess hidden details or unverified legality.
+
+4. Source of Truth and Ruleset Packages
+4.1 Source of Truth System
+The Source of Truth system stores everything the simulator is allowed to believe. It should include Champion regulations, legal Pokemon, legal forms, legal moves, legal abilities, legal items, special mechanics, battle flow differences, and source status.
+Question
+Expected answer source
+Is this species legal under this regulation?
+Ruleset package compiled from official or verified data.
+Is this move usable in Champion?
+Move legality data with source pointer or needs_verification.
+Does Champion match Showdown for this mechanic?
+Parity matrix with official, in-game, or replay verification.
+Can this team enter official leaderboard scope?
+Team Validator report must be verified, not illegal or needs_verification.
+
+type RuleFact = {   id: string;   category:     | "mechanic"     | "legality"     | "regulation"     | "battle_flow"     | "item"     | "ability"     | "move"     | "form";   statement: string;   regulation_id?: string;   ruleset_version: string;   verification_status:     | "official_verified"     | "replay_verified"     | "showdown_reference"     | "community_reference"     | "needs_verification"     | "conflicting";   source_url?: string;   source_note?: string;   effective_start?: string;   effective_end?: string;   created_at: string;   updated_at: string; };
+4.2 Ruleset Package Layer
+The engine should not read loose database rows. Compile source facts into a clean ruleset package and pass that package into validation and simulation.
+type RulesetPackage = {   regulation_id: string;   ruleset_version: string;   format: "singles" | "doubles";    legal_species: string[];   legal_forms: string[];   legal_moves: string[];   legal_items: string[];   legal_abilities: string[];    clauses: {     species_clause: boolean;     item_clause: boolean;     team_size: number;     bring_size: number;     level_cap: number;   };    mechanics: {     mega_evolution: "enabled" | "disabled" | "needs_verification";     tera: "enabled" | "disabled" | "needs_verification";     dynamax: "enabled" | "disabled" | "needs_verification";   };    source_status: {     legality: "verified" | "partial" | "needs_verification";     mechanics: "verified" | "partial" | "needs_verification";   }; };
+5. Team Library and Visibility Model
+The Team Library stores custom teams, benchmark teams, public community teams, official-event teams, engine-generated teams, and developer seed teams. It should support privacy controls from day one because competitive users may want performance analytics without revealing tech choices.
+Visibility
+Who can see team summary?
+Who can see full details?
+Use case
+Private
+Owner only
+Owner only
+Personal testing and drafts.
+Hidden details
+Public can see name, archetype, stats, and public slots.
+Owner only for hidden moves/items/EVs/IVs/nature.
+Competitive teams where performance can be public but tech is protected.
+Public
+Everyone
+Everyone
+Shared teams, sample teams, educational teams.
+
+type Team = {   id: string;   owner_user_id?: string;   name: string;   format: "singles" | "doubles";   regulation_id: string;   visibility: "private" | "hidden_details" | "public";   source_type:     | "user_custom"     | "official_event"     | "community_meta"     | "engine_generated"     | "benchmark"     | "dev_seed";   archetype_tags: string[];   legality_status: "verified" | "needs_verification" | "illegal" | "stale";   legality_report?: LegalityReport;   created_at: string;   updated_at: string; };  type TeamMember = {   team_id: string;   slot: number;   pokemon_id: string;   form_id?: string;   item_id?: string;   ability_id?: string;   moves: string[];   nature?: string;   evs?: Record<string, number>;   ivs?: Record<string, number>;   level?: number;   is_hidden_publicly: boolean; };
+6. Team Validator
+The Team Validator is the gate between Team Library and official simulation pools. It validates a team against a regulation-specific ruleset package and returns a structured report. It should never return only true or false.
+Validate team size, bring size, level rules, format rules, duplicate species clause, and duplicate item clause.
+Validate species, forms, moves, abilities, items, special mechanic eligibility, and any HOME or visitor constraints if relevant.
+Return illegal when known rules are violated.
+Return needs_verification when Champion source data is missing.
+Return stale when the team was validated against an old ruleset and needs revalidation.
+type LegalityReport = {   status: "verified" | "needs_verification" | "illegal" | "stale";   regulation_id: string;   ruleset_version: string;   errors: LegalityIssue[];   warnings: LegalityIssue[];   source_gaps: LegalityIssue[]; };  type LegalityIssue = {   code: string;   severity: "error" | "warning" | "needs_source";   message: string;   affected_slot?: number;   pointer?: string; };
+Example validator behavior
+If a team uses a form, item, or move that has not been source-verified for the selected Champion regulation, the validator should return needs_verification. That team may enter an experimental pool, but it must not enter official leaderboard scope.
+
+7. Battle Engine
+The Battle Engine is the protected core. It runs one battle from explicit inputs and returns a full event log. It should be deterministic and side-effect-free except for returning a result object. The battle engine should not know about leaderboards, user profiles, or popularity data.
+Input
+Description
+Validated teams
+Team A and Team B after legality validation.
+Ruleset package
+The exact regulation, format, clauses, and mechanic switches used for the battle.
+Engine version
+The battle engine version used to run this battle.
+Seed
+Random seed that makes the result reproducible.
+Options
+Max turns, timer mode, custom test flags, or scenario setup.
+
+type BattleInput = {   team_a: ValidatedTeam;   team_b: ValidatedTeam;   regulation_id: string;   ruleset_version: string;   engine_version: string;   format: "singles" | "doubles";   seed: string;   options?: {     max_turns?: number;     timer_mode?: "ranked" | "tournament" | "custom";   }; };  type BattleResult = {   battle_id: string;   winner_team_id?: string;   result_reason: "ko" | "timer" | "draw" | "error";   turns: number;   engine_version: string;   ruleset_version: string;   regulation_id: string;   seed: string;   event_log: BattleEvent[];   confidence_flags: string[]; };
+7.1 Event Log Model
+type BattleEvent = {   turn: number;   event_type:     | "move_selected"     | "switch"     | "priority_order"     | "move_used"     | "damage"     | "heal"     | "status_applied"     | "item_activated"     | "ability_activated"     | "weather_changed"     | "terrain_changed"     | "faint"     | "end_of_turn";   actor?: string;   target?: string;   value?: number;   message: string;   rule_pointer?: string; };
+8. Replay and QA Evidence System
+The replay system stores and displays the battle engine event log. QA uses replay logs to prove mechanics, debug engine regressions, and validate leaderboard results after engine or ruleset updates.
+QA category
+Example checks
+Mechanics
+Protect, priority, switching, weather, terrain, status, spread moves, redirection, Mega timing, ability activation, item activation.
+Legality
+Legal team passes, illegal species fails, unknown data returns needs_verification.
+Replay determinism
+Same seed and inputs produce same event log. Replay diffs catch behavior changes.
+Leaderboard
+Illegal teams excluded, needs_verification teams experimental only, stale entries visible.
+Privacy
+Hidden details do not leak to non-owner API responses or UI renders.
+
+type ReplayRecord = {   id: string;   team_a_id: string;   team_b_id: string;   regulation_id: string;   ruleset_version: string;   engine_version: string;   seed: string;   result: {     winner_team_id?: string;     reason: "ko" | "timer" | "draw" | "error";     turns: number;   };   event_log: BattleEvent[];   created_at: string; };
+9. Sim Runner and Batch Sweeps
+The Battle Engine runs one battle. The Sim Runner runs many battles: team-vs-team, team-vs-leaderboard, archetype sweeps, full leaderboard recalculation, targeted scenario sweeps, and QA regression jobs.
+type SimJob = {   id: string;   job_type:     | "team_vs_team"     | "team_vs_leaderboard"     | "archetype_sweep"     | "full_leaderboard_recalc"     | "qa_regression";   regulation_id: string;   ruleset_version: string;   engine_version: string;   format: "singles" | "doubles";   team_ids: string[];   opponent_team_ids?: string[];   games_per_matchup: number;   status: "queued" | "running" | "completed" | "failed"; };  type SimRun = {   id: string;   job_id?: string;   team_a_id: string;   team_b_id: string;   regulation_id: string;   format: "singles" | "doubles";   engine_version: string;   ruleset_version: string;   seed: string;   winner_team_id?: string;   result_reason: "ko" | "timer" | "draw" | "error";   turns: number;   confidence_flags: string[];   replay_id?: string;   created_at: string; };
+10. Analytics Aggregator
+The Analytics Aggregator reads sim_runs and produces leaderboard entries, matchup matrices, archetype performance, confidence labels, and stale warnings. It should not run battles itself.
+Filter sim runs by regulation_id, format, engine_version, and ruleset_version.
+Exclude illegal teams from official leaderboard scopes.
+Route needs_verification teams to experimental scopes only.
+Aggregate wins, losses, draws, games played, raw win rate, adjusted win rate, and rating.
+Assign confidence based on sample size, legality status, and confidence flags.
+Mark results stale when engine or ruleset versions change.
+rating formula v1:  raw_win_rate = wins / games_played  sample_confidence_multiplier: - games >= 10000: 1.00 - games >= 1000: 0.95 - games >= 100: 0.85 - otherwise: not ranked  legality_multiplier: - verified: 1.00 - needs_verification: 0.70 and experimental only - stale: 0.50 - illegal: excluded  rating = 1000 + ((adjusted_win_rate - 0.5) * 1000)  Keep this formula isolated so it can be replaced later with Elo, Glicko, or a team-specific rating model.
+11. Team Lab Leaderboard
+The Team Lab leaderboard should not be called simply "Best Teams". It should be framed as "Top Sim Teams", "Champion Lab Rankings", or "Simulator-Derived Performance" so users understand the rankings are based on versioned sim evidence, not unsupported real-world certainty.
+Leaderboard field
+Purpose
+Rank
+Position within current filters and scope.
+Team name and archetype
+Human-readable identity and strategic category.
+Format and regulation
+Separates singles/doubles and regulation legality.
+Rating
+Adjusted simulator performance score.
+Raw and adjusted win rate
+Raw performance and sample/quality-adjusted performance.
+Games played
+Sample size. Critical for confidence.
+Confidence
+High, medium, low, or experimental.
+Legality
+Verified, needs_verification, illegal, or stale.
+Engine/ruleset version
+Shows exactly what code and rules created the result.
+Stale status
+Warns when results need recalculation.
+
+type LeaderboardEntry = {   id: string;   team_id: string;   leaderboard_scope:     | "overall"     | "custom"     | "public"     | "benchmark"     | "experimental"     | "anti_meta";   regulation_id: string;   format: "singles" | "doubles";   engine_version: string;   ruleset_version: string;   rating: number;   raw_win_rate: number;   adjusted_win_rate: number;   games_played: number;   wins: number;   losses: number;   draws: number;   confidence: "low" | "medium" | "high" | "experimental";   rank?: number;   stale: boolean;   stale_reason?: string;   updated_at: string; };
+12. Matchups, Team DNA, and Compare My Team
+12.1 Matchup Matrix
+A pure leaderboard tells users what is ranked highly. The matchup matrix explains why. It should show team-vs-team and team-vs-archetype performance under the current regulation, engine version, and ruleset version.
+type TeamMatchup = {   id: string;   team_id: string;   opponent_team_id?: string;   opponent_archetype?: string;   regulation_id: string;   format: "singles" | "doubles";   engine_version: string;   ruleset_version: string;   games_played: number;   wins: number;   losses: number;   draws: number;   win_rate: number;   confidence: "low" | "medium" | "high" | "experimental";   updated_at: string; };
+12.2 Team DNA
+Speed profile: fast offense, balanced, slow control, Trick Room-dependent.
+Damage profile: physical, special, mixed, spread, single-target burst.
+Defensive profile: fragile offense, bulky offense, balance, stall/control.
+Dependency profile: weather, terrain, Mega, setup, redirection, speed control.
+Variance profile: low, medium, high; high-roll dependency should be visible.
+Skill profile: beginner-friendly, medium, high-skill, high-risk/high-reward.
+12.3 Compare My Team
+This is likely one of the strongest user-facing features. The user builds or imports a team, validates it, and runs it against top teams, benchmark archetypes, known counters, and the current Team Lab field.
+type TeamComparisonReport = {   team_id: string;   regulation_id: string;   format: "singles" | "doubles";   engine_version: string;   ruleset_version: string;   overall_estimated_win_rate: number;   confidence: "low" | "medium" | "high" | "experimental";   best_matchups: MatchupSummary[];   worst_matchups: MatchupSummary[];   major_weaknesses: string[];   suggested_focus_areas: string[];   stale_warnings: string[];   source_gaps: string[]; };
+13. Supabase/Postgres Data Model
+These tables form the backend foundation. Names and types can be adjusted to fit the existing repo conventions, but the versioning and trust fields should remain.
+Table
+Key fields
+Purpose
+teams
+id, owner_user_id, name, format, regulation_id, visibility, source_type, archetype_tags, legality_status, legality_report
+Stores team metadata and trust state.
+team_members
+team_id, slot, pokemon_id, form_id, item_id, ability_id, moves, nature, evs, ivs, level, is_hidden_publicly
+Stores team slot details.
+sim_runs
+team_a_id, team_b_id, regulation_id, format, engine_version, ruleset_version, seed, winner_team_id, result_reason, turns, confidence_flags, replay_id
+Stores one battle result.
+leaderboard_entries
+team_id, leaderboard_scope, regulation_id, format, engine_version, ruleset_version, rating, win rates, games, confidence, rank, stale
+Stores calculated rankings.
+team_matchups
+team_id, opponent_team_id, opponent_archetype, regulation_id, format, engine_version, ruleset_version, games, win_rate, confidence
+Stores matchup matrix results.
+ruleset_packages
+regulation_id, ruleset_version, format, legal data, clauses, mechanics, source_status
+Stores compiled rulesets used by validation and simulation.
+rule_facts
+id, category, statement, source status, source URL, dates, ruleset version
+Stores granular source-truth records.
+replays
+teams, versions, seed, result, event_log
+Stores replay evidence.
+sim_jobs
+job type, versions, teams, opponents, games per matchup, status
+Tracks batch jobs and sweeps.
+
+13.1 Recommended indexes
+teams(regulation_id, format) teams(owner_user_id) teams(visibility) leaderboard_entries(regulation_id, format, leaderboard_scope, rank) leaderboard_entries(engine_version, ruleset_version) sim_runs(team_a_id) sim_runs(team_b_id) sim_runs(regulation_id, format) team_matchups(team_id, opponent_team_id)
+13.2 RLS and privacy rules
+Private teams are visible only to owner.
+Public teams are visible to everyone.
+Hidden-details teams expose summary and public stats but protect exact hidden moves, items, EVs, IVs, natures, and tech choices.
+Admin/dev roles may create benchmark pools, verify source facts, mark stale leaderboards, and manage ruleset packages.
+14. Service and API Boundaries
+Keep database writes behind services so the UI cannot bypass validation or leak private data.
+Service
+Main responsibility
+rulesetService
+Load and compile ruleset packages.
+teamService
+Create, update, fetch, and filter teams with visibility rules.
+legalityService
+Validate teams and produce legality reports.
+battleService
+Run one battle through the engine.
+simRunnerService
+Schedule and execute batch simulation jobs.
+replayService
+Save, fetch, display, and diff replay logs.
+analyticsService
+Aggregate sim runs into ratings and matchups.
+leaderboardService
+Read and filter leaderboard entries.
+matchupService
+Expose team-vs-team and team-vs-archetype performance.
+coachingService
+Use rules, replays, and Team Lab data to provide evidence-bound recommendations.
+
+14.1 API route concept
+GET    /api/rulesets GET    /api/rulesets/:id  POST   /api/teams GET    /api/teams/:id PATCH  /api/teams/:id DELETE /api/teams/:id POST   /api/teams/:id/validate  GET    /api/team-lab/leaderboard GET    /api/team-lab/teams/:id GET    /api/team-lab/teams/:id/matchups POST   /api/team-lab/compare  POST   /api/sim/run POST   /api/sim/sweep GET    /api/sim/jobs/:id GET    /api/replays/:id
+15. Suggested Repository Structure
+src/   core/     battle-engine/       engine.ts       turn-order.ts       damage.ts       status.ts       switching.ts       targeting.ts       events.ts       rng.ts      rulesets/       types.ts       loader.ts       compiler.ts       source-facts.ts      legality/       validate-team.ts       legality-report.ts       clauses.ts      replays/       replay-types.ts       replay-writer.ts       replay-reader.ts       replay-diff.ts    team-lab/     teams/       team-types.ts       team-service.ts       visibility.ts      sim-runs/       sim-run-types.ts       sim-run-service.ts      runner/       sim-job-types.ts       sim-runner.ts       seed-generator.ts      analytics/       leaderboard-calculator.ts       matchup-calculator.ts       confidence.ts       stale-marking.ts       rating-formula.ts      ui/       TeamLabPage.tsx       LeaderboardTable.tsx       TeamCard.tsx       TeamDetailPage.tsx       TrustBadge.tsx       VersionBanner.tsx       MatchupMatrix.tsx       CompareMyTeam.tsx    coaching/     tactical-sweep.ts     recommendations.ts     explanation-builder.ts    db/     migrations/     supabase/     policies/    tests/     battle-engine/     legality/     leaderboard/     visibility/     replay/
+16. Codex Implementation Instructions
+Use the following prompt style with Codex. Do not ask it vaguely to build a leaderboard. Give it the evidence model and the build boundaries.
+You are working on my Pokemon Champion battle simulator.  The simulator's core principle is evidence-bound accuracy. Do not treat guessed game data, Showdown data, or community meta as official truth. Every rule, legality result, sim result, and leaderboard ranking must be tied to: - regulation_id - ruleset_version - engine_version - data source / verification status - sample size, where applicable  Feature to build: Create the foundation for a Top Sim Teams / Team Lab system.  This is not just a popularity leaderboard. It should rank teams based on simulator evidence, legality validation, matchup performance, confidence, and versioned rules. Users should be able to save custom teams, validate teams, run simulations, see rankings, compare against top teams, and inspect stale/version warnings.  Do not invent Pokemon Champion-specific data. Use placeholder/sample data only when needed, and clearly label it as seed/dev data.
+16.1 Task sequence for Codex
+Task
+Codex instruction
+Deliverable
+Task 1
+Implement backend foundation only. Inspect repo structure, add migrations/types, add leaderboard calculator, add basic legality interface.
+Types, migrations, tests, no full UI.
+Task 2
+Build Team Lab read UI using existing design system.
+Leaderboard table, TeamCard, TrustBadge, VersionBanner, Team detail.
+Task 3
+Add custom team submission and validation.
+Create/edit teams, visibility, validation reports, source gaps.
+Task 4
+Add matchup matrix and Compare My Team functionality.
+Top-team comparison, archetype comparison, best/worst matchups.
+Task 5
+Integrate replay examples and evidence panels.
+Replay links, trust panels, stale warnings, QA pointers.
+Task 6
+Add coaching integration.
+Evidence-bound recommendations using rules, matchups, and replay data.
+
+16.2 Task 1 prompt
+Task 1:  Implement the backend foundation for Team Lab only. Do not build the full UI yet.  Please: 1. Inspect the repo structure. 2. Identify existing Supabase/database migration patterns. 3. Identify existing TypeScript type conventions. 4. Add Team Lab database migrations for teams, team_members, sim_runs,    leaderboard_entries, and team_matchups. 5. Add TypeScript types/interfaces for these tables. 6. Add a leaderboard calculation module with tests. 7. Add a basic legality validation interface that returns needs_verification when source data is missing. 8. Add unit tests for ranking, confidence, stale status, and visibility filtering.  Do not invent game data. Do not modify unrelated battle engine logic. Do not add large UI changes in this task. After implementation, run typecheck/tests and summarize changed files and test results.
+17. AGENTS.md Starter Content
+Place this at the repo root or adapt it to existing project conventions so Codex has consistent rules when editing the project.
+# AGENTS.md  ## Project  This repository is a Pokemon Champion competitive battle simulator.  The project prioritizes: 1. Accurate battle simulation. 2. Versioned rules and regulations. 3. Evidence-bound legality. 4. Replay-verifiable results. 5. Safe coaching that distinguishes verified facts from assumptions.  ## Non-negotiable rules  - Do not invent Pokemon Champion-specific rules, Pokemon legality, move legality,   item legality, form legality, or regulation data. - Unknown game truth must be represented as `needs_verification`. - Showdown/mainline Pokemon behavior may be used as a baseline only if clearly marked   as baseline/reference, not Champion truth. - Every simulation-derived result must include:   - `engine_version`   - `ruleset_version`   - `regulation_id`   - `format`   - sample size where applicable - Any leaderboard result affected by an engine or ruleset update must be markable as stale. - Do not mix meta popularity, legality, and mechanical truth.  ## Team Lab principles  The Team Lab leaderboard ranks teams based on simulator evidence, not absolute real-world truth.  Leaderboard entries must expose: - regulation - format - legality status - sim rating - raw win rate - adjusted win rate - games played - confidence - engine version - ruleset version - stale status  Custom teams may be: - private - hidden_details - public  Hidden teams must not leak private moves, items, EVs, IVs, natures, or tech choices to non-owners.  ## Testing expectations  When changing Team Lab, add or update tests for: - legality validation - leaderboard calculation - confidence labels - stale marking - hidden visibility filtering - illegal team exclusion - needs_verification handling  Before completing a task, run the project's standard: - typecheck - lint - unit tests - any relevant database migration validation  ## Coding style  Follow existing project conventions. Prefer small, well-scoped modules. Avoid large unrelated refactors.
+18. MVP Build Roadmap
+Phase
+Build
+Goal
+Phase 1
+Data foundation: teams, members, ruleset packages, legality reports, sim runs, leaderboard entries, matchups.
+Store teams and sim results correctly.
+Phase 2
+Legality validator: verified, illegal, needs_verification, stale.
+Prevent unverified data from becoming official truth.
+Phase 3
+Basic sim run storage: one battle, replay log, versions, seed.
+Make every battle auditable.
+Phase 4
+Basic leaderboard aggregation.
+Show top sim teams by regulation and format.
+Phase 5
+Matchup matrix and archetype stats.
+Explain why a team ranks well or poorly.
+Phase 6
+Compare My Team.
+Turn the leaderboard into a team-building tool.
+Phase 7
+Advanced coaching.
+Use rules, replays, and Team Lab data to generate evidence-bound recommendations.
+
+19. Acceptance Criteria
+Database migrations compile and apply cleanly.
+Types exist for Team, TeamMember, SimRun, LeaderboardEntry, TeamMatchup, RulesetPackage, RuleFact, LegalityReport, and ReplayRecord.
+Team visibility rules are represented in service logic and tested.
+Illegal teams are excluded from official leaderboard scopes.
+needs_verification teams are allowed only in experimental scopes unless later verified.
+Leaderboard entries include regulation_id, format, engine_version, ruleset_version, sample size, confidence, and stale status.
+Stale leaderboard entries are visibly marked in API and UI.
+Hidden-detail teams do not leak hidden moves, items, EVs, IVs, natures, or tech choices to non-owners.
+Unit tests cover raw win rate calculation, adjusted rating, confidence assignment, illegal exclusion, needs_verification handling, stale marking, and visibility filtering.
+No Pokemon Champion-specific legality facts are hardcoded unless they come from a source-truth file in the repo.
+20. Risk Controls and Glossary
+20.1 Risk controls
+Risk
+Control
+Leaderboard farming weak teams
+Only count matches against approved benchmark pools for official scopes.
+Tiny sample size exaggerates ranking
+Minimum sample thresholds and confidence labels.
+Engine bug creates false top team
+Store engine_version and mark affected entries stale after fixes.
+Unverified Champion data treated as truth
+Validator returns needs_verification and blocks official leaderboard entry.
+Private team details leak
+Centralized visibility service and tests for owner/non-owner views.
+Meta popularity confused with legality
+Separate rule facts, legality reports, meta data, and analytics outputs.
+
+20.2 Glossary
+Term
+Meaning
+Source of Truth
+The verified or explicitly flagged data layer that defines rules, legality, mechanics, and source status.
+Ruleset Package
+A compiled, versioned package of regulation rules passed to validation and simulation.
+Legality Report
+Structured validator output: verified, illegal, needs_verification, or stale with issues.
+Battle Engine
+Deterministic simulator that runs one battle and emits events.
+Replay/Event Log
+Battle evidence record used for debugging, QA, and user explanations.
+Sim Runner
+Batch system that runs many battles and sweeps.
+Analytics Aggregator
+System that converts sim runs into ratings, confidence, matchups, and rankings.
+Team Lab
+User-facing leaderboard and analysis area for top sim teams, custom teams, matchups, and comparisons.
+Stale
+A result generated under an older engine or ruleset that should not be treated as current.
+Experimental
+Research/testing result; not official ranking truth.
+
+Appendix A: Source and Research Notes
+The implementation should maintain a source archive for official Champion regulation pages, official announcements, in-game rule screens, replay tests, and any baseline references such as Showdown. The app should distinguish source tiers and never collapse community meta into official game truth.
+Source tier
+Use for
+Trust rule
+Tier 1: official Champion/official Pokemon materials
+Regulations, legal formats, official mechanics, dates.
+Can verify rules when exact and current.
+Tier 1: in-game screens and controlled replay tests
+Mechanic verification and edge cases not documented publicly.
+Can verify mechanics when captured and reproducible.
+Tier 2: Pokemon HOME official material
+Transfer/visitor constraints if relevant.
+Use only for transfer and HOME-specific behavior.
+Tier 2: Pokemon Showdown source/data
+Baseline mechanic comparison and test oracle.
+Reference only; not Champion truth unless verified.
+Tier 3: tournament VODs and public teams
+Meta observations and empirical matchup ideas.
+Meta/coaching only, not legality.
+Tier 4: Reddit/Discord/social claims
+Leads for testing.
+Never final truth without verification.
+
+Final build rule
+When in doubt, store the uncertainty. Do not hide it. Unknown mechanics, legal data, or source conflicts should be visible as source_gaps, needs_verification, confidence_flags, or stale warnings.
+

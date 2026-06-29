@@ -60,9 +60,9 @@
       if (manifest && manifest.build_id) return String(manifest.build_id);
       var el = root.document && root.document.getElementById('build-version');
       var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-      return txt || 'v2.2.44-source-confidence-intake';
+      return txt || 'v2.2.46-source-truth-packages';
     } catch (e) {
-      return 'v2.2.44-source-confidence-intake';
+      return 'v2.2.46-source-truth-packages';
     }
   }
 
