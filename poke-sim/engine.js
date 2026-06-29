@@ -6183,9 +6183,21 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
       if (action.attacker.status === 'frozen') {
         action.attacker.frozenTurns = (action.attacker.frozenTurns || 0) + 1;
         if (action.attacker.frozenTurns >= 3 || rng() < 0.25) {
+          const frozenTurnsBeforeThaw = action.attacker.frozenTurns || 0;
           action.attacker.status = null;
           action.attacker.frozenTurns = 0;
           log.push(`${action.attacker.name} thawed out!`);
+          _recordEffectEvent(field, action.attacker, action.move || 'Freeze', 'frozen-thaw', action.attacker.hp, action.attacker.hp, {
+            source: 'engine status resolution gate',
+            reason_id: 'frozen_thaw',
+            status_resolution: true,
+            resolved_status: 'frozen',
+            thawed_this_turn: true,
+            frozen_turns: frozenTurnsBeforeThaw,
+            action_denial: false,
+            skipped_move: false,
+            note: 'The Pokemon thawed before action execution, so freeze did not deny this move.'
+          });
           // falls through to act this turn
         } else {
           _cancelInterruptedCharge(action.attacker, action.move, 'frozen');
@@ -6202,17 +6214,55 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
         action.attacker.sleepTurns = (action.attacker.sleepTurns || 0) + 1;
         action.attacker.statusTurns--;
         if (action.attacker.sleepTurns >= 3 || action.attacker.statusTurns <= 0) {
+          const sleepTurnsBeforeWake = action.attacker.sleepTurns || 0;
           action.attacker.status = null;
           action.attacker.sleepTurns = 0;
           action.attacker.statusTurns = 0;
           log.push(`${action.attacker.name} woke up!`);
+          _recordEffectEvent(field, action.attacker, action.move || 'Sleep', 'sleep-wake', action.attacker.hp, action.attacker.hp, {
+            source: 'engine status resolution gate',
+            reason_id: 'sleep_wake',
+            status_resolution: true,
+            resolved_status: 'sleep',
+            woke_this_turn: true,
+            early_wake: false,
+            sleep_turns: sleepTurnsBeforeWake,
+            action_denial: false,
+            skipped_move: false,
+            note: 'The Pokemon woke before action execution, so sleep did not deny this move.'
+          });
         } else if (action.attacker.sleepTurns === 2 && rng() < 0.333) {
+          const sleepTurnsBeforeWake = action.attacker.sleepTurns || 0;
           action.attacker.status = null;
           action.attacker.sleepTurns = 0;
           action.attacker.statusTurns = 0;
           log.push(`${action.attacker.name} woke up early!`);
+          _recordEffectEvent(field, action.attacker, action.move || 'Sleep', 'sleep-wake', action.attacker.hp, action.attacker.hp, {
+            source: 'engine status resolution gate',
+            reason_id: 'sleep_wake_early',
+            status_resolution: true,
+            resolved_status: 'sleep',
+            woke_this_turn: true,
+            early_wake: true,
+            sleep_turns: sleepTurnsBeforeWake,
+            action_denial: false,
+            skipped_move: false,
+            note: 'The Pokemon woke early before action execution, so sleep did not deny this move.'
+          });
         } else if (action.move === 'Sleep Talk') {
           // Sleep Talk is allowed to execute while the user remains asleep.
+          _recordEffectEvent(field, action.attacker, action.move || 'Sleep Talk', 'sleep-exception', action.attacker.hp, action.attacker.hp, {
+            source: 'engine status resolution gate',
+            reason_id: 'sleep_talk_exception',
+            status_exception: true,
+            sleep_exception: true,
+            resolved_status: 'sleep',
+            sleep_turns: action.attacker.sleepTurns || 0,
+            status_turns_remaining: action.attacker.statusTurns || 0,
+            action_denial: false,
+            skipped_move: false,
+            note: 'Sleep Talk is allowed while the user remains asleep, so sleep did not deny this selected move.'
+          });
         } else {
           _cancelInterruptedCharge(action.attacker, action.move, 'sleep');
           log.push(`${action.attacker.name} is fast asleep!`);
@@ -6233,6 +6283,17 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           note: 'The Pokemon lost its action because paralysis triggered a full-skip.'
         });
         continue;
+      } else if (action.attacker.status === 'paralysis') {
+        _recordEffectEvent(field, action.attacker, action.move || 'Paralysis', 'paralysis-speed-only', action.attacker.hp, action.attacker.hp, {
+          source: 'engine status resolution gate',
+          reason_id: 'paralysis_speed_only',
+          status_resolution: true,
+          resolved_status: 'paralysis',
+          speed_only_status_effect: true,
+          action_denial: false,
+          skipped_move: false,
+          note: 'Paralysis affected Speed but did not deny this action.'
+        });
       }
       // T9j.8 (Refs #19) Flinch consumption: _flinched was set in a prior
       // action's applyDamage hook this turn. Pre-act gate eats the flag and
@@ -6286,6 +6347,18 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
           }
           action.attacker.hasActed = true;
           continue;
+        } else {
+          _recordEffectEvent(field, action.attacker, action.move || 'Confusion', 'confusion-pass-through', action.attacker.hp, action.attacker.hp, {
+            source: 'volatile confusion state',
+            reason_id: 'confusion_pass_through',
+            status_resolution: true,
+            volatile_status: 'confusion',
+            confusion_passed: true,
+            confusion_turns_remaining: action.attacker.confusionTurns || 0,
+            action_denial: false,
+            skipped_move: false,
+            note: 'The Pokemon was confused but did not hurt itself, so its selected action continued.'
+          });
         }
       }
       const _allies = action.side === 'player' ? playerActive : oppActive;

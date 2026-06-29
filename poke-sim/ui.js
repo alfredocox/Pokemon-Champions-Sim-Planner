@@ -116,9 +116,9 @@ function csGetBuildId() {
   try {
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.33-status-lock-proof';
+    return txt || 'v2.2.34-status-resolution-proof';
   } catch (e) {
-    return 'v2.2.33-status-lock-proof';
+    return 'v2.2.34-status-resolution-proof';
   }
 }
 
@@ -4767,6 +4767,12 @@ function csQaBlankMechanicsSeen() {
     no_valid_target_failures: 0,
     accuracy_misses: 0,
     protect_consecutive_failures: 0,
+    status_resolution_events: 0,
+    frozen_thaws: 0,
+    sleep_wakes: 0,
+    sleep_talk_exceptions: 0,
+    paralysis_speed_only: 0,
+    confusion_pass_through: 0,
     flinch_applied: 0,
     flinch_skip: 0,
     frozen_skip: 0,
@@ -6098,6 +6104,14 @@ function csBuildQaCoverageSummary(turnLog, opts) {
         } else if (failureReasonId === 'protect_consecutive_fail' || failureReasonId === 'protect-consecutive-fail') {
           mechanics.protect_consecutive_failures += 1;
         }
+      }
+      if (effect.status_resolution || effect.status_exception) {
+        mechanics.status_resolution_events += 1;
+        if (lowerKind === 'frozen-thaw' || effect.thawed_this_turn) mechanics.frozen_thaws += 1;
+        else if (lowerKind === 'sleep-wake' || effect.woke_this_turn) mechanics.sleep_wakes += 1;
+        else if (lowerKind === 'sleep-exception' || effect.sleep_exception) mechanics.sleep_talk_exceptions += 1;
+        else if (lowerKind === 'paralysis-speed-only' || effect.speed_only_status_effect) mechanics.paralysis_speed_only += 1;
+        else if (lowerKind === 'confusion-pass-through' || effect.confusion_passed) mechanics.confusion_pass_through += 1;
       }
       if (effect.blocked_priority) {
         mechanics.blocked_priority_events += 1;
@@ -11629,6 +11643,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'Status resolution pass-through proof added',
+      detail: 'v2.2.34 adds proof rows and QA counters for the other side of status logic: freeze thawed before moving, sleep wake/early wake, Sleep Talk allowed while asleep, paralysis only lowering Speed, and confusion allowing the selected move to continue. This prevents coaching from over-crediting status when the status existed but did not actually deny the action.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -12297,6 +12316,11 @@ var CS_OVERVIEW_DATA = {
       status: 'next',
       title: 'Close the mechanics truth beta gate',
       detail: 'Continue issue #149 from the Pokemon Champions mechanics truth gate: finish action-denial and priority-suppression reason inventory for singles and doubles, then move family-by-family through targeting/immunity, Protect/guard, multi-effect moves, field durations, items/abilities, switching/replacement, spread/doubles resolution, singles resolution, and coaching-safe learning.'
+    },
+    {
+      status: 'next',
+      title: 'Public launch readiness guardrail',
+      detail: 'Overall product note: the sim is strong as a domain-specific Pokemon Champions platform, but public launch readiness depends on tightening trust clarity before adding more surface area. Highest-priority readiness work is one canonical release manifest/build ID, agreement between visible version, service worker, bundle SHA, source-sync status, and GitHub Pages artifact, then UI/runtime modularization, structured logging, performance profiling, battle-log caps, accessibility, XSS/security review, Supabase RLS/privacy review, auth/payment entitlement boundaries, and conservative coaching claims until simulator truth can prove them.'
     },
     {
       status: 'next',

@@ -899,5 +899,63 @@ T('T5c-12 QA coverage counts status denial and move-lock families separately', (
   eq(summary.mechanics_seen.protect_consecutive_failures, 1, 'Protect consecutive failure count mismatch');
 });
 
+T('T5c-13 QA coverage counts status resolution pass-through families separately', () => {
+  const turnLog = [{
+    turn: 1,
+    pre: { active: { player: [], opponent: [] }, bench: { player: [], opponent: [] }, roster: { player: [], opponent: [] }, status: {}, field: {}, speed_control: {} },
+    post: { active: { player: [], opponent: [] }, bench: { player: [], opponent: [] }, roster: { player: [], opponent: [] }, status: {}, field: {}, speed_control: {} },
+    actions: { player: [], opponent: [] },
+    damage_events: [],
+    effect_events: [{
+      actor: 'Froslass',
+      effect_kind: 'frozen-thaw',
+      move: 'Blizzard',
+      reason_id: 'frozen_thaw',
+      status_resolution: true,
+      thawed_this_turn: true,
+      resolved_status: 'frozen'
+    }, {
+      actor: 'Amoonguss',
+      effect_kind: 'sleep-wake',
+      move: 'Spore',
+      reason_id: 'sleep_wake',
+      status_resolution: true,
+      woke_this_turn: true,
+      resolved_status: 'sleep'
+    }, {
+      actor: 'Snorlax',
+      effect_kind: 'sleep-exception',
+      move: 'Sleep Talk',
+      reason_id: 'sleep_talk_exception',
+      status_exception: true,
+      sleep_exception: true,
+      resolved_status: 'sleep'
+    }, {
+      actor: 'Dragonite',
+      effect_kind: 'paralysis-speed-only',
+      move: 'Extreme Speed',
+      reason_id: 'paralysis_speed_only',
+      status_resolution: true,
+      speed_only_status_effect: true,
+      resolved_status: 'paralysis'
+    }, {
+      actor: 'Golduck',
+      effect_kind: 'confusion-pass-through',
+      move: 'Hydro Pump',
+      reason_id: 'confusion_pass_through',
+      status_resolution: true,
+      confusion_passed: true,
+      volatile_status: 'confusion'
+    }]
+  }];
+  const summary = ctx.csBuildQaCoverageSummary(turnLog);
+  eq(summary.mechanics_seen.status_resolution_events, 5, 'status resolution count mismatch');
+  eq(summary.mechanics_seen.frozen_thaws, 1, 'freeze thaw count mismatch');
+  eq(summary.mechanics_seen.sleep_wakes, 1, 'sleep wake count mismatch');
+  eq(summary.mechanics_seen.sleep_talk_exceptions, 1, 'Sleep Talk exception count mismatch');
+  eq(summary.mechanics_seen.paralysis_speed_only, 1, 'paralysis speed-only count mismatch');
+  eq(summary.mechanics_seen.confusion_pass_through, 1, 'confusion pass-through count mismatch');
+});
+
 console.log(`\nPhase 5 turn log: ${pass} pass, ${fail} fail\n`);
 if (fail) process.exit(1);

@@ -105,6 +105,8 @@ Implementation start: `v2.2.32-action-denial-priority` adds stable reason IDs an
 
 Slice 2: `v2.2.33-status-lock-proof` keeps battle behavior stable and expands the proof layer. Sleep, freeze, paralysis, flinch, and confusion action denials now group into status/action-denial counters, while Taunt, Imprison, and Throat Chop move-lock failures export named lock metadata for QA and coaching review. Accuracy misses, no-valid-target failures, and consecutive Protect-family failures also get separate QA counters so artifacts can distinguish player decision failure, random miss, target-resolution failure, and state-based move lock.
 
+Slice 3: `v2.2.34-status-resolution-proof` adds the matching pass-through proof rows. Freeze thaw, sleep wake/early wake, Sleep Talk allowed while asleep, paralysis speed-only turns, and confusion pass-through turns now export structured evidence and QA counters. Coaching must use these rows to avoid saying a status caused the outcome when the condition was present but did not deny the action.
+
 Deliverables:
 
 - Inventory every current action-denial and priority-suppression reason the engine can emit.
@@ -169,7 +171,18 @@ Do not call slice 1 closed until:
 | Dazzling priority block | singles + doubles shared where ability is legal | structured failure row, same-family regression, and QA counter started |
 | Queenly Majesty priority block | singles + doubles shared where ability is legal | structured failure row, same-family regression, and QA counter started |
 
-Still open after slice 2: source-backed exception inventory for Sleep Talk/Rest and other sleep exceptions, freeze thaw timing rows, paralysis speed-only proof when no action is denied, confusion non-hit pass-through rows, Encore/Disable lock reasons, deeper Protect ordering, replacement/switch timing, spread targeting detail, Pokemon-card chip consistency across singles and doubles, and a smoother Showdown-style team/set/upload editor flow.
+Still open after slice 3: source-backed exception inventory for Rest and any remaining sleep exceptions, Encore/Disable lock reasons, deeper Protect ordering, replacement/switch timing, spread targeting detail, Pokemon-card chip consistency across singles and doubles, and a smoother Showdown-style team/set/upload editor flow.
+
+## Product Readiness Guardrail
+
+The simulator should not race toward public SaaS or monetization claims just because the feature surface is large. The readiness order is:
+
+1. Make deployment identity impossible to misunderstand: one canonical release manifest/build ID, with visible app version, service worker cache name, bundle hash, source-sync status, and GitHub Pages artifact all agreeing.
+2. Split the large UI/runtime architecture into clearer modules before the lab bench gets harder to maintain.
+3. Keep coaching claims evidence-bound until simulator truth, opportunity tracking, deferred payoff logic, speed-control neutralization, and positive-execution recognition are proven by artifacts.
+4. Finish deployment/security hardening before monetization: CSP/security headers, cache safety, abuse controls, secret checks, Supabase RLS/privacy review, auth boundaries, payment entitlements, and premium separation.
+
+Current blunt assessment: the project is strong as a domain-specific Pokemon Champions sim platform with a trust layer, source-data strategy, tests, and roadmap. It is not yet clean enough to treat as a polished public product. The next level is release reliability, architecture hygiene, security posture, and user-facing trust clarity.
 
 ## What Must Not Happen
 

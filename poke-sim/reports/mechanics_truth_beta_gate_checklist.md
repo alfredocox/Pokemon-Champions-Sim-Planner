@@ -8,7 +8,7 @@ Champion-only source map: [`../docs/CHAMPION_MECHANICS_TRUTH_GATE_2026-06-29.md`
 
 Scope guard: this is a Pokemon Champions mechanics gate. Non-Champion legacy mechanics may be named only as blocked/import-drift examples. They are not product scope and must not train trusted coaching data.
 
-Current slice: `v2.2.33-status-lock-proof` extends the action-denial proof layer by grouping sleep, freeze, paralysis, flinch, confusion, Taunt, Imprison, Throat Chop, accuracy miss, no-valid-target, and consecutive Protect-family failure evidence into separate QA counters.
+Current slice: `v2.2.34-status-resolution-proof` adds pass-through/status-resolution evidence for freeze thaw, sleep wake, Sleep Talk while asleep, paralysis speed-only turns, and confusion turns where the selected move continued.
 
 ## Why this exists
 
