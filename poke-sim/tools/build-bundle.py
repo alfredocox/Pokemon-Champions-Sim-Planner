@@ -7,6 +7,8 @@ Usage:
   python3 tools/build-bundle.py               # writes pokemon-champion-2026.html
   python3 tools/build-bundle.py --to-stdout   # prints bundle to stdout (used by check-bundle.sh)
 """
+import hashlib
+import json
 import re, os, sys
 import urllib.request
 
@@ -163,4 +165,21 @@ else:
     out = os.path.join(BASE, 'pokemon-champion-2026.html')
     with open(out, 'w', encoding='utf-8', newline='') as f:
         f.write(html)
+    bundle_bytes = html.encode('utf-8')
+    bundle_sha256 = hashlib.sha256(bundle_bytes).hexdigest()
+    artifact = {
+        'schema_version': 'champions-release-artifact-v1',
+        'build_id': 'v2.2.36-bundle-sha-proof',
+        'release_manifest': 'release_manifest.js',
+        'bundle_name': 'pokemon-champion-2026.html',
+        'pages_path': 'poke-sim/pokemon-champion-2026.html',
+        'bundle_sha256': bundle_sha256,
+        'bundle_bytes': len(bundle_bytes),
+        'hash_scope': 'sha256 of committed poke-sim/pokemon-champion-2026.html bytes'
+    }
+    artifact_path = os.path.join(BASE, 'generated', 'release_artifact.json')
+    with open(artifact_path, 'w', encoding='utf-8', newline='') as f:
+        json.dump(artifact, f, indent=2)
+        f.write('\n')
     print(f'Bundle: {os.path.getsize(out):,} bytes -> {out}')
+    print(f'Artifact SHA: {bundle_sha256} -> {artifact_path}')

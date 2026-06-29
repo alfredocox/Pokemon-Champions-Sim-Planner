@@ -184,7 +184,7 @@ The simulator should not race toward public SaaS or monetization claims just bec
 
 Current blunt assessment: the project is strong as a domain-specific Pokemon Champions sim platform with a trust layer, source-data strategy, tests, and roadmap. It is not yet clean enough to treat as a polished public product. The next level is release reliability, architecture hygiene, security posture, and user-facing trust clarity.
 
-Implementation start: `v2.2.35-canonical-release-manifest` adds `release_manifest.js` as the first source-of-truth layer for visible build ID, export `build_id`, service worker cache identity, source-sync policy, and bundle identity. Future hardening should add bundle SHA generation and GitHub Pages artifact verification against the same manifest.
+Implementation start: `v2.2.36-bundle-sha-proof` adds `release_manifest.js` as the first source-of-truth layer for visible build ID, export `build_id`, service worker cache identity, source-sync policy, and bundle identity. Future hardening should add bundle SHA generation and GitHub Pages artifact verification against the same manifest.
 
 ## What Must Not Happen
 

@@ -121,10 +121,10 @@
 // v162-replay-detail-rows [2026-06-28] - Refresh app shell for grouped replay damage/miss/failure details.
 // v163-overview-closeout [2026-06-29] - Refresh Overview/release closeout notes and issue status.
 // v166-status-resolution-proof [2026-06-29] - Refresh app shell for status resolution/pass-through proof counters.
-// v167-canonical-release-manifest [2026-06-29] - Derive app shell cache identity from release_manifest.js.
+// v168-bundle-sha-proof [2026-06-29] - Derive app shell cache identity from release_manifest.js.
 try { importScripts('./release_manifest.js'); } catch (e) { /* fallback below */ }
 const RELEASE_MANIFEST = (typeof self !== 'undefined' && self.CHAMPIONS_RELEASE_MANIFEST) ? self.CHAMPIONS_RELEASE_MANIFEST : {};
-const CACHE_NAME = RELEASE_MANIFEST.service_worker_cache || 'champions-sim-v167-canonical-release-manifest';
+const CACHE_NAME = RELEASE_MANIFEST.service_worker_cache || 'champions-sim-v168-bundle-sha-proof';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [
@@ -132,6 +132,7 @@ const APP_ASSETS = [
   './index.html',
   './pokemon-champion-2026.html',
   './release_manifest.js',
+  './generated/release_artifact.json',
   './style.css',
   './storage_adapter.js',
   './data.js',

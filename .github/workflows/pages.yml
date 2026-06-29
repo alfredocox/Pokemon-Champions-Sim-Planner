@@ -97,6 +97,39 @@ jobs:
 
           echo "Supabase anon runtime config injected for Pages artifact."
 
+      - name: Generate deployed Pages artifact SHA manifest
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          bundle = Path("poke-sim/pokemon-champion-2026.html")
+          artifact_path = Path("poke-sim/generated/release_artifact.json")
+          artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+          bundle_bytes = bundle.read_bytes()
+          deployed_sha = hashlib.sha256(bundle_bytes).hexdigest()
+
+          repo_sha = artifact.get("bundle_sha256")
+          repo_bytes = artifact.get("bundle_bytes")
+          artifact["repo_bundle_sha256"] = repo_sha
+          artifact["repo_bundle_bytes"] = repo_bytes
+          artifact["bundle_sha256"] = deployed_sha
+          artifact["bundle_bytes"] = len(bundle_bytes)
+          artifact["hash_scope"] = "sha256 of deployed GitHub Pages HTML after runtime config injection"
+          artifact["deploy_mutations"] = [
+              "Supabase anon runtime config injection when repository secrets are present"
+          ]
+
+          artifact_path.write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
+
+          if artifact["bundle_sha256"] != hashlib.sha256(bundle.read_bytes()).hexdigest():
+              raise SystemExit("release_artifact.json bundle_sha256 does not match deployed bundle bytes")
+          PY
+
+          echo "Deploy artifact SHA manifest generated for Pages upload."
+
       - name: Stage Pages artifact to match local repo layout
         run: |
           set -euo pipefail

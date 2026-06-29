@@ -118,9 +118,9 @@ function csGetBuildId() {
     if (manifest && manifest.build_id) return String(manifest.build_id);
     var el = document.getElementById('build-version');
     var txt = el && typeof el.textContent === 'string' ? el.textContent.trim() : '';
-    return txt || 'v2.2.35-canonical-release-manifest';
+    return txt || 'v2.2.36-bundle-sha-proof';
   } catch (e) {
-    return 'v2.2.35-canonical-release-manifest';
+    return 'v2.2.36-bundle-sha-proof';
   }
 }
 
