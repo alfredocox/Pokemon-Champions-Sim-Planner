@@ -1,10 +1,10 @@
 {
   "schema_version": "champions-release-artifact-v1",
-  "build_id": "v2.2.40-sprite-fallback-chain",
+  "build_id": "v2.2.41-db-status-retry",
   "release_manifest": "release_manifest.js",
   "bundle_name": "pokemon-champion-2026.html",
   "pages_path": "poke-sim/pokemon-champion-2026.html",
-  "bundle_sha256": "49d5dd3dbc82c75d145a0a4fd9af7c85204c77addc5e5f5ab626ee10830be8b4",
-  "bundle_bytes": 10862027,
+  "bundle_sha256": "1685a0f46cf831fa154c018b7b79ece2ac9885a7d1cfa3b79ce618f59c2ed4a2",
+  "bundle_bytes": 10865625,
   "hash_scope": "sha256 of committed poke-sim/pokemon-champion-2026.html bytes"
 }

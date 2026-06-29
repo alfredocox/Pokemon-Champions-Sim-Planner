@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.40-sprite-fallback-chain'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.41-db-status-retry'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -11577,6 +11577,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'done',
+      title: 'DB status chip retry and diagnostics added',
+      detail: 'v2.2.41 adds a two-attempt live team DB load before falling back to bundled roster data, changes the chip to explicit states like DB connected, DB retrying, Bundled roster, or Local roster, and records adapter status details so transient network issues are not mistaken for missing deploy credentials.'
+    },
+    {
+      status: 'done',
       title: 'Kevin coached baseline team added',
       detail: 'v2.2.24 adds Kevin Meta Sun as the first named coached baseline team and documents the approved runtime team test matrix so QA knows which teams prove terrain, weather, Trick Room, replay evidence, and future saved-team recommendation work.'
     },
@@ -18287,13 +18292,43 @@ if (typeof window !== 'undefined') {
   function setDbChip(state, detail) {
     var chip = document.getElementById('db-offline-chip');
     if (!chip) return;
-    var connected = state === 'connected';
+    var states = {
+      connected: { text: '[DB connected]', bg: '#064e3b', fg: '#bbf7d0', border: '#10b981', title: 'Live team database connected' },
+      retrying: { text: '[DB retrying]', bg: '#713f12', fg: '#fef3c7', border: '#f59e0b', title: 'Retrying live team database before falling back' },
+      fallback: { text: '[Bundled roster]', bg: '#334155', fg: '#e2e8f0', border: '#94a3b8', title: 'Using bundled roster after live database was unavailable' },
+      disabled: { text: '[Local roster]', bg: '#334155', fg: '#e2e8f0', border: '#94a3b8', title: 'Live database disabled or not configured; using bundled roster' },
+      offline: { text: '[DB offline]', bg: '#7c2d12', fg: '#fed7aa', border: '#ea580c', title: 'Live database unavailable - using bundled team data' }
+    };
+    var cfg = states[state] || states.offline;
     chip.style.display = 'inline-block';
-    chip.textContent = connected ? '[DB connected]' : '[DB offline]';
-    chip.title = detail || (connected ? 'Live team database connected' : 'Live database unavailable - using bundled team data');
-    chip.style.background = connected ? '#064e3b' : '#7c2d12';
-    chip.style.color = connected ? '#bbf7d0' : '#fed7aa';
-    chip.style.borderColor = connected ? '#10b981' : '#ea580c';
+    chip.textContent = cfg.text;
+    chip.title = detail || cfg.title;
+    chip.setAttribute('data-db-state', state || 'offline');
+    chip.style.background = cfg.bg;
+    chip.style.color = cfg.fg;
+    chip.style.borderColor = cfg.border;
+  }
+
+  function csDbRetryDelay(ms) {
+    return new Promise(function(resolve) { setTimeout(resolve, ms); });
+  }
+
+  async function csLoadTeamsFromDbWithRetry(adapter, options) {
+    var _adapter = adapter;
+    var opts = options || {};
+    var attempts = Math.max(1, opts.attempts || 2);
+    var delayMs = opts.delayMs == null ? 700 : opts.delayMs;
+    var lastStatus = null;
+    for (var attempt = 1; attempt <= attempts; attempt++) {
+      if (attempt > 1) setDbChip('retrying', 'Live team database retry ' + attempt + ' of ' + attempts + ' before using bundled roster.');
+      var dbTeams = await _adapter.loadTeamsFromDB();
+      if (dbTeams && Object.keys(dbTeams).length) {
+        return { teams: dbTeams, attempts: attempt, status: (_adapter.getLastTeamLoadStatus ? _adapter.getLastTeamLoadStatus() : null) };
+      }
+      lastStatus = _adapter.getLastTeamLoadStatus ? _adapter.getLastTeamLoadStatus() : null;
+      if (attempt < attempts) await csDbRetryDelay(delayMs);
+    }
+    return { teams: null, attempts: attempts, status: lastStatus };
   }
 
   if (typeof ChampionsSim !== 'undefined') {
@@ -18323,23 +18358,25 @@ if (typeof window !== 'undefined') {
     try {
       var _adapter = getWindowValue('SupabaseAdapter', null);
       if (_adapter && _adapter.enabled && typeof _adapter.loadTeamsFromDB === 'function') {
-        var dbTeams = await _adapter.loadTeamsFromDB();
+        var dbLoad = await csLoadTeamsFromDbWithRetry(_adapter, { attempts: 2, delayMs: 700 });
+        var dbTeams = dbLoad.teams;
         if (dbTeams && Object.keys(dbTeams).length && typeof TEAMS !== 'undefined') {
           var dbMerge = (typeof mergeDbTeamsIntoCatalog === 'function')
             ? mergeDbTeamsIntoCatalog(dbTeams)
             : { added: 0, replaced: Object.keys(dbTeams).length, skipped: 0, blocked: [] };
           if (typeof mergeDbTeamsIntoCatalog !== 'function') Object.assign(TEAMS, dbTeams);
           if (typeof normalizeTeamCatalogForSim === 'function') normalizeTeamCatalogForSim();
-          UILog.info('TEAMS patched with DB teams', { count: Object.keys(dbTeams).length, merge: dbMerge });
-          setDbChip('connected', 'Live team database connected - accepted ' + (dbMerge.added + dbMerge.replaced) + ' teams, blocked ' + dbMerge.skipped + ' stale/illegal rows');
+          UILog.info('TEAMS patched with DB teams', { count: Object.keys(dbTeams).length, merge: dbMerge, attempts: dbLoad.attempts, status: dbLoad.status });
+          setDbChip('connected', 'Live team database connected after ' + dbLoad.attempts + ' attempt(s) - accepted ' + (dbMerge.added + dbMerge.replaced) + ' teams, blocked ' + dbMerge.skipped + ' stale/illegal rows');
         } else {
-          // null or empty → fall back to bundled TEAMS, surface chip
-          setDbChip('offline', 'Live team database returned no teams - using bundled roster data');
-          UILog.info('DB returned no teams; using bundled roster data');
+          var status = dbLoad && dbLoad.status ? dbLoad.status : null;
+          var reason = status && status.detail ? ' Last DB status: ' + status.detail : '';
+          setDbChip('fallback', 'Live team database did not return teams after ' + (dbLoad ? dbLoad.attempts : 1) + ' attempt(s); using bundled roster.' + reason);
+          UILog.info('DB returned no teams after retry; using bundled roster data', { attempts: dbLoad && dbLoad.attempts, status: status });
         }
       } else {
         // Adapter disabled (no creds / __DISABLE_SUPABASE__) → surface chip
-        setDbChip('offline', 'Live team database is not configured in this build - using bundled roster data');
+        setDbChip('disabled', 'Live team database is not configured in this build - using bundled roster data');
         UILog.info('SupabaseAdapter disabled; using bundled roster data');
       }
     } catch (_dbErr) {

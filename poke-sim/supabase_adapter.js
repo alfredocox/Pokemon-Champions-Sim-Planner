@@ -490,12 +490,38 @@
     }
   }
 
+  let lastTeamLoadStatus = {
+    state: 'idle',
+    detail: 'Team DB has not been checked yet.',
+    checked_at: null,
+    teams: 0,
+    members: 0
+  };
+
+  function setLastTeamLoadStatus(status) {
+    lastTeamLoadStatus = Object.assign({
+      state: 'unknown',
+      detail: '',
+      checked_at: new Date().toISOString(),
+      teams: 0,
+      members: 0
+    }, status || {});
+    return lastTeamLoadStatus;
+  }
+
+  function getLastTeamLoadStatus() {
+    return Object.assign({}, lastTeamLoadStatus);
+  }
+
   // ── loadTeamsFromDB ───────────────────────────────────────────────────────
   // Returns {[team_id]: {team_id, name, label, description, source, metadata, members[]}}
   // or null if disabled / errored. NEVER throws.
   async function loadTeamsFromDB() {
     const sb = getClient();
-    if (!sb) return null;
+    if (!sb) {
+      setLastTeamLoadStatus({ state: 'disabled', detail: 'Supabase client unavailable or disabled.' });
+      return null;
+    }
     try {
       const { data: teams, error: tErr } = await sb
         .from('teams')
@@ -540,9 +566,20 @@
           members:     memberMap[t.team_id] || []
         };
       }
-      log.info('Loaded teams from DB', { count: Object.keys(result).length });
+      const teamCount = Object.keys(result).length;
+      setLastTeamLoadStatus({
+        state: teamCount ? 'connected' : 'empty',
+        detail: teamCount ? 'Live team database returned teams.' : 'Live team database returned zero teams.',
+        teams: teamCount,
+        members: (members || []).length
+      });
+      log.info('Loaded teams from DB', { count: teamCount });
       return result;
     } catch (err) {
+      setLastTeamLoadStatus({
+        state: 'error',
+        detail: (err && (err.message || err.code)) ? String(err.message || err.code) : 'Unknown Supabase read error.'
+      });
       log.warn('loadTeamsFromDB failed; using local data', err);
       return null;
     }
@@ -1276,6 +1313,7 @@
     enabled:            ENABLED,
     DEFAULT_RULESET_ID: DEFAULT_RULESET_ID,
     loadTeamsFromDB,
+    getLastTeamLoadStatus,
     loadRulesets,
     saveAnalysis,
     loadRecentAnalyses,

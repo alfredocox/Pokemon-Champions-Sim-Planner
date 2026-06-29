@@ -124,7 +124,7 @@
 // v168-bundle-sha-proof [2026-06-29] - Derive app shell cache identity from release_manifest.js.
 try { importScripts('./release_manifest.js'); } catch (e) { /* fallback below */ }
 const RELEASE_MANIFEST = (typeof self !== 'undefined' && self.CHAMPIONS_RELEASE_MANIFEST) ? self.CHAMPIONS_RELEASE_MANIFEST : {};
-const CACHE_NAME = RELEASE_MANIFEST.service_worker_cache || 'champions-sim-v172-sprite-fallback-chain';
+const CACHE_NAME = RELEASE_MANIFEST.service_worker_cache || 'champions-sim-v173-db-status-retry';
 const SPRITE_CACHE = 'champions-sprites-v1';
 
 const APP_ASSETS = [
