@@ -329,6 +329,16 @@ async function main() {
     truthy(payload.retained && payload.retained.replay_cards.length >= 1, 'retained replay cards missing');
     eq(payload.retained.replay_cards[0].seed, 'qa-seed-1');
     eq(payload.retained.replay_cards[0].qa_coverage_summary.schema_version, 'champions-qa-coverage-v1', 'retained replay coverage missing');
+    truthy(payload.proof_manifest, 'proof manifest missing');
+    eq(payload.proof_manifest.schema_version, 'champions-qa-proof-manifest-v1', 'proof manifest schema');
+    eq(payload.proof_manifest.build_id, payload.build_id, 'proof manifest build id mismatch');
+    eq(payload.proof_manifest.source_url, payload.source_url, 'proof manifest source url mismatch');
+    eq(payload.proof_manifest.qa_run_type, payload.qa_run_type, 'proof manifest qa run type mismatch');
+    eq(payload.proof_manifest.proof_tier, 'tactical', 'proof manifest tier should show the strongest included evidence');
+    truthy(payload.proof_manifest.coverage_flags.has_retained_replays, 'proof manifest retained replay flag missing');
+    truthy(payload.proof_manifest.coverage_flags.has_targeted_sweep, 'proof manifest targeted flag missing');
+    eq(payload.proof_manifest.evidence_counts.retained_replay_cards, payload.retained.replay_cards.length, 'proof manifest replay count mismatch');
+    eq(payload.proof_manifest.evidence_counts.targeted_sweep_runs, payload.qa_coverage_summary.totals.targeted_sweep_runs, 'proof manifest targeted count mismatch');
   });
 
   await T('7. QA artifact click downloads a JSON file with the expected prefix', async () => {
@@ -386,6 +396,10 @@ async function main() {
     eq(payload.qa_coverage_summary.totals.branch_matrix_runs, 2, 'coverage branch run total');
     truthy(payload.forced_branch_matrix && payload.forced_branch_matrix.coverage_space.executed_runs === 1, 'compat forced_branch_matrix missing');
     truthy(payload.branch_move_analysis && payload.branch_move_analysis.totals.rows_read >= 2, 'combined branch move analysis missing');
+    eq(payload.proof_manifest.proof_tier, 'tactical', 'proof manifest tactical tier');
+    truthy(payload.proof_manifest.coverage_flags.has_tactical_sweep, 'proof manifest tactical flag missing');
+    eq(payload.proof_manifest.evidence_counts.tactical_sweep_opponents, 2, 'proof manifest tactical opponent count');
+    eq(payload.proof_manifest.evidence_counts.branch_matrix_runs, 2, 'proof manifest branch run count');
   });
 
   await T('9. Tactical Sweep QA emits progress callbacks', async () => {
@@ -435,6 +449,10 @@ async function main() {
     eq(payload.damage_events_total, payload.qa_coverage_summary.totals.damage_events, 'top-level damage total mismatch');
     eq(payload.effect_events_total, payload.qa_coverage_summary.totals.effect_events, 'top-level effect total mismatch');
     eq(payload.branch_matrix_runs, payload.qa_coverage_summary.totals.branch_matrix_runs, 'top-level branch runs mismatch');
+    eq(payload.proof_manifest.proof_tier, 'stress_lite', 'proof manifest stress lite tier');
+    truthy(payload.proof_manifest.coverage_flags.has_stress_lite, 'proof manifest stress lite flag missing');
+    truthy(payload.proof_manifest.known_limits.join(' ').indexOf('not exhaustive Run All proof') >= 0, 'proof manifest stress boundary missing');
+    truthy(payload.proof_manifest.next_action.indexOf('capped stress evidence') >= 0, 'proof manifest stress next action missing');
   });
 
   await T('11. QA Artifact targeted sweep clears stat-source proof gaps', async () => {
