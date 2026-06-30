@@ -151,3 +151,14 @@ Current M15 GitHub issue map:
 11. #189 Team Lab leaderboard evidence promotion rules.
 
 Do not close the Team Lab milestone while the UI is empty. The current backend work is valid only as foundation until the read UI, trusted writer, mapping resolver, and promotion rules are implemented and tested.
+
+## 2026-06-29 implementation update: Team Lab newsroom hub
+
+`v2.2.52-team-lab-newsroom-hub` starts the read UI direction for #179 without inventing rankings:
+
+- Overview now includes a visible Team Lab home section before the milestone board.
+- The section is framed like a sim home/news hub: Champion source watch, QA signal, build lane, and future player-value cards.
+- A clean `Top 25 Simulator Teams` table is visible, but ranking rows are locked until trusted import, team-ID mapping, and evidence promotion rules are complete.
+- The UI states that future news cards can pull from the source registry and release notes, but today they show build/source readiness instead of pretending to be live Pokemon news.
+
+This is intentionally a first read-UI shell. It should evolve into the Team Lab page after #187, #188, and #189 protect data quality.

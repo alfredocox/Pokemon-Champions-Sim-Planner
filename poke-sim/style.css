@@ -404,10 +404,28 @@ table{border-collapse:collapse;width:100%}
 .overview-team-lab-plan{border-color:rgba(91,164,245,.4);background:linear-gradient(135deg,rgba(91,164,245,.08),rgba(78,201,148,.05))}
 .overview-team-lab-plan>.overview-source-note{padding:0 var(--sp4);margin:0 0 var(--sp3)}
 .overview-team-lab-plan>.overview-list{padding:0 var(--sp4) var(--sp4)}
+.team-lab-newsroom{border-color:rgba(91,164,245,.42);background:radial-gradient(circle at 12% 0%,rgba(91,164,245,.18),transparent 34%),linear-gradient(135deg,rgba(18,25,38,.98),rgba(12,18,29,.96))}
+.team-lab-hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(220px,.6fr);gap:var(--sp4);align-items:start;margin-bottom:var(--sp4)}
+.team-lab-hero h3{font-size:clamp(24px,3vw,38px);font-weight:950;letter-spacing:-.04em;line-height:.98;margin-top:6px}
+.team-lab-hero p{color:var(--text-m);font-size:13px;line-height:1.55;margin-top:10px;max-width:760px}
+.team-lab-hero-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.team-lab-hero-badges span{display:inline-flex;align-items:center;min-height:30px;border:1px solid rgba(78,201,148,.36);background:rgba(78,201,148,.09);color:var(--green);border-radius:var(--r-full);padding:5px 10px;font-family:var(--font-mono);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.team-lab-news-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp3);margin-bottom:var(--sp4)}
+.team-lab-news-card{border:1px solid rgba(91,164,245,.28);border-radius:var(--r-md);background:rgba(255,255,255,.035);padding:var(--sp3);min-width:0;box-shadow:var(--sh-sm)}
+.team-lab-news-card span{display:block;font-family:var(--font-mono);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:8px}
+.team-lab-news-card h4{font-size:14px;font-weight:950;line-height:1.18}
+.team-lab-news-card p{color:var(--text-m);font-size:12px;line-height:1.45;margin-top:7px}
+.team-lab-news-card strong{display:inline-flex;margin-top:10px;border:1px solid rgba(245,197,66,.38);background:rgba(245,197,66,.08);color:var(--gold);border-radius:var(--r-full);padding:4px 8px;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.team-lab-leaderboard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp3);margin:var(--sp2) 0 var(--sp3)}
+.team-lab-leaderboard-head h4{font-size:var(--text-lg);font-weight:950;letter-spacing:-.02em}
+.team-lab-leaderboard-head p{color:var(--text-m);font-size:12px;line-height:1.45;margin-top:4px}
+.team-lab-top25-table{min-width:860px}
+.team-lab-top25-table td:first-child,.team-lab-top25-table th:first-child{font-family:var(--font-mono);font-weight:900;text-transform:uppercase}
 @media(max-width:700px){.overview-milestone-summary{flex-direction:column}.overview-milestone-counts{justify-content:flex-start;min-width:0}.overview-buckets{padding:0 var(--sp3) var(--sp3)}}
 
-@media(max-width:900px){.overview-grid{grid-template-columns:1fr}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-db-summary,.overview-db-counts{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:560px){.overview-header{gap:var(--sp3)}.overview-updated{white-space:normal}.overview-metrics{grid-template-columns:1fr}.overview-section{padding:var(--sp3)}.overview-item{grid-template-columns:1fr;gap:6px}.overview-status{justify-self:start}.overview-section-head{align-items:flex-start;flex-direction:column;gap:6px}.overview-kicker{white-space:normal}.overview-db-summary,.overview-db-counts{grid-template-columns:1fr}}
+@media(max-width:1100px){.team-lab-news-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.overview-grid{grid-template-columns:1fr}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-db-summary,.overview-db-counts{grid-template-columns:repeat(2,minmax(0,1fr))}.team-lab-hero{grid-template-columns:1fr}.team-lab-hero-badges{justify-content:flex-start}}
+@media(max-width:560px){.overview-header{gap:var(--sp3)}.overview-updated{white-space:normal}.overview-metrics{grid-template-columns:1fr}.overview-section{padding:var(--sp3)}.overview-item{grid-template-columns:1fr;gap:6px}.overview-status{justify-self:start}.overview-section-head{align-items:flex-start;flex-direction:column;gap:6px}.overview-kicker{white-space:normal}.overview-db-summary,.overview-db-counts{grid-template-columns:1fr}.team-lab-news-grid{grid-template-columns:1fr}.team-lab-leaderboard-head{flex-direction:column}}
 
 /* ===== SIM LAYOUT ===== */
 .sim-layout{display:grid;grid-template-columns:minmax(0,1fr) 220px minmax(0,1fr);gap:var(--sp4);align-items:start;margin-bottom:var(--sp6)}

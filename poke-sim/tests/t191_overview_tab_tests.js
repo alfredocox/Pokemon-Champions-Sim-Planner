@@ -223,11 +223,14 @@ T('5. Overview styles are responsive and scan-friendly', () => {
   inc(css, '.overview-bucket');
   inc(css, '.overview-closed-proof-archive');
   inc(css, '.overview-qa-josh-issues');
+  inc(css, '.team-lab-newsroom');
+  inc(css, '.team-lab-news-grid');
+  inc(css, '.team-lab-top25-table');
   inc(css, '.overview-db-counts');
   inc(css, '.overview-db-table');
   inc(css, '.overview-status.done');
   inc(css, '.overview-status.gap');
-  inc(css, '@media(max-width:900px){.overview-grid{grid-template-columns:1fr}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-db-summary,.overview-db-counts{grid-template-columns:repeat(2,minmax(0,1fr))}}');
+  inc(css, '@media(max-width:900px){.overview-grid{grid-template-columns:1fr}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-db-summary,.overview-db-counts{grid-template-columns:repeat(2,minmax(0,1fr))}.team-lab-hero{grid-template-columns:1fr}.team-lab-hero-badges{justify-content:flex-start}}');
 });
 
 T('6. Overview renders through a reusable function for future growth', () => {
@@ -252,6 +255,11 @@ T('6. Overview renders through a reusable function for future growth', () => {
   inc(ui, 'Second verified Champion replay artifact (#104)');
   inc(ui, 'Mechanics truth audit beta gate (#149)');
   inc(ui, 'Team Lab / Leaderboard Plan');
+  inc(ui, 'function csRenderTeamLabNewsroomHub');
+  inc(ui, 'Champion Newsroom + Top 25 Teams');
+  inc(ui, 'Top 25 Simulator Teams');
+  inc(ui, 'No fake rankings');
+  inc(ui, 'Evidence locked');
   inc(ui, 'Team Lab read UI (#179)');
   inc(ui, 'Custom team submission and validation (#180)');
   inc(ui, 'Leaderboard recalculation and stale guards (#181)');
