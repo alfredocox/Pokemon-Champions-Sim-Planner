@@ -181,7 +181,7 @@ else:
     bundle_sha256 = hashlib.sha256(bundle_bytes).hexdigest()
     artifact = {
         'schema_version': 'champions-release-artifact-v1',
-        'build_id': 'v2.2.51-team-lab-milestone-align',
+        'build_id': 'v2.2.52-team-lab-newsroom-hub',
         'release_manifest': 'release_manifest.js',
         'bundle_name': 'pokemon-champion-2026.html',
         'pages_path': 'poke-sim/pokemon-champion-2026.html',

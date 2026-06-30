@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.51-team-lab-milestone-align'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.52-team-lab-newsroom-hub'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -12904,6 +12904,103 @@ function csRenderOverviewTeamLabPlan() {
   '</details>';
 }
 
+function csTeamLabNewsCards() {
+  return [
+    {
+      label: 'Regulation watch',
+      title: 'Reg M-B evidence gate',
+      detail: 'Champion regulation, ruleset, and source-package status must stay visible before any team can rank as current.',
+      status: 'Source-truth first'
+    },
+    {
+      label: 'QA signal',
+      title: 'Stress Lite proof is usable, not final',
+      detail: 'Latest tester artifact proved replay/damage/effect evidence on v2.2.50, but Stress Lite remains capped evidence, not exhaustive ladder truth.',
+      status: 'Needs promotion'
+    },
+    {
+      label: 'Build lane',
+      title: 'Top 25 requires trusted import',
+      detail: 'QA artifacts can normalize into sim_jobs/replays, but protected leaderboard storage still needs #187, #188, and #189.',
+      status: 'Open M15'
+    },
+    {
+      label: 'Player value',
+      title: 'Future home for teams and news',
+      detail: 'This hub should become the clean front page for Champion updates, source changes, top simulator teams, and safe compare-my-team entry points.',
+      status: 'UI direction'
+    }
+  ];
+}
+
+function csRenderTeamLabNewsCards() {
+  return csTeamLabNewsCards().map(function(card) {
+    return '<article class="team-lab-news-card">' +
+      '<span>' + _escapeHtml(card.label) + '</span>' +
+      '<h4>' + _escapeHtml(card.title) + '</h4>' +
+      '<p>' + _escapeHtml(card.detail) + '</p>' +
+      '<strong>' + _escapeHtml(card.status) + '</strong>' +
+    '</article>';
+  }).join('');
+}
+
+function csTeamLabTop25Rows() {
+  return [
+    {
+      rank: 'locked',
+      team: 'Top 25 opens after trusted evidence promotion',
+      archetype: 'No fake rankings',
+      rating: 'pending',
+      winRate: 'pending',
+      games: '0 trusted',
+      confidence: 'not ranked',
+      status: 'Needs #187/#188/#189'
+    }
+  ];
+}
+
+function csRenderTeamLabTop25Rows() {
+  return csTeamLabTop25Rows().map(function(row) {
+    return '<tr>' +
+      '<td>' + _escapeHtml(row.rank) + '</td>' +
+      '<td><strong>' + _escapeHtml(row.team) + '</strong></td>' +
+      '<td>' + _escapeHtml(row.archetype) + '</td>' +
+      '<td>' + _escapeHtml(row.rating) + '</td>' +
+      '<td>' + _escapeHtml(row.winRate) + '</td>' +
+      '<td>' + _escapeHtml(row.games) + '</td>' +
+      '<td>' + _escapeHtml(row.confidence) + '</td>' +
+      '<td>' + _escapeHtml(row.status) + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function csRenderTeamLabNewsroomHub() {
+  return '<section class="team-lab-newsroom overview-section">' +
+    '<div class="team-lab-hero">' +
+      '<div>' +
+        '<span class="overview-kicker">Team Lab home</span>' +
+        '<h3>Champion Newsroom + Top 25 Teams</h3>' +
+        '<p>Team Lab should read like the sim home page: source updates first, then clean simulator-derived team rankings. Rankings are intentionally locked until trusted evidence import and promotion rules are finished.</p>' +
+      '</div>' +
+      '<div class="team-lab-hero-badges">' +
+        '<span>Top 25 Teams</span>' +
+        '<span>Simulator evidence only</span>' +
+        '<span>No ladder-truth overclaim</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="team-lab-news-grid">' + csRenderTeamLabNewsCards() + '</div>' +
+    '<div class="team-lab-leaderboard-head">' +
+      '<div><h4>Top 25 Simulator Teams</h4><p>Will rank by regulation, format, engine version, ruleset version, sample size, legality, confidence, and stale status.</p></div>' +
+      '<span class="overview-status gap">Evidence locked</span>' +
+    '</div>' +
+    '<div class="overview-db-table-wrap team-lab-top25-wrap"><table class="overview-db-table team-lab-top25-table">' +
+      '<thead><tr><th>Rank</th><th>Team</th><th>Archetype</th><th>Rating</th><th>Adj. win rate</th><th>Games</th><th>Confidence</th><th>Status</th></tr></thead>' +
+      '<tbody>' + csRenderTeamLabTop25Rows() + '</tbody>' +
+    '</table></div>' +
+    '<p class="overview-source-note">Future news cards can pull from the source registry and release notes. Until then, they show build/source readiness instead of pretending to be live Pokemon news.</p>' +
+  '</section>';
+}
+
 function csRenderOverviewClosedProofArchive(data) {
   var rows = data && Array.isArray(data.validation) ? data.validation : [];
   return '<details class="overview-section overview-closed-proof-archive">' +
@@ -13039,6 +13136,7 @@ function renderOverviewTab() {
   }).join('');
   host.innerHTML =
     '<div class="overview-metrics">' + metrics + '</div>' +
+    csRenderTeamLabNewsroomHub() +
     '<div class="overview-milestone-board">' +
       '<div class="overview-section overview-board-intro">' +
         '<div class="overview-section-head"><h3>Milestone Board</h3><span class="overview-kicker">Done / Open / Next</span></div>' +
