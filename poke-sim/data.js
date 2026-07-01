@@ -1735,9 +1735,9 @@ const TEAMS = {
     ],
     "members": [
       {
-        "name": "Charizard",
+        "name": "Charizard-Mega-Y",
         "item": "Charizardite Y",
-        "ability": "Blaze",
+        "ability": "Drought",
         "nature": "Modest",
         "evs": {
           "hp": 6,
@@ -3175,7 +3175,7 @@ const TEAMS = {
       {
         "name": "Charizard-Mega-Y",
         "item": "Charizardite Y",
-        "ability": "Solar Power",
+        "ability": "Drought",
         "nature": "Modest",
         "nature_source": "archetype_default",
         "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 0, "spe": 32},
@@ -4998,9 +4998,9 @@ const TEAMS = {
     ],
     "members": [
       {
-        "name": "Charizard",
+        "name": "Charizard-Mega-Y",
         "item": "Charizardite Y",
-        "ability": "Solar Power",
+        "ability": "Drought",
         "nature": "Timid",
         "evs": {"hp": 1, "atk": 0, "def": 0, "spa": 32, "spd": 1, "spe": 32},
         "moves": ["Heat Wave", "Solar Beam", "Weather Ball", "Protect"],

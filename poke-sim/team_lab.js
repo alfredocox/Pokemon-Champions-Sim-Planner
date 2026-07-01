@@ -12,6 +12,9 @@
   /** @typedef {'user_custom'|'official_event'|'community_meta'|'engine_generated'|'dev_seed'} TeamLabSourceType */
   /** @typedef {'verified'|'needs_verification'|'illegal'|'stale'} TeamLabLegalityStatus */
   /** @typedef {'low'|'medium'|'high'|'experimental'} TeamLabConfidence */
+  /** @typedef {'official_sim_top_25'|'community_candidate'|'personal'|'experimental'|'stale'} TeamLabRankingScope */
+  /** @typedef {'official_ready'|'community_safe'|'personal_only'|'experimental'|'blocked'} TeamLabEvidenceQuality */
+  /** @typedef {'mark_stale'|'delete_dev_seed'} TeamLabAdminResetMode */
   /** @typedef {'error'|'warning'|'needs_source'} LegalityIssueSeverity */
   /**
    * @typedef {Object} LegalityIssue
@@ -255,6 +258,58 @@
     return Math.round(1000 + (Number(adjustedRate || 0) - 0.5) * 900 + sampleBonus + confidenceBonus);
   }
 
+  function teamSourceGaps(team) {
+    var gaps = [];
+    if (!team) return gaps;
+    if (Array.isArray(team.source_gaps)) gaps = gaps.concat(team.source_gaps);
+    if (team.legality_report && Array.isArray(team.legality_report.source_gaps)) {
+      gaps = gaps.concat(team.legality_report.source_gaps.map(function(gap) { return gap.code || gap.message || 'SOURCE_GAP'; }));
+    }
+    return unique(gaps);
+  }
+
+  function evidenceQualityForRanking(input) {
+    var row = input || {};
+    var legality = row.legality_status || 'needs_verification';
+    var games = Number(row.games_played || 0);
+    var sourceGaps = row.source_gaps || [];
+    if (legality === 'illegal') return 'blocked';
+    if (row.stale) return 'blocked';
+    if (legality === 'stale') return 'blocked';
+    if (legality === 'needs_verification' || sourceGaps.length) return 'experimental';
+    if (row.visibility === 'private') return 'personal_only';
+    if (games < Number(row.min_sample_size || DEFAULT_MIN_SAMPLE_SIZE)) return 'community_safe';
+    if (row.approved_benchmark_pool && row.current_versions) return 'official_ready';
+    return 'community_safe';
+  }
+
+  function scopeForEvidenceQuality(quality, requestedScope) {
+    if (quality === 'official_ready') return requestedScope === 'personal' ? 'personal' : 'official_sim_top_25';
+    if (quality === 'personal_only') return 'personal';
+    if (quality === 'experimental') return 'experimental';
+    if (quality === 'blocked') return 'stale';
+    return requestedScope === 'personal' ? 'personal' : 'community_candidate';
+  }
+
+  function rankingScore(parts) {
+    var p = parts || {};
+    var adjusted = Number(p.adjusted_win_rate || 0.5);
+    var opponent = Number(p.opponent_strength_delta || 0);
+    var coverage = Number(p.matchup_coverage_bonus || 0);
+    var confidence = p.confidence === 'high' ? 0.035 : p.confidence === 'medium' ? 0.018 : p.confidence === 'experimental' ? -0.05 : 0;
+    var stale = p.stale ? 0.12 : 0;
+    var sourceGapPenalty = Math.min(0.12, Number((p.source_gaps || []).length) * 0.025);
+    var volatilityPenalty = Number(p.volatility_penalty || 0);
+    var score = adjusted + opponent + coverage + confidence - stale - sourceGapPenalty - volatilityPenalty;
+    return Number(Math.max(0, Math.min(1, score)).toFixed(4));
+  }
+
+  function ratingFromRankingScore(score, gamesPlayed, quality) {
+    var qualityBonus = quality === 'official_ready' ? 80 : quality === 'community_safe' ? 25 : quality === 'experimental' ? -90 : quality === 'blocked' ? -180 : 0;
+    var sampleBonus = Math.min(70, Math.log(Math.max(1, Number(gamesPlayed || 0))) * 15);
+    return Math.round(1000 + (Number(score || 0) - 0.5) * 1000 + sampleBonus + qualityBonus);
+  }
+
   function isEntryCurrent(entry, current) {
     if (!entry) return false;
     if (entry.stale) return false;
@@ -278,6 +333,57 @@
     });
   }
 
+  function resetLeaderboardRankings(entries, params, actor) {
+    var input = params || {};
+    var reason = String(input.reason || '').trim();
+    var admin = actor || {};
+    if (!admin.is_admin) {
+      return { ok: false, error: 'ADMIN_REQUIRED', message: 'Team Lab ranking reset requires trusted admin authorization.', entries: entries || [], audit: null };
+    }
+    if (reason.length < 8) {
+      return { ok: false, error: 'REASON_REQUIRED', message: 'Team Lab ranking reset requires an audit reason of at least 8 characters.', entries: entries || [], audit: null };
+    }
+
+    var mode = input.mode || 'mark_stale';
+    var changed = 0;
+    var next = (entries || []).filter(function(entry) {
+      if (!entry) return false;
+      var match = true;
+      if (input.regulation_id && entry.regulation_id !== input.regulation_id) match = false;
+      if (input.format && entry.format !== input.format) match = false;
+      if (input.leaderboard_scope && entry.leaderboard_scope !== input.leaderboard_scope) match = false;
+      if (input.engine_version && entry.engine_version !== input.engine_version) match = false;
+      if (input.ruleset_version && entry.ruleset_version !== input.ruleset_version) match = false;
+      if (input.team_id && entry.team_id !== input.team_id) match = false;
+      if (!match) return true;
+      changed += 1;
+      if (mode === 'delete_dev_seed' && entry.source_type === 'dev_seed') return false;
+      entry.stale = true;
+      entry.stale_reason = reason;
+      return true;
+    }).map(function(entry) { return Object.assign({}, entry); });
+
+    return {
+      ok: true,
+      entries: next,
+      changed_count: changed,
+      audit: {
+        action: 'team_lab_ranking_reset',
+        mode: mode,
+        reason: reason,
+        actor_user_id: admin.user_id || null,
+        regulation_id: input.regulation_id || null,
+        format: input.format || null,
+        leaderboard_scope: input.leaderboard_scope || null,
+        engine_version: input.engine_version || null,
+        ruleset_version: input.ruleset_version || null,
+        team_id: input.team_id || null,
+        changed_count: changed,
+        created_at: input.created_at || new Date().toISOString()
+      }
+    };
+  }
+
   function buildLeaderboardEntries(teams, simRuns, options) {
     var opts = options || {};
     var minSampleSize = opts.min_sample_size == null ? DEFAULT_MIN_SAMPLE_SIZE : Number(opts.min_sample_size);
@@ -287,7 +393,7 @@
 
     var stats = {};
     function ensure(teamId) {
-      if (!stats[teamId]) stats[teamId] = { wins: 0, losses: 0, draws: 0 };
+      if (!stats[teamId]) stats[teamId] = { wins: 0, losses: 0, draws: 0, opponents: {}, opponent_archetypes: {} };
       return stats[teamId];
     }
 
@@ -303,6 +409,10 @@
       if (a.legality_status === 'illegal' || b.legality_status === 'illegal') return;
       var as = ensure(run.team_a_id);
       var bs = ensure(run.team_b_id);
+      as.opponents[run.team_b_id] = true;
+      bs.opponents[run.team_a_id] = true;
+      (b.archetype_tags || []).forEach(function(tag) { as.opponent_archetypes[tag] = true; });
+      (a.archetype_tags || []).forEach(function(tag) { bs.opponent_archetypes[tag] = true; });
       if (!run.winner_team_id || run.result_reason === 'draw') {
         as.draws += 1;
         bs.draws += 1;
@@ -328,7 +438,22 @@
       if (legality === 'verified' && games < minSampleSize) return;
       var raw = rawWinRate(row.wins, row.losses, row.draws);
       var adjusted = adjustedWinRate(row.wins, row.losses, row.draws, opts.prior_win_rate, opts.prior_games);
-      var scope = legality === 'needs_verification' ? 'experimental' : (opts.leaderboard_scope || 'overall');
+      var sourceGaps = teamSourceGaps(team);
+      var uniqueOpponents = Object.keys(row.opponents || {}).length;
+      var uniqueArchetypes = Object.keys(row.opponent_archetypes || {}).length;
+      var coverageBonus = Math.min(0.055, uniqueOpponents * 0.006 + uniqueArchetypes * 0.008);
+      var volatilityPenalty = games < minSampleSize ? Math.min(0.08, (minSampleSize - games) / Math.max(1, minSampleSize) * 0.08) : 0;
+      var quality = evidenceQualityForRanking({
+        legality_status: legality,
+        visibility: team.visibility,
+        games_played: games,
+        min_sample_size: minSampleSize,
+        source_gaps: sourceGaps,
+        stale: false,
+        approved_benchmark_pool: !!opts.approved_benchmark_pool,
+        current_versions: current.engine_version !== 'unknown' && current.ruleset_version !== 'unknown'
+      });
+      var scope = scopeForEvidenceQuality(quality, opts.leaderboard_scope);
       var entry = {
         team_id: teamId,
         team_name: team.name,
@@ -340,6 +465,7 @@
         rating: ratingFromAdjusted(adjusted, games, confidence),
         raw_win_rate: Number(raw.toFixed(4)),
         adjusted_win_rate: Number(adjusted.toFixed(4)),
+        ranking_score: 0,
         games_played: games,
         wins: row.wins,
         losses: row.losses,
@@ -349,12 +475,47 @@
         stale_reason: null,
         legality_status: legality,
         visibility: team.visibility,
-        archetype_tags: (team.archetype_tags || []).slice()
+        archetype_tags: (team.archetype_tags || []).slice(),
+        source_gaps: sourceGaps,
+        evidence_quality: quality,
+        matchup_coverage: {
+          unique_opponents: uniqueOpponents,
+          unique_archetypes: uniqueArchetypes,
+          bonus: Number(coverageBonus.toFixed(4))
+        },
+        opponent_strength_delta: 0,
+        volatility_penalty: Number(volatilityPenalty.toFixed(4))
       };
       entries.push(entry);
     });
 
+    var adjustedByTeam = {};
+    entries.forEach(function(entry) { adjustedByTeam[entry.team_id] = entry.adjusted_win_rate; });
+    entries.forEach(function(entry) {
+      var row = stats[entry.team_id] || {};
+      var opponentIds = Object.keys(row.opponents || {});
+      var opponentStrength = 0;
+      if (opponentIds.length) {
+        opponentStrength = opponentIds.reduce(function(sum, id) {
+          return sum + ((adjustedByTeam[id] == null ? 0.5 : adjustedByTeam[id]) - 0.5);
+        }, 0) / opponentIds.length;
+      }
+      opponentStrength = Math.max(-0.04, Math.min(0.04, opponentStrength * 0.35));
+      entry.opponent_strength_delta = Number(opponentStrength.toFixed(4));
+      entry.ranking_score = rankingScore({
+        adjusted_win_rate: entry.adjusted_win_rate,
+        opponent_strength_delta: entry.opponent_strength_delta,
+        matchup_coverage_bonus: entry.matchup_coverage.bonus,
+        confidence: entry.confidence,
+        stale: entry.stale,
+        source_gaps: entry.source_gaps,
+        volatility_penalty: entry.volatility_penalty
+      });
+      entry.rating = ratingFromRankingScore(entry.ranking_score, entry.games_played, entry.evidence_quality);
+    });
+
     entries.sort(function(a, b) {
+      if (b.ranking_score !== a.ranking_score) return b.ranking_score - a.ranking_score;
       if (b.rating !== a.rating) return b.rating - a.rating;
       if (b.adjusted_win_rate !== a.adjusted_win_rate) return b.adjusted_win_rate - a.adjusted_win_rate;
       return b.games_played - a.games_played;
@@ -374,6 +535,7 @@
       if (f.engine_version && entry.engine_version !== f.engine_version) return false;
       if (f.ruleset_version && entry.ruleset_version !== f.ruleset_version) return false;
       if (f.visibility && entry.visibility !== f.visibility) return false;
+      if (f.evidence_quality && entry.evidence_quality !== f.evidence_quality) return false;
       if (f.stale === true && !entry.stale) return false;
       if (f.stale === false && entry.stale) return false;
       return true;
@@ -434,6 +596,130 @@
     };
   }
 
+  function resolveTeamKeyMapping(sourceTeamKey, mappings, filters) {
+    var f = filters || {};
+    var rows = (mappings || []).filter(function(row) {
+      if (!row || row.source_team_key !== sourceTeamKey) return false;
+      if (f.source_system && row.source_system !== f.source_system) return false;
+      if (f.regulation_id && row.regulation_id !== f.regulation_id) return false;
+      if (f.format && row.format && row.format !== f.format) return false;
+      return true;
+    }).sort(function(a, b) {
+      var rank = { verified: 4, pending: 3, stale: 2, rejected: 1 };
+      var ar = rank[a.mapping_status] || 0;
+      var br = rank[b.mapping_status] || 0;
+      if (br !== ar) return br - ar;
+      return String(b.updated_at || b.verified_at || '').localeCompare(String(a.updated_at || a.verified_at || ''));
+    });
+    var best = rows[0] || null;
+    if (!best) {
+      return {
+        ok: false,
+        status: 'missing',
+        team_lab_team_id: null,
+        mapping: null,
+        source_gap: 'TEAM_KEY_MAPPING_MISSING'
+      };
+    }
+    if (best.mapping_status !== 'verified' || !best.team_id) {
+      return {
+        ok: false,
+        status: best.mapping_status || 'pending',
+        team_lab_team_id: best.team_id || null,
+        mapping: best,
+        source_gap: 'TEAM_KEY_MAPPING_' + String(best.mapping_status || 'pending').toUpperCase()
+      };
+    }
+    return {
+      ok: true,
+      status: 'verified',
+      team_lab_team_id: best.team_id,
+      mapping: best,
+      source_gap: null
+    };
+  }
+
+  function defaultPromotionRule(input) {
+    var opts = input || {};
+    return {
+      regulation_id: opts.regulation_id || null,
+      format: opts.format || null,
+      leaderboard_scope: opts.leaderboard_scope || 'official_sim_top_25',
+      min_sample_size: opts.min_sample_size == null ? 200 : Number(opts.min_sample_size),
+      require_verified_legality: opts.require_verified_legality !== false,
+      require_current_engine: opts.require_current_engine !== false,
+      require_current_ruleset: opts.require_current_ruleset !== false,
+      require_verified_team_mapping: opts.require_verified_team_mapping !== false,
+      require_approved_benchmark_pool: opts.require_approved_benchmark_pool !== false,
+      allowed_evidence_qualities: Array.isArray(opts.allowed_evidence_qualities) ? opts.allowed_evidence_qualities : ['official_ready']
+    };
+  }
+
+  function evaluateLeaderboardPromotion(entry, context) {
+    var row = entry || {};
+    var ctx = context || {};
+    var rule = defaultPromotionRule(ctx.rule || ctx);
+    var mapping = ctx.mapping || null;
+    var reasons = [];
+    var sourceGaps = unique((row.source_gaps || []).concat(ctx.source_gaps || []));
+
+    if (row.stale) reasons.push('STALE_ENTRY');
+    if (rule.regulation_id && row.regulation_id !== rule.regulation_id) reasons.push('REGULATION_MISMATCH');
+    if (rule.format && row.format !== rule.format) reasons.push('FORMAT_MISMATCH');
+    if (rule.require_current_engine && ctx.current_engine_version && row.engine_version !== ctx.current_engine_version) reasons.push('ENGINE_VERSION_STALE');
+    if (rule.require_current_ruleset && ctx.current_ruleset_version && row.ruleset_version !== ctx.current_ruleset_version) reasons.push('RULESET_VERSION_STALE');
+    if (rule.require_verified_legality && row.legality_status !== 'verified') reasons.push('LEGALITY_NOT_VERIFIED');
+    if (Number(row.games_played || 0) < Number(rule.min_sample_size || DEFAULT_MIN_SAMPLE_SIZE)) reasons.push('INSUFFICIENT_SAMPLE_SIZE');
+    if (rule.require_approved_benchmark_pool && !ctx.approved_benchmark_pool) reasons.push('BENCHMARK_POOL_NOT_APPROVED');
+    if (rule.allowed_evidence_qualities.indexOf(row.evidence_quality || '') === -1) reasons.push('EVIDENCE_QUALITY_NOT_ALLOWED');
+    if (rule.require_verified_team_mapping) {
+      if (!mapping || mapping.status !== 'verified' || !mapping.team_lab_team_id) {
+        reasons.push(mapping && mapping.source_gap ? mapping.source_gap : 'TEAM_KEY_MAPPING_MISSING');
+      }
+    }
+    if (sourceGaps.length) reasons.push('UNRESOLVED_SOURCE_GAPS');
+
+    var decision = 'approved';
+    if (row.stale || row.legality_status === 'stale') decision = 'stale';
+    else if (row.legality_status === 'needs_verification' || sourceGaps.length || (mapping && mapping.status && mapping.status !== 'verified')) decision = 'experimental';
+    if (reasons.length && decision === 'approved') decision = 'blocked';
+    var approved = decision === 'approved' && reasons.length === 0;
+
+    return {
+      approved: approved,
+      decision: approved ? 'approved' : decision,
+      reasons: unique(reasons),
+      promotion_status: approved ? 'approved' : decision,
+      leaderboard_scope: approved ? (rule.leaderboard_scope || 'official_sim_top_25') : (decision === 'experimental' ? 'experimental' : 'stale'),
+      source_gaps: sourceGaps,
+      rule: rule,
+      mapping: mapping || null
+    };
+  }
+
+  function applyPromotionDecision(entry, decision) {
+    var row = Object.assign({}, entry || {});
+    var d = decision || {};
+    row.promotion_status = d.promotion_status || d.decision || 'blocked';
+    row.promotion_reasons = unique(d.reasons || []);
+    if (d.mapping && d.mapping.mapping && d.mapping.mapping.id) row.team_key_mapping_id = d.mapping.mapping.id;
+    if (d.approved) {
+      row.leaderboard_scope = d.leaderboard_scope || 'official_sim_top_25';
+      row.evidence_quality = 'official_ready';
+      row.stale = false;
+      row.stale_reason = null;
+    } else if (d.decision === 'experimental') {
+      row.leaderboard_scope = 'experimental';
+      row.confidence = 'experimental';
+      row.evidence_quality = 'experimental';
+    } else if (d.decision === 'stale') {
+      row.leaderboard_scope = 'stale';
+      row.stale = true;
+      row.stale_reason = row.stale_reason || 'promotion_stale';
+    }
+    return row;
+  }
+
   function createTeamService(adapter) {
     var db = adapter || {};
     return {
@@ -471,6 +757,18 @@
       },
       markLeaderboardStale: function(reason, engineVersion, rulesetVersion, teamId) {
         return db.markLeaderboardStale ? db.markLeaderboardStale(reason, engineVersion, rulesetVersion, teamId) : Promise.resolve({ reason: reason, engine_version: engineVersion, ruleset_version: rulesetVersion, team_id: teamId });
+      },
+      resetTeamLabRankings: function(input, adminUserId) {
+        var params = input || {};
+        var isAdmin = db.isTeamLabAdmin ? !!db.isTeamLabAdmin(adminUserId) : false;
+        if (!isAdmin) return Promise.resolve({ ok: false, error: 'ADMIN_REQUIRED', message: 'Team Lab ranking reset requires trusted admin authorization.' });
+        if (db.resetTeamLabRankings) return Promise.resolve(db.resetTeamLabRankings(params, adminUserId));
+        var rows = db.listLeaderboard ? db.listLeaderboard(params) : [];
+        return Promise.resolve(rows).then(function(resolvedRows) {
+          var result = resetLeaderboardRankings(resolvedRows, params, { is_admin: true, user_id: adminUserId });
+          if (result.ok && db.recordAdminAction) db.recordAdminAction(result.audit);
+          return result;
+        });
       }
     };
   }
@@ -486,12 +784,21 @@
     adjustedWinRate: adjustedWinRate,
     confidenceForSample: confidenceForSample,
     ratingFromAdjusted: ratingFromAdjusted,
+    rankingScore: rankingScore,
+    ratingFromRankingScore: ratingFromRankingScore,
+    evidenceQualityForRanking: evidenceQualityForRanking,
+    scopeForEvidenceQuality: scopeForEvidenceQuality,
     isEntryCurrent: isEntryCurrent,
     markLeaderboardEntriesStale: markLeaderboardEntriesStale,
+    resetLeaderboardRankings: resetLeaderboardRankings,
     buildLeaderboardEntries: buildLeaderboardEntries,
     filterLeaderboard: filterLeaderboard,
     applyTeamVisibility: applyTeamVisibility,
     compareTeamToLeaderboard: compareTeamToLeaderboard,
+    resolveTeamKeyMapping: resolveTeamKeyMapping,
+    defaultPromotionRule: defaultPromotionRule,
+    evaluateLeaderboardPromotion: evaluateLeaderboardPromotion,
+    applyPromotionDecision: applyPromotionDecision,
     createTeamService: createTeamService
   };
 

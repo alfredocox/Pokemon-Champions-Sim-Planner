@@ -30,12 +30,18 @@ T('1. Review remains a separate tab from Strategy', () => {
   inc(html, 'id="replay-coach-url"');
   inc(html, 'id="replay-coach-fetch-btn"');
   inc(html, 'id="replay-coach-full-roster"');
+  inc(html, 'Battle Sensei replay lab');
+  inc(html, 'turn replay evidence into coaching and simulator test targets');
+  inc(html, 'matchup drills, and sim calibration');
   inc(html, 'Know the full 6?');
   inc(html, 'accept=".txt,.log,.html,.htm,text/plain,text/html"');
-  inc(html, 'Upload Replay');
+  inc(html, 'Upload Showdown Replay');
+  inc(html, 'id="replay-coach-export-scenario-btn"');
+  inc(html, 'id="replay-coach-scenario-status"');
+  inc(html, 'Upload and analyze a replay to enable Tactical QA payload export.');
   inc(html, 'In series play');
-  inc(html, 'v2.2.52-team-lab-newsroom-hub');
-  inc(ui, 'v2.2.52-team-lab-newsroom-hub');
+  inc(html, 'v2.2.98-github-release-guard');
+  inc(ui, 'v2.2.98-github-release-guard');
   if (/Bo10|data-bo="10"/.test(html)) throw new Error('Bo10 should not be exposed as a series format');
   if (/Bo10/.test(ui)) throw new Error('Bo10 should not be referenced in UI guidance');
   if (/Bo10/.test(engine)) throw new Error('Bo10 should not be referenced in engine guidance');
@@ -76,6 +82,25 @@ T('4. coaching tags explain decision impact, not just labels', () => {
 
 T('5. learning report renders scorecard, critical turns, win path, and practice plan', () => {
   inc(ui, 'learningReport');
+  inc(ui, '<h3 class="replay-coach-h3">Replay-Derived Sim Scenario Queue</h3>');
+  inc(ui, 'review.scenarioQueue');
+  inc(ui, '<b>Test goal:</b>');
+  inc(ui, 'These are simulator test targets from the replay.');
+  inc(ui, 'Prepare Tactical QA Payload');
+  inc(ui, 'csUpdateReplayScenarioExportButton');
+  inc(ui, 'csExportTopReplayScenarioPayload');
+  inc(ui, 'Scenario queue ready. Use the button above to export the top Tactical QA payload.');
+  inc(ui, 'champions-replay-scenario-tactical-qa-payload-v1');
+  inc(ui, 'needs_regulation_mapping');
+  inc(ui, 'missing_for_trusted_run');
+  inc(ui, 'claim_audit: claimAudit');
+  inc(ui, 'source_gaps: claimAudit');
+  inc(ui, 'forbidden_claims: claimAudit');
+  inc(ui, 'Source gaps and forbidden-claim rules are included in the payload.');
+  inc(ui, 'csReplayFindBestTeamMatch');
+  inc(ui, 'exact_full_six');
+  inc(ui, 'visible_four_match');
+  inc(ui, 'team_mapping');
   inc(ui, '<h3 class="replay-coach-h3">What You Did Well</h3>');
   inc(ui, '<h3 class="replay-coach-h3">Advanced Plays Recognized</h3>');
   inc(ui, '<h3 class="replay-coach-h3">Tighten Up Next</h3>');
@@ -87,6 +112,13 @@ T('5. learning report renders scorecard, critical turns, win path, and practice 
   inc(ui, "battleIq && battleIq.displayScore != null ? String(battleIq.displayScore) : 'Needs more data'");
   inc(ui, '<strong>What this means</strong>');
   inc(ui, '<h3 class="replay-coach-h3">Evidence Standard</h3>');
+  inc(ui, '<h3 class="replay-coach-h3">Evidence Claim Audit</h3>');
+  inc(ui, '<strong>Observed rows</strong>');
+  inc(ui, '<strong>Inferred claims</strong>');
+  inc(ui, '<strong>Scenario targets</strong>');
+  inc(ui, '<strong>Source gaps</strong>');
+  inc(ui, "gap.code || 'SOURCE_GAP'");
+  inc(ui, 'claimAudit.forbidden_claims');
   inc(ui, '<strong>Opponent intent boundary</strong>');
   inc(ui, '<h3 class="replay-coach-h3">Critical Turn Engine</h3>');
   inc(ui, '<h3 class="replay-coach-h3">Decision Quality Scorecard</h3>');
@@ -121,8 +153,8 @@ T('7. timeline styles stay card-based and mobile-safe', () => {
   inc(css, '.replay-coach-turn.high');
   inc(css, '.replay-coach-turn.medium');
   inc(css, '.replay-coach-turn.low');
-  inc(css, '@media(max-width:900px){.replay-coach-grid{grid-template-columns:1fr}');
-  inc(css, '.replay-coach-summary-grid{grid-template-columns:1fr}');
+  inc(css, '@media(max-width:900px){.replay-coach-grid,.replay-coach-intake-strip{grid-template-columns:1fr}');
+  inc(css, '.replay-coach-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}');
 });
 
 console.log(`\nBattle Sensei summary/timeline UI: ${pass} pass, ${fail} fail\n`);

@@ -184,7 +184,7 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
 
 -- suica_sun
 INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
-  ('suica_sun', 1, 'Charizard', 'Charizardite Y', 'Blaze', 'Modest', 50, '{"atk":0,"def":16,"hp":6,"spa":31,"spd":0,"spe":13}'::jsonb, '["Heat Wave","Air Slash","Weather Ball","Protect"]'::jsonb, NULL, 'Mega Sweeper'),
+  ('suica_sun', 1, 'Charizard-Mega-Y', 'Charizardite Y', 'Drought', 'Modest', 50, '{"atk":0,"def":16,"hp":6,"spa":31,"spd":0,"spe":13}'::jsonb, '["Heat Wave","Air Slash","Weather Ball","Protect"]'::jsonb, NULL, 'Mega Sweeper'),
   ('suica_sun', 2, 'Sneasler', 'White Herb', 'Unburden', 'Adamant', 50, '{"atk":32,"def":2,"hp":0,"spa":0,"spd":0,"spe":32}'::jsonb, '["Close Combat","Dire Claw","Rock Slide","Protect"]'::jsonb, NULL, 'Physical Sweeper'),
   ('suica_sun', 3, 'Basculegion', 'Choice Scarf', 'Adaptability', 'Jolly', 50, '{"atk":32,"def":2,"hp":0,"spa":0,"spd":0,"spe":32}'::jsonb, '["Wave Crash","Last Respects","Aqua Jet","Flip Turn"]'::jsonb, NULL, 'Scarfer'),
   ('suica_sun', 4, 'Garchomp', 'Haban Berry', 'Rough Skin', 'Adamant', 50, '{"atk":20,"def":0,"hp":24,"spa":0,"spd":1,"spe":21}'::jsonb, '["Dragon Claw","Earthquake","Rock Slide","Protect"]'::jsonb, NULL, 'Physical Sweeper'),
@@ -279,7 +279,7 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
   ('sun_offense_charizard', 3, 'Farigiraf', 'Sitrus Berry', 'Armor Tail', 'Relaxed', 50, '{"atk":0,"def":1,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Hyper Voice","Trick Room","Psychic","Protect"]'::jsonb, NULL, 'TR Setter 2'),
   ('sun_offense_charizard', 4, 'Torkoal', 'Charcoal', 'Drought', 'Modest', 50, '{"atk":0,"def":1,"hp":32,"spa":32,"spd":0,"spe":0}'::jsonb, '["Eruption","Weather Ball","Earth Power","Protect"]'::jsonb, NULL, 'Sun Setter'),
   ('sun_offense_charizard', 5, 'Kingambit', 'Black Glasses', 'Defiant', 'Adamant', 50, '{"atk":32,"def":0,"hp":1,"spa":0,"spd":0,"spe":32}'::jsonb, '["Kowtow Cleave","Sucker Punch","Iron Head","Swords Dance"]'::jsonb, NULL, 'Sweeper'),
-  ('sun_offense_charizard', 6, 'Charizard-Mega-Y', 'Charizardite Y', 'Solar Power', 'Modest', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":0,"spe":32}'::jsonb, '["Heat Wave","Overheat","Solar Beam","Protect"]'::jsonb, NULL, 'Mega Attacker');
+  ('sun_offense_charizard', 6, 'Charizard-Mega-Y', 'Charizardite Y', 'Drought', 'Modest', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":0,"spe":32}'::jsonb, '["Heat Wave","Overheat","Solar Beam","Protect"]'::jsonb, NULL, 'Mega Attacker');
 
 -- z2r_feitosa_mega_floette
 INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
@@ -436,7 +436,7 @@ INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, 
 
 -- kevin_meta_sun
 INSERT INTO team_members (team_id, slot, species, item, ability, nature, level, evs, moves, tera_type, role_tag) VALUES
-  ('kevin_meta_sun', 1, 'Charizard', 'Charizardite Y', 'Solar Power', 'Timid', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":1,"spe":32}'::jsonb, '["Heat Wave","Solar Beam","Weather Ball","Protect"]'::jsonb, NULL, 'Primary Sun Breaker'),
+  ('kevin_meta_sun', 1, 'Charizard-Mega-Y', 'Charizardite Y', 'Drought', 'Timid', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":1,"spe":32}'::jsonb, '["Heat Wave","Solar Beam","Weather Ball","Protect"]'::jsonb, NULL, 'Primary Sun Breaker'),
   ('kevin_meta_sun', 2, 'Venusaur', 'Focus Sash', 'Chlorophyll', 'Modest', 50, '{"atk":0,"def":0,"hp":1,"spa":32,"spd":1,"spe":32}'::jsonb, '["Sleep Powder","Leaf Storm","Sludge Bomb","Protect"]'::jsonb, NULL, 'Sun Speed Control / Sleep Pressure'),
   ('kevin_meta_sun', 3, 'Garchomp', 'Choice Scarf', 'Rough Skin', 'Adamant', 50, '{"atk":32,"def":1,"hp":1,"spa":0,"spd":0,"spe":32}'::jsonb, '["Rock Slide","Dragon Claw","Earthquake","Bulldoze"]'::jsonb, NULL, 'Fast Spread Pressure'),
   ('kevin_meta_sun', 4, 'Sneasler', 'White Herb', 'Unburden', 'Jolly', 50, '{"atk":32,"def":0,"hp":0,"spa":0,"spd":0,"spe":32}'::jsonb, '["Dire Claw","Close Combat","Rock Slide","Coaching"]'::jsonb, NULL, 'Fast Disruption / Cleanup'),

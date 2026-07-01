@@ -51,7 +51,7 @@ Optional persistence
 
 `v2.1.52-tactical-branch-memory` extends forced branch rows with `tactical_summary`: Protect timing, pivot/switch timing, speed control, setup/redirection, first-KO timing, and early position delta. This lets the Strategy guide coach battle tactics from repeated branch evidence instead of only comparing move names.
 
-`v2.1.53-tactical-sweep-qa` adds the `Tactical Sweep + QA` path. It uses the Simulator Test Scope to build branch coverage for either the selected matchup or every approved preloaded opponent, saves unseen branches to `branch_coverage_runs`, and exports a `tactical_sweep` block with per-opponent coverage and combined `branch_move_analysis`.
+`v2.1.53-tactical-sweep-qa` adds the tactical branch QA path, now labeled `Tactical Coaching QA` in the UI. It uses the Simulator Test Scope to build branch coverage for either the selected matchup or every approved preloaded opponent, saves unseen branches to `branch_coverage_runs`, and exports a `tactical_sweep` block with per-opponent coverage and combined `branch_move_analysis`.
 
 `v2.1.54-download-ready-fallback` keeps QA exports inspectable when the browser blocks delayed automatic downloads. `_downloadBlob` still attempts the normal save, then leaves a visible `Download ready` link in the Simulator progress area that points at the generated artifact.
 
@@ -61,7 +61,7 @@ Optional persistence
 
 `v2.1.57-cache-refresh-reload` reloads once after build-change cache cleanup so testers land on the fresh bundle instead of continuing to run the old page code that was just cleaned up.
 
-`v2.1.58-tactical-depth-selector` adds Quick 24, Deep 100, and Full 250 branch-depth caps for Tactical Sweep + QA. The selected cap is saved into `tactical_sweep.max_runs_per_opponent` and controls how quickly DB branch memory fills.
+`v2.1.58-tactical-depth-selector` adds Quick 24, Deep 100, and Full 250 branch-depth caps for `Tactical Coaching QA`. The selected cap is saved into `tactical_sweep.max_runs_per_opponent` and controls how quickly DB branch memory fills.
 
 `v2.1.59-team-evidence-dashboard` folds shared evidence into the Strategy Priority Board per selected team: normal sim samples, tactical branch samples, best-case, worst-case, likely-case, confidence, set-change comparison, and next-test guidance render together. Same team IDs keep continuity, but changed sets are version-compared by team signature.
 
@@ -97,7 +97,7 @@ The Tactical Sweep QA button is the accumulation path for this table. In Selecte
 
 `v2.2.16-coach-sequence-why` adds `coach_brain_summary.tactical_interpretation`. This is the structured coaching contract for speed-control sequence quality: why positive Tailwind/Trick Room/speed-answer windows worked, why negative windows failed, the pre-click player question, the turn-sequence rule, a coach checklist, and the next counters to watch. Future UI and DB memory work should consume this object before writing new free-text coaching logic.
 
-`v2.2.17-stress-lite-qa` adds a browser-safe stress proof path for testers who should not run full Run All locally. `Stress Lite + QA` reuses Tactical Sweep branch evidence with hard caps, includes targeted proof, exports `qa_run_type: "stress_lite_qa"`, and writes a `stress_lite` block that records the cap and boundary. This is valid stress evidence, but it is not exhaustive Run All proof.
+`v2.2.17-stress-lite-qa` adds a browser-safe stress proof path for testers who should not run full Run All locally. This path is now labeled `Device-Safe Stress QA` in the UI. It reuses tactical branch evidence with hard caps, includes targeted proof, exports `qa_run_type: "stress_lite_qa"`, and writes a `stress_lite` block that records the cap and boundary. This is valid stress evidence, but it is not exhaustive Run All proof.
 
 The Stress Lite artifact must also stay readable at a glance. The export now mirrors normalized totals at the top level (`turns_total`, `action_rows_total`, `damage_events_total`, `effect_events_total`, `branch_matrix_runs`) and includes `stress_lite.summary`, a compact block for:
 
@@ -106,11 +106,24 @@ The Stress Lite artifact must also stay readable at a glance. The export now mir
 - slowest or heaviest capped matchup
 - best observed line, avoid move, and next coaching focus
 
-`v2.2.19-hard-beta-guard` adds public-device guardrails for release safety. Mobile/coarse-pointer and low-memory browsers are forced toward `Stress Lite + QA`; `Run All` and `Run All + QA Artifact` are disabled on those risky public devices; large series counts and full branch-coverage depth are capped so phone users do not become accidental load tests.
+`v2.2.19-hard-beta-guard` adds public-device guardrails for release safety. Mobile/coarse-pointer and low-memory browsers are forced toward `Device-Safe Stress QA`; `Run All` and `Release Matrix QA` are disabled on those risky public devices; large series counts and full branch-coverage depth are capped so phone users do not become accidental load tests.
+
+`v2.2.90-qa-slice-readout` renames the browser QA controls around the evidence slice they validate and renders the `qa_claim_review` immediately after export. The QA controls are now:
+
+- `Current Evidence QA`: compact export of the current retained/generated evidence.
+- `Release Matrix QA`: broad matchup-matrix release evidence for machines that can safely run it.
+- `Device-Safe Stress QA`: capped under-50 MB stress evidence for phones or lower-memory browsers.
+- `Tactical Coaching QA`: branch/deployment evidence for tactical coaching, speed-control, lead, move, target, and lineup decisions.
+
+The post-export `QA Claim Review` card is intentionally conservative. It surfaces release blockers, source gaps, damage events, branch rows, forbidden claims, and the next QA move. This is the same principle a strong QA lead would apply: first define what the evidence can prove, then define what it is forbidden to claim. No QA artifact may be used as complete Champion legality, exhaustive mechanics proof, global best-team ranking, or real ladder truth unless the artifact and source-truth gates explicitly support that claim.
 
 `v2.2.30-replay-detail-rows` closes the current replay-transparency slice. The replay display now prefers resolved action rows over duplicated move pre-call lines, carries structured move-failure evidence, and groups spread/doubles target damage so one move can show every affected target, miss, failure, and KO reason from the same exported evidence. TheYfactora12 PR #160 and Alfredo sync PR #256 both passed required checks before merge; Alfredo also passed the 5,070-battle Battle Audit.
 
 `v2.2.43-move-effect-logic-matrix` adds a QA coverage matrix for the next simulator-accuracy gate. Every QA coverage summary now reports move/effect families as `proven`, `partial`, or `missing` for damage math, non-standard stat-source moves, HP-changing effects, status/action denial, move-failure prevention, priority prevention, field-duration speed control, contact/item damage, and faint transparency. This is deliberately conservative: a missing family is a next QA target, not an automatic engine bug, and coaching should not make strong claims from a partial/missing family without a caveat.
+
+`v2.2.70-team-lab-db-preview` connects saved `branch_coverage_runs` evidence to the Home Team Lab table as an experimental preview. This makes DB-backed branch learning visible, but rows remain labeled as preview evidence and are not official global rankings.
+
+`v2.2.71-team-lab-mapping-promotion` adds the DB trust layer required before preview evidence can become official Team Lab leaderboard evidence. Local/source keys must resolve through `team_lab_team_key_mappings`, promotion gates live in `team_lab_promotion_rules`, and trusted-worker decisions are recorded in `team_lab_promotion_audits`. Official promotion is blocked unless legality, team identity, sample size, engine/ruleset freshness, benchmark approval, and source-gap checks all pass.
 
 Process challenge for coach-memory work:
 
@@ -132,6 +145,8 @@ Current DB-backed responsibilities:
 
 - Load approved/gated teams when live DB is available.
 - Persist analyses and bounded history rows.
+- Store tactical branch coverage rows used by Stress Lite and Tactical Sweep QA.
+- Store Team Lab team-key mappings and promotion-rule/audit metadata for trusted leaderboard promotion.
 - Store and expose approved source-data paths such as `approved_species_move_legality`.
 - Support future promotion of `showdown_entities` plus `champions_overrides` into generated runtime assets.
 - Reject or prevent stale/illegal team rows from replacing clean bundled data.
@@ -140,6 +155,7 @@ Current DB limitations:
 
 - `showdown_entities` rows are not yet the direct battle runtime source.
 - Saved analysis history is summary/capped storage, not full forensic turn-log storage.
+- Branch evidence can power experimental previews, but official Team Lab rank requires reviewed mapping and promotion gates.
 - Live DB freshness is separate from local DB contract tests. Run live checks only with `RUN_LIVE_DB=1` and valid anon credentials.
 - GitHub Pages deploy enables `RUN_LIVE_DB=1` when Supabase anon secrets are present. That means bundled teams, generated seed SQL, and live Supabase team IDs must match before publish. If a new approved team is added locally, the matching DB migration must be applied before the site can deploy.
 

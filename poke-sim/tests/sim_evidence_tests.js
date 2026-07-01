@@ -161,5 +161,40 @@ T('8. QA artifact intake creates a completed QA job and retained replay records 
   truthy(intake.replay_records.every((row) => !row.source_gaps.includes('TEAM_ID_MAPPING_NEEDED')), 'mapped teams should not report mapping gap');
 });
 
+T('9. Showdown HTML replay intake creates player-match evidence without becoming rule truth', () => {
+  const html = [
+    '<!DOCTYPE html>',
+    '<title>[Gen 9 Champions] VGC 2026 Reg M-B replay: silvercaelum vs. OGhostium Z</title>',
+    '|player|p1|silvercaelum|gambler|1054',
+    '|player|p2|OGhostium Z|169|1043',
+    '|poke|p1|Scizor, L50, F|',
+    '|poke|p1|Sneasler, L50, M|',
+    '|poke|p2|Oranguru, L50, M|',
+    '|poke|p2|Torkoal, L50, M|',
+    '|switch|p1a: Scizor|Scizor, L50, F|177/177',
+    '|switch|p2a: Oranguru|Oranguru, L50, M|100/100',
+    '|turn|1',
+    '|move|p1b: Sneasler|Fake Out|p2b: Torkoal',
+    '|faint|p2b: Torkoal',
+    '|win|silvercaelum'
+  ].join('\n');
+  const intake = SimEvidence.createShowdownReplayEvidenceFromHtml(html, {
+    source_file: 'Gen9ChampionsVGC2026RegMB-2026-06-22-silvercaelum-oghostiumz.html'
+  });
+  eq(intake.ok, true, 'HTML replay intake should succeed');
+  eq(intake.artifact_type, 'showdown_html_replay', 'artifact type');
+  const replay = intake.replay_record;
+  eq(replay.regulation_id, 'champions_reg_m_b', 'regulation should be inferred from title/file');
+  eq(replay.format, 'doubles', 'format should infer VGC doubles');
+  eq(replay.winner_team_id, 'showdown:p1:silvercaelum', 'winner should map to p1 team id');
+  eq(replay.turns, 1, 'turn count');
+  eq(replay.evidence_summary.events, 12, 'protocol event count');
+  truthy(replay.confidence_flags.includes('showdown_html_replay'), 'confidence flag missing');
+  truthy(replay.source_gaps.includes('TEAM_ID_MAPPING_NEEDED'), 'team mapping gap missing');
+  truthy(replay.source_gaps.includes('SHOWDOWN_REPLAY_NOT_OFFICIAL_RULE_TRUTH'), 'rule-truth boundary missing');
+  truthy(replay.source_metadata.rosters.p1.includes('Scizor'), 'p1 roster parse missing');
+  truthy(replay.source_metadata.rosters.p2.includes('Torkoal'), 'p2 roster parse missing');
+});
+
 console.log(`\nsim evidence foundation: ${pass} pass, ${fail} fail\n`);
 if (fail) process.exit(1);

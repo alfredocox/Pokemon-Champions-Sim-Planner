@@ -2116,7 +2116,7 @@ class Pokemon {
   // Swaps stats, types, ability. Preserves HP%, stat boosts, status, item,
   // side-state, turn counters, PP. Idempotent — returns false if already
   // evolved or not Mega-capable.
-  megaEvolve(log, field) {
+  megaEvolve(log, field, onAbilityChange) {
     if (!this.megaForm || this.hasMegaEvolved) return false;
     const m = this.megaForm;
     const hpFrac = (this.maxHp > 0) ? (this.hp / this.maxHp) : 1;
@@ -2134,7 +2134,11 @@ class Pokemon {
     this.flying = this.types.includes('Flying') || this.ability === 'Levitate';
     this.hasMegaEvolved = true;
     if (log) log.push(`${m.megaName} Mega Evolved!`);
-    if (field) applyWeatherAbility(this, field, log);
+    if (typeof onAbilityChange === 'function') {
+      onAbilityChange(this);
+    } else if (field) {
+      applyWeatherAbility(this, field, log);
+    }
     return true;
   }
 
@@ -6106,17 +6110,19 @@ function simulateBattle(playerTeam, oppTeam, opts = {}) {
     // Source: https://game8.co/games/Pokemon-Champions/archives/592472
     //         https://bulbapedia.bulbagarden.net/wiki/Priority
     // --------------------------------------------------------
-    function tryMegaPhase(activeArr, sideFlagKey) {
+    function tryMegaPhase(activeArr, sideFlagKey, side) {
       if (field[sideFlagKey]) return;
       const candidates = activeArr.filter(m => shouldMegaThisTurn(m, turn));
       if (candidates.length === 0) return;
       candidates.sort((a, b) => _comparePokemonSpeedOrder(a, b, field, rng));
       // One per team: only the first (fastest / coin-flip) evolves.
-      candidates[0].megaEvolve(log, field);
+      candidates[0].megaEvolve(log, field, function(mon) {
+        applyEntryAbility(mon, side, field, log);
+      });
       field[sideFlagKey] = true;
     }
-    tryMegaPhase(playerActive, 'playerMegaUsed');
-    tryMegaPhase(oppActive,    'oppMegaUsed');
+    tryMegaPhase(playerActive, 'playerMegaUsed', 'player');
+    tryMegaPhase(oppActive,    'oppMegaUsed',    'opp');
 
     // --------------------------------------------------------
     // BUILD ACTION QUEUE

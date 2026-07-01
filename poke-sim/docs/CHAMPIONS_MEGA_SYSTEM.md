@@ -19,6 +19,7 @@ Mega Evolution in Champions differs from Gen 6/7:
 | **Stat change** | Base stats swap to the Mega form's stat line; SP, Alignment, and current HP% are retained |
 | **Ability change** | Base ability swaps to the Mega's ability (e.g. Kangaskhan -> Parental Bond) |
 | **Type change** | Types swap to the Mega form's types (e.g. Charizard -> Charizard-Mega-X gains Dragon) |
+| **Ability re-trigger** | After the Mega ability swap, the runtime re-fires existing entry-style ability handling. Guarded examples: Drought weather and Intimidate attack drops. |
 | **Intimidate timing** | Incineroar entering the same turn can Intimidate the base form before it Megas. Post-Mega, Scrappy/Inner Focus (if applicable) blocks future Intimidates. |
 | **Weather timing** | Drought-Mega (Charizard Y) weather can overwrite a slower-setter's weather because Mega activation precedes ability triggers |
 
@@ -116,7 +117,7 @@ For future engine ticket (T9c-engine / Scope B upgrade):
 1. **Activation prompt:** UI surfaces "Mega Evolve?" on turn start if `CHAMPIONS_MEGAS[name]` exists AND `item === megaStone`.
 2. **Side flag:** `side.megaUsed = true` after activation. Block further activations on that side.
 3. **Stat swap:** Replace `mon.baseStats` with `CHAMPIONS_MEGAS[megaKey].megaBaseStats`. Recompute derived stats (keep SP/Alignment/HP%).
-4. **Ability swap:** Replace `mon.ability` with `CHAMPIONS_MEGAS[megaKey].ability`. Re-fire entry-abilities (Intimidate on Mega Manectric, weather on Mega Charizard Y, etc.).
+4. **Ability swap:** Replace `mon.ability` with `CHAMPIONS_MEGAS[megaKey].ability`. Re-fire existing entry-ability hooks (guarded by `mega_runtime_battle_effect_tests.js` for Mega Charizard Y weather and Mega Manectric Intimidate).
 5. **Type swap:** Replace `mon.types`.
 6. **New ability dispatch:** Wire Piercing Drill / Dragonize / Mega Sol / Spicy Spray into damage + hit pipeline.
 7. **Updated-ability dispatch:** Respect `CHAMPIONS_UPDATED_ABILITIES` flags for Unseen Fist / Parental Bond / Protean.

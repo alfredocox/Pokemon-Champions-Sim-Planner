@@ -137,7 +137,9 @@ vm.runInContext([
   'this.exportTeamToPaste=exportTeamToPaste;',
   'this.getVisibleTeamKeys=getVisibleTeamKeys;',
   'this.mergeDbTeamsIntoCatalog=mergeDbTeamsIntoCatalog;',
-  'this.CS_REMOVED_TEAM_CATALOG=CS_REMOVED_TEAM_CATALOG;'
+  'this.CS_REMOVED_TEAM_CATALOG=CS_REMOVED_TEAM_CATALOG;',
+  'this.csBuildMegaRuntimeWarning=csBuildMegaRuntimeWarning;',
+  'this.csNormalizeMegaRuntimeMember=csNormalizeMegaRuntimeMember;'
 ].join(' '), ctx);
 
 const {
@@ -158,7 +160,9 @@ const {
   exportTeamToPaste,
   getVisibleTeamKeys,
   mergeDbTeamsIntoCatalog,
-  CS_REMOVED_TEAM_CATALOG
+  CS_REMOVED_TEAM_CATALOG,
+  csBuildMegaRuntimeWarning,
+  csNormalizeMegaRuntimeMember
 } = ctx;
 
 let pass = 0, fail = 0;
@@ -643,6 +647,37 @@ T('15f3. single uploaded Showdown txt with six Pokemon parses as one team with m
   truthy(teams[0].members.every(m => (m.moves || []).length > 0), 'every Pokemon should keep move lines');
   eq(teams[0].members[0].moves[0], 'Heat Wave', 'first move parsed');
   eq(teams[0].members[5].moves[0], 'Tailwind', 'last Pokemon move parsed');
+});
+
+T('15f4. custom Charizardite Y imports stay editable but warn about active Mega Y Drought', () => {
+  const members = parseShowdownPaste([
+    'Charizard @ Charizardite Y',
+    'Ability: Solar Power',
+    'Level: 50',
+    'EVs: 1 HP / 32 SpA / 1 SpD / 32 Spe',
+    'Timid Nature',
+    '- Heat Wave',
+    '- Solar Beam',
+    '- Weather Ball',
+    '- Protect'
+  ].join('\n'));
+  const validation = buildImportedTeamValidation(members, { format: 'champions' });
+  truthy(validation.valid, 'base Charizard custom import should remain editable/valid');
+  truthy(validation.warnings.some(w => /active Charizard-Mega-Y with Drought/.test(w)), 'Mega Y runtime warning missing');
+  truthy((validation.memberWarnings['0'] || []).some(w => /Charizardite Y/.test(w.text)), 'member warning missing');
+});
+
+T('15f5. Mega runtime normalize converts Charizardite Y set to active Mega Y Drought', () => {
+  const normalized = csNormalizeMegaRuntimeMember({
+    name: 'Charizard',
+    item: 'Charizardite Y',
+    ability: 'Solar Power',
+    moves: ['Heat Wave', 'Solar Beam']
+  });
+  eq(normalized.name, 'Charizard-Mega-Y', 'normalizes species/form');
+  eq(normalized.item, 'Charizardite Y', 'keeps stone');
+  eq(normalized.ability, 'Drought', 'normalizes ability');
+  truthy(!csBuildMegaRuntimeWarning(normalized), 'normalized set should not warn');
 });
 
 T('15g. illegal existing custom teams are hidden from visible sim selectors', () => {
