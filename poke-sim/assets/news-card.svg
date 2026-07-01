@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-label="Battle Labs news card">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.45" stop-color="#0d2a3a"/>
+      <stop offset="1" stop-color="#13251b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.68" cy="0.25" r="0.55">
+      <stop offset="0" stop-color="#67e8f9" stop-opacity="0.72"/>
+      <stop offset="0.42" stop-color="#22d3ee" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ecfeff"/>
+      <stop offset="0.48" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <rect width="960" height="540" fill="url(#glow)"/>
+  <g opacity="0.16" fill="none" stroke="#67e8f9" stroke-width="2">
+    <path d="M0 105h960M0 215h960M0 325h960M0 435h960"/>
+    <path d="M100 0v540M250 0v540M400 0v540M550 0v540M700 0v540M850 0v540"/>
+  </g>
+  <g transform="translate(480 285)">
+    <ellipse rx="310" ry="82" fill="none" stroke="#67e8f9" stroke-width="10" opacity="0.85"/>
+    <ellipse rx="244" ry="58" fill="none" stroke="#22d3ee" stroke-width="5" opacity="0.55"/>
+    <ellipse rx="178" ry="38" fill="none" stroke="#a7f3d0" stroke-width="3" opacity="0.45"/>
+  </g>
+  <g filter="url(#softGlow)">
+    <path d="M562 92 405 283h87L382 459 579 254h-96L626 92Z" fill="url(#bolt)" stroke="#ecfeff" stroke-width="5" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(86 72)">
+    <text x="0" y="0" fill="#67e8f9" font-family="Arial Black, Impact, sans-serif" font-size="28" letter-spacing="4">BATTLE LABS</text>
+    <text x="0" y="54" fill="#f8fafc" font-family="Arial Black, Impact, sans-serif" font-size="62" letter-spacing="-2">CHAMPION</text>
+    <text x="0" y="116" fill="#f8fafc" font-family="Arial Black, Impact, sans-serif" font-size="62" letter-spacing="-2">SOURCE WATCH</text>
+    <text x="2" y="162" fill="#cbd5e1" font-family="Verdana, sans-serif" font-size="22">News, replay proof, and sim evidence stay separated.</text>
+  </g>
+  <g transform="translate(742 380)">
+    <path d="M0 0h128l38 45-38 45H0l-38-45Z" fill="#0f172a" stroke="#67e8f9" stroke-width="4"/>
+    <text x="64" y="56" text-anchor="middle" fill="#a7f3d0" font-family="Arial Black, Impact, sans-serif" font-size="27">QA</text>
+  </g>
+</svg>

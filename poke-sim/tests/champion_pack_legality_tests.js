@@ -96,5 +96,20 @@ T('5. Champion legality rejects Tera fields and Tera Blast', function() {
   truthy(result.errors.some(function(err) { return err.indexOf('Tera Blast') !== -1; }), 'Tera Blast should be rejected');
 });
 
+T('6. Charizardite Y shipped rows use active Mega Y Drought weather data', function() {
+  const offenders = [];
+  CURATED_TEAM_KEYS.forEach(function(key) {
+    const team = TEAMS[key];
+    (team.members || []).forEach(function(member, index) {
+      if (member && member.item === 'Charizardite Y') {
+        if (member.name !== 'Charizard-Mega-Y' || member.ability !== 'Drought') {
+          offenders.push(key + ' slot ' + (index + 1) + ': ' + member.name + ' / ' + member.ability);
+        }
+      }
+    });
+  });
+  eq(offenders.length, 0, offenders.join('; '));
+});
+
 console.log('\nchampion pack legality:', pass + ' pass, ' + fail + ' fail\n');
 process.exit(fail ? 1 : 0);

@@ -40,7 +40,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.52-team-lab-newsroom-hub'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.98-github-release-guard'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -227,7 +227,7 @@ function initTabA11y() {
   if (tablist) tablist.setAttribute('aria-label', 'Main sections');
   var mobileTabSelect = document.getElementById('mobile-tab-select');
   if (mobileTabSelect) {
-    mobileTabSelect.value = (_activeA11yTabId || 'simulator');
+    mobileTabSelect.value = (_activeA11yTabId || 'home');
     mobileTabSelect.addEventListener('change', function() {
       _activateTab(this.value, { focus: true });
     });
@@ -532,6 +532,16 @@ function buildImportedTeamValidation(members, opts) {
   if ((opts.format || 'champions') === 'champions') {
     out.errors = out.errors.concat(buildChampionImportGateErrors(members));
   }
+  (members || []).forEach(function(member, idx) {
+    var megaWarning = csBuildMegaRuntimeWarning(member);
+    if (!megaWarning) return;
+    out.warnings.push(megaWarning.text);
+    out.memberWarnings[String(idx)] = out.memberWarnings[String(idx)] || [];
+    out.memberWarnings[String(idx)].push({
+      severity: megaWarning.severity,
+      text: megaWarning.text
+    });
+  });
   if (typeof validateTeam === 'function') {
     try {
       var verdict = validateTeam(team, getActiveValidationFormat(team)) || {};
@@ -568,6 +578,50 @@ function buildImportedTeamValidation(members, opts) {
   out.warnings = Array.from(new Set(out.warnings.filter(Boolean)));
   out.valid = out.errors.length === 0;
   return out;
+}
+
+function csFindMegaRuntimeTarget(member) {
+  if (!member || !member.item || typeof CHAMPIONS_MEGAS === 'undefined' || !CHAMPIONS_MEGAS) return null;
+  var item = String(member.item || '').trim();
+  if (!item) return null;
+  var name = String(member.name || '').trim();
+  for (var megaName in CHAMPIONS_MEGAS) {
+    if (!Object.prototype.hasOwnProperty.call(CHAMPIONS_MEGAS, megaName)) continue;
+    var row = CHAMPIONS_MEGAS[megaName];
+    if (!row || row.megaStone !== item) continue;
+    if (name === row.baseSpecies || name === megaName) {
+      return {
+        megaName: megaName,
+        baseSpecies: row.baseSpecies,
+        ability: row.ability || '',
+        item: item
+      };
+    }
+  }
+  return null;
+}
+
+function csBuildMegaRuntimeWarning(member) {
+  var target = csFindMegaRuntimeTarget(member);
+  if (!target) return null;
+  var name = String((member && member.name) || '').trim();
+  var ability = String((member && member.ability) || '').trim();
+  if (name === target.megaName && ability === target.ability) return null;
+  return {
+    severity: 'warning',
+    code: 'MEGA_RUNTIME_FORM_MISMATCH',
+    text: target.item + ': current simulator uses active ' + target.megaName + ' with ' + target.ability + ' for Mega-form battle effects. This custom set can stay editable, but ' + name + (ability ? ' / ' + ability : '') + ' may not show the expected Mega ability/field effect until normalized.'
+  };
+}
+
+function csNormalizeMegaRuntimeMember(member) {
+  var target = csFindMegaRuntimeTarget(member);
+  if (!target) return Object.assign({}, member || {});
+  return Object.assign({}, member || {}, {
+    name: target.megaName,
+    ability: target.ability,
+    item: target.item
+  });
 }
 
 function getMoveLegalityIssueSeverity(reason) {
@@ -2764,6 +2818,19 @@ function csRenderEditorItemLegalityHtml(member) {
     '</div></div>';
 }
 
+function csRenderEditorMegaRuntimeHtml(member) {
+  var warning = csBuildMegaRuntimeWarning(member);
+  if (!warning) return '';
+  var target = csFindMegaRuntimeTarget(member);
+  var btn = target
+    ? '<button type="button" class="btn-secondary editor-mega-normalize-btn" id="editor-mega-normalize" data-mega-name="' + _escapeHtml(target.megaName) + '" data-mega-ability="' + _escapeHtml(target.ability) + '">Convert to active Mega form for sim</button>'
+    : '';
+  return '<div class="editor-legality-warnings editor-mega-runtime-warning">' +
+    '<div class="editor-legality-warning warning">' + _escapeHtml(warning.text) + '</div>' +
+    btn +
+    '</div>';
+}
+
 function csRenderEditorMoveDatalist(speciesName) {
   var list = document.getElementById('editor-move-list');
   if (!list) return 0;
@@ -2865,11 +2932,26 @@ function refreshEditorMoveLegality(baseMember) {
   var legalMoveCount = csRenderEditorMoveDatalist(current.name);
   csRenderEditorItemDatalist();
   host.innerHTML = csRenderEditorItemLegalityHtml(current) + renderSetEditorMoveLegalityHtml(current) +
+    csRenderEditorMegaRuntimeHtml(current) +
     '<div class="editor-move-source">' +
       (legalMoveCount
         ? _escapeHtml(String(legalMoveCount)) + ' legal move suggestions loaded for ' + _escapeHtml(current.name || 'this Pokemon') + '. You can type a move manually, but Save blocks moves outside this learnset.'
         : 'No legal move suggestions found for this species/form. Check the spelling or source data before saving.') +
     '</div>';
+  var normalizeBtn = document.getElementById('editor-mega-normalize');
+  if (normalizeBtn) {
+    normalizeBtn.addEventListener('click', function() {
+      var normalized = csNormalizeMegaRuntimeMember(currentEditorMemberForLegality(baseMember));
+      var nameEl = document.getElementById('ed-name');
+      var abilityEl = document.getElementById('ed-ability');
+      var itemEl = document.getElementById('ed-item');
+      if (nameEl) nameEl.value = normalized.name || '';
+      if (abilityEl) abilityEl.value = normalized.ability || '';
+      if (itemEl) itemEl.value = normalized.item || '';
+      markEditorDraftDirty();
+      refreshEditorMoveLegality(normalized);
+    });
+  }
 }
 
 function openEditorForm(idx) {
@@ -4666,6 +4748,8 @@ function csQaBlankMechanicsSeen() {
     no_valid_target_failures: 0,
     accuracy_misses: 0,
     protect_consecutive_failures: 0,
+    protect_consecutive_expected_failures: 0,
+    protect_consecutive_unexpected_failures: 0,
     status_resolution_events: 0,
     frozen_thaws: 0,
     sleep_wakes: 0,
@@ -6160,6 +6244,8 @@ function csBuildQaCoverageSummary(turnLog, opts) {
           mechanics.accuracy_misses += 1;
         } else if (failureReasonId === 'protect_consecutive_fail' || failureReasonId === 'protect-consecutive-fail') {
           mechanics.protect_consecutive_failures += 1;
+          if (/consecutive-use check/i.test(String(effect.note || ''))) mechanics.protect_consecutive_expected_failures += 1;
+          else mechanics.protect_consecutive_unexpected_failures += 1;
         }
       }
       if (effect.status_resolution || effect.status_exception) {
@@ -6401,7 +6487,8 @@ function csRunTargetedQaProofBattle(config) {
       seed: seeds[i],
       maxTurns: config.maxTurns || 2,
       playerBring: config.playerBring || null,
-      opponentBring: config.opponentBring || null
+      opponentBring: config.opponentBring || null,
+      forcedActions: Array.isArray(config.forcedActions) ? config.forcedActions : null
     });
     var summary = csBuildQaCoverageSummary(result && result.turnLog, {
       scope: 'targeted-qa-sweep-' + (config.id || 'proof'),
@@ -6500,6 +6587,113 @@ function csBuildTargetedQaSweepEvidence(opts) {
       ]),
       opponentTeam: csQaProofTeam('Targeted QA Shed Tail Opponent', [
         csQaProofMon('Pelipper', ['Tackle'])
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'direct_recovery_recover',
+      label: 'Direct recovery proof: Recover',
+      requireMechanic: 'recovery',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_direct_recovery_player',
+      opponentTeamId: 'targeted_qa_direct_recovery_opponent',
+      maxTurns: 1,
+      playerTeam: csQaProofTeam('Targeted QA Direct Recovery Player', [
+        csQaProofMon('Latias', ['Recover'], {
+          ability: 'Levitate',
+          nature: 'Calm',
+          hp: 60,
+          evs: { hp: 32, atk: 0, def: 0, spa: 0, spd: 32, spe: 32 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Direct Recovery Opponent', [
+        csQaProofMon('Snorlax', ['Tackle'], {
+          nature: 'Brave',
+          evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 0, spe: 0 }
+        })
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'item_recovery_leftovers',
+      label: 'Item recovery proof: Leftovers',
+      requireMechanic: 'item_recovery',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_item_recovery_player',
+      opponentTeamId: 'targeted_qa_item_recovery_opponent',
+      maxTurns: 1,
+      playerTeam: csQaProofTeam('Targeted QA Item Recovery Player', [
+        csQaProofMon('Garchomp', ['Tackle'], {
+          ability: 'Rough Skin',
+          item: 'Leftovers',
+          nature: 'Jolly',
+          evs: { hp: 32, atk: 32, def: 0, spa: 0, spd: 0, spe: 2 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Item Recovery Opponent', [
+        csQaProofMon('Pelipper', ['Tackle'], {
+          nature: 'Calm',
+          evs: { hp: 32, atk: 32, def: 0, spa: 0, spd: 0, spe: 2 }
+        })
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'move_lock_taunt_status_fail',
+      label: 'Move-lock proof: Taunt blocks status move',
+      requireMechanic: 'move_lock_failures',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_taunt_lock_player',
+      opponentTeamId: 'targeted_qa_taunt_lock_opponent',
+      maxTurns: 1,
+      forcedActions: [
+        { turn: 1, side: 'player', slot: 0, move: 'Taunt', targetSide: 'enemy', targetSlot: 0 },
+        { turn: 1, side: 'opponent', slot: 0, move: 'Haze', targetSide: 'self' }
+      ],
+      playerTeam: csQaProofTeam('Targeted QA Taunt Lock Player', [
+        csQaProofMon('Whimsicott', ['Taunt'], {
+          ability: 'Prankster',
+          nature: 'Timid',
+          evs: { hp: 2, atk: 0, def: 0, spa: 0, spd: 0, spe: 32 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Taunt Lock Opponent', [
+        csQaProofMon('Cresselia', ['Haze'], {
+          ability: 'Levitate',
+          nature: 'Calm',
+          evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 32, spe: 0 }
+        })
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'blocked_priority_quick_guard_fake_out',
+      label: 'Blocked-priority proof: Quick Guard blocks Fake Out',
+      requireMechanic: 'blocked_priority_events',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_quick_guard_player',
+      opponentTeamId: 'targeted_qa_quick_guard_opponent',
+      format: 'doubles',
+      maxTurns: 1,
+      forcedActions: [
+        { turn: 1, side: 'player', slot: 0, move: 'Quick Guard', targetSide: 'self' },
+        { turn: 1, side: 'opponent', slot: 0, move: 'Fake Out', targetSide: 'enemy', targetSlot: 0 }
+      ],
+      playerTeam: csQaProofTeam('Targeted QA Quick Guard Player', [
+        csQaProofMon('Whimsicott', ['Quick Guard'], {
+          ability: 'Prankster',
+          nature: 'Timid',
+          evs: { hp: 2, atk: 0, def: 0, spa: 0, spd: 0, spe: 32 }
+        }),
+        csQaProofMon('Pelipper', ['Tackle'])
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Quick Guard Opponent', [
+        csQaProofMon('Incineroar', ['Fake Out'], {
+          ability: 'Intimidate',
+          nature: 'Adamant',
+          evs: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 0 }
+        }),
+        csQaProofMon('Tauros-Paldea-Combat', ['Tackle'])
       ])
     }),
     csRunTargetedQaProofBattle({
@@ -7837,6 +8031,232 @@ function csRenderReplayTurn0(turn0, selectedSide) {
   '</div>';
 }
 
+var CS_LAST_REPLAY_SCENARIO_QUEUE = [];
+var CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
+function csReplaySpeciesId(name) {
+  return String(name || '')
+    .replace(/-Mega(?:-[XY])?$/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+function csReplayUniqueSpecies(list) {
+  var seen = {};
+  return (Array.isArray(list) ? list : []).map(function(name) {
+    return String(name || '').trim();
+  }).filter(function(name) {
+    var id = csReplaySpeciesId(name);
+    if (!id || seen[id]) return false;
+    seen[id] = true;
+    return true;
+  });
+}
+function csReplayTeamSpeciesList(team) {
+  return csReplayUniqueSpecies((team && Array.isArray(team.members) ? team.members : []).map(function(member) {
+    return member && (member.name || member.species || member.displayName);
+  }));
+}
+function csReplaySpeciesSet(list) {
+  var out = {};
+  csReplayUniqueSpecies(list).forEach(function(name) { out[csReplaySpeciesId(name)] = name; });
+  return out;
+}
+function csReplayMatchSpeciesCount(needed, teamSet) {
+  var count = 0;
+  Object.keys(needed || {}).forEach(function(id) { if (teamSet[id]) count++; });
+  return count;
+}
+function csReplayFindBestTeamMatch(preview, visible, opts) {
+  opts = opts || {};
+  var previewList = csReplayUniqueSpecies(preview);
+  var visibleList = csReplayUniqueSpecies(visible);
+  var required = previewList.length >= 6 ? previewList : visibleList;
+  var requiredSet = csReplaySpeciesSet(required);
+  var rows = [];
+  if (typeof TEAMS === 'undefined' || !TEAMS) {
+    return { status: 'no_match', confidence: 'none', reason: 'TEAMS catalog unavailable', requiredSpecies: required };
+  }
+  Object.keys(TEAMS).forEach(function(teamId) {
+    var team = TEAMS[teamId];
+    if (!team || !Array.isArray(team.members)) return;
+    var teamSpecies = csReplayTeamSpeciesList(team);
+    var teamSet = csReplaySpeciesSet(teamSpecies);
+    var matched = csReplayMatchSpeciesCount(requiredSet, teamSet);
+    if (!matched) return;
+    var confidence = 'partial_match';
+    if (previewList.length >= 6 && matched >= 6) confidence = 'exact_full_six';
+    else if (visibleList.length >= 4 && csReplayMatchSpeciesCount(csReplaySpeciesSet(visibleList), teamSet) >= 4) confidence = 'visible_four_match';
+    var missing = required.filter(function(name) { return !teamSet[csReplaySpeciesId(name)]; });
+    rows.push({
+      team_id: teamId,
+      team_name: team.name || teamId,
+      confidence: confidence,
+      matched_count: matched,
+      required_count: required.length,
+      matched_species: required.filter(function(name) { return !!teamSet[csReplaySpeciesId(name)]; }),
+      missing_species: missing,
+      team_species: teamSpecies,
+      regulation_id: team.regulation_id || team.ruleset || team.champion_ruleset || null,
+      legality_status: team.legality_status || null
+    });
+  });
+  rows.sort(function(a, b) {
+    var rank = { exact_full_six: 4, visible_four_match: 3, partial_match: 2, no_match: 1 };
+    var ar = rank[a.confidence] || 0;
+    var br = rank[b.confidence] || 0;
+    if (br !== ar) return br - ar;
+    if (b.matched_count !== a.matched_count) return b.matched_count - a.matched_count;
+    return String(a.team_name || '').localeCompare(String(b.team_name || ''));
+  });
+  return rows[0] || { status: 'no_match', confidence: 'no_match', reason: 'No saved/imported team matched replay species.', requiredSpecies: required };
+}
+function csReplayScenarioResolveTeamMappings(row, context) {
+  row = row || {};
+  context = context || {};
+  var board = row.boardContext || {};
+  var summary = (context.review && context.review.summary) || {};
+  var player = csReplayFindBestTeamMatch(summary.yourPreview || [], board.yourFour || [], { side: 'player' });
+  var opponent = csReplayFindBestTeamMatch(summary.opponentPreview || [], board.opponentFour || [], { side: 'opponent' });
+  return {
+    player: player,
+    opponent: opponent,
+    status: (player.team_id && opponent.team_id) ? 'mapped' : (player.team_id || opponent.team_id ? 'partial_mapping' : 'no_match')
+  };
+}
+function csReplayScenarioTeamMapStatus(row) {
+  row = row || {};
+  var context = CS_LAST_REPLAY_SCENARIO_CONTEXT || {};
+  var mappings = csReplayScenarioResolveTeamMappings(row, context);
+  var board = row.boardContext || {};
+  var yourLead = Array.isArray(board.yourLead) ? board.yourLead : [];
+  var opponentLead = Array.isArray(board.opponentLead) ? board.opponentLead : [];
+  var yourFour = Array.isArray(board.yourFour) ? board.yourFour : [];
+  var opponentFour = Array.isArray(board.opponentFour) ? board.opponentFour : [];
+  var missing = [];
+  if (!yourLead.length || !opponentLead.length) missing.push('opening leads');
+  if (yourFour.length < 2 || opponentFour.length < 2) missing.push('visible brought Pokemon');
+  if (!mappings.player.team_id || !mappings.opponent.team_id) missing.push('in-app team id mapping');
+  missing.push('regulation confirmation');
+  return {
+    status: missing.length ? 'needs_more_data' : 'ready_for_tactical_qa_payload',
+    missing: missing,
+    mappings: mappings
+  };
+}
+function csBuildReplayScenarioTacticalQaPayload(row, index, context) {
+  row = row || {};
+  context = context || {};
+  var parsed = context.parsed || {};
+  var review = context.review || {};
+  var claimAudit = review.claimAudit || null;
+  var map = csReplayScenarioTeamMapStatus(row);
+  var buildId = typeof csGetBuildId === 'function' ? csGetBuildId() : 'unknown-engine';
+  var mappings = map.mappings || csReplayScenarioResolveTeamMappings(row, context);
+  return {
+    schema_version: 'champions-replay-scenario-tactical-qa-payload-v1',
+    status: map.status,
+    scenario_index: index,
+    source: 'battle_sensei_replay_scenario_queue',
+    source_boundary: 'Replay-derived Tactical QA payload. This is player-match evidence and does not overwrite Champion legality, mechanics truth, or leaderboard rankings.',
+    engine_version: buildId,
+    ruleset_version: buildId,
+    regulation_id: 'needs_regulation_mapping',
+    format: parsed.format || 'unknown',
+    sample_size: 1,
+    team_mapping: mappings,
+    player_team_id: mappings.player && mappings.player.team_id || null,
+    opponent_team_id: mappings.opponent && mappings.opponent.team_id || null,
+    scenario: {
+      id: row.id || null,
+      title: row.title || 'Replay-derived scenario',
+      priority: row.priority || 'medium',
+      turn: row.turn || null,
+      setup: row.setup || '',
+      test_goal: row.testGoal || '',
+      why: row.why || '',
+      evidence: row.evidence || '',
+      confidence: row.confidence || 'medium',
+      source_gaps: row.sourceGaps || []
+    },
+    board_context: row.boardContext || {},
+    replay_summary: review.summary || {},
+    claim_audit: claimAudit,
+    source_gaps: claimAudit && Array.isArray(claimAudit.source_gaps) ? claimAudit.source_gaps : (row.sourceGaps || []).map(function(message) {
+      return { code: 'SCENARIO_SOURCE_GAP', message: message };
+    }),
+    forbidden_claims: claimAudit && Array.isArray(claimAudit.forbidden_claims) ? claimAudit.forbidden_claims : [
+      'Do not treat replay data as official Pokemon Champion legality.',
+      'Do not promote this scenario to best-move or best-lineup truth without simulator branch evidence.'
+    ],
+    missing_for_trusted_run: map.missing,
+    next_actions: map.missing.length
+      ? [
+          'Map replay Pokemon to a saved in-app team or imported custom team.',
+          'Confirm regulation_id and format before running branch evidence.',
+          'Reconstruct the visible board state for the scenario turn.'
+        ]
+      : [
+          'Run a capped branch matrix from this payload.',
+          'Write results with engine_version, ruleset_version, regulation_id, format, and sample size.',
+          'Keep output marked simulator-derived until repeated samples support the read.'
+        ]
+  };
+}
+function csReplayScenarioTopStatus(message, isError) {
+  var statusEl = document.getElementById('replay-coach-scenario-status');
+  if (!statusEl) return;
+  statusEl.textContent = message || '';
+  statusEl.classList.toggle('error', !!isError);
+}
+function csUpdateReplayScenarioExportButton(message) {
+  var btn = document.getElementById('replay-coach-export-scenario-btn');
+  var count = CS_LAST_REPLAY_SCENARIO_QUEUE.length;
+  if (btn) {
+    btn.disabled = count <= 0;
+    btn.textContent = count > 0 ? 'Prepare Tactical QA Payload' : 'Analyze Replay First';
+    btn.title = count > 0
+      ? 'Export the top replay-derived scenario as a Tactical QA payload.'
+      : 'Upload and analyze a replay first.';
+  }
+  if (message) csReplayScenarioTopStatus(message, false);
+}
+function csHandleReplayScenarioTacticalQa(index, opts) {
+  opts = opts || {};
+  var idx = parseInt(index, 10);
+  var row = CS_LAST_REPLAY_SCENARIO_QUEUE[idx];
+  var statusEl = opts.statusTargetId
+    ? document.getElementById(opts.statusTargetId)
+    : document.getElementById('replay-scenario-status-' + idx);
+  if (!row) {
+    var missingMsg = 'Scenario not found. Upload and analyze a replay first.';
+    if (statusEl) statusEl.textContent = missingMsg;
+    csReplayScenarioTopStatus(missingMsg, true);
+    return;
+  }
+  var payload = csBuildReplayScenarioTacticalQaPayload(row, idx, CS_LAST_REPLAY_SCENARIO_CONTEXT || {});
+  var filename = 'champions-replay-scenario-tactical-qa-' + String(idx + 1).padStart(2, '0') + '-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.json';
+  var downloaded = false;
+  if (typeof _downloadBlob === 'function') {
+    _downloadBlob(filename, 'application/json', JSON.stringify(payload, null, 2));
+    downloaded = true;
+  }
+  var msg = (downloaded ? 'Payload downloaded: ' + filename + '. ' : 'Payload prepared, but browser download is unavailable. ') +
+    (payload.status === 'needs_more_data'
+      ? 'Trusted branch run is blocked until: ' + payload.missing_for_trusted_run.join(', ') + '. Source gaps and forbidden-claim rules are included in the payload.'
+      : 'Ready for Tactical QA branch execution.');
+  if (statusEl) {
+    statusEl.innerHTML = '<span class="replay-coach-tag ' + (payload.status === 'needs_more_data' ? 'medium' : 'low') + '">' + _escapeHtml(payload.status) + '</span> ' +
+      _escapeHtml(msg);
+  }
+  csReplayScenarioTopStatus(msg, false);
+}
+function csExportTopReplayScenarioPayload() {
+  if (!CS_LAST_REPLAY_SCENARIO_QUEUE.length) {
+    csReplayScenarioTopStatus('Upload and analyze a replay first. The Tactical QA payload needs a generated scenario queue.', true);
+    csUpdateReplayScenarioExportButton();
+    return;
+  }
+  csHandleReplayScenarioTacticalQa(0, { statusTargetId: 'replay-coach-scenario-status' });
+}
 function csReplayCoachRenderAnalysis(analysis) {
   var host = document.getElementById('replay-coach-results');
   if (!host || !analysis) return;
@@ -7845,6 +8265,7 @@ function csReplayCoachRenderAnalysis(analysis) {
   var summary = review.summary || {};
   var learning = review.learningReport || null;
   var evidenceStandard = learning && learning.evidenceStandard ? learning.evidenceStandard : null;
+  var claimAudit = review.claimAudit || null;
   var simComparison = learning && learning.simComparison ? learning.simComparison : null;
   var simFeedback = learning && learning.simFeedback ? learning.simFeedback : null;
   var rawPreview = review.rawLogPreview || {};
@@ -7866,6 +8287,66 @@ function csReplayCoachRenderAnalysis(analysis) {
       '<div><b>Why it mattered:</b> ' + _escapeHtml(tag.whyMattered || 'This can change tempo, board position, or the path to your win condition.') + '</div>' +
       '<div><b>Do instead:</b> ' + _escapeHtml(tag.doInstead || tag.recommendation || 'Review this turn in context.') + '</div>' +
       '<small>' + (tag.evidence ? 'Evidence: ' + _escapeHtml(tag.evidence) + ' · ' : '') + 'Confidence: ' + _escapeHtml(tag.confidence || 'medium') + (tag.turn ? ' · Turn ' + _escapeHtml(String(tag.turn)) : '') + '</small>' +
+      '</div>';
+  }).join('');
+  var actionDenialRows = (review.actionDenialCards || []).map(function(card) {
+    var cls = card.severity === 'good' ? 'low' : csReplayCoachSeverityClass(card.severity);
+    return '<div class="replay-coach-list-row">' +
+      '<strong>' + _escapeHtml(card.label || 'Action denied') + ' · Turn ' + _escapeHtml(String(card.turn || '?')) + '</strong>' +
+      '<div><b>What happened:</b> ' + _escapeHtml(card.whatHappened || '') + '</div>' +
+      '<div><b>Why it mattered:</b> ' + _escapeHtml(card.whyItMattered || '') + '</div>' +
+      '<div><b>Next check:</b> ' + _escapeHtml(card.doNext || '') + '</div>' +
+      '<small><span class="replay-coach-tag ' + _escapeHtml(cls) + '">' + _escapeHtml(card.severity || 'medium') + '</span> Evidence: ' + _escapeHtml(card.evidence || 'replay protocol row') + ' · Confidence: ' + _escapeHtml(card.confidence || 'medium') + '</small>' +
+      '</div>';
+  }).join('');
+  function csRenderEvidenceCardRows(cards) {
+    return (cards || []).map(function(card) {
+      var cls = card.severity === 'good' ? 'low' : csReplayCoachSeverityClass(card.severity);
+      return '<div class="replay-coach-list-row">' +
+        '<strong>' + _escapeHtml(card.label || 'Evidence') + ' · Turn ' + _escapeHtml(String(card.turn || '?')) + '</strong>' +
+        '<div><b>What happened:</b> ' + _escapeHtml(card.whatHappened || '') + '</div>' +
+        '<div><b>Why it mattered:</b> ' + _escapeHtml(card.whyItMattered || '') + '</div>' +
+        '<div><b>Next check:</b> ' + _escapeHtml(card.doNext || '') + '</div>' +
+        '<small><span class="replay-coach-tag ' + _escapeHtml(cls) + '">' + _escapeHtml(card.severity || 'medium') + '</span> Evidence: ' + _escapeHtml(card.evidence || 'replay protocol row') + ' · Confidence: ' + _escapeHtml(card.confidence || 'medium') + '</small>' +
+        '</div>';
+    }).join('');
+  }
+  var abilityItemRows = csRenderEvidenceCardRows(review.abilityItemImpactCards || []);
+  var megaTimingRows = csRenderEvidenceCardRows(review.megaTimingCards || []);
+  var damageContextRows = csRenderEvidenceCardRows(review.damageContextCards || []);
+  var claimAuditRows = claimAudit ? [
+    '<div class="replay-coach-metric"><strong>Observed rows</strong><span>' + _escapeHtml(String((claimAudit.observed && claimAudit.observed.count) || 0)) + '</span></div>',
+    '<div class="replay-coach-metric"><strong>Inferred claims</strong><span>' + _escapeHtml(String((claimAudit.inferred && claimAudit.inferred.count) || 0)) + '</span></div>',
+    '<div class="replay-coach-metric"><strong>Scenario targets</strong><span>' + _escapeHtml(String((claimAudit.sim_derived && claimAudit.sim_derived.count) || 0)) + '</span></div>',
+    '<div class="replay-coach-metric"><strong>Source gaps</strong><span>' + _escapeHtml(String((claimAudit.source_gaps || []).length)) + '</span></div>'
+  ].join('') : '';
+  var claimGapRows = claimAudit ? (claimAudit.source_gaps || []).slice(0, 5).map(function(gap) {
+    return '<div class="replay-coach-list-row"><strong>' + _escapeHtml(gap.code || 'SOURCE_GAP') + '</strong>' + _escapeHtml(gap.message || '') + '</div>';
+  }).join('') : '';
+  var claimForbiddenRows = claimAudit ? (claimAudit.forbidden_claims || []).map(function(row) {
+    return '<span class="replay-coach-tag medium">' + _escapeHtml(row) + '</span>';
+  }).join('') : '';
+  var scenarioRows = (review.scenarioQueue || []).map(function(row) {
+    var idx = (review.scenarioQueue || []).indexOf(row);
+    var priorityClass = row.priority === 'high' ? 'high' : (row.priority === 'low' ? 'low' : 'medium');
+    var mapStatus = csReplayScenarioTeamMapStatus(row);
+    var mappings = mapStatus.mappings || {};
+    var mappingLabel = mappings.status === 'mapped'
+      ? 'Mapped: ' + ((mappings.player && mappings.player.team_name) || 'player') + ' vs ' + ((mappings.opponent && mappings.opponent.team_name) || 'opponent')
+      : (mappings.status === 'partial_mapping' ? 'Partial team mapping found' : 'No saved-team mapping yet');
+    var sourceGaps = (row.sourceGaps || []).slice(0, 2).map(function(gap) {
+      return '<span class="replay-coach-tag medium">' + _escapeHtml(gap) + '</span>';
+    }).join('');
+    return '<div class="replay-coach-list-row">' +
+      '<strong>' + _escapeHtml(row.title || 'Replay-derived sim scenario') + (row.turn ? ' · Turn ' + _escapeHtml(String(row.turn)) : '') + '</strong>' +
+      '<div><b>Setup:</b> ' + _escapeHtml(row.setup || '') + '</div>' +
+      '<div><b>Test goal:</b> ' + _escapeHtml(row.testGoal || '') + '</div>' +
+      '<div><b>Why:</b> ' + _escapeHtml(row.why || '') + '</div>' +
+      '<small><span class="replay-coach-tag ' + _escapeHtml(priorityClass) + '">' + _escapeHtml(row.priority || 'medium') + '</span> Evidence: ' + _escapeHtml(row.evidence || 'replay evidence') + ' · Confidence: ' + _escapeHtml(row.confidence || 'medium') + '</small>' +
+      (sourceGaps ? '<div class="replay-coach-tags">' + sourceGaps + '</div>' : '') +
+      '<div class="replay-coach-tags"><span class="replay-coach-tag ' + _escapeHtml(mapStatus.status === 'needs_more_data' ? 'medium' : 'low') + '">' + _escapeHtml(mapStatus.status) + '</span><span class="replay-coach-tag medium">' + _escapeHtml(mappingLabel) + '</span></div>' +
+      '<button class="btn-secondary replay-scenario-run-btn" type="button" data-scenario-index="' + _escapeHtml(String(idx)) + '">Prepare Tactical QA Payload</button>' +
+      '<div class="replay-coach-turn-read" id="replay-scenario-status-' + _escapeHtml(String(idx)) + '"></div>' +
       '</div>';
   }).join('');
   var turns = (review.turnTimeline || []).slice(0, 80).map(function(turn) {
@@ -7994,6 +8475,17 @@ function csReplayCoachRenderAnalysis(analysis) {
         (bringConfidence.limitation ? '<div class="replay-coach-metric"><strong>Limit</strong><span>' + _escapeHtml(bringConfidence.limitation) + '</span></div>' : '') +
       '</div>' +
     '</div>' +
+    (claimAudit ? '<div class="replay-coach-card">' +
+      '<h3 class="replay-coach-h3">Evidence Claim Audit</h3>' +
+      '<div class="replay-coach-summary-grid">' + claimAuditRows + '</div>' +
+      '<div class="replay-coach-list">' +
+        '<div class="replay-coach-list-row"><strong>Observed</strong>' + _escapeHtml(((claimAudit.observed && claimAudit.observed.claims) || []).join(' ')) + '</div>' +
+        '<div class="replay-coach-list-row"><strong>Inferred with caution</strong>' + _escapeHtml((claimAudit.inferred && claimAudit.inferred.boundary) || '') + '</div>' +
+        '<div class="replay-coach-list-row"><strong>Requires sim proof</strong>' + _escapeHtml((claimAudit.sim_derived && claimAudit.sim_derived.boundary) || '') + '</div>' +
+        claimGapRows +
+      '</div>' +
+      '<div class="replay-coach-tags">' + claimForbiddenRows + '</div>' +
+    '</div>' : '') +
     csRenderReplayTurn0(turn0, parsed.selectedSide || 'p1') +
     (leadLogic ? '<div class="replay-coach-card">' +
       '<h3 class="replay-coach-h3">Lead Logic Read</h3>' +
@@ -8013,6 +8505,27 @@ function csReplayCoachRenderAnalysis(analysis) {
     '<div class="replay-coach-card">' +
       '<h3 class="replay-coach-h3">Coaching Tags</h3>' +
       '<div class="replay-coach-list">' + (tags || '<div class="replay-coach-list-row"><strong>No major issue detected</strong>Upload more complete logs to build stronger coaching confidence.</div>') + '</div>' +
+    '</div>' +
+    '<div class="replay-coach-card">' +
+      '<h3 class="replay-coach-h3">Action Denial Review</h3>' +
+      '<div class="replay-coach-list">' + (actionDenialRows || '<div class="replay-coach-list-row"><strong>No skipped or blocked actions found</strong>This replay did not expose flinch, miss, fail, or immunity rows in the parsed protocol.</div>') + '</div>' +
+    '</div>' +
+    '<div class="replay-coach-card">' +
+      '<h3 class="replay-coach-h3">Ability / Item Impact Review</h3>' +
+      '<div class="replay-coach-list">' + (abilityItemRows || '<div class="replay-coach-list-row"><strong>No ability or item impact rows found</strong>This replay did not expose ability, item, consumption, or activation rows in the parsed protocol.</div>') + '</div>' +
+    '</div>' +
+    '<div class="replay-coach-card">' +
+      '<h3 class="replay-coach-h3">Mega Timing Review</h3>' +
+      '<div class="replay-coach-list">' + (megaTimingRows || '<div class="replay-coach-list-row"><strong>No Mega timing rows found</strong>This replay did not expose Mega or form-change rows in the parsed protocol.</div>') + '</div>' +
+    '</div>' +
+    '<div class="replay-coach-card">' +
+      '<h3 class="replay-coach-h3">Damage Context Review</h3>' +
+      '<div class="replay-coach-list">' + (damageContextRows || '<div class="replay-coach-list-row"><strong>No major damage-context rows found</strong>This replay did not expose super-effective, resisted, or major HP-threshold rows for this review.</div>') + '</div>' +
+    '</div>' +
+    '<div class="replay-coach-card">' +
+      '<h3 class="replay-coach-h3">Replay-Derived Sim Scenario Queue</h3>' +
+      '<div class="replay-coach-list">' + (scenarioRows || '<div class="replay-coach-list-row"><strong>No scenario queue generated</strong>Upload a fuller replay to create branch tests from real match evidence.</div>') + '</div>' +
+      '<small>These are simulator test targets from the replay. They do not overwrite Champion legality, mechanics truth, or leaderboard data.</small>' +
     '</div>' +
     (evidenceStandard ? '<div class="replay-coach-card">' +
       '<h3 class="replay-coach-h3">Evidence Standard</h3>' +
@@ -8135,6 +8648,16 @@ function csReplayCoachRenderAnalysis(analysis) {
         '<pre class="battle-log replay-coach-raw-log">' + (rawLines || 'No raw log lines available.') + '</pre>' +
       '</details>' +
     '</div>';
+  CS_LAST_REPLAY_SCENARIO_QUEUE = (review.scenarioQueue || []).slice();
+  CS_LAST_REPLAY_SCENARIO_CONTEXT = { parsed: parsed, review: review };
+  host.querySelectorAll('.replay-scenario-run-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      csHandleReplayScenarioTacticalQa(btn.dataset.scenarioIndex);
+    });
+  });
+  csUpdateReplayScenarioExportButton(CS_LAST_REPLAY_SCENARIO_QUEUE.length
+    ? 'Scenario queue ready. Use the button above to export the top Tactical QA payload.'
+    : 'No replay scenario queue was generated. Upload a fuller replay or add the registered six.');
 }
 
 function csNormalizeReplayName(name) {
@@ -8250,6 +8773,7 @@ function csInitReplayCoachUi() {
   var fileEl = document.getElementById('replay-coach-file');
   var statusEl = document.getElementById('replay-coach-status');
   if (!logEl || !sideEl || !runBtn) return;
+  csUpdateReplayScenarioExportButton('Upload and analyze a replay to enable Tactical QA payload export.');
 
   function setStatus(msg, isError) {
     if (!statusEl) return;
@@ -8282,7 +8806,7 @@ function csInitReplayCoachUi() {
       }
       csReplayCoachRenderAnalysis(analysis);
       var parsedTurns = analysis && analysis.parsed ? analysis.parsed.totalTurns : 0;
-      setStatus('Parsed ' + parsedTurns + ' turn' + (parsedTurns === 1 ? '' : 's') + '. Review is local-only and not saved.');
+      setStatus('Parsed ' + parsedTurns + ' turn' + (parsedTurns === 1 ? '' : 's') + '. Review is local-only unless you export or save it later.');
     } catch (e) {
       setStatus('Could not analyze replay: ' + (e && e.message ? e.message : 'unknown error'), true);
     }
@@ -8291,9 +8815,12 @@ function csInitReplayCoachUi() {
   if (clearBtn) clearBtn.addEventListener('click', function() {
     logEl.value = '';
     if (rosterEl) rosterEl.value = '';
+    CS_LAST_REPLAY_SCENARIO_QUEUE = [];
+    CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
+    csUpdateReplayScenarioExportButton('Upload and analyze a replay to enable Tactical QA payload export.');
     setStatus('');
     var host = document.getElementById('replay-coach-results');
-    if (host) host.innerHTML = '<div class="replay-coach-empty">Paste a log and run analysis to see result, leads, critical turn, coaching tags, and a readable turn timeline.</div>';
+    if (host) host.innerHTML = '<div class="replay-coach-empty"><strong>Ready for match review.</strong><span>Upload a Showdown HTML replay or paste a log to see result, leads, critical turn, coaching tags, and a readable turn timeline.</span></div>';
   });
 
   if (uploadBtn && fileEl) {
@@ -8307,7 +8834,11 @@ function csInitReplayCoachUi() {
         var raw = String(reader.result || '');
         var normalized = api && typeof api.normalizeReplayLogInput === 'function' ? api.normalizeReplayLogInput(raw) : raw;
         logEl.value = normalized;
-        setStatus('Loaded ' + file.name + '. Run analysis when ready.');
+        CS_LAST_REPLAY_SCENARIO_QUEUE = [];
+        CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
+        csUpdateReplayScenarioExportButton('Replay loaded. Click Analyze Replay to create Tactical QA payload scenarios.');
+        var htmlReplay = /\.html?$/i.test(file.name || '') || /^text\/html/i.test(file.type || '');
+        setStatus('Loaded ' + file.name + (htmlReplay ? ' as Showdown HTML replay evidence.' : '.') + ' Run analysis when ready.');
       };
       reader.onerror = function() { setStatus('Could not read that file.', true); };
       reader.readAsText(file);
@@ -8331,12 +8862,17 @@ function csInitReplayCoachUi() {
         var normalized = await api.fetchReplayLog(rawUrl);
         if (!normalized) throw new Error('Replay log was empty.');
         logEl.value = normalized;
+        CS_LAST_REPLAY_SCENARIO_QUEUE = [];
+        CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
+        csUpdateReplayScenarioExportButton('Replay loaded. Click Analyze Replay to create Tactical QA payload scenarios.');
         setStatus('Loaded replay URL into the log box. Run analysis when ready.');
       } catch (e) {
         setStatus((e && e.message) ? e.message : 'Could not load that replay URL.', true);
       }
     });
   }
+  var scenarioBtn = document.getElementById('replay-coach-export-scenario-btn');
+  if (scenarioBtn) scenarioBtn.addEventListener('click', csExportTopReplayScenarioPayload);
 }
 
 function renderReplays() {
@@ -8831,16 +9367,83 @@ function csBuildCodexQaContext(args) {
   var damageEvents = Number(mechanics.damage_events || 0);
   var effectEvents = Number(mechanics.effect_events || 0);
   var qaRunType = args.qa_run_type || 'manual_export';
+  var branchRows = Number(branchTotals.rows_read || branchTotals.rows || branchTotals.total_rows || 0);
+  var branchWeak = qaRunType === 'tactical_sweep' && branchRows <= 0;
+  var qaClaimSourceGaps = [];
+  var actionPlan = [];
+  function addActionPlan(id, priority, status, detail, nextStep) {
+    actionPlan.push({
+      id: id,
+      priority: priority,
+      status: status,
+      detail: detail,
+      next_step: nextStep
+    });
+  }
+  var qaGateResults = [];
+  function addQaGate(id, label, severity, status, expected, observed, evidencePointer, nextStep) {
+    qaGateResults.push({
+      id: id,
+      label: label,
+      severity: severity,
+      status: status,
+      expected: expected,
+      observed: observed,
+      evidence_pointer: evidencePointer || null,
+      next_step: nextStep || null,
+      release_blocking: severity === 'blocker' && status !== 'pass'
+    });
+  }
   var readyForCodex = damageEvents > 0 && moveTraceRows > 0 && missing.length === 0;
+  if (!args.build_id) qaClaimSourceGaps.push({ code: 'BUILD_ID_MISSING', message: 'Artifact does not expose a canonical build_id.', pointer: 'build_id' });
+  if (!args.source_url) qaClaimSourceGaps.push({ code: 'SOURCE_URL_MISSING', message: 'Artifact does not expose the page/source URL used for export.', pointer: 'source_url' });
+  if (!damageEvents) qaClaimSourceGaps.push({ code: 'DAMAGE_EVENTS_MISSING', message: 'Artifact cannot prove damage transparency without retained damage_events.', pointer: 'qa_coverage_summary.mechanics_seen.damage_events' });
+  if (!moveTraceRows) qaClaimSourceGaps.push({ code: 'MOVE_RULE_TRACE_MISSING', message: 'Artifact cannot audit damage math without move_rule_trace rows.', pointer: 'qa_coverage_summary.mechanics_seen.move_rule_trace_rows' });
+  if (missing.length) qaClaimSourceGaps.push({ code: 'TARGETED_PROOF_GAPS_REMAIN', message: 'Named targeted proof gaps remain: ' + missing.slice(0, 8).join(', ') + '.', pointer: 'qa_coverage_summary.missing_targeted_proof' });
+  if (branchWeak) qaClaimSourceGaps.push({ code: 'TACTICAL_BRANCH_ROWS_MISSING', message: 'Tactical Sweep ran but exported no branch_move_analysis rows for concrete decision ranking.', pointer: 'branch_move_analysis.totals.rows_read' });
+  if (!replayCards.length) qaClaimSourceGaps.push({ code: 'RETAINED_REPLAY_CARDS_MISSING', message: 'Artifact has no retained replay cards, so replay-level review is limited.', pointer: 'retained.replay_cards' });
+  var qaClaimAudit = {
+    schema_version: 'champions-qa-artifact-claim-audit-v1',
+    source_boundary: 'QA artifacts prove what this app exported for this build and run. They do not become official Pokemon Champion legality, full battle-engine truth, or real ladder truth by themselves.',
+    evidence_scope: {
+      build_id: args.build_id || null,
+      source_url: args.source_url || null,
+      qa_run_type: qaRunType,
+      sample_size: replayCards.length || Number(args.replay_cards_scanned || 0) || 0,
+      branch_analysis_rows: branchRows,
+      damage_events: damageEvents,
+      effect_events: effectEvents,
+      move_rule_trace_rows: moveTraceRows
+    },
+    observed_claims: [
+      'This artifact can show exported QA coverage counts for the captured build.',
+      'This artifact can show retained replay, damage, effect, and move-rule trace evidence when those rows are present.',
+      'This artifact can show tactical branch evidence only when branch_move_analysis rows are present.'
+    ],
+    inferred_claims: [
+      'Release readiness is inferred from QA gates and should stay scoped to this artifact.',
+      'Coaching usefulness is inferred from coach_focus plus branch evidence and should not be presented as ladder truth.',
+      'Battle-engine confidence is bounded by retained evidence and targeted proof coverage.'
+    ],
+    source_gaps: qaClaimSourceGaps,
+    forbidden_claims: [
+      'Do not claim this artifact proves complete Pokemon Champion legality.',
+      'Do not claim this artifact proves every battle mechanic unless the targeted proof and retained evidence cover that mechanic.',
+      'Do not use meta, replay, or QA sample results as official rules.',
+      'Do not rank teams as globally best without regulation_id, ruleset_version, engine_version, sample size, confidence, and stale checks.'
+    ]
+  };
   var recommendedNextTest = missing.length
     ? 'Run targeted QA proof for: ' + missing.slice(0, 8).join(', ') + '.'
     : (!damageEvents
         ? 'Run QA Artifact after battles with retained replay cards so damage_events are available.'
         : (!moveTraceRows
             ? 'Run targeted damage QA so move_rule_trace rows are exported for damage math review.'
-            : (qaRunType === 'tactical_sweep'
+            : (branchWeak
+                ? 'Tactical Sweep proof is present, but branch_move_analysis has no rows; run or repair branch coverage so QA ranks concrete move/line choices.'
+                : (qaRunType === 'tactical_sweep'
                 ? 'Artifact is Codex-ready; inspect qa_coverage_summary.coach_brain_summary.tactical_interpretation first, then branch_move_analysis for the next tactical coaching implementation target.'
-                : 'Run Tactical Sweep + QA to add branch learning coverage across lineups, moves, and targets.')));
+                : 'Run Tactical Sweep + QA to add branch learning coverage across lineups, moves, and targets.'))));
   var readiness = [];
   function addReadiness(id, label, status, detail) {
     readiness.push({ id: id, label: label, status: status, detail: detail });
@@ -8877,6 +9480,90 @@ function csBuildCodexQaContext(args) {
       ? 'No named targeted proof gaps remain in this artifact.'
       : 'Missing proof: ' + missing.slice(0, 12).join(', ')
   );
+  addReadiness(
+    'branch_move_analysis',
+    'Branch move analysis',
+    branchWeak ? 'yellow' : (branchRows > 0 ? 'green' : 'yellow'),
+    branchRows > 0
+      ? branchRows + ' branch_move_analysis rows are available for tactical line ranking.'
+      : 'No branch_move_analysis rows were exported; mechanics are proven, but QA cannot yet rank concrete move/line choices.'
+  );
+  addQaGate(
+    'damage-events-present',
+    'Damage event transparency',
+    'blocker',
+    damageEvents > 0 ? 'pass' : 'fail',
+    'Artifact must include structured damage_events.',
+    damageEvents + ' damage_events exported.',
+    'qa_coverage_summary.mechanics_seen.damage_events',
+    damageEvents > 0 ? null : 'Run QA after retained battles with damage rows before reviewing damage logic.'
+  );
+  addQaGate(
+    'move-rule-trace-present',
+    'Move rule trace transparency',
+    'blocker',
+    moveTraceRows > 0 ? 'pass' : 'fail',
+    'Damage rows must include move_rule_trace evidence.',
+    moveTraceRows + ' move_rule_trace rows exported.',
+    'qa_coverage_summary.mechanics_seen.move_rule_trace_rows',
+    moveTraceRows > 0 ? null : 'Run targeted damage proof so each damage row can be tied to move rules.'
+  );
+  addQaGate(
+    'targeted-proof-closed',
+    'Named targeted proof gaps',
+    'blocker',
+    missing.length === 0 ? 'pass' : 'fail',
+    'missing_targeted_proof must be empty for release proof.',
+    missing.length ? missing.slice(0, 12).join(', ') : 'No named targeted proof gaps remain.',
+    'qa_coverage_summary.missing_targeted_proof',
+    missing.length ? 'Run targeted scenarios for each named missing proof before claiming coverage.' : null
+  );
+  addQaGate(
+    'branch-analysis-usable',
+    'Tactical branch decision evidence',
+    qaRunType === 'tactical_sweep' ? 'warning' : 'info',
+    branchWeak ? 'warn' : (branchRows > 0 ? 'pass' : 'not_applicable'),
+    'Tactical Sweep artifacts should include branch_move_analysis rows for decision ranking.',
+    branchRows + ' branch_move_analysis rows exported.',
+    'branch_move_analysis.totals.rows_read',
+    branchWeak ? 'Fix branch coverage/export so QA can rank concrete move lines, not just prove mechanics.' : null
+  );
+  if (missing.length) {
+    addActionPlan(
+      'close-targeted-proof-gaps',
+      'P0',
+      'needs_proof',
+      'Named targeted proof gaps remain: ' + missing.slice(0, 8).join(', ') + '.',
+      'Run targeted scenarios for the listed mechanics before claiming 100% coverage.'
+    );
+  }
+  if (!damageEvents || !moveTraceRows) {
+    addActionPlan(
+      'restore-damage-trace-proof',
+      'P0',
+      'needs_evidence',
+      'Damage transparency is incomplete for Codex review.',
+      'Export a QA Artifact with retained damage_events and move_rule_trace rows before changing damage math.'
+    );
+  }
+  if (branchWeak) {
+    addActionPlan(
+      'populate-branch-move-analysis',
+      'P1',
+      'weak_signal',
+      'Tactical Sweep ran, but branch_move_analysis has no rows, so the artifact cannot rank concrete decisions.',
+      'Repair or rerun branch coverage so the artifact lists suggested lines, avoid moves, payoff scores, and evidence pointers.'
+    );
+  }
+  if (!actionPlan.length) {
+    addActionPlan(
+      'review-coaching-signal',
+      'P1',
+      'ready',
+      'Mechanic proof and branch evidence are available.',
+      'Use coach_focus plus branch_move_analysis to improve the next Battle Sensei coaching recommendation.'
+    );
+  }
   return {
     schema_version: 'champions-codex-qa-context-v1',
     purpose: 'Compact handoff for Codex/local agents. Keep this object with QA artifacts so implementation work can start from evidence instead of re-reading raw logs.',
@@ -8894,6 +9581,12 @@ function csBuildCodexQaContext(args) {
       current_format: args.current_format || null
     },
     qa_readiness: readiness,
+    qa_gate_results: qaGateResults,
+    qa_release_blockers: qaGateResults.filter(function(row) {
+      return row && row.release_blocking;
+    }),
+    claim_audit: qaClaimAudit,
+    qa_action_plan: actionPlan,
     mechanics_seen: {
       damage_events: damageEvents,
       effect_events: effectEvents,
@@ -8918,7 +9611,7 @@ function csBuildCodexQaContext(args) {
       tactical_sweep_opponents: tactical && Array.isArray(tactical.opponents) ? tactical.opponents.length : 0,
       tactical_sweep_status: tactical && tactical.status || null,
       tactical_sweep_total_executed_runs: Number(tactical && tactical.total_executed_runs || 0),
-      branch_analysis_rows: Number(branchTotals.rows || branchTotals.total_rows || 0)
+      branch_analysis_rows: branchRows
     },
     coach_focus: {
       confidence: coachBrain.confidence || null,
@@ -8934,12 +9627,307 @@ function csBuildCodexQaContext(args) {
     },
     recommended_codex_prompt: [
       'Use this QA artifact as evidence. First inspect codex_context.qa_readiness, codex_context.coach_focus, and qa_coverage_summary.mechanics_seen.',
+      'Then inspect codex_context.qa_action_plan; fix P0/P1 weak signals before broadening the simulator.',
       'If a mechanic is yellow/red, locate the retained replay card or tactical_sweep run with the missing/weak evidence before changing engine code.',
       'For coaching work, start from codex_context.coach_focus and qa_coverage_summary.coach_brain_summary.tactical_interpretation before writing new advice.',
       'For damage issues, inspect turnLog[].damage_events[].move_rule_trace before editing calcDamage.',
       'Keep fixes source-truth aligned with Pokemon Showdown/Champion rules and add or update targeted QA proof when closing a mechanic gap.'
     ].join(' '),
     local_ingest_hint: 'Drop downloaded champions-sim-qa-artifact-*.json or champions-turn-log-*.json into a known folder, then run: cd poke-sim && npm run codex:qa -- <paths>'
+  };
+}
+
+function csBuildQaDashboard(payload) {
+  payload = payload || {};
+  var ctx = payload.codex_context || {};
+  var gates = Array.isArray(ctx.qa_gate_results) ? ctx.qa_gate_results : [];
+  var blockers = Array.isArray(ctx.qa_release_blockers) ? ctx.qa_release_blockers : gates.filter(function(gate) {
+    return gate && gate.release_blocking;
+  });
+  var actionPlan = Array.isArray(ctx.qa_action_plan) ? ctx.qa_action_plan : [];
+  var summary = payload.summary || {};
+  var db = payload.db || {};
+  var dbSave = db.branch_coverage && db.branch_coverage.save_result || {};
+  var dbErrors = Array.isArray(dbSave.errors) ? dbSave.errors : [];
+  var branchRows = Number(ctx.retained_evidence && ctx.retained_evidence.branch_analysis_rows || 0);
+  var coachFocus = ctx.coach_focus || {};
+  var claimAudit = ctx.claim_audit || {};
+  var missing = Array.isArray(ctx.next_missing_proof) ? ctx.next_missing_proof : [];
+  var damageGate = gates.find(function(gate) { return gate && gate.id === 'damage-events-present'; });
+  var traceGate = gates.find(function(gate) { return gate && gate.id === 'move-rule-trace-present'; });
+  var targetedGate = gates.find(function(gate) { return gate && gate.id === 'targeted-proof-closed'; });
+  var branchGate = gates.find(function(gate) { return gate && gate.id === 'branch-analysis-usable'; });
+  var releaseBugs = [];
+  function addBug(id, severity, lane, detail, evidencePointer, nextStep) {
+    releaseBugs.push({
+      id: id,
+      severity: severity,
+      lane: lane,
+      detail: detail,
+      evidence_pointer: evidencePointer || null,
+      next_step: nextStep || null
+    });
+  }
+  blockers.forEach(function(gate) {
+    addBug(
+      gate.id,
+      gate.severity || 'blocker',
+      gate.id && gate.id.indexOf('branch') >= 0 ? 'coaching_product' : 'battle_engine',
+      gate.observed || gate.detail || gate.label || 'QA gate did not pass.',
+      gate.evidence_pointer,
+      gate.next_step
+    );
+  });
+  if (dbErrors.length) {
+    addBug(
+      'db-save-errors',
+      'warning',
+      'release',
+      dbErrors.length + ' DB save error(s) were reported during QA artifact export.',
+      'db.branch_coverage.save_result.errors',
+      'Inspect Supabase/runtime write path before treating DB evidence as durable.'
+    );
+  }
+  if (Number(summary.truncated_replay_logs || 0) > 0) {
+    addBug(
+      'truncated-replay-logs',
+      'warning',
+      'product_qa',
+      summary.truncated_replay_logs + ' replay log(s) were truncated.',
+      'summary.truncated_replay_logs',
+      'Use retained structured turnLog rows for QA or increase forensic export path before claiming full replay transparency.'
+    );
+  }
+  var battlePass = (!damageGate || damageGate.status === 'pass') &&
+    (!traceGate || traceGate.status === 'pass') &&
+    (!targetedGate || targetedGate.status === 'pass') &&
+    missing.length === 0;
+  var coachingPass = branchRows > 0 && (!branchGate || branchGate.status === 'pass') && !!coachFocus.recommended_solution;
+  var releasePass = blockers.length === 0 && dbErrors.length === 0;
+  var lanes = [
+    {
+      id: 'release',
+      label: 'Release QA',
+      status: releasePass ? 'pass' : 'warn',
+      can_ship: releasePass,
+      summary: releasePass
+        ? 'No release-blocking QA gates or DB save errors are reported.'
+        : 'Release has blockers or warnings that need review before public proof.',
+      gates: ['build/source captured', 'artifact exported', 'DB save status surfaced', 'cache/version evidence available'],
+      evidence_pointers: ['build_id', 'source_url', 'db.branch_coverage.save_result', 'proof_manifest']
+    },
+    {
+      id: 'battle_engine',
+      label: 'Battle Engine QA',
+      status: battlePass ? 'pass' : 'fail',
+      trust: battlePass ? 'verified_for_this_artifact' : 'blocked_or_partial',
+      summary: battlePass
+        ? 'Damage, move-rule trace, and named targeted proof gates are satisfied for this artifact.'
+        : 'Battle-engine proof is incomplete; do not claim full mechanics trust from this artifact.',
+      gates: gates.filter(function(gate) {
+        return gate && ['damage-events-present', 'move-rule-trace-present', 'targeted-proof-closed'].indexOf(gate.id) >= 0;
+      }),
+      evidence_pointers: ['qa_coverage_summary.mechanics_seen', 'qa_coverage_summary.missing_targeted_proof', 'turnLog[].damage_events[]']
+    },
+    {
+      id: 'coaching_product',
+      label: 'Coaching/Product QA',
+      status: coachingPass ? 'pass' : 'warn',
+      trust: coachingPass ? 'usable_for_next_recommendation' : 'needs_stronger_branch_signal',
+      summary: coachingPass
+        ? 'Coach focus and branch decision evidence are available.'
+        : 'Mechanics may be proven, but coaching needs stronger branch decision evidence before ranking concrete lines.',
+      gates: gates.filter(function(gate) {
+        return gate && gate.id === 'branch-analysis-usable';
+      }),
+      evidence_pointers: ['codex_context.coach_focus', 'branch_move_analysis', 'tactical_sweep']
+    }
+  ];
+  if (payload.replay_logic_audit) lanes.push(csReplayLogicAuditLane(payload.replay_logic_audit));
+  var fixOrder = actionPlan.map(function(item) {
+    return {
+      id: item.id,
+      priority: item.priority,
+      status: item.status,
+      next_step: item.next_step
+    };
+  });
+  if (!fixOrder.length) {
+    fixOrder.push({
+      id: 'continue-battle-sensei',
+      priority: 'P1',
+      status: 'ready',
+      next_step: 'Use this artifact to improve the next Battle Sensei coaching or Team Lab ranking behavior.'
+    });
+  }
+  return {
+    schema_version: 'champions-qa-dashboard-v1',
+    generated_at: payload.exported_at || new Date().toISOString(),
+    qa_run_type: payload.qa_run_type || 'unknown',
+    can_ship: releasePass && battlePass,
+    battle_engine_trust: battlePass ? 'verified_for_this_artifact' : 'blocked_or_partial',
+    coaching_product_trust: coachingPass ? 'usable' : 'partial',
+    headline: releasePass && battlePass
+      ? (coachingPass ? 'Ship/battle proof is clean; coaching signal is usable.' : 'Ship/battle proof is clean; coaching signal needs stronger decision rows.')
+      : 'Do not treat this artifact as clean release proof until blockers are resolved.',
+    qa_lanes: lanes,
+    release_blockers: blockers,
+    critical_bugs: releaseBugs,
+    recommended_fix_order: fixOrder,
+    claim_boundary: {
+      schema_version: claimAudit.schema_version || 'champions-qa-artifact-claim-audit-v1',
+      source_boundary: claimAudit.source_boundary || 'QA artifact claim boundary unavailable.',
+      source_gaps: Array.isArray(claimAudit.source_gaps) ? claimAudit.source_gaps : [],
+      forbidden_claims: Array.isArray(claimAudit.forbidden_claims) ? claimAudit.forbidden_claims : []
+    },
+    evidence_counts: {
+      damage_events: Number(ctx.mechanics_seen && ctx.mechanics_seen.damage_events || payload.damage_events_total || 0),
+      effect_events: Number(ctx.mechanics_seen && ctx.mechanics_seen.effect_events || payload.effect_events_total || 0),
+      move_rule_trace_rows: Number(ctx.mechanics_seen && ctx.mechanics_seen.move_rule_trace_rows || 0),
+      replay_cards: Number(ctx.retained_evidence && ctx.retained_evidence.replay_cards || payload.replay_cards_scanned || 0),
+      replay_logic_risks: payload.replay_logic_audit && Array.isArray(payload.replay_logic_audit.risks) ? payload.replay_logic_audit.risks.length : 0,
+      branch_analysis_rows: branchRows,
+      missing_targeted_proof: missing.length
+    }
+  };
+}
+
+function csBuildReplayLogicAudit(replayCards, retainedSummary, fullSummary) {
+  var cards = Array.isArray(replayCards) ? replayCards : [];
+  var retained = retainedSummary || {};
+  var full = fullSummary || {};
+  var retainedTotals = retained.totals || {};
+  var fullTotals = full.totals || {};
+  var retainedMechanics = retained.mechanics_seen || {};
+  var fullMechanics = full.mechanics_seen || {};
+  var faint = retained.faint_cause_summary || {};
+  var matrix = retained.move_effect_logic_matrix || {};
+  var families = Array.isArray(matrix.families) ? matrix.families : [];
+  var withTurnLogs = 0;
+  var emptyTurnLogs = 0;
+  var withoutCoverage = 0;
+  var withDamageRows = 0;
+  var withEffectRows = 0;
+  var withMoveTraceRows = 0;
+  cards.forEach(function(card) {
+    var turnLog = card && Array.isArray(card.turnLog) ? card.turnLog : [];
+    var cov = card && card.qa_coverage_summary || {};
+    var totals = cov.totals || {};
+    if (turnLog.length) withTurnLogs += 1;
+    else emptyTurnLogs += 1;
+    if (!cov.schema_version) withoutCoverage += 1;
+    if (Number(totals.damage_events || 0) > 0) withDamageRows += 1;
+    if (Number(totals.effect_events || 0) > 0) withEffectRows += 1;
+    if (Number(totals.move_rule_trace_rows || (cov.mechanics_seen && cov.mechanics_seen.move_rule_trace_rows) || 0) > 0) withMoveTraceRows += 1;
+  });
+  var risks = [];
+  function addRisk(code, severity, message, pointer, nextStep) {
+    risks.push({
+      code: code,
+      severity: severity,
+      message: message,
+      pointer: pointer || null,
+      next_step: nextStep || null
+    });
+  }
+  if (cards.length && !withTurnLogs) {
+    addRisk('NO_RETAINED_TURN_LOGS', 'critical', 'Retained replay cards exist but none include structured turnLog rows.', 'retained.replay_cards[].turnLog', 'Run a fresh sim/export with retained replay cards that include turn logs.');
+  } else if (emptyTurnLogs) {
+    addRisk('SOME_RETAINED_TURN_LOGS_MISSING', 'warning', emptyTurnLogs + ' retained replay card(s) have no structured turnLog rows.', 'retained.replay_cards[].turnLog', 'Prefer replay cards with turnLog rows when reviewing battle logic.');
+  }
+  if (cards.length && !withDamageRows) {
+    addRisk('RETAINED_REPLAY_DAMAGE_ROWS_MISSING', 'warning', 'Retained replay cards did not include damage_events.', 'coverage_breakdown.retained_replay_card_summary.totals.damage_events', 'Use targeted/tactical evidence for damage proof or export after battles with damage rows.');
+  }
+  if (Number(retainedMechanics.move_rule_trace_rows || retainedTotals.move_rule_trace_rows || 0) === 0 && cards.length) {
+    addRisk('RETAINED_REPLAY_MOVE_TRACE_MISSING', 'warning', 'Retained replay cards did not include move_rule_trace rows.', 'coverage_breakdown.retained_replay_card_summary.mechanics_seen.move_rule_trace_rows', 'Use move_rule_trace rows before changing or trusting damage logic from retained replays.');
+  }
+  if (Number(faint.unexplained_faints || 0) > 0 || Number(faint.unexplained_hp_drops || 0) > 0) {
+    addRisk('UNEXPLAINED_FAINT_OR_HP_DROP', 'critical', 'Retained replay evidence has unexplained faint or HP-drop rows.', 'coverage_breakdown.retained_replay_card_summary.faint_cause_summary', 'Fix faint/HP cause mapping before using those replays as proof.');
+  }
+  families.filter(function(row) { return row && (row.status === 'missing' || row.status === 'partial'); }).slice(0, 8).forEach(function(row) {
+    addRisk(
+      'REPLAY_FAMILY_' + String(row.id || 'unknown').toUpperCase(),
+      row.status === 'missing' ? 'info' : 'warning',
+      'Retained replay mechanic family is ' + row.status + ': ' + (row.label || row.id || 'unknown') + '.',
+      'coverage_breakdown.retained_replay_card_summary.move_effect_logic_matrix.families',
+      'Run targeted proof if this family is needed for the next coaching or mechanics claim.'
+    );
+  });
+  var status = risks.some(function(r) { return r.severity === 'critical'; })
+    ? 'fail'
+    : (risks.some(function(r) { return r.severity === 'warning'; }) ? 'warn' : 'pass');
+  var fullMissing = Array.isArray(full.missing_targeted_proof) ? full.missing_targeted_proof : [];
+  return {
+    schema_version: 'champions-replay-logic-audit-v1',
+    purpose: 'High-level retained replay health check for battle logic, damage, move traces, effects, faint causes, and mechanic-family coverage.',
+    status: status,
+    scope: 'retained replay cards with full-artifact context',
+    retained_replay_cards: cards.length,
+    retained_replay_cards_with_turn_logs: withTurnLogs,
+    retained_replay_cards_without_turn_logs: emptyTurnLogs,
+    retained_replay_cards_without_coverage: withoutCoverage,
+    retained_replay_cards_with_damage_rows: withDamageRows,
+    retained_replay_cards_with_effect_rows: withEffectRows,
+    retained_replay_cards_with_move_trace_rows: withMoveTraceRows,
+    retained_totals: {
+      turns: Number(retainedTotals.turns || 0),
+      action_rows: Number(retainedTotals.action_rows || 0),
+      damage_events: Number(retainedTotals.damage_events || retainedMechanics.damage_events || 0),
+      effect_events: Number(retainedTotals.effect_events || retainedMechanics.effect_events || 0),
+      move_rule_trace_rows: Number(retainedTotals.move_rule_trace_rows || retainedMechanics.move_rule_trace_rows || 0),
+      unexplained_faints: Number(faint.unexplained_faints || 0),
+      unexplained_hp_drops: Number(faint.unexplained_hp_drops || 0)
+    },
+    full_artifact_context: {
+      damage_events: Number(fullTotals.damage_events || fullMechanics.damage_events || 0),
+      effect_events: Number(fullTotals.effect_events || fullMechanics.effect_events || 0),
+      move_rule_trace_rows: Number(fullTotals.move_rule_trace_rows || fullMechanics.move_rule_trace_rows || 0),
+      missing_targeted_proof: fullMissing.slice(0, 12)
+    },
+    risks: risks,
+    reviewer_read: status === 'pass'
+      ? 'Retained replay cards have enough structured rows for high-level replay logic review in this artifact.'
+      : 'Replay logic review has warnings. Use targeted/tactical proof for covered mechanics and inspect listed retained-replay risks before making claims.',
+    boundary: 'This audit checks exported replay evidence quality. It does not prove complete Champion legality, complete move coverage, or real ladder truth.'
+  };
+}
+
+function csReplayLogicAuditLane(audit) {
+  audit = audit || {};
+  var risks = Array.isArray(audit.risks) ? audit.risks : [];
+  var status = audit.status || 'warn';
+  return {
+    id: 'replay_logic',
+    label: 'Replay Logic QA',
+    status: status === 'pass' ? 'pass' : (status === 'fail' ? 'fail' : 'warn'),
+    trust: status === 'pass' ? 'retained_replays_structured' : 'retained_replays_need_review',
+    summary: audit.reviewer_read || 'Replay logic audit unavailable.',
+    gates: [
+      {
+        id: 'retained-replay-turnlogs',
+        label: 'Retained replay turn logs',
+        severity: 'warning',
+        status: Number(audit.retained_replay_cards_with_turn_logs || 0) > 0 || Number(audit.retained_replay_cards || 0) === 0 ? 'pass' : 'fail',
+        expected: 'Retained replay cards should include structured turnLog rows.',
+        observed: String(Number(audit.retained_replay_cards_with_turn_logs || 0)) + ' of ' + String(Number(audit.retained_replay_cards || 0)) + ' retained replay card(s) have turn logs.',
+        evidence_pointer: 'replay_logic_audit.retained_replay_cards_with_turn_logs',
+        next_step: 'Export after replay cards with structured turn logs are retained.',
+        release_blocking: false
+      },
+      {
+        id: 'retained-replay-move-traces',
+        label: 'Retained replay move traces',
+        severity: 'warning',
+        status: Number(audit.retained_totals && audit.retained_totals.move_rule_trace_rows || 0) > 0 || Number(audit.retained_replay_cards || 0) === 0 ? 'pass' : 'warn',
+        expected: 'Retained replay damage rows should include move_rule_trace when damage occurred.',
+        observed: String(Number(audit.retained_totals && audit.retained_totals.move_rule_trace_rows || 0)) + ' retained move_rule_trace rows.',
+        evidence_pointer: 'replay_logic_audit.retained_totals.move_rule_trace_rows',
+        next_step: 'Use targeted/tactical proof if retained replays did not hit damage trace rows.',
+        release_blocking: false
+      }
+    ],
+    evidence_pointers: ['replay_logic_audit', 'coverage_breakdown.retained_replay_card_summary', 'retained.replay_cards[].qa_coverage_summary'],
+    risk_count: risks.length
   };
 }
 
@@ -9646,6 +10634,7 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     retainedSimLog = retainedSimLog.slice(0, Number(options.stressLiteSimLogLimit || CS_QA_STRESS_LITE_SIM_LOG_LIMIT));
     retainedTeamHistory = retainedTeamHistory.slice(0, Number(options.stressLiteTeamHistoryLimit || CS_QA_STRESS_LITE_TEAM_HISTORY_LIMIT));
   }
+  var replayLogicAudit = csBuildReplayLogicAudit(retainedReplayCards, retainedReplayCardSummary, mergedCoverage);
 
   var artifactSummary = csBuildQaArtifactSummary(localSimLog, replayCards, key);
   var qaRunType = stressLite ? 'stress_lite_qa' : (tacticalSweepMatrices.length ? 'tactical_sweep' : (targetedSweep ? 'qa_artifact_with_targeted_sweep' : 'qa_artifact'));
@@ -9696,6 +10685,7 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     stress_lite: stressLite,
     stress_lite_summary: stressLiteSummary,
     branch_move_analysis: branchMoveAnalysis,
+    replay_logic_audit: replayLogicAudit,
     retained: {
       sim_log: retainedSimLog,
       team_history: retainedTeamHistory,
@@ -9759,6 +10749,22 @@ async function csBuildQaArtifactExport(teamKey, opts) {
   } : null;
   payload = csApplyStressLiteArtifactBudget(payload, options);
   payload.proof_manifest = csBuildQaProofManifest(payload);
+  payload.qa_dashboard = csBuildQaDashboard(payload);
+  payload.qa_claim_review = {
+    schema_version: 'champions-qa-claim-review-v1',
+    purpose: 'Plain-English trust boundary for QA reviewers. Read this before treating the artifact as release, battle-engine, coaching, or leaderboard proof.',
+    verdict: payload.qa_dashboard && payload.qa_dashboard.can_ship
+      ? 'This artifact has release/battle proof for its captured scope, but still cannot prove official Champion legality or global team rankings.'
+      : 'This artifact has incomplete proof; do not use it as clean release or battle-engine proof until listed gaps are closed.',
+    evidence_scope: payload.codex_context && payload.codex_context.claim_audit ? payload.codex_context.claim_audit.evidence_scope : {},
+    source_boundary: payload.qa_dashboard && payload.qa_dashboard.claim_boundary ? payload.qa_dashboard.claim_boundary.source_boundary : null,
+    source_gaps: payload.qa_dashboard && payload.qa_dashboard.claim_boundary ? payload.qa_dashboard.claim_boundary.source_gaps : [],
+    forbidden_claims: payload.qa_dashboard && payload.qa_dashboard.claim_boundary ? payload.qa_dashboard.claim_boundary.forbidden_claims : [],
+    reviewer_next_step: payload.recommended_next_test || (payload.proof_manifest && payload.proof_manifest.next_action) || 'Review qa_dashboard.recommended_fix_order before changing code.'
+  };
+  payload.qa_gate_results = payload.codex_context.qa_gate_results;
+  payload.qa_release_blockers = payload.codex_context.qa_release_blockers;
+  payload.recommended_fix_order = payload.qa_dashboard.recommended_fix_order;
   try {
     csRememberCoachBrainSummary(mergedCoverage && mergedCoverage.coach_brain_summary, {
       player_team_id: key,
@@ -9774,7 +10780,65 @@ async function csExportQaArtifactJson(teamKey, opts) {
   var payload = await csBuildQaArtifactExport(teamKey, opts);
   var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   await _saveQaArtifactBlob('champions-sim-qa-artifact-' + ts + '.json', 'application/json', JSON.stringify(payload, null, 2), opts);
+  csRenderQaClaimReviewReadout(payload);
   return payload;
+}
+
+function csQaClaimReadoutHost() {
+  if (typeof document === 'undefined') return null;
+  var existing = document.getElementById('qa-claim-review-readout');
+  if (existing) return existing;
+  var el = document.createElement('div');
+  el.id = 'qa-claim-review-readout';
+  el.className = 'qa-claim-review-readout';
+  var anchor = document.getElementById('beta-guard-note') || document.getElementById('progress-wrap');
+  var parent = anchor && anchor.parentNode ? anchor.parentNode : (document.body || null);
+  if (parent && parent.insertBefore && anchor && anchor.nextSibling) parent.insertBefore(el, anchor.nextSibling);
+  else if (parent && parent.appendChild) parent.appendChild(el);
+  return el;
+}
+
+function csRenderQaClaimReviewReadout(payload) {
+  var host = csQaClaimReadoutHost();
+  if (!host || !payload) return;
+  var review = payload.qa_claim_review || {};
+  var dashboard = payload.qa_dashboard || {};
+  var scope = review.evidence_scope || {};
+  var gaps = Array.isArray(review.source_gaps) ? review.source_gaps : [];
+  var forbidden = Array.isArray(review.forbidden_claims) ? review.forbidden_claims : [];
+  var blockers = Array.isArray(payload.qa_release_blockers) ? payload.qa_release_blockers : [];
+  var status = dashboard.can_ship ? 'PASS WITH BOUNDARIES' : 'BLOCKED / PARTIAL';
+  var statusClass = dashboard.can_ship ? 'low' : 'high';
+  var qaRunType = String(payload.qa_run_type || '').toLowerCase();
+  var qaSliceTitle = qaRunType === 'stress_lite_qa'
+    ? 'Device-Safe Stress QA'
+    : (qaRunType === 'tactical_sweep'
+      ? 'Tactical Coaching QA'
+      : (qaRunType === 'qa_artifact_with_targeted_sweep' || qaRunType === 'qa_artifact'
+        ? 'Current Evidence QA'
+        : 'Release Matrix QA'));
+  var forbiddenRows = forbidden.slice(0, 3).map(function(claim) {
+    return '<span class="replay-coach-tag medium">' + _escapeHtml(claim) + '</span>';
+  }).join('');
+  var gapRows = gaps.slice(0, 4).map(function(gap) {
+    return '<div class="replay-coach-list-row"><strong>' + _escapeHtml(gap.code || 'SOURCE_GAP') + '</strong>' + _escapeHtml(gap.message || '') + '</div>';
+  }).join('');
+  host.innerHTML = '<div class="replay-coach-card qa-claim-review-card">' +
+    '<div class="replay-coach-card-head"><h3 class="replay-coach-h3">QA Claim Review - ' + _escapeHtml(qaSliceTitle) + '</h3><span class="replay-coach-tag ' + _escapeHtml(statusClass) + '">' + _escapeHtml(status) + '</span></div>' +
+    '<p class="replay-coach-turn-read">' + _escapeHtml(review.verdict || 'QA artifact exported. Review source gaps before treating it as proof.') + '</p>' +
+    '<div class="replay-coach-summary-grid">' +
+      '<div class="replay-coach-metric"><strong>Release blockers</strong><span>' + _escapeHtml(String(blockers.length)) + '</span></div>' +
+      '<div class="replay-coach-metric"><strong>Source gaps</strong><span>' + _escapeHtml(String(gaps.length)) + '</span></div>' +
+      '<div class="replay-coach-metric"><strong>Damage events</strong><span>' + _escapeHtml(String(scope.damage_events || 0)) + '</span></div>' +
+      '<div class="replay-coach-metric"><strong>Branch rows</strong><span>' + _escapeHtml(String(scope.branch_analysis_rows || 0)) + '</span></div>' +
+    '</div>' +
+    '<div class="replay-coach-list">' +
+      '<div class="replay-coach-list-row"><strong>Source boundary</strong>' + _escapeHtml(review.source_boundary || 'This artifact is scoped evidence, not official game truth.') + '</div>' +
+      '<div class="replay-coach-list-row"><strong>Next QA move</strong>' + _escapeHtml(review.reviewer_next_step || payload.recommended_next_test || 'Review qa_dashboard.recommended_fix_order.') + '</div>' +
+      (gapRows ? '<div class="replay-coach-list-row"><strong>Top source gaps</strong>' + gapRows + '</div>' : '') +
+    '</div>' +
+    '<div class="replay-coach-tags"><span class="replay-coach-tag high">Forbidden claims</span>' + forbiddenRows + '</div>' +
+  '</div>';
 }
 
 // Wire history filter buttons
@@ -11627,7 +12691,7 @@ function _escapeHtml(s) {
 }
 
 var CS_OVERVIEW_DATA = {
-  updated: '2026-06-28',
+  updated: '2026-07-01',
   metrics: [
     { label: 'Current Truth', value: 'Not 100% yet' },
     { label: 'Damage Logs', value: 'Applied/calc split fixed locally' },
@@ -11647,6 +12711,41 @@ var CS_OVERVIEW_DATA = {
     { label: 'Ability Inventory', value: '80/80 modeled' }
   ],
   shipped: [
+    {
+      status: 'done',
+      title: 'GitHub generated-artifact release guard documented',
+      detail: 'v2.2.98 tightens the release engineering process after a News Feed Sync race: inspect remote-only commits, preserve source changes, regenerate pokemon-champion-2026.html and generated/release_artifact.json instead of hand-editing bundles, rerun release tests, and only then continue the rebase/merge and push.'
+    },
+    {
+      status: 'done',
+      title: 'Legality evidence package foundation added',
+      detail: 'v2.2.97 adds legality_evidence_package.js as the first source-package gate for true 99% legality. It validates package metadata, trusted source captures, complete allowlists, known legal/illegal/stale/needs_verification fixtures, and promotion readiness before any Regulation M-B data can move toward runtime or Team Lab official ranking use.'
+    },
+    {
+      status: 'done',
+      title: 'Legality 99 target plan added',
+      detail: 'v2.2.96 defines true 99% legality as a source-backed active regulation package, preloaded-team gates, unknown-as-needs_verification validation, known legal/illegal fixtures, stale ruleset guards, QA artifact metadata, and Team Lab promotion rules that keep needs_verification teams out of official rankings.'
+    },
+    {
+      status: 'done',
+      title: 'Replay logic QA audit added',
+      detail: 'v2.2.95 adds replay_logic_audit to QA artifacts and a Replay Logic QA dashboard lane. The audit scans retained replay cards at a high level for structured turn logs, damage_events, move_rule_trace rows, effect_events, faint/HP-drop explanations, and missing or partial mechanic-family evidence so reviewers can spot replay logic gaps before trusting damage or move claims.'
+    },
+    {
+      status: 'done',
+      title: 'Move mechanics QA closeout plan added',
+      detail: 'v2.2.94 defines all-move QA as two layers: shipped move registry coverage plus live mechanic-family proof. The plan prevents the team from treating 120 verified registry rows as exhaustive browser proof and prioritizes Foul Play, Body Press, Psyshock, HP effects, action denial, priority prevention, and field-duration scenarios.'
+    },
+    {
+      status: 'done',
+      title: 'Fresh live closeout QA artifacts recorded',
+      detail: 'v2.2.93 records the July 1 live artifacts from v2.2.92: Tactical Sweep and Stress Lite exports both captured build_id, source_url, qa_claim_review, qa_dashboard.claim_boundary, forbidden claims, zero release blockers, and scoped battle/coaching evidence. The same proof keeps full Champion legality, complete mechanics coverage, and official/global rankings out of scope.'
+    },
+    {
+      status: 'done',
+      title: 'Active slice closeout map added',
+      detail: 'v2.2.92 adds docs/ACTIVE_SLICE_CLOSEOUT_STATUS.md so current work is classified as 100% closed, 99% closed with named residual risk, open blocker, or next priority before the team starts or closes the next feature.'
+    },
     {
       status: 'done',
       title: 'Champion-format Tera leak gated off',
@@ -11876,6 +12975,11 @@ var CS_OVERVIEW_DATA = {
       status: 'done',
       title: 'Hard beta device guardrails added',
       detail: 'v2.2.19 disables Run All on mobile/coarse-pointer and low-memory devices, caps public phone series volume, blocks full branch-coverage depth on risky browsers, and pushes users toward Stress Lite + QA so public testers do not become accidental load tests.'
+    },
+    {
+      status: 'done',
+      title: 'QA slice naming and claim-review discipline added',
+      detail: 'v2.2.90 renames the QA controls by evidence slice: Current Evidence QA, Release Matrix QA, Device-Safe Stress QA, and Tactical Coaching QA. After export, the page now renders a QA Claim Review that names the slice, blockers, source gaps, evidence counts, forbidden claims, and next QA move so testers know what the artifact proves before using it as release, battle-engine, coaching, or leaderboard proof.'
     },
     {
       status: 'done',
@@ -12393,6 +13497,11 @@ var CS_OVERVIEW_DATA = {
       status: 'validated',
       title: 'Previous Y/Alfredo source sync completed',
       detail: 'Alfredo PR #245 merged the prior Champion parity tree after required checks passed, and TheYfactora12 main was fast-forwarded to the same merge commit. The current local damage-log and approved-team-gate slice should prove out on the Y fork first; Alfredo sync is lower priority until the browser proof gate is clean.'
+    },
+    {
+      status: 'validated',
+      title: 'Mega editor guard keeps custom teams flexible',
+      detail: 'v2.2.73 keeps custom teams editable while warning when a Mega Stone set is not using the active Mega form/ability expected by the simulator. The set editor can normalize a Charizardite Y-style mismatch to the source-backed active Mega row, while uploaded/custom teams remain warnings unless another legality gate finds a hard error.'
     }
   ],
   gaps: [
@@ -12459,10 +13568,30 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'gap',
       title: 'Team editor is guarded but not a fluid full builder yet',
-      detail: 'The current edit-team surface now blocks illegal Champion SP saves, but it is still a clunky set editor rather than a fully customizable Champion team builder. Later UX work should support fast add/remove/reorder Pokemon, searchable species/forms/items/abilities/moves, SP sliders with live legality totals, import/export, DB save status, and rollback without breaking sim source truth.'
+      detail: 'The current edit-team surface now blocks illegal Champion SP saves and warns on Mega Stone/form/ability runtime mismatches without blocking custom teams, but it is still a clunky set editor rather than a fully customizable Champion team builder. Later UX work should support fast add/remove/reorder Pokemon, searchable species/forms/items/abilities/moves, SP sliders with live legality totals, import/export, DB save status, and rollback without breaking sim source truth.'
     },
   ],
   next: [
+    {
+      status: 'next',
+      title: 'Run non-standard stat-source targeted proof first',
+      detail: 'Next move-mechanics slice should force Foul Play, Body Press, Psyshock, and the Foul Play/Pure Power guard through Targeted QA, then require fresh live artifacts to show nonstandard_stat_source_trace, foul_play_trace, body_press_trace, psyshock_trace, and ignored_target_power_ability_trace before moving the family toward 99% closed.'
+    },
+    {
+      status: 'next',
+      title: 'Move scheduled source/news sync to branch or PR mode',
+      detail: 'GitHub process optimization: scheduled sync jobs that touch generated deploy artifacts should open a branch/PR or clearly report their generated-file impact before active feature releases push to main. This reduces generated bundle conflicts without distracting from the higher-priority Regulation M-B legality evidence package.'
+    },
+    {
+      status: 'next',
+      title: 'Build Regulation M-B legality evidence package',
+      detail: 'Replace the current dev legality fixtures with official or in-game Regulation M-B source captures converted into versioned package rows with regulation_id, ruleset_version, source tier, source pointer, known legal/illegal fixtures, stale-ruleset tests, and Team Lab promotion guards. Unknown Champion data must remain needs_verification until the source package proves it.'
+    },
+    {
+      status: 'next',
+      title: 'Use the active slice closeout map before starting new work',
+      detail: 'The current closeout map says no active strategic slice is honestly 100% closed yet. QA naming, release cleanup, replay claim audit, Team Lab preview, home page, and replay intake are 99% closed with named residual risks; Champion legality, official rankings, Battle Sensei brain, global learning, replay transparency, and UI modularization stay open blockers.'
+    },
     {
       status: 'next',
       title: 'Stress-test, rebuild, and prove the new truth board',
@@ -12594,12 +13723,16 @@ var CS_OVERVIEW_DATA = {
   docs: [
     { label: 'Recent Fix + Issue Snapshot', href: 'reports/recent-fixes-and-open-issues-2026-06-21.md' },
     { label: 'Architecture + Evidence Map', href: 'docs/CHAMPION_SIM_ARCHITECTURE_AND_EVIDENCE.md' },
+    { label: 'Release Discipline + Cleanup Gates', href: 'docs/RELEASE_DISCIPLINE_AND_CLEANUP_GATES.md' },
+    { label: 'Active Slice Closeout Status', href: 'docs/ACTIVE_SLICE_CLOSEOUT_STATUS.md' },
+    { label: 'Legality 99 Target Plan', href: 'docs/LEGALITY_99_TARGET_PLAN.md' },
     { label: 'Data Source Registry', href: 'docs/DATA_SOURCE_REGISTRY.md' },
     { label: 'Source Truth Document Audit', href: 'docs/SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md' },
     { label: 'QA Baseline Snapshot', href: 'reports/champion_qa_baseline_snapshot.md' },
     { label: 'Approved Runtime Team Test Matrix', href: 'reports/approved_runtime_team_test_matrix.md' },
     { label: 'Mechanics Truth Beta Gate Checklist', href: 'reports/mechanics_truth_beta_gate_checklist.md' },
     { label: 'Champion Parity 100 Checklist', href: 'reports/champion_parity_100_checklist.md' },
+    { label: 'Move Mechanics QA Closeout Plan', href: 'docs/MOVE_MECHANICS_QA_CLOSEOUT_PLAN.md' },
     { label: 'Move Support Audit', href: 'reports/move_support_audit.md' },
     { label: 'Type Multiplier Audit', href: 'reports/type_multiplier_audit.md' },
     { label: 'Simulation First', href: '../docs/release/SIMULATION_FIRST_REALIGNMENT_2026-06-06.md' },
@@ -12629,6 +13762,34 @@ var CS_OVERVIEW_DATA = {
       role: 'Canonical architecture and QA evidence contract',
       status: 'canonical',
       notes: 'Owns source-to-engine-to-export boundaries and proof workflow.'
+    },
+    {
+      label: 'Release Discipline + Cleanup Gates',
+      href: 'docs/RELEASE_DISCIPLINE_AND_CLEANUP_GATES.md',
+      role: 'Closeout discipline before new work',
+      status: 'canonical for release cleanup',
+      notes: 'Use before starting a new slice. Defines 99% versus 100% closeout, proof questions, QA slice boundaries, and generated-file/repo-sync safety.'
+    },
+    {
+      label: 'Active Slice Closeout Status',
+      href: 'docs/ACTIVE_SLICE_CLOSEOUT_STATUS.md',
+      role: 'Current 99% / 100% / blocker map',
+      status: 'canonical for active closeout',
+      notes: 'Use to decide what can close, what stays open, and what the next priority is before adding more features.'
+    },
+    {
+      label: 'Legality 99 Target Plan',
+      href: 'docs/LEGALITY_99_TARGET_PLAN.md',
+      role: 'Active legality source package gate',
+      status: 'canonical for legality closeout',
+      notes: 'Defines true 99% legality, source capture requirements, known legal/illegal fixtures, stale ruleset checks, and why unknown Champion rows stay needs_verification.'
+    },
+    {
+      label: 'Move Mechanics QA Closeout Plan',
+      href: 'docs/MOVE_MECHANICS_QA_CLOSEOUT_PLAN.md',
+      role: 'All-move QA boundary and targeted proof plan',
+      status: 'canonical for move QA closeout',
+      notes: 'Defines why shipped move registry verification is not the same as exhaustive live browser proof, and which mechanic families must be proven before coaching trusts them.'
     },
     {
       label: 'Team Lab Architecture Alignment',
@@ -12756,7 +13917,7 @@ function csRenderOverviewBucket(group, bucket) {
   return '<details class="overview-bucket"' + (bucket === 'open' || bucket === 'next' ? ' open' : '') + '>' +
     '<summary><span>' + _escapeHtml(csOverviewBucketLabel(bucket)) + '</span><strong>' + rows.length + '</strong></summary>' +
     '<div class="overview-list">' + csRenderOverviewRows(rows) + '</div>' +
-  '</details>';
+      '</details>';
 }
 
 function csRenderOverviewMilestoneSection(group) {
@@ -12904,68 +14065,483 @@ function csRenderOverviewTeamLabPlan() {
   '</details>';
 }
 
-function csTeamLabNewsCards() {
+function csPokemonNewsFeedItems() {
+  var localNewsImage = 'assets/news-card.svg';
+  function safeNewsImage(value) {
+    var src = String(value || '').trim();
+    if (!src) return localNewsImage;
+    if (/battle-stadium\.jpg|game-screenshot-2\.png/i.test(src)) return localNewsImage;
+    return src;
+  }
+  var synced = (typeof CHAMPIONS_NEWS_FEED !== 'undefined' && CHAMPIONS_NEWS_FEED && Array.isArray(CHAMPIONS_NEWS_FEED.items))
+    ? CHAMPIONS_NEWS_FEED.items
+    : [];
+  var sourceWatchCards = [
+    {
+      category: 'Official source watch',
+      date: 'Live source watch',
+      title: 'Pokemon Champions Official Source Hub',
+      detail: 'Use official Champion pages for game availability, modes, regulation announcements, and source-truth checks before changing legality claims.',
+      source: 'Pokemon Champions official site',
+      url: 'https://champions.pokemon.com/',
+      image: 'https://champions.pokemon.com/_images/home/mar24_thumbnail.jpg',
+      alt: 'Pokemon Champions official key art.'
+    },
+    {
+      category: 'Release status',
+      date: 'Current build',
+      title: 'Evidence-First Rankings Stay Gated',
+      detail: 'Top teams stay experimental until legality, sample size, engine version, ruleset version, and stale checks line up.',
+      source: 'Battle Labs release and Team Lab gate',
+      url: 'https://theyfactora12.github.io/Pokemon-Champions-Sim-Planner/',
+      image: localNewsImage,
+      alt: 'Battle Labs source-truth card.'
+    }
+  ];
+  if (synced.length) {
+    var syncedCards = synced.map(function(item) {
+      return {
+        category: item.category || 'News',
+        date: item.date || 'Recently synced',
+        title: item.title || 'Pokemon news update',
+        detail: item.detail || 'Synced Pokemon news. Treat meta/news context separately from rules truth.',
+        source: item.source || 'Synced news feed',
+        url: item.url || 'https://www.pokemon.com/us/pokemon-news',
+        image: safeNewsImage(item.image),
+        alt: item.alt || 'Pokemon news image.'
+      };
+    });
+    return syncedCards.concat(sourceWatchCards).slice(0, 8);
+  }
   return [
     {
-      label: 'Regulation watch',
-      title: 'Reg M-B evidence gate',
-      detail: 'Champion regulation, ruleset, and source-package status must stay visible before any team can rank as current.',
-      status: 'Source-truth first'
+      category: 'Official news',
+      date: 'June 17, 2026',
+      title: 'Pokemon Champions Is Available Now on iOS and Android Devices',
+      detail: 'Mobile launch and cross-platform access are the top player-facing update for the current Champion season.',
+      source: 'Pokemon.com via Champions latest news',
+      url: 'https://www.pokemon.com/us/pokemon-news/pokemon-champions-is-available-now-on-ios-and-android-devices',
+      image: 'https://champions.pokemon.com/_images/home/mar24_thumbnail.jpg',
+      alt: 'Pokemon Champions key art with trainers and Pokemon in a stadium.'
     },
     {
-      label: 'QA signal',
-      title: 'Stress Lite proof is usable, not final',
-      detail: 'Latest tester artifact proved replay/damage/effect evidence on v2.2.50, but Stress Lite remains capped evidence, not exhaustive ladder truth.',
-      status: 'Needs promotion'
+      category: 'Regulations',
+      date: 'June 17, 2026',
+      title: 'Regulation Set M-B Kicks off a New Ranked Battles Season',
+      detail: 'Regulation changes are source-truth events for legality, team ranking, and stale leaderboard warnings.',
+      source: 'Pokemon.com via Champions latest news',
+      url: 'https://www.pokemon.com/us/pokemon-news/regulation-set-m-b-kicks-off-a-new-ranked-battles-season-and-battle-pass-in-pokemon-champions',
+      image: 'https://champions.pokemon.com/_images/home/overview/game-screenshot-1.png',
+      alt: 'Pokemon Champions battle screenshot inside an arena.'
     },
     {
-      label: 'Build lane',
-      title: 'Top 25 requires trusted import',
-      detail: 'QA artifacts can normalize into sim_jobs/replays, but protected leaderboard storage still needs #187, #188, and #189.',
-      status: 'Open M15'
+      category: 'Online competition',
+      date: 'June 17, 2026',
+      title: 'Pokemon Champions Monthly Challenge Series June 2026',
+      detail: 'Competition news should feed future event context, format tags, and ranked-team benchmark pools.',
+      source: 'Pokemon.com via Champions latest news',
+      url: 'https://www.pokemon.com/us/pokemon-news/sign-up-for-the-pokemon-champions-monthly-challenge-series-june-2026',
+      image: 'https://champions.pokemon.com/_images/home/battle-focused/champ-emblem.png',
+      alt: 'Pokemon Champions emblem.'
     },
     {
-      label: 'Player value',
-      title: 'Future home for teams and news',
-      detail: 'This hub should become the clean front page for Champion updates, source changes, top simulator teams, and safe compare-my-team entry points.',
-      status: 'UI direction'
-    }
+      category: 'Championships',
+      date: 'June 10, 2026',
+      title: 'Relive the Eras of Pokemon VGC',
+      detail: 'Championship/VGC context belongs beside Team Lab so players understand format history and meta changes.',
+      source: 'Pokemon.com via Champions latest news',
+      url: 'https://www.pokemon.com/us/pokemon-news/relive-the-eras-of-pokemon-vgc',
+      image: 'https://champions.pokemon.com/_images/pokemon/ideal-team/en/featured-main.jpg',
+      alt: 'Pokemon Champions team menu screenshot featuring Hydrapple.'
+    },
+    sourceWatchCards[0],
+    sourceWatchCards[1]
   ];
 }
 
-function csRenderTeamLabNewsCards() {
-  return csTeamLabNewsCards().map(function(card) {
-    return '<article class="team-lab-news-card">' +
-      '<span>' + _escapeHtml(card.label) + '</span>' +
-      '<h4>' + _escapeHtml(card.title) + '</h4>' +
-      '<p>' + _escapeHtml(card.detail) + '</p>' +
-      '<strong>' + _escapeHtml(card.status) + '</strong>' +
+function csRenderPokemonNewsFeed() {
+  var cards = csPokemonNewsFeedItems().map(function(item, index) {
+    var fallback = 'assets/news-card.svg';
+    return '<article class="pokemon-news-slide' + (index === 0 ? ' active' : '') + '" data-news-slide="' + index + '">' +
+      '<a class="pokemon-news-image-link" href="' + _escapeHtml(item.url) + '" target="_blank" rel="noopener">' +
+        '<img src="' + _escapeHtml(item.image) + '" data-news-fallback-src="' + _escapeHtml(fallback) + '" alt="' + _escapeHtml(item.alt) + '" loading="' + (index === 0 ? 'eager' : 'lazy') + '">' +
+      '</a>' +
+      '<div class="pokemon-news-copy">' +
+        '<div class="pokemon-news-meta"><span>' + _escapeHtml(item.category) + '</span><span>' + _escapeHtml(item.date) + '</span></div>' +
+        '<h4><a href="' + _escapeHtml(item.url) + '" target="_blank" rel="noopener">' + _escapeHtml(item.title) + '</a></h4>' +
+        '<p>' + _escapeHtml(item.detail) + '</p>' +
+        '<small>' + _escapeHtml(item.source) + '</small>' +
+      '</div>' +
     '</article>';
   }).join('');
+  var dots = csPokemonNewsFeedItems().map(function(_item, index) {
+    return '<button type="button" class="pokemon-news-dot' + (index === 0 ? ' active' : '') + '" data-news-dot="' + index + '" aria-label="Show news item ' + (index + 1) + '"></button>';
+  }).join('');
+  var headlines = csPokemonNewsFeedItems().map(function(item, index) {
+    return '<button type="button" class="pokemon-news-headline' + (index === 0 ? ' active' : '') + '" data-news-dot="' + index + '">' +
+      '<span>' + _escapeHtml(item.category) + '</span>' +
+      '<strong>' + _escapeHtml(item.title) + '</strong>' +
+    '</button>';
+  }).join('');
+  return '<section class="pokemon-news-feed" aria-label="Pokemon news feed">' +
+    '<div class="pokemon-news-feed-head">' +
+      '<div><span class="overview-kicker">Source-backed news watch</span><h3>Latest Champion Updates</h3><p>Article thumbnails come from approved feed metadata when available. News and meta inform context; mechanics truth still requires reviewed source rows.</p></div>' +
+      '<div class="pokemon-news-controls">' +
+        '<button type="button" data-news-prev aria-label="Previous news">Prev</button>' +
+        '<button type="button" data-news-next aria-label="Next news">Next</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="pokemon-news-slides">' + cards + '</div>' +
+    '<div class="pokemon-news-headlines" aria-label="News headlines">' + headlines + '</div>' +
+    '<div class="pokemon-news-dots">' + dots + '</div>' +
+  '</section>';
+}
+
+function csRenderHomeStartRail() {
+  return '<section class="home-start-rail" aria-label="Quick start">' +
+    '<div><span class="overview-kicker">New here?</span><strong>Start with one decision.</strong></div>' +
+    '<ol>' +
+      '<li><span>1</span>Pick a team</li>' +
+      '<li><span>2</span>Run one matchup</li>' +
+      '<li><span>3</span>Upload a replay</li>' +
+      '<li><span>4</span>Improve one choice</li>' +
+    '</ol>' +
+    '<button type="button" data-home-tab="simulator">Start now</button>' +
+  '</section>';
+}
+
+function csRenderHomeProofSnapshot(hasEvidenceRows, previewRows) {
+  var rowCount = Array.isArray(previewRows) ? previewRows.length : 0;
+  var rankingState = hasEvidenceRows ? 'Experimental preview' : 'Locked until proven';
+  return '<section class="home-proof-snapshot" aria-label="Current proof snapshot">' +
+    '<div><span class="overview-kicker">Current proof</span><h4>Evidence snapshot</h4></div>' +
+    '<dl>' +
+      '<div><dt>Replay feed</dt><dd>39 real-battle files ingested</dd></div>' +
+      '<div><dt>QA status</dt><dd>Focused checks passing</dd></div>' +
+      '<div><dt>Ranking state</dt><dd>' + _escapeHtml(rankingState) + '</dd></div>' +
+      '<div><dt>Visible rows</dt><dd>' + _escapeHtml(String(rowCount)) + ' current preview row' + (rowCount === 1 ? '' : 's') + '</dd></div>' +
+    '</dl>' +
+  '</section>';
+}
+
+function csRenderHomeStartCycle() {
+  var steps = [
+    ['1', 'Choose or import a team', 'Start with a bundled Champion test team or import a custom team, then check legality warnings before trusting results.', 'Open Teams', 'teams'],
+    ['2', 'Run the matchup', 'Pick an opponent, format, and series length. Test leads, selected four, speed control, and swaps before you lock a plan.', 'Start Simulating', 'simulator'],
+    ['3', 'Read the swing turn', 'Open replay evidence for move order, damage rows, status denials, recoil, field state, and why a Pokemon fainted.', 'Analyze Replay', 'replay-coach'],
+    ['4', 'Change one thing and rerun', 'Edit one move, item, lead, or lineup, then repeat the same benchmark so improvement is measurable.', 'Review Strategy', 'strategy']
+  ];
+  return '<section class="home-start-cycle overview-section" aria-label="Start here cycle">' +
+    '<div class="overview-section-head"><div><span class="overview-kicker">Start here</span><h3>The 4-step testing cycle</h3></div><span class="overview-status next">Player guide</span></div>' +
+    '<div class="home-start-steps">' + steps.map(function(step) {
+      return '<article class="home-start-step"><strong>' + _escapeHtml(step[0]) + '</strong><div><h4>' + _escapeHtml(step[1]) + '</h4><p>' + _escapeHtml(step[2]) + '</p><button type="button" data-home-tab="' + _escapeHtml(step[4]) + '">' + _escapeHtml(step[3]) + '</button></div></article>';
+    }).join('') + '</div>' +
+  '</section>';
+}
+
+function csRenderHomeSimPreview() {
+  return '<section class="home-sim-preview" aria-label="Example simulator output">' +
+    '<div class="home-sim-preview-copy">' +
+      '<span class="overview-kicker">Example output</span>' +
+      '<h3>See the battle like a coach would.</h3>' +
+      '<p>The goal is not just “Team A won.” The useful answer is what changed the game, how confident the evidence is, and whether the run is still current for the active ruleset.</p>' +
+    '</div>' +
+    '<div class="home-sim-output-card">' +
+      '<div class="home-sim-output-head"><span>BO3 Matchup</span><strong>Rain Balance vs Speed Control</strong></div>' +
+      '<div class="home-sim-score"><strong>2-1</strong><span>sim-derived result</span></div>' +
+      '<dl>' +
+        '<div><dt>Swing turn</dt><dd>Turn 4: Tailwind expired before the knockout plan resolved.</dd></div>' +
+        '<div><dt>Coaching read</dt><dd>Preserve speed control or switch to a safer selected-four line.</dd></div>' +
+        '<div><dt>Trust state</dt><dd>Reg M-B · current engine · replay evidence required</dd></div>' +
+      '</dl>' +
+    '</div>' +
+  '</section>';
+}
+
+function csRenderHomeQuestionCards() {
+  var cards = [
+    ['Which lead should I bring?', 'Test opening pairs into common pressure and compare who controls turn one.'],
+    ['Which four should I select?', 'For doubles BO3/BO5, keep the registered six stable while comparing selected-four plans.'],
+    ['Why did I lose?', 'Use replay evidence to find damage, status, field, recoil, item, or speed-control causes.'],
+    ['Is this team safe to trust?', 'Check legality, source gaps, stale results, and whether Champion-specific data is verified.'],
+    ['What matchup is bad?', 'Compare results by archetype and look for repeated losing patterns before changing sets.'],
+    ['What should I change first?', 'Change one move, item, lead, or lineup at a time so the next result teaches something.']
+  ];
+  return '<section class="home-question-entry overview-section">' +
+    '<div class="overview-section-head"><div><span class="overview-kicker">Pick the question</span><h3>Start with the decision you need to improve.</h3></div><span class="overview-status next">Competitive guide</span></div>' +
+    '<div class="home-question-grid">' + cards.map(function(card) {
+      return '<article><strong>' + _escapeHtml(card[0]) + '</strong><span>' + _escapeHtml(card[1]) + '</span></article>';
+    }).join('') + '</div>' +
+  '</section>';
+}
+
+function csRenderHomeTrustStrip() {
+  return '<section class="home-trust-strip" aria-label="Simulator trust gates">' +
+    '<div><strong>Evidence-bound rankings</strong><span>No team becomes “Top 25” without regulation, ruleset version, engine version, sample size, legality, and stale checks.</span></div>' +
+    '<div><strong>Champion-source guardrails</strong><span>Unknown Pokemon Champion data stays needs_verification instead of being silently treated as legal.</span></div>' +
+    '<div><strong>Replay-verifiable coaching</strong><span>Advice should point back to turn logs, damage/effect rows, source gaps, and matchup evidence.</span></div>' +
+  '</section>';
+}
+
+function csRenderHomePlayerOutcomes() {
+  var outcomes = [
+    ['Pick better leads', 'Compare opening pairs, selected-four choices, and series swaps before you commit to a tournament plan.'],
+    ['Find the swing turn', 'Replay review highlights speed control, protection, status denial, field effects, and the damage source that changed the game.'],
+    ['Improve one change at a time', 'Edit a move, item, lead, or lineup, then rerun the same benchmark so the result is attributable instead of random noise.'],
+    ['Know what is not proven yet', 'Champion legality gaps stay visible, stale runs stay marked, and leaderboard rows remain locked until evidence is strong enough.']
+  ];
+  return '<section class="home-player-outcomes overview-section">' +
+    '<div class="overview-section-head"><div><span class="overview-kicker">Why players should use it</span><h3>Less guessing. More battle evidence.</h3></div><span class="overview-status next">Player value</span></div>' +
+    '<div class="home-player-outcome-grid">' + outcomes.map(function(item) {
+      return '<article><strong>' + _escapeHtml(item[0]) + '</strong><span>' + _escapeHtml(item[1]) + '</span></article>';
+    }).join('') + '</div>' +
+  '</section>';
+}
+
+function csRenderHomeQuickPlan() {
+  var rows = [
+    ['1 minute', 'Open Simulator', 'Run one Bo1 or Bo3 matchup and see whether the lead plan survives common pressure.'],
+    ['3 minutes', 'Analyze Replay', 'Check the turn log for exact damage, status, field, item, recoil, and faint triggers.'],
+    ['5 minutes', 'Edit Team', 'Change one set or selected-four plan, rerun, and compare whether the evidence actually improved.']
+  ];
+  return '<section class="home-quick-plan" aria-label="Fast ways to use the simulator">' +
+    '<div><span class="overview-kicker">Use it today</span><h3>A 60-second path from question to answer</h3><p>Start with one matchup question, not a full meta claim. The sim is strongest when each run answers a specific decision: lead, switch, speed control, target, move, or selected-four choice.</p></div>' +
+    '<div class="home-quick-plan-rows">' + rows.map(function(row) {
+      return '<article><span>' + _escapeHtml(row[0]) + '</span><strong>' + _escapeHtml(row[1]) + '</strong><p>' + _escapeHtml(row[2]) + '</p></article>';
+    }).join('') + '</div>' +
+  '</section>';
 }
 
 function csTeamLabTop25Rows() {
+  var dbRows = csBuildTeamLabDbBranchTop25Rows();
+  if (dbRows.length) return dbRows;
+  var localRows = csBuildTeamLabLocalTop25Rows();
+  if (localRows.length) return localRows;
   return [
     {
       rank: 'locked',
       team: 'Top 25 opens after trusted evidence promotion',
       archetype: 'No fake rankings',
-      rating: 'pending',
+      score: 'pending',
+      quality: 'blocked',
       winRate: 'pending',
       games: '0 trusted',
       confidence: 'not ranked',
-      status: 'Needs #187/#188/#189'
+      status: 'Needs trusted import + promotion rules'
     }
   ];
 }
 
-function csRenderTeamLabTop25Rows() {
-  return csTeamLabTop25Rows().map(function(row) {
+function csTeamLabStoreDbBranchRows(rows) {
+  try {
+    var safeRows = Array.isArray(rows) ? rows.slice(0, 2500) : [];
+    localStorage.setItem('team_lab:db_branch_rows', JSON.stringify({
+      schema_version: 'team-lab-db-branch-preview-v1',
+      stored_at: new Date().toISOString(),
+      build_id: (typeof csGetBuildId === 'function') ? csGetBuildId() : null,
+      rows: safeRows
+    }));
+  } catch (e) {}
+}
+
+function csTeamLabLoadDbBranchRows() {
+  try {
+    var raw = localStorage.getItem('team_lab:db_branch_rows');
+    if (!raw) return [];
+    var parsed = JSON.parse(raw);
+    return parsed && Array.isArray(parsed.rows) ? parsed.rows : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function csTeamLabPrettyKey(key) {
+  return String(key || 'unknown team')
+    .replace(/^player$/, 'My active team')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
+}
+
+function csTeamLabLocalResetTimestamp() {
+  try {
+    var resetAt = localStorage.getItem('team_lab:qa_reset_at');
+    return resetAt ? Date.parse(resetAt) || 0 : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function csBuildTeamLabLocalTop25Rows() {
+  var entries = [];
+  try {
+    if (typeof csSimLogGetAll === 'function') entries = csSimLogGetAll();
+    else if (typeof Storage !== 'undefined' && typeof CS_SIMLOG_KEY !== 'undefined') {
+      var store = Storage.get(CS_SIMLOG_KEY);
+      entries = store && Array.isArray(store.entries) ? store.entries : [];
+    }
+  } catch (e) {
+    entries = [];
+  }
+  if (!Array.isArray(entries) || !entries.length) return [];
+
+  var resetTs = csTeamLabLocalResetTimestamp();
+  var stats = {};
+  function ensure(teamKey) {
+    if (!stats[teamKey]) stats[teamKey] = { teamKey: teamKey, games: 0, wins: 0, losses: 0, draws: 0, opponents: {}, formats: {} };
+    return stats[teamKey];
+  }
+  function addGame(teamKey, opponentKey, result, format) {
+    var s = ensure(teamKey);
+    s.games += 1;
+    s.formats[format || 'doubles'] = true;
+    if (opponentKey) s.opponents[opponentKey] = true;
+    if (result === 'win') s.wins += 1;
+    else if (result === 'loss') s.losses += 1;
+    else s.draws += 1;
+  }
+  entries.forEach(function(entry) {
+    if (!entry || !entry.playerKey || !entry.oppKey) return;
+    if (resetTs && Number(entry.ts || 0) <= resetTs) return;
+    (entry.games || []).forEach(function(game) {
+      var result = game && game.result ? game.result : null;
+      if (!result) return;
+      addGame(entry.playerKey, entry.oppKey, result, entry.format);
+      addGame(entry.oppKey, entry.playerKey, result === 'win' ? 'loss' : result === 'loss' ? 'win' : 'draw', entry.format);
+    });
+  });
+
+  return Object.keys(stats).map(function(teamKey) {
+    var s = stats[teamKey];
+    var raw = s.games ? (s.wins + s.draws * 0.5) / s.games : 0;
+    var adjusted = (s.wins + s.draws * 0.5 + 15) / (s.games + 30 || 1);
+    var opponentCount = Object.keys(s.opponents).length;
+    var score = Math.max(0, Math.min(1, adjusted + Math.min(0.05, opponentCount * 0.006)));
+    var confidence = s.games >= 200 ? 'high' : s.games >= 60 ? 'medium' : 'low';
+    return {
+      rank: 0,
+      team: csTeamLabPrettyKey(teamKey),
+      archetype: teamKey === 'player' ? 'Local player evidence' : 'Benchmark opponent',
+      score: score.toFixed(3),
+      quality: 'local QA preview',
+      winRate: (raw * 100).toFixed(1) + '%',
+      games: String(s.games),
+      confidence: confidence,
+      status: 'Local only - not official global rank',
+      _score: score,
+      _games: s.games
+    };
+  }).filter(function(row) {
+    return row._games > 0;
+  }).sort(function(a, b) {
+    if (b._score !== a._score) return b._score - a._score;
+    return b._games - a._games;
+  }).slice(0, 25).map(function(row, index) {
+    row.rank = String(index + 1);
+    return row;
+  });
+}
+
+function csBuildTeamLabDbBranchTop25Rows(rowsOverride) {
+  var rows = Array.isArray(rowsOverride) ? rowsOverride : csTeamLabLoadDbBranchRows();
+  if (!Array.isArray(rows) || !rows.length) return [];
+  var resetTs = csTeamLabLocalResetTimestamp();
+  var stats = {};
+  function ensure(teamKey) {
+    if (!stats[teamKey]) {
+      stats[teamKey] = {
+        teamKey: teamKey,
+        games: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        opponents: {},
+        lastSeen: null,
+        drift: 0
+      };
+    }
+    return stats[teamKey];
+  }
+  rows.forEach(function(row) {
+    if (!row || !row.player_team_id) return;
+    var seenAt = row.last_seen_at ? Date.parse(row.last_seen_at) || 0 : 0;
+    if (resetTs && seenAt && seenAt <= resetTs) return;
+    var teamKey = row.player_team_id;
+    var opponentKey = row.opponent_team_id || 'unknown-opponent';
+    var weight = Math.max(1, Number(row.run_count || 1));
+    var result = row.result === 'win' || row.result === 'loss' || row.result === 'draw' ? row.result : null;
+    if (!result && row.tactical_summary && typeof row.tactical_summary === 'object') {
+      result = row.tactical_summary.result === 'win' || row.tactical_summary.result === 'loss' || row.tactical_summary.result === 'draw'
+        ? row.tactical_summary.result
+        : null;
+    }
+    if (!result) return;
+    var s = ensure(teamKey);
+    s.games += weight;
+    if (result === 'win') s.wins += weight;
+    else if (result === 'loss') s.losses += weight;
+    else s.draws += weight;
+    s.opponents[opponentKey] = true;
+    s.drift += Number(row.outcome_drift_count || 0);
+    if (row.last_seen_at && (!s.lastSeen || String(row.last_seen_at) > String(s.lastSeen))) s.lastSeen = row.last_seen_at;
+  });
+
+  return Object.keys(stats).map(function(teamKey) {
+    var s = stats[teamKey];
+    var raw = s.games ? (s.wins + s.draws * 0.5) / s.games : 0;
+    var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+    var legality = team && team.legality_status === 'verified' ? 'verified' : 'needs_verification';
+    var adjusted = (typeof TeamLab !== 'undefined' && TeamLab.adjustedWinRate)
+      ? TeamLab.adjustedWinRate(s.wins, s.losses, s.draws, 0.5, 30)
+      : (s.wins + s.draws * 0.5 + 15) / (s.games + 30 || 1);
+    var confidence = (typeof TeamLab !== 'undefined' && TeamLab.confidenceForSample)
+      ? TeamLab.confidenceForSample(s.games, legality)
+      : (legality === 'verified' && s.games >= 200 ? 'high' : legality === 'verified' && s.games >= 60 ? 'medium' : 'experimental');
+    var opponentCount = Object.keys(s.opponents).length;
+    var coverageBonus = Math.min(0.055, opponentCount * 0.006);
+    var driftPenalty = Math.min(0.08, Number(s.drift || 0) * 0.004);
+    var score = (typeof TeamLab !== 'undefined' && TeamLab.rankingScore)
+      ? TeamLab.rankingScore({
+          adjusted_win_rate: adjusted,
+          matchup_coverage_bonus: coverageBonus,
+          confidence: confidence,
+          source_gaps: legality === 'verified' ? [] : ['TEAM_LAB_TEAM_ID_MAPPING_UNVERIFIED'],
+          volatility_penalty: driftPenalty
+        })
+      : Math.max(0, Math.min(1, adjusted + coverageBonus - driftPenalty));
+    return {
+      rank: 0,
+      team: csTeamLabPrettyKey(teamKey),
+      archetype: team && team.tags && team.tags.length ? team.tags.slice(0, 2).join(', ') : 'DB branch evidence',
+      score: Number(score || 0).toFixed(3),
+      quality: legality === 'verified' ? 'DB evidence preview' : 'experimental DB preview',
+      winRate: (raw * 100).toFixed(1) + '%',
+      games: String(Math.round(s.games)),
+      confidence: confidence,
+      status: 'Saved branch rows - not official global rank',
+      _score: Number(score || 0),
+      _games: s.games,
+      _lastSeen: s.lastSeen || ''
+    };
+  }).filter(function(row) {
+    return row._games > 0;
+  }).sort(function(a, b) {
+    if (b._score !== a._score) return b._score - a._score;
+    if (b._games !== a._games) return b._games - a._games;
+    return String(b._lastSeen).localeCompare(String(a._lastSeen));
+  }).slice(0, 25).map(function(row, index) {
+    row.rank = String(index + 1);
+    return row;
+  });
+}
+
+function csRenderTeamLabTop25Rows(rows) {
+  return (Array.isArray(rows) ? rows : csTeamLabTop25Rows()).map(function(row) {
     return '<tr>' +
       '<td>' + _escapeHtml(row.rank) + '</td>' +
       '<td><strong>' + _escapeHtml(row.team) + '</strong></td>' +
       '<td>' + _escapeHtml(row.archetype) + '</td>' +
-      '<td>' + _escapeHtml(row.rating) + '</td>' +
+      '<td>' + _escapeHtml(row.score) + '</td>' +
+      '<td>' + _escapeHtml(row.quality) + '</td>' +
       '<td>' + _escapeHtml(row.winRate) + '</td>' +
       '<td>' + _escapeHtml(row.games) + '</td>' +
       '<td>' + _escapeHtml(row.confidence) + '</td>' +
@@ -12974,31 +14550,224 @@ function csRenderTeamLabTop25Rows() {
   }).join('');
 }
 
-function csRenderTeamLabNewsroomHub() {
-  return '<section class="team-lab-newsroom overview-section">' +
-    '<div class="team-lab-hero">' +
-      '<div>' +
-        '<span class="overview-kicker">Team Lab home</span>' +
-        '<h3>Champion Newsroom + Top 25 Teams</h3>' +
-        '<p>Team Lab should read like the sim home page: source updates first, then clean simulator-derived team rankings. Rankings are intentionally locked until trusted evidence import and promotion rules are finished.</p>' +
-      '</div>' +
-      '<div class="team-lab-hero-badges">' +
-        '<span>Top 25 Teams</span>' +
-        '<span>Simulator evidence only</span>' +
-        '<span>No ladder-truth overclaim</span>' +
+function csTeamLabRankingGates() {
+  return [
+    {
+      label: 'Gate 1',
+      title: 'Validated teams',
+      detail: 'Teams must carry regulation_id, format, legality_status, and source gaps before they can enter any ranking pool.',
+      status: 'foundation built'
+    },
+    {
+      label: 'Gate 2',
+      title: 'Replay-backed sim evidence',
+      detail: 'Runs need engine_version, ruleset_version, sample size, result reason, and replay/effect proof before aggregation.',
+      status: 'evidence model built'
+    },
+    {
+      label: 'Gate 3',
+      title: 'Trusted import worker',
+      detail: 'QA artifacts still need reviewed team-ID mapping and server-side writes before they can become leaderboard evidence.',
+      status: 'open blocker'
+    },
+    {
+      label: 'Gate 4',
+      title: 'Promotion rules',
+      detail: 'Minimum sample size, current versions, verified legality, confidence, and stale checks decide whether a row can rank.',
+      status: 'open blocker'
+    }
+  ];
+}
+
+function csRenderTeamLabRankingGates() {
+  return '<section class="team-lab-gates" aria-label="Team Lab ranking gates">' +
+    '<div class="team-lab-gates-head">' +
+      '<div><span class="overview-kicker">Ranking trust gates</span><h4>Top teams stay locked until the evidence is safe.</h4><p>This prevents placeholder teams, old-engine results, unverified legality, or tiny samples from being shown as “best.”</p></div>' +
+      '<div class="team-lab-gate-actions">' +
+        '<button type="button" data-home-tab="simulator">Generate sim evidence</button>' +
+        '<button type="button" data-home-tab="replay-coach">Review replay proof</button>' +
       '</div>' +
     '</div>' +
-    '<div class="team-lab-news-grid">' + csRenderTeamLabNewsCards() + '</div>' +
-    '<div class="team-lab-leaderboard-head">' +
-      '<div><h4>Top 25 Simulator Teams</h4><p>Will rank by regulation, format, engine version, ruleset version, sample size, legality, confidence, and stale status.</p></div>' +
-      '<span class="overview-status gap">Evidence locked</span>' +
-    '</div>' +
-    '<div class="overview-db-table-wrap team-lab-top25-wrap"><table class="overview-db-table team-lab-top25-table">' +
-      '<thead><tr><th>Rank</th><th>Team</th><th>Archetype</th><th>Rating</th><th>Adj. win rate</th><th>Games</th><th>Confidence</th><th>Status</th></tr></thead>' +
-      '<tbody>' + csRenderTeamLabTop25Rows() + '</tbody>' +
-    '</table></div>' +
-    '<p class="overview-source-note">Future news cards can pull from the source registry and release notes. Until then, they show build/source readiness instead of pretending to be live Pokemon news.</p>' +
+    '<div class="team-lab-gate-grid">' + csTeamLabRankingGates().map(function(gate) {
+      return '<article><span>' + _escapeHtml(gate.label) + '</span><h5>' + _escapeHtml(gate.title) + '</h5><p>' + _escapeHtml(gate.detail) + '</p><strong>' + _escapeHtml(gate.status) + '</strong></article>';
+    }).join('') + '</div>' +
   '</section>';
+}
+
+function csRenderTeamLabAdminControls() {
+  var lastReset = '';
+  try { lastReset = localStorage.getItem('team_lab:qa_reset_at') || ''; } catch (e) {}
+  var status = lastReset ? 'Last local QA reset: ' + lastReset : 'No local QA reset recorded on this device.';
+  return '<section class="team-lab-admin-controls" aria-label="Team Lab admin controls">' +
+    '<div>' +
+      '<span class="overview-kicker">Admin QA controls</span>' +
+      '<h4>Ranking reset must stay trusted.</h4>' +
+      '<p>During testing, use local QA reset to clear this browser&apos;s Team Lab ranking test state before running fresh sims. Shared/global ranking resets still require authenticated admin service logic and an audit reason.</p>' +
+      '<label class="team-lab-admin-reason"><span>Audit reason</span><input type="text" data-team-lab-reset-reason value="QA reset before fresh sim run" maxlength="140"></label>' +
+      '<p class="team-lab-admin-status" data-team-lab-reset-status>' + _escapeHtml(status) + '</p>' +
+    '</div>' +
+    '<button type="button" data-team-lab-local-reset title="Local QA reset only. Shared ranking rows require trusted admin service reset.">Reset local QA rankings</button>' +
+  '</section>';
+}
+
+function csRenderTeamLabNewsroomHub() {
+  var previewRows = csTeamLabTop25Rows();
+  var hasEvidenceRows = previewRows.length && previewRows[0] && previewRows[0].rank !== 'locked';
+  return '<section class="team-lab-newsroom overview-section">' +
+    '<div class="home-landing-hero">' +
+      '<div>' +
+        '<span class="overview-kicker">Pokemon Champion battle lab</span>' +
+        '<h2>Battle Labs</h2>' +
+        '<p>Build stronger teams by testing real matchups, reading the swing turn, and changing one thing with proof.</p>' +
+        '<div class="home-landing-actions">' +
+          '<button type="button" data-home-tab="simulator">Start Simulating</button>' +
+          '<button type="button" data-home-tab="replay-coach">Analyze a Replay</button>' +
+          '<button type="button" data-home-tab="teams">Edit a Team</button>' +
+        '</div>' +
+        '<div class="home-landing-chips" aria-label="Battle Labs trust promises">' +
+          '<span>Champion rules guarded</span>' +
+          '<span>Replay evidence</span>' +
+          '<span>Versioned rankings</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="home-landing-proof">' +
+        '<span>Question</span><strong>Which lead, four, move, or switch gives me the best line?</strong>' +
+        '<span>Answer</span><strong>Run the matchup, inspect the replay, and compare evidence.</strong>' +
+        '<span>Guardrail</span><strong>Unknown Champion data stays marked needs verification.</strong>' +
+      '</div>' +
+    '</div>' +
+    '<div class="home-value-strip" aria-label="Why Battle Labs matters">' +
+      '<article><span>01</span><strong>Sim the matchup</strong><p>Run singles or doubles into benchmark teams and see which plans keep pressure.</p></article>' +
+      '<article><span>02</span><strong>Review the battle</strong><p>Upload real Showdown logs to expose speed control, damage, status, field, item, and faint causes.</p></article>' +
+      '<article><span>03</span><strong>Improve cleanly</strong><p>Change one move, item, lead, or lineup at a time so the next result teaches something real.</p></article>' +
+    '</div>' +
+    csRenderHomeStartRail() +
+    csRenderPokemonNewsFeed() +
+    '<div class="team-lab-leaderboard-head">' +
+      '<div><span class="overview-kicker">Team Lab leaderboard</span><h4>' + (hasEvidenceRows ? 'Top 25 Simulator Teams' : 'Top 25 waits for proof') + '</h4><p>' + (hasEvidenceRows ? 'Experimental rows are visible. Official rankings still require verified legality and promotion rules.' : 'Top 25 is locked until enough verified simulator evidence exists.') + '</p></div>' +
+      '<span class="overview-status ' + (hasEvidenceRows ? 'warn' : 'gap') + '">' + (hasEvidenceRows ? 'Experimental preview' : 'Locked until proven') + '</span>' +
+    '</div>' +
+    csRenderHomeProofSnapshot(hasEvidenceRows, previewRows) +
+    '<div class="overview-db-table-wrap team-lab-top25-wrap"><table class="overview-db-table team-lab-top25-table">' +
+      '<thead><tr><th>Rank</th><th>Team</th><th>Archetype</th><th>Score</th><th>Quality</th><th>Adj. win rate</th><th>Games</th><th>Confidence</th><th>Status</th></tr></thead>' +
+      '<tbody data-team-lab-top25-body>' + csRenderTeamLabTop25Rows(previewRows) + '</tbody>' +
+    '</table></div>' +
+    csRenderHomeStartCycle() +
+    csRenderHomeSimPreview() +
+    csRenderHomeTrustStrip() +
+    csRenderTeamLabRankingGates() +
+    csRenderTeamLabAdminControls() +
+  '</section>';
+}
+
+function renderTeamLabHomeHub() {
+  var host = document.getElementById('team-lab-home-hub');
+  if (!host) return false;
+  host.innerHTML = csRenderTeamLabNewsroomHub();
+  csInitHomeTabActions(host);
+  csInitPokemonNewsCarousel(host);
+  csInitTeamLabAdminControls(host);
+  csRefreshTeamLabDbBranchPreview(host);
+  return true;
+}
+
+async function csRefreshTeamLabDbBranchPreview(root) {
+  var adapter = getWindowValue('SupabaseAdapter', null);
+  if (!adapter || !adapter.enabled || typeof adapter.loadBranchCoverageSummary !== 'function') return false;
+  try {
+    var rows = await adapter.loadBranchCoverageSummary({ limit: 2500 });
+    if (!Array.isArray(rows) || !rows.length) return false;
+    csTeamLabStoreDbBranchRows(rows);
+    var tableBody = root && root.querySelector ? root.querySelector('[data-team-lab-top25-body]') : null;
+    if (tableBody) tableBody.innerHTML = csRenderTeamLabTop25Rows();
+    var status = root && root.querySelector ? root.querySelector('.team-lab-leaderboard-head .overview-status') : null;
+    if (status) {
+      status.className = 'overview-status warn';
+      status.textContent = 'Experimental preview';
+    }
+    return true;
+  } catch (e) {
+    UILog.warn('Team Lab DB branch preview load failed', e);
+    return false;
+  }
+}
+
+function csInitTeamLabAdminControls(root) {
+  if (!root || typeof root.querySelector !== 'function') return false;
+  var btn = root.querySelector('[data-team-lab-local-reset]');
+  var reasonInput = root.querySelector('[data-team-lab-reset-reason]');
+  var status = root.querySelector('[data-team-lab-reset-status]');
+  if (!btn) return false;
+  btn.addEventListener('click', function() {
+    var reason = reasonInput && reasonInput.value ? reasonInput.value.trim() : '';
+    if (reason.length < 8) {
+      if (status) status.textContent = 'Reset blocked: enter an audit reason of at least 8 characters.';
+      return;
+    }
+    var now = new Date().toISOString();
+    try {
+      localStorage.setItem('team_lab:qa_reset_at', now);
+      localStorage.setItem('team_lab:qa_reset_reason', reason);
+      localStorage.removeItem('team_lab:leaderboard_preview');
+      localStorage.removeItem('team_lab:ranking_preview');
+      localStorage.removeItem('team_lab:sim_evidence_preview');
+    } catch (e) {}
+    var tableBody = root.querySelector('[data-team-lab-top25-body]');
+    if (tableBody) tableBody.innerHTML = csRenderTeamLabTop25Rows();
+    if (status) status.textContent = 'Local QA rankings reset at ' + now + '. Shared/global rankings unchanged until trusted admin reset runs.';
+  });
+  return true;
+}
+
+function csInitPokemonNewsCarousel(root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return;
+  var slides = Array.prototype.slice.call(root.querySelectorAll('[data-news-slide]'));
+  var dots = Array.prototype.slice.call(root.querySelectorAll('[data-news-dot]'));
+  if (!slides.length) return;
+  Array.prototype.slice.call(root.querySelectorAll('img[data-news-fallback-src]')).forEach(function(img) {
+    img.addEventListener('error', function() {
+      var fallback = img.getAttribute('data-news-fallback-src') || 'assets/news-card.svg';
+      if (img.getAttribute('src') !== fallback) img.setAttribute('src', fallback);
+    });
+  });
+  var active = 0;
+  var timer = null;
+  function paint(next) {
+    active = (next + slides.length) % slides.length;
+    slides.forEach(function(slide, index) {
+      slide.classList.toggle('active', index === active);
+    });
+    dots.forEach(function(dot, index) {
+      dot.classList.toggle('active', index === active);
+      dot.setAttribute('aria-current', index === active ? 'true' : 'false');
+    });
+  }
+  function restart() {
+    if (timer) clearInterval(timer);
+    timer = setInterval(function() { paint(active + 1); }, 8000);
+  }
+  dots.forEach(function(dot, index) {
+    dot.addEventListener('click', function() {
+      paint(index);
+      restart();
+    });
+  });
+  var prev = root.querySelector('[data-news-prev]');
+  var next = root.querySelector('[data-news-next]');
+  if (prev) prev.addEventListener('click', function() { paint(active - 1); restart(); });
+  if (next) next.addEventListener('click', function() { paint(active + 1); restart(); });
+  paint(0);
+  restart();
+}
+
+function csInitHomeTabActions(root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return;
+  root.querySelectorAll('[data-home-tab]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tab = btn.getAttribute('data-home-tab');
+      if (tab && typeof _activateTab === 'function') _activateTab(tab, { focus: true });
+    });
+  });
 }
 
 function csRenderOverviewClosedProofArchive(data) {
@@ -13136,7 +14905,6 @@ function renderOverviewTab() {
   }).join('');
   host.innerHTML =
     '<div class="overview-metrics">' + metrics + '</div>' +
-    csRenderTeamLabNewsroomHub() +
     '<div class="overview-milestone-board">' +
       '<div class="overview-section overview-board-intro">' +
         '<div class="overview-section-head"><h3>Milestone Board</h3><span class="overview-kicker">Done / Open / Next</span></div>' +
@@ -13194,10 +14962,12 @@ function csUpdateShowdownDbStatus() {
 if (typeof ChampionsSim !== 'undefined') {
   ChampionsSim.overview = {
     data: CS_OVERVIEW_DATA,
-    renderOverviewTab: renderOverviewTab
+    renderOverviewTab: renderOverviewTab,
+    renderTeamLabHomeHub: renderTeamLabHomeHub
   };
 }
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('renderOverviewTab', renderOverviewTab);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('renderTeamLabHomeHub', renderTeamLabHomeHub);
 
 function csGetGeneratedSourceSyncStatus() {
   if (typeof window === 'undefined' || !window.ChampionsSim) return null;
@@ -13267,6 +15037,28 @@ function csRenderSourceSyncCards(status, dbSnapshot) {
   '</div>';
 }
 
+function csRenderSourceRegistry() {
+  var registry = (typeof CHAMPIONS_SOURCE_REGISTRY !== 'undefined' && CHAMPIONS_SOURCE_REGISTRY) ? CHAMPIONS_SOURCE_REGISTRY : null;
+  if (!registry || !Array.isArray(registry.tiers)) return '';
+  var tiers = registry.tiers.map(function(tier) {
+    var sources = (tier.sources || []).map(function(source) {
+      return '<li><a href="' + _escapeHtml(source.url || '#') + '" target="_blank" rel="noopener">' + _escapeHtml(source.name || 'Source') + '</a><span>' + _escapeHtml(source.status || 'tracked') + '</span></li>';
+    }).join('');
+    return '<article class="sources-table-card">' +
+      '<div class="sources-table-head"><div><span class="badge badge-blue">' + _escapeHtml(tier.trust || 'tracked') + '</span><h3>' + _escapeHtml(tier.label || tier.id || 'Source tier') + '</h3></div><p>Use for: ' + _escapeHtml((tier.use_for || []).join(', ') || 'tracked evidence') + '.</p></div>' +
+      '<p class="overview-source-note"><strong>Do not use for:</strong> ' + _escapeHtml((tier.not_for || []).join(', ') || 'unspecified claims') + '.</p>' +
+      '<ul class="overview-list source-registry-list">' + sources + '</ul>' +
+    '</article>';
+  }).join('');
+  return '<div class="sources-registry">' +
+    '<div class="sources-table-card">' +
+      '<div class="sources-table-head"><div><span class="badge badge-blue">TRUST LADDER</span><h3>Sources used to build the sim</h3></div><p>' + _escapeHtml(registry.policy || 'Source policy tracked by build.') + '</p></div>' +
+      '<p class="overview-source-note">Last reviewed: ' + _escapeHtml(registry.last_reviewed || 'unknown') + '. Unknown Champion-specific truth remains needs_verification until official, in-game, replay, or approved source rows prove it.</p>' +
+    '</div>' +
+    tiers +
+  '</div>';
+}
+
 function csRenderSourceSyncTables(status, dbSnapshot) {
   var rows = csRenderSourceSyncRows(status, dbSnapshot);
   var files = (dbSnapshot && dbSnapshot.sourceFiles || []).map(function(file) {
@@ -13297,6 +15089,7 @@ function renderSourcesTab() {
       '<p>Readable source-of-truth view for players, QA, and release review.</p>' +
     '</div>' +
     csRenderSourceSyncCards(status, null) +
+    csRenderSourceRegistry() +
     csRenderSourceSyncTables(status, null) +
   '</div>';
   var adapter = (typeof window !== 'undefined') ? window.SupabaseAdapter : null;
@@ -13308,6 +15101,7 @@ function renderSourcesTab() {
         '<p>Readable source-of-truth view for players, QA, and release review.</p>' +
       '</div>' +
       csRenderSourceSyncCards(status, snapshot) +
+      csRenderSourceRegistry() +
       csRenderSourceSyncTables(status, snapshot) +
     '</div>';
   }).catch(function() {
@@ -13317,6 +15111,7 @@ function renderSourcesTab() {
         '<p>Readable source-of-truth view for players, QA, and release review.</p>' +
       '</div>' +
       csRenderSourceSyncCards(status, null) +
+      csRenderSourceRegistry() +
       csRenderSourceSyncTables(status, null) +
     '</div>';
   });
@@ -19023,6 +20818,7 @@ if (typeof window !== 'undefined') {
     if (didHardenClientState && csReloadAfterBuildCacheReset(csGetBuildId())) return;
     _csInitEvidenceToggle();
     csInitReplayCoachUi();
+    renderTeamLabHomeHub();
     renderOverviewTab();
 
     // ── M3 — DB init: source-of-truth merge ────────────────────────────────

@@ -1,0 +1,50 @@
+name: News Feed Sync
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news-feed-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-news:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Sync trusted news feeds
+        run: node poke-sim/tools/sync-news-feed.mjs
+
+      - name: Rebuild Champion sim bundle
+        run: python3 poke-sim/tools/build-bundle.py
+
+      - name: Validate news feed and release artifact
+        run: |
+          node -e "const fs=require('fs'); const text=fs.readFileSync('poke-sim/generated/news_feed.js','utf8'); if(!text.includes('champions-news-feed-v1')) throw new Error('news feed schema missing');"
+          node poke-sim/tools/check-news-image-health.mjs
+          node poke-sim/tests/news_source_trust_guard_tests.js
+          node poke-sim/tests/release_manifest_tests.js
+          node poke-sim/tests/t191_overview_tab_tests.js
+
+      - name: Commit synced news feed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- poke-sim/generated/news_feed.js poke-sim/pokemon-champion-2026.html poke-sim/generated/release_artifact.json; then
+            echo "No news feed changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add poke-sim/generated/news_feed.js poke-sim/pokemon-champion-2026.html poke-sim/generated/release_artifact.json
+          git commit -m "Sync homepage news feed"
+          git push

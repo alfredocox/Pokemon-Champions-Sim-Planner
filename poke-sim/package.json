@@ -12,7 +12,8 @@
     "showdown:sync": "node tools/fetch_showdown_data.mjs",
     "showdown:write-db": "node tools/write_showdown_data_to_db.mjs",
     "showdown:generate-approved": "node tools/generate-approved-data-from-db.mjs",
-    "codex:qa": "node tools/ingest-codex-qa-artifacts.mjs"
+    "codex:qa": "node tools/ingest-codex-qa-artifacts.mjs",
+    "showdown:replays": "node tools/ingest-showdown-replays.mjs"
   },
   "dependencies": {
     "@smogon/calc": "^0.11.0",

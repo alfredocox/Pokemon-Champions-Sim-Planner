@@ -152,6 +152,32 @@ Current M15 GitHub issue map:
 
 Do not close the Team Lab milestone while the UI is empty. The current backend work is valid only as foundation until the read UI, trusted writer, mapping resolver, and promotion rules are implemented and tested.
 
+## 2026-06-30 implementation update: Team Lab DB preview and promotion trust layer
+
+`v2.2.70-team-lab-db-preview` makes saved branch evidence visible on Home without promoting it to official ranking truth:
+
+- Home loads recent `branch_coverage_runs` rows through `SupabaseAdapter.loadBranchCoverageSummary`.
+- The Top 25 table can show an experimental DB branch-evidence preview when saved rows exist.
+- Preview scoring uses adjusted win rate, branch sample weight, opponent coverage, confidence, and outcome-drift penalty.
+- Rows are explicitly labeled `experimental DB preview` / `Saved branch rows - not official global rank`.
+- This preview is useful player feedback, but it is not the official leaderboard path.
+
+`v2.2.71-team-lab-mapping-promotion` adds the DB engineering layer needed before official promotion:
+
+- `team_lab_team_key_mappings` maps local/source keys such as `player`, bundled team IDs, QA artifact keys, and branch-coverage keys to durable `team_lab_teams.id` values.
+- Mappings have `pending`, `verified`, `rejected`, and `stale` states so ambiguous identity never silently becomes leaderboard truth.
+- `team_lab_promotion_rules` stores versioned promotion gates by regulation, format, scope, sample size, legality requirement, current engine/ruleset requirement, verified mapping requirement, and approved benchmark-pool requirement.
+- `team_lab_promotion_audits` records private trusted-worker decisions for approved, blocked, experimental, or stale promotion outcomes.
+- `team_lab_leaderboard_entries` now has optional `team_key_mapping_id`, `promotion_status`, and `promotion_reasons` fields.
+- `team_lab.js` exposes deterministic helpers for mapping resolution and promotion decisions before any trusted worker writes shared ranking state.
+
+Security/trust stance:
+
+- Public browser code may preview branch evidence, but it must not write official promotion decisions.
+- Mapping and promotion audit tables are private under RLS; active promotion rules may be public-readable.
+- Official Top 25 promotion requires verified legality, verified team mapping, current engine/ruleset versions, approved benchmark pool, sufficient samples, and no unresolved source gaps.
+- `needs_verification` or unresolved source gaps route to experimental evidence, not official leaderboard scope.
+
 ## 2026-06-29 implementation update: Team Lab newsroom hub
 
 `v2.2.52-team-lab-newsroom-hub` starts the read UI direction for #179 without inventing rankings:
@@ -162,3 +188,110 @@ Do not close the Team Lab milestone while the UI is empty. The current backend w
 - The UI states that future news cards can pull from the source registry and release notes, but today they show build/source readiness instead of pretending to be live Pokemon news.
 
 This is intentionally a first read-UI shell. It should evolve into the Team Lab page after #187, #188, and #189 protect data quality.
+
+## 2026-06-29 implementation update: Home/Roadmap split
+
+`v2.2.53-home-roadmap-split` corrects the product IA:
+
+- Home is the default landing page for Team Lab, leaderboard/news, and future player-facing updates.
+- Roadmap is the renamed former Overview tab and should stay focused on milestones, open tasks, closed proof, and issue alignment.
+- Simulator is again the battle workspace only.
+
+This keeps player-facing discovery separate from contributor/project-management tracking.
+
+## 2026-06-29 implementation update: Home news carousel
+
+`v2.2.54-home-news-carousel` adds the first real Pokemon news surface to Home:
+
+- Home now includes a source-linked slideshow for official Pokemon Champions news articles.
+- Cards use official Champions imagery and link out to Pokemon.com article URLs.
+- The feed is static/curated for now because a CORS-safe official live feed is not established in the app.
+- The UI states that news is player-facing context, not mechanics truth until source rows are reviewed.
+
+Future improvement: replace the curated list with a reviewed source-sync/news ingestion path that stores article title, URL, source tier, image URL, fetched_at, and verification status.
+
+## 2026-06-29 implementation update: Home value proposition
+
+`v2.2.64-team-lab-ranking-policy` turns Home into a clearer player landing page:
+
+- Adds a hero that explains the simulator value: build better teams, test smarter lines, and learn why battles swing.
+- Adds quick actions into Simulator, Replay Review, and Roadmap.
+- Adds competitive tips for speed control, replay evidence, team importing/editing, and series testing.
+- Adds a how-to-use path from team idea to tested battle plan.
+- Adds trust gates explaining why rankings stay evidence-bound and unknown Champion data stays `needs_verification`.
+
+This is user-facing promotion, but it remains evidence-bound and avoids claiming real ladder truth before Team Lab trusted imports and promotion rules are complete.
+
+## 2026-06-29 implementation update: Home start cycle
+
+`v2.2.64-team-lab-ranking-policy` consolidates the previous Start Here and How To Use sections into one 4-step player cycle:
+
+- Choose or import a team.
+- Run the matchup.
+- Read the swing turn.
+- Change one thing and rerun.
+
+This keeps Home focused on player value instead of duplicated feature cards, and it supports the product direction that the simulator should answer specific competitive questions with replay-verifiable evidence.
+
+## 2026-06-29 implementation update: Home battle lab framing
+
+`v2.2.64-team-lab-ranking-policy` moves Home closer to a top-tier simulator landing page:
+
+- Leads with a direct product promise: a Pokemon Champion battle lab for testing teams before play.
+- Adds a sample sim output card so users see the kind of evidence the tool should produce: result, swing turn, coaching read, and trust state.
+- Adds question-based entry points for common player needs: lead choice, selected-four choice, loss review, legality trust, bad matchups, and first change to test.
+- Keeps official news useful but below the product value, so Home explains the simulator before acting like a news page.
+
+This aligns Home with the evidence-bound product strategy: users should understand what decision the sim helps improve, what proof supports the answer, and what remains unverified.
+
+## 2026-06-29 implementation update: Home graffiti-print title
+
+`v2.2.64-team-lab-ranking-policy` adds a graffiti-print hero title treatment to make Home feel more like a memorable competitive gaming landing page while keeping the underlying product message evidence-bound and readable.
+
+## 2026-06-29 implementation update: Battle Labs graffiti title
+
+`v2.2.64-team-lab-ranking-policy` changes the Home hero title to `Battle Labs` and strengthens the visual treatment from a simple skewed headline into a graffiti-print tag with heavy outline, layered spray colors, irregular backing, and underline paint stroke.
+
+## 2026-06-29 implementation update: 90s Battle Labs title
+
+`v2.2.64-team-lab-ranking-policy` pushes the Home hero toward a louder 90s arcade/skate/anime-magazine print style: neon offset shadows, halftone backing, heavy sticker outline, and a `isolation:isolate` tag. The visual goal is more memorable first impression without changing the evidence-bound simulator claims.
+
+## 2026-06-29 implementation update: Battle Labs title cleanup
+
+`v2.2.64-team-lab-ranking-policy` simplifies the Home hero from `Welcome to Battle Labs` to `Battle Labs` so the brand mark is shorter, punchier, and easier to read in the 90s graffiti-print treatment.
+
+## 2026-06-29 implementation update: clean Battle Labs hero
+
+`v2.2.64-team-lab-ranking-policy` tightens the Home hero after visual review: the title stays 90s-inspired, but the decorative plate is contained so it cannot cover the wording, the extra badge text is removed, and the hero message is reduced to one clear player promise plus two primary actions.
+
+## 2026-06-29 implementation update: Team Lab ranking gates
+
+`v2.2.64-team-lab-ranking-policy` turns the empty/locked Team Lab surface into an explicit product workflow:
+
+- Shows the four gates required before Top 25 teams can rank: validated teams, replay-backed sim evidence, trusted import worker, and promotion rules.
+- Keeps public rankings locked instead of inventing placeholder teams or fake win rates.
+- Adds direct actions into Simulator and Replay Review so testers can generate the evidence the ranking system needs.
+- Reinforces that leaderboard rows require regulation, format, engine version, ruleset version, sample size, legality, confidence, and stale-state checks.
+
+## 2026-06-29 implementation update: Team Lab ranking policy
+
+`v2.2.64-team-lab-ranking-policy` defines Team Lab ranking as a composite evidence score, not raw win/loss ratio.
+
+Ranking rows can now carry:
+
+- `ranking_score`: adjusted win rate plus opponent strength, matchup coverage, confidence, freshness, source-gap, and volatility effects.
+- `evidence_quality`: `official_ready`, `community_safe`, `personal_only`, `experimental`, or `blocked`.
+- `matchup_coverage`: unique opponent/archetype coverage and coverage bonus.
+- `opponent_strength_delta`: strength-of-schedule adjustment.
+- `volatility_penalty`: low-sample penalty.
+- `source_gaps`: unresolved source gaps that block official promotion.
+
+Default policy:
+
+- Verified teams with normal user/community sim evidence become `community_candidate` rows.
+- Verified teams only become `official_sim_top_25` when current versions, minimum sample, and approved benchmark pool requirements are met.
+- `needs_verification` teams stay `experimental`.
+- Illegal or stale evidence is blocked from current ranking.
+- Private teams stay personal-only.
+
+A disabled admin QA reset control is visible in Team Lab so the test workflow is planned, but public browser users still cannot mutate ranking evidence. The real reset action must run through a trusted admin/server workflow and record an audit reason.

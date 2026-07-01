@@ -74,6 +74,7 @@ try { load('legality.js'); } catch (_) {}
 load('engine.js');
 try { load('strategy-injectable.js'); } catch (_) {}
 load('ui.js');
+load('release_manifest.js');
 
 vm.runInContext([
   'this.TEAMS = TEAMS;',
@@ -537,7 +538,7 @@ T('T5c-3 JSON download produces valid parseable file', () => {
   ctx.downloadReplayTurnLog({ seed: 'abc', result: 'win', playerKey: 'player', oppKey: 'mega_altaria', turnLog: battleA.turnLog, position_path: battleA.position_path });
   truthy(parsed && Array.isArray(parsed.turnLog), 'download JSON did not parse');
   eq(parsed.schema_version, 'champions-turn-log-v2', 'download schema version missing');
-  truthy(/^v2\.\d+\.\d+-[a-z0-9-]+$/.test(parsed.build_id || ''), 'download build id missing');
+  eq(parsed.build_id, ctx.window.CHAMPIONS_RELEASE_MANIFEST.build_id, 'download build id must match release manifest');
   truthy(typeof parsed.exported_at === 'string' && parsed.exported_at.length > 0, 'download timestamp missing');
   eq(parsed.player_team_id, 'player', 'download player team id missing');
   eq(parsed.opponent_team_id, 'mega_altaria', 'download opponent team id missing');
@@ -897,6 +898,7 @@ T('T5c-12 QA coverage counts status denial and move-lock families separately', (
   eq(summary.mechanics_seen.no_valid_target_failures, 1, 'no-valid-target count mismatch');
   eq(summary.mechanics_seen.target_resolution_failures, 1, 'target-resolution count mismatch');
   eq(summary.mechanics_seen.protect_consecutive_failures, 1, 'Protect consecutive failure count mismatch');
+  eq(summary.mechanics_seen.protect_consecutive_unexpected_failures, 1, 'Protect unexpected failure count mismatch');
 });
 
 T('T5c-13 QA coverage counts status resolution pass-through families separately', () => {

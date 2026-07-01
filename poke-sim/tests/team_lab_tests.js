@@ -3,9 +3,13 @@
 const fs = require('fs');
 const path = require('path');
 const TeamLab = require('../team_lab.js');
+const LegalityEvidencePackage = require('../legality_evidence_package.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(ROOT, 'db', 'migrations', '2026_06_29_team_lab_foundation.sql'), 'utf8');
+const rankingMigration = fs.readFileSync(path.join(ROOT, 'db', 'migrations', '2026_06_30_team_lab_ranking_quality.sql'), 'utf8');
+const adminMigration = fs.readFileSync(path.join(ROOT, 'db', 'migrations', '2026_06_30_team_lab_admin_actions.sql'), 'utf8');
+const mappingPromotionMigration = fs.readFileSync(path.join(ROOT, 'db', 'migrations', '2026_06_30_team_lab_mapping_promotion.sql'), 'utf8');
 
 let pass = 0;
 let fail = 0;
@@ -52,6 +56,49 @@ T('2. migration includes requested indexes and hidden-detail RLS policy', () => 
     'idx_team_lab_matchups_pair'
   ].forEach((idx) => truthy(migration.includes(idx), `${idx} missing`));
   truthy(migration.includes("t.visibility = 'hidden_details' AND team_lab_team_members.is_hidden_publicly = false"), 'hidden-details member policy missing');
+});
+
+T('2b. ranking quality migration stores composite evidence metadata', () => {
+  [
+    'ranking_score numeric',
+    'evidence_quality text',
+    'matchup_coverage jsonb',
+    'opponent_strength_delta numeric',
+    'volatility_penalty numeric',
+    'source_gaps text[]',
+    'idx_team_lab_leaderboard_quality'
+  ].forEach((needle) => truthy(rankingMigration.includes(needle), `${needle} missing`));
+});
+
+T('2c. admin reset migration stores private audit records', () => {
+  [
+    'CREATE TABLE IF NOT EXISTS team_lab_admin_actions',
+    "action text NOT NULL CHECK (action IN ('team_lab_ranking_reset'))",
+    "mode text NOT NULL CHECK (mode IN ('mark_stale', 'delete_dev_seed'))",
+    'reason text NOT NULL CHECK (length(trim(reason)) >= 8)',
+    'ALTER TABLE team_lab_admin_actions ENABLE ROW LEVEL SECURITY',
+    'team_lab_admin_actions_no_public_read',
+    'USING (false)'
+  ].forEach((needle) => truthy(adminMigration.includes(needle), `${needle} missing`));
+});
+
+T('2d. mapping and promotion migration protects team identity and official ranking gates', () => {
+  [
+    'CREATE TABLE IF NOT EXISTS team_lab_team_key_mappings',
+    "source_system text NOT NULL CHECK (source_system IN ('local_qa', 'branch_coverage', 'showdown_import', 'qa_artifact', 'manual_admin'))",
+    "mapping_status text NOT NULL DEFAULT 'pending' CHECK (mapping_status IN ('pending', 'verified', 'rejected', 'stale'))",
+    'UNIQUE(source_system, source_team_key, regulation_id, format)',
+    'CREATE TABLE IF NOT EXISTS team_lab_promotion_rules',
+    'require_verified_team_mapping boolean NOT NULL DEFAULT true',
+    'require_approved_benchmark_pool boolean NOT NULL DEFAULT true',
+    'CREATE TABLE IF NOT EXISTS team_lab_promotion_audits',
+    "decision text NOT NULL CHECK (decision IN ('approved', 'blocked', 'experimental', 'stale'))",
+    'team_key_mapping_id uuid NULL REFERENCES team_lab_team_key_mappings(id) ON DELETE SET NULL',
+    'promotion_status text NULL CHECK',
+    'team_lab_key_mappings_no_public_read',
+    'team_lab_promotion_rules_read_active',
+    'team_lab_promotion_audits_no_public_read'
+  ].forEach((needle) => truthy(mappingPromotionMigration.includes(needle), `${needle} missing`));
 });
 
 const baseTeam = {
@@ -109,9 +156,140 @@ T('5. validator marks known illegal data illegal instead of provisional', () => 
   truthy(report.errors.some((err) => err.code === 'MOVE_ILLEGAL'), 'illegal move error missing');
 });
 
+T('5b. legality evidence package keeps incomplete source data as needs_verification', () => {
+  const pkg = {
+    schema_version: 'champions-legality-evidence-package-v1',
+    package_id: 'dev-regmb-incomplete',
+    regulation_id: 'champions_reg_m_b_2026',
+    ruleset_version: 'regmb-dev-source-package-v1',
+    format: 'doubles',
+    verification_status: 'needs_verification',
+    source_captures: [
+      {
+        id: 'community-note-not-authoritative',
+        source_tier: 'community_secondary',
+        verification_status: 'unverified',
+        pointer: 'dev fixture only'
+      }
+    ],
+    allowlists: {
+      legal_pokemon_ids: ['charizard']
+    },
+    allowlist_completeness: {
+      legal_pokemon_ids: false
+    }
+  };
+  const report = LegalityEvidencePackage.validateLegalityEvidencePackage(pkg);
+  eq(report.status, 'needs_verification', 'incomplete package must not verify');
+  truthy(report.source_gaps.some((gap) => gap.code === 'TRUSTED_SOURCE_CAPTURE_MISSING'), 'trusted source gap missing');
+  truthy(report.source_gaps.some((gap) => gap.code === 'ALLOWLIST_INCOMPLETE_LEGAL_POKEMON_IDS'), 'incomplete allowlist gap missing');
+  const regulation = LegalityEvidencePackage.regulationFromEvidencePackage(pkg);
+  eq(regulation.verification_status, 'needs_verification', 'derived regulation must stay unverified');
+  const packageTeam = JSON.parse(JSON.stringify(baseTeam));
+  packageTeam.regulation_id = 'champions_reg_m_b_2026';
+  const teamReport = TeamLab.validateTeamForRegulation(packageTeam, regulation);
+  eq(teamReport.status, 'needs_verification', 'team should remain needs_verification when package is incomplete');
+});
+
+T('5c. legality evidence package can prove dev fixtures without inventing Champion data', () => {
+  const pkg = {
+    schema_version: 'champions-legality-evidence-package-v1',
+    package_id: 'dev-regmb-complete',
+    regulation_id: 'champions_reg_m_b_2026',
+    ruleset_version: 'regmb-dev-source-package-v1',
+    format: 'doubles',
+    verification_status: 'verified',
+    source_captures: [
+      {
+        id: 'in-game-capture-dev-001',
+        source_tier: 'in_game_verified',
+        verification_status: 'verified',
+        pointer: 'dev fixture standing in for future in-game capture'
+      }
+    ],
+    allowlists: {
+      legal_pokemon_ids: ['charizard'],
+      legal_form_ids: ['charizard-mega-y'],
+      legal_item_ids: ['charizardite-y'],
+      legal_ability_ids: ['drought'],
+      legal_move_ids: ['heat-wave', 'protect']
+    },
+    allowlist_completeness: {
+      legal_pokemon_ids: true,
+      legal_form_ids: true,
+      legal_item_ids: true,
+      legal_ability_ids: true,
+      legal_move_ids: true
+    }
+  };
+  const packageTeam = JSON.parse(JSON.stringify(baseTeam));
+  packageTeam.regulation_id = 'champions_reg_m_b_2026';
+  const illegalMoveTeam = JSON.parse(JSON.stringify(baseTeam));
+  illegalMoveTeam.regulation_id = 'champions_reg_m_b_2026';
+  illegalMoveTeam.members[0].moves = ['blast-burn'];
+  const unknownTeam = JSON.parse(JSON.stringify(baseTeam));
+  unknownTeam.regulation_id = 'champions_reg_m_b_2026';
+  unknownTeam.members[0].pokemon_id = 'unknown-champion-row';
+  const fixtures = [
+    { id: 'known-legal-dev', fixture_type: 'known_legal', expected_status: 'verified', team: packageTeam, source_pointer: 'dev accepted-team placeholder' },
+    { id: 'known-illegal-dev', fixture_type: 'known_illegal', expected_status: 'illegal', team: illegalMoveTeam, source_pointer: 'dev rejected-team placeholder' },
+    { id: 'stale-dev', fixture_type: 'stale_ruleset', expected_status: 'stale', ruleset_version: 'old-ruleset', team: baseTeam },
+    { id: 'needs-source-dev', fixture_type: 'needs_verification', expected_status: 'needs_verification', team: unknownTeam, use_missing_source: true }
+  ];
+  const packageReport = LegalityEvidencePackage.validateLegalityEvidencePackage(pkg);
+  eq(packageReport.status, 'verified', 'complete dev package should validate structurally');
+  const fixtureReport = LegalityEvidencePackage.evaluateLegalityFixtures(pkg, fixtures);
+  eq(fixtureReport.all_passed, true, 'fixture statuses should match expected results');
+  eq(fixtureReport.counts.verified, 1, 'known legal fixture count missing');
+  eq(fixtureReport.counts.illegal, 1, 'known illegal fixture count missing');
+  eq(fixtureReport.counts.stale, 1, 'stale fixture count missing');
+  eq(fixtureReport.counts.needs_verification, 1, 'needs_verification fixture count missing');
+  const readiness = LegalityEvidencePackage.promotionReadinessFromEvidencePackage(pkg, fixtures);
+  eq(readiness.ready_for_runtime_promotion, true, 'complete package plus all fixture classes should be promotion-ready');
+  eq(readiness.status, 'verified', 'promotion readiness should be verified');
+});
+
+T('5d. legality evidence package blocks promotion when fixture classes are missing', () => {
+  const pkg = {
+    schema_version: 'champions-legality-evidence-package-v1',
+    package_id: 'dev-regmb-complete-no-negative-fixtures',
+    regulation_id: 'champions_reg_m_b_2026',
+    ruleset_version: 'regmb-dev-source-package-v1',
+    format: 'doubles',
+    verification_status: 'verified',
+    source_captures: [
+      { id: 'in-game-capture-dev-001', source_tier: 'in_game_verified', verification_status: 'verified', pointer: 'dev fixture only' }
+    ],
+    allowlists: {
+      legal_pokemon_ids: ['charizard'],
+      legal_form_ids: ['charizard-mega-y'],
+      legal_item_ids: ['charizardite-y'],
+      legal_ability_ids: ['drought'],
+      legal_move_ids: ['heat-wave', 'protect']
+    },
+    allowlist_completeness: {
+      legal_pokemon_ids: true,
+      legal_form_ids: true,
+      legal_item_ids: true,
+      legal_ability_ids: true,
+      legal_move_ids: true
+    }
+  };
+  const packageTeam = JSON.parse(JSON.stringify(baseTeam));
+  packageTeam.regulation_id = 'champions_reg_m_b_2026';
+  const readiness = LegalityEvidencePackage.promotionReadinessFromEvidencePackage(pkg, [
+    { id: 'known-legal-dev', fixture_type: 'known_legal', expected_status: 'verified', team: packageTeam }
+  ]);
+  eq(readiness.ready_for_runtime_promotion, false, 'missing negative/stale/unknown fixtures should block promotion');
+  eq(readiness.status, 'needs_verification', 'incomplete fixture set should remain needs_verification');
+  truthy(readiness.source_gaps.some((gap) => gap.indexOf('FIXTURE_TYPES_MISSING') === 0), 'missing fixture source gap absent');
+});
+
 T('6. raw win rate and adjusted win rate are sample-size aware', () => {
   eq(TeamLab.rawWinRate(7, 2, 1), 0.75, 'raw win rate should count draws as half win');
   approx(TeamLab.adjustedWinRate(1, 0, 0, 0.5, 30), 0.516129, 0.000001, 'adjusted win rate should shrink low sample toward prior');
+  const score = TeamLab.rankingScore({ adjusted_win_rate: 0.6, opponent_strength_delta: 0.02, matchup_coverage_bonus: 0.02, confidence: 'medium', source_gaps: [], volatility_penalty: 0 });
+  truthy(score > 0.6, 'ranking score should include more than raw/adjusted win rate');
 });
 
 T('7. confidence assignment uses sample size and verification state', () => {
@@ -133,10 +311,29 @@ T('8. leaderboard excludes illegal teams and treats needs_verification as experi
   const entries = TeamLab.buildLeaderboardEntries(teams, runs, { regulation_id: 'reg-m-b', format: 'doubles', engine_version: 'eng-1', ruleset_version: 'rules-1', min_sample_size: 30 });
   truthy(entries.some((entry) => entry.team_id === 'a'), 'verified team missing');
   truthy(!entries.some((entry) => entry.team_id === 'b'), 'illegal team should be excluded');
+  const a = entries.find((entry) => entry.team_id === 'a');
+  eq(a.leaderboard_scope, 'community_candidate', 'verified non-benchmark team should stay community candidate by default');
+  eq(a.evidence_quality, 'community_safe', 'verified non-benchmark team should be community_safe');
+  truthy(typeof a.ranking_score === 'number', 'ranking score missing');
+  truthy(a.matchup_coverage.unique_opponents >= 1, 'matchup coverage missing opponents');
   const c = entries.find((entry) => entry.team_id === 'c');
   truthy(c, 'needs_verification team should appear as experimental evidence');
   eq(c.confidence, 'experimental', 'needs_verification confidence should be experimental');
   eq(c.leaderboard_scope, 'experimental', 'needs_verification scope should be experimental');
+  eq(c.evidence_quality, 'experimental', 'needs_verification evidence quality should be experimental');
+});
+
+T('8b. official Top 25 promotion requires benchmark-approved current verified evidence', () => {
+  const teams = [
+    { id: 'a', name: 'Verified A', format: 'doubles', regulation_id: 'reg-m-b', visibility: 'public', legality_status: 'verified', archetype_tags: ['sun'] },
+    { id: 'b', name: 'Verified B', format: 'doubles', regulation_id: 'reg-m-b', visibility: 'public', legality_status: 'verified', archetype_tags: ['rain'] }
+  ];
+  const runs = [];
+  for (let i = 0; i < 80; i += 1) runs.push({ team_a_id: 'a', team_b_id: 'b', regulation_id: 'reg-m-b', format: 'doubles', engine_version: 'eng-1', ruleset_version: 'rules-1', winner_team_id: i < 50 ? 'a' : 'b', result_reason: 'ko' });
+  const entries = TeamLab.buildLeaderboardEntries(teams, runs, { regulation_id: 'reg-m-b', format: 'doubles', engine_version: 'eng-1', ruleset_version: 'rules-1', min_sample_size: 30, approved_benchmark_pool: true });
+  const a = entries.find((entry) => entry.team_id === 'a');
+  eq(a.leaderboard_scope, 'official_sim_top_25', 'approved verified evidence should promote to official scope');
+  eq(a.evidence_quality, 'official_ready', 'approved verified evidence should be official_ready');
 });
 
 T('9. stale marking and filters keep current rankings distinct from old evidence', () => {
@@ -150,6 +347,26 @@ T('9. stale marking and filters keep current rankings distinct from old evidence
   eq(TeamLab.filterLeaderboard(marked, { stale: false }).length, 1, 'current filter should remove stale rows');
   eq(TeamLab.isEntryCurrent(marked[0], { engine_version: 'eng-1', ruleset_version: 'rules-1' }), true, 'current row should be current');
   eq(TeamLab.isEntryCurrent(marked[1], { engine_version: 'eng-1', ruleset_version: 'rules-1' }), false, 'stale row should not be current');
+});
+
+T('9b. admin ranking reset requires admin and audit reason before stale marking', () => {
+  const rows = [
+    { team_id: 'a', regulation_id: 'reg-m-b', format: 'doubles', leaderboard_scope: 'community_candidate', engine_version: 'eng-1', ruleset_version: 'rules-1', stale: false },
+    { team_id: 'b', regulation_id: 'reg-m-b', format: 'singles', leaderboard_scope: 'community_candidate', engine_version: 'eng-1', ruleset_version: 'rules-1', stale: false }
+  ];
+  const blocked = TeamLab.resetLeaderboardRankings(rows, { reason: 'QA reset before fresh sim run', regulation_id: 'reg-m-b', format: 'doubles' }, { is_admin: false });
+  eq(blocked.ok, false, 'non-admin reset should be blocked');
+  eq(blocked.error, 'ADMIN_REQUIRED', 'non-admin error mismatch');
+  const noReason = TeamLab.resetLeaderboardRankings(rows, { reason: 'short', regulation_id: 'reg-m-b', format: 'doubles' }, { is_admin: true, user_id: 'admin-1' });
+  eq(noReason.ok, false, 'short reason should be blocked');
+  eq(noReason.error, 'REASON_REQUIRED', 'reason error mismatch');
+  const reset = TeamLab.resetLeaderboardRankings(rows, { reason: 'QA reset before fresh sim run', regulation_id: 'reg-m-b', format: 'doubles' }, { is_admin: true, user_id: 'admin-1' });
+  eq(reset.ok, true, 'admin reset should pass');
+  eq(reset.changed_count, 1, 'reset should only affect matching scope');
+  eq(reset.entries[0].stale, true, 'matching row should be stale');
+  eq(reset.entries[1].stale, false, 'nonmatching row should stay current');
+  eq(reset.audit.action, 'team_lab_ranking_reset', 'audit action missing');
+  eq(reset.audit.reason, 'QA reset before fresh sim run', 'audit reason missing');
 });
 
 T('10. hidden-detail teams do not leak hidden moves/items/EVs to non-owners', () => {
@@ -178,6 +395,78 @@ T('12. compare output is explicitly simulator-derived and carries stale/source w
   truthy(result.label.includes('Simulator-derived evidence'), 'compare label should prevent ladder-truth overclaim');
   truthy(result.stale_warnings.includes('rules_updated'), 'stale warning missing');
   truthy(result.unresolved_source_gaps.includes('MOVE_SOURCE_GAP'), 'source gap missing');
+});
+
+T('13. team key mapping must be verified before official promotion', () => {
+  const missing = TeamLab.resolveTeamKeyMapping('player', [], { source_system: 'branch_coverage', regulation_id: 'reg-m-b', format: 'doubles' });
+  eq(missing.ok, false, 'missing mapping should not resolve');
+  eq(missing.source_gap, 'TEAM_KEY_MAPPING_MISSING', 'missing mapping gap mismatch');
+  const pending = TeamLab.resolveTeamKeyMapping('player', [
+    { id: 'map-1', source_system: 'branch_coverage', source_team_key: 'player', team_id: 'team-a', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'pending' }
+  ], { source_system: 'branch_coverage', regulation_id: 'reg-m-b', format: 'doubles' });
+  eq(pending.ok, false, 'pending mapping should not verify');
+  eq(pending.source_gap, 'TEAM_KEY_MAPPING_PENDING', 'pending mapping gap mismatch');
+  const verified = TeamLab.resolveTeamKeyMapping('player', [
+    { id: 'map-2', source_system: 'branch_coverage', source_team_key: 'player', team_id: 'team-a', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'verified' }
+  ], { source_system: 'branch_coverage', regulation_id: 'reg-m-b', format: 'doubles' });
+  eq(verified.ok, true, 'verified mapping should resolve');
+  eq(verified.team_lab_team_id, 'team-a', 'verified mapping team mismatch');
+});
+
+T('14. promotion gate blocks unsafe evidence and approves only fully mapped current verified rows', () => {
+  const baseEntry = {
+    team_id: 'team-a',
+    regulation_id: 'reg-m-b',
+    format: 'doubles',
+    leaderboard_scope: 'community_candidate',
+    engine_version: 'eng-1',
+    ruleset_version: 'rules-1',
+    legality_status: 'verified',
+    evidence_quality: 'official_ready',
+    games_played: 240,
+    confidence: 'high',
+    stale: false,
+    source_gaps: []
+  };
+  const rule = TeamLab.defaultPromotionRule({ regulation_id: 'reg-m-b', format: 'doubles', min_sample_size: 200 });
+  const blocked = TeamLab.evaluateLeaderboardPromotion(baseEntry, {
+    rule,
+    current_engine_version: 'eng-1',
+    current_ruleset_version: 'rules-1',
+    approved_benchmark_pool: false,
+    mapping: { status: 'verified', team_lab_team_id: 'team-a', mapping: { id: 'map-1' } }
+  });
+  eq(blocked.approved, false, 'unapproved benchmark pool should block promotion');
+  truthy(blocked.reasons.includes('BENCHMARK_POOL_NOT_APPROVED'), 'benchmark reason missing');
+
+  const experimental = TeamLab.evaluateLeaderboardPromotion(Object.assign({}, baseEntry, {
+    legality_status: 'needs_verification',
+    evidence_quality: 'experimental',
+    source_gaps: ['REGULATION_SOURCE_MISSING']
+  }), {
+    rule,
+    current_engine_version: 'eng-1',
+    current_ruleset_version: 'rules-1',
+    approved_benchmark_pool: true,
+    mapping: { status: 'pending', team_lab_team_id: 'team-a', source_gap: 'TEAM_KEY_MAPPING_PENDING' }
+  });
+  eq(experimental.decision, 'experimental', 'unverified legality/source gaps should stay experimental');
+  truthy(experimental.reasons.includes('LEGALITY_NOT_VERIFIED'), 'legality reason missing');
+  truthy(experimental.reasons.includes('TEAM_KEY_MAPPING_PENDING'), 'mapping reason missing');
+
+  const approved = TeamLab.evaluateLeaderboardPromotion(baseEntry, {
+    rule,
+    current_engine_version: 'eng-1',
+    current_ruleset_version: 'rules-1',
+    approved_benchmark_pool: true,
+    mapping: { status: 'verified', team_lab_team_id: 'team-a', mapping: { id: 'map-1' } }
+  });
+  eq(approved.approved, true, 'fully gated row should approve');
+  eq(approved.leaderboard_scope, 'official_sim_top_25', 'approved scope mismatch');
+  const promoted = TeamLab.applyPromotionDecision(baseEntry, approved);
+  eq(promoted.promotion_status, 'approved', 'promotion status mismatch');
+  eq(promoted.leaderboard_scope, 'official_sim_top_25', 'promoted scope mismatch');
+  eq(promoted.team_key_mapping_id, 'map-1', 'mapping id should attach to promoted row');
 });
 
 console.log(`\nTeam Lab foundation: ${pass} pass, ${fail} fail\n`);

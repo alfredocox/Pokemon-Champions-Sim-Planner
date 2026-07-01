@@ -187,6 +187,208 @@
     return null;
   }
 
+  function stableTextHash(text) {
+    var hash = 2166136261;
+    var input = String(text || '');
+    for (var i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function decodeHtmlEntities(text) {
+    return String(text || '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+
+  function normalizeShowdownName(name) {
+    return String(name || '').trim().replace(/\s+/g, ' ');
+  }
+
+  function slugToken(value) {
+    return String(value || 'unknown')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'unknown';
+  }
+
+  function showdownProtocolLinesFromHtml(html) {
+    var out = [];
+    var raw = String(html || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    var re = /(?:^|\n)(\|[^\n<\r]+)/g;
+    var match;
+    while ((match = re.exec(raw))) {
+      var line = decodeHtmlEntities(match[1]).trim();
+      if (line.charAt(0) === '|') out.push(line);
+    }
+    return out;
+  }
+
+  function showdownReplayTitle(html) {
+    var match = String(html || '').match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    return match ? decodeHtmlEntities(match[1]).trim() : '';
+  }
+
+  function showdownRegulationId(title, sourceName) {
+    var text = String(title || '') + ' ' + String(sourceName || '');
+    var compact = text.match(/Reg\s*M[-\s]?([A-Z])/i) || text.match(/RegM([A-Z])/i);
+    if (!compact) return null;
+    return 'champions_reg_m_' + compact[1].toLowerCase();
+  }
+
+  function showdownReplayFormat(title, sourceName) {
+    var text = String(title || '') + ' ' + String(sourceName || '');
+    if (/single/i.test(text)) return 'singles';
+    if (/vgc|double/i.test(text)) return 'doubles';
+    return 'doubles';
+  }
+
+  function showdownBattleDate(sourceName) {
+    var match = String(sourceName || '').match(/(20\d{2}-\d{2}-\d{2})/);
+    return match ? match[1] : null;
+  }
+
+  function showdownFormatId(sourceName) {
+    var match = String(sourceName || '').match(/^(Gen\d+ChampionsVGC\d+RegM[A-Z])/i);
+    return match ? match[1] : null;
+  }
+
+  function createShowdownReplayEvidenceFromHtml(html, opts) {
+    opts = opts || {};
+    var sourceName = opts.source_file || opts.source_name || 'showdown-replay.html';
+    var title = showdownReplayTitle(html);
+    var lines = showdownProtocolLinesFromHtml(html);
+    var sourceGaps = [];
+    if (!lines.length) {
+      return {
+        ok: false,
+        errors: [issue('SHOWDOWN_PROTOCOL_LINES_MISSING', 'No Showdown packed protocol lines were found in the HTML replay.')],
+        warnings: [],
+        source_gaps: []
+      };
+    }
+    var players = {};
+    var roster = { p1: [], p2: [] };
+    var winnerName = null;
+    var isDraw = false;
+    var turnCount = 0;
+    var moveCount = 0;
+    var switchCount = 0;
+    var faintCount = 0;
+    var eventLog = lines.map(function(line, index) {
+      var parts = line.split('|').slice(1);
+      var type = parts[0] || 'unknown';
+      if (type === 'player') {
+        players[parts[1]] = normalizeShowdownName(parts[2]);
+      } else if (type === 'poke') {
+        var side = parts[1];
+        var species = String(parts[2] || '').split(',')[0].trim();
+        if (roster[side] && species && roster[side].indexOf(species) === -1) roster[side].push(species);
+      } else if (type === 'turn') {
+        turnCount = Math.max(turnCount, Number(parts[1] || 0));
+      } else if (type === 'move') {
+        moveCount += 1;
+      } else if (type === 'switch' || type === 'drag') {
+        switchCount += 1;
+      } else if (type === 'faint') {
+        faintCount += 1;
+      } else if (type === 'win') {
+        winnerName = normalizeShowdownName(parts[1]);
+      } else if (type === 'tie') {
+        isDraw = true;
+      }
+      return {
+        row: index + 1,
+        event_type: type,
+        args: parts.slice(1),
+        raw: line
+      };
+    });
+    var p1Name = players.p1 || 'p1';
+    var p2Name = players.p2 || 'p2';
+    var p1Team = opts.team_a_id || ('showdown:p1:' + slugToken(p1Name));
+    var p2Team = opts.team_b_id || ('showdown:p2:' + slugToken(p2Name));
+    if (!opts.team_a_id || !opts.team_b_id) {
+      sourceGaps.push(artifactSourceGap(
+        'TEAM_ID_MAPPING_NEEDED',
+        'Showdown replay player names must be mapped to Team Lab team IDs before leaderboard aggregation.',
+        'player protocol rows'
+      ));
+    }
+    var regulationId = opts.regulation_id || showdownRegulationId(title, sourceName);
+    if (!regulationId) {
+      regulationId = 'unknown-regulation';
+      sourceGaps.push(artifactSourceGap('REGULATION_ID_INFERRED', 'Replay title/file did not expose a Champion regulation.', 'title/source_file'));
+    }
+    var formatId = showdownFormatId(sourceName) || 'showdown-html-replay';
+    var hash = opts.source_hash || stableTextHash(html);
+    var winnerTeamId = null;
+    if (!isDraw && winnerName) {
+      if (winnerName === p1Name) winnerTeamId = p1Team;
+      else if (winnerName === p2Name) winnerTeamId = p2Team;
+      else sourceGaps.push(artifactSourceGap('WINNER_MAPPING_NEEDED', 'Winner name did not match p1/p2 protocol names.', 'win protocol row'));
+    }
+    sourceGaps.push(artifactSourceGap(
+      'SHOWDOWN_REPLAY_NOT_OFFICIAL_RULE_TRUTH',
+      'Imported Showdown HTML replay is replay/meta/coaching evidence only; it must not overwrite official Champion legality or mechanics truth.',
+      'showdown html replay'
+    ));
+    sourceGaps.push(artifactSourceGap(
+      'STRUCTURED_DAMAGE_ROWS_NOT_IMPORTED',
+      'Showdown protocol damage rows are preserved as raw events; app-specific damage_events are not reconstructed by this importer yet.',
+      'event_log'
+    ));
+    var replay = normalizeReplayRecord({
+      id: opts.id || ('showdown-html:' + hash),
+      team_a_id: p1Team,
+      team_b_id: p2Team,
+      regulation_id: regulationId,
+      format: opts.format || showdownReplayFormat(title, sourceName),
+      engine_version: opts.engine_version || 'showdown-html-replay-import-v1',
+      ruleset_version: opts.ruleset_version || formatId,
+      seed: 'showdown-html:' + hash,
+      winner_team_id: winnerTeamId || undefined,
+      result_reason: isDraw ? 'draw' : (winnerName ? 'ko' : 'error'),
+      turns: turnCount,
+      event_log: eventLog,
+      turn_log: [],
+      damage_events: [],
+      effect_events: [],
+      qa_coverage_summary: null,
+      confidence_flags: unique(['showdown_html_replay', 'replay_verified_source']),
+      source_gaps: uniqueGaps(sourceGaps).map(function(gap) { return gap.code; }),
+      source_metadata: {
+        source_type: 'showdown_html_replay',
+        source_file: sourceName,
+        source_hash: hash,
+        title: title,
+        battle_date: showdownBattleDate(sourceName),
+        players: { p1: p1Name, p2: p2Name },
+        rosters: roster,
+        event_counts: {
+          protocol_lines: lines.length,
+          turns: turnCount,
+          moves: moveCount,
+          switches: switchCount,
+          faints: faintCount
+        }
+      }
+    });
+    return {
+      ok: true,
+      artifact_type: 'showdown_html_replay',
+      replay_record: replay,
+      source_gaps: uniqueGaps(sourceGaps),
+      warnings: []
+    };
+  }
+
   function artifactTeamId(rawId, side, opts, sourceGaps) {
     opts = opts || {};
     var map = opts.teamIdMap || opts.team_id_map || {};
@@ -473,7 +675,9 @@
     attachReplayToSimRun: attachReplayToSimRun,
     createSimEvidenceService: createSimEvidenceService
     ,
-    createSimEvidenceFromArtifact: createSimEvidenceFromArtifact
+    createSimEvidenceFromArtifact: createSimEvidenceFromArtifact,
+    showdownProtocolLinesFromHtml: showdownProtocolLinesFromHtml,
+    createShowdownReplayEvidenceFromHtml: createShowdownReplayEvidenceFromHtml
   };
 
   root.SimEvidence = api;

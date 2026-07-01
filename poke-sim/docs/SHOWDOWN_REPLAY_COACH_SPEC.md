@@ -27,6 +27,20 @@ The feedback loop is:
 
 Simulate -> Play -> Upload Replay -> Diagnose -> Update Coaching -> Improve Sim Assumptions -> Practice Better Lines -> Repeat.
 
+## Replay-Derived Tactical QA Payload UX
+
+The Review/Battle Sensei input card must expose the Tactical QA payload action near the replay upload/analyze controls, not only inside lower result cards.
+
+Expected flow:
+
+1. Player uploads a Showdown `.html`, `.txt`, `.log`, pasted log, or replay URL.
+2. The payload button remains disabled until replay analysis creates a scenario queue.
+3. After analysis, the top-level button exports the highest-priority replay-derived scenario as a versioned Tactical QA JSON payload.
+4. Per-scenario buttons in the generated queue can still export a specific scenario.
+5. The UI must explain whether the payload is ready for branch execution or blocked by missing team mapping, regulation mapping, or board-state evidence.
+
+This payload is evidence intake only. It does not overwrite Champion legality, mechanics truth, leaderboard rankings, or official source-truth rows.
+
 ## Core Outputs
 
 Every reviewed replay should produce:
@@ -437,6 +451,78 @@ Supported MVP tags:
 }
 ```
 
+### Replay-Derived Sim Scenario Queue
+
+Schema: `champions-replay-scenario-queue-v1`
+
+Purpose: turn a real uploaded replay into concrete simulator branch tests without claiming the replay is official rule truth.
+
+Each queue row should include:
+
+- `title`: player-readable scenario name.
+- `priority`: `high`, `medium`, or `low`.
+- `turn`: replay turn if known.
+- `setup`: board or branch to recreate in the simulator.
+- `testGoal`: what the branch sweep should compare.
+- `why`: coaching reason this branch matters.
+- `evidence`: replay protocol row, coaching tag, or damage/effect row that triggered it.
+- `confidence`: confidence in the scenario trigger, not confidence that one line is best.
+- `sourceGaps`: explicit warnings that replay evidence does not overwrite Champion legality, mechanics truth, or leaderboard rankings.
+
+Current triggers:
+
+- high/medium coaching tags
+- action-denial rows such as flinch, miss, fail, and immunity
+- Mega/form-change timing
+- ability/item activation timing
+- super-effective, resisted, and major HP-threshold damage rows
+
+DB mapping: store this under `replay_sim_feedback.payload.scenarioQueue` until the dedicated scenario runner table exists.
+
+Guardrail: scenario rows are test targets. They may create tactical QA work, but they must not promote a move, legality rule, team ranking, or coaching claim without simulator evidence tied to `engine_version`, `ruleset_version`, `regulation_id`, `format`, and sample size.
+
+### Replay Scenario to Tactical QA Payload
+
+Schema: `champions-replay-scenario-tactical-qa-payload-v1`
+
+Purpose: let a player export a replay-derived scenario into a Tactical QA-ready payload without pretending the replay can already run a trusted branch matrix.
+
+Required fields:
+
+- `status`: `needs_more_data` until replay Pokemon are mapped to saved in-app teams, regulation is confirmed, and the scenario board is reconstructed.
+- `engine_version`
+- `ruleset_version`
+- `regulation_id`
+- `format`
+- `sample_size`
+- `scenario`
+- `board_context`
+- `missing_for_trusted_run`
+- `next_actions`
+
+Current UI behavior: each replay scenario card can prepare a Tactical QA payload JSON. The payload is intentionally blocked from trusted branch execution when it is missing team-id mapping, regulation confirmation, or board reconstruction.
+
+Replay team mapping:
+
+- Compare replay `yourPreview` first when full six exists.
+- Fall back to visible `yourFour` / `opponentFour` when full preview is unavailable.
+- Match against saved/imported in-app teams by normalized species identity.
+- Mega forms may match their base species for team identity.
+- Confidence labels:
+  - `exact_full_six`
+  - `visible_four_match`
+  - `partial_match`
+  - `no_match`
+- Payload should include `player_team_id`, `opponent_team_id`, matched species, missing species, and mapping confidence when available.
+
+Future promotion path:
+
+- map replay Pokemon to imported/saved teams
+- confirm `regulation_id`
+- reconstruct turn-specific active board, HP, field, item/ability state, and known moves
+- run capped branch matrix
+- save branch output as simulator-derived evidence with version fields and sample size
+
 ## Sim Comparison Fields
 
 When replay data exists, matchup coaching can add:
@@ -474,7 +560,9 @@ Definitions:
 Battle Sensei page:
 
 - paste log
-- upload `.txt`
+- upload Showdown replay `.html` as the preferred player-match feed
+- upload `.txt` / `.log` raw logs as fallback inputs
+- load replay URL
 - select side
 - select review mode
 - hide raw log by default
@@ -536,6 +624,29 @@ Recommended entities:
 - player_pattern_snapshots
 
 Raw logs are optional and should be user-controlled because they may contain usernames or private notes.
+
+Showdown HTML replay files are also user-controlled raw evidence. They may be used for local feedback, sim calibration targets, and future profile history when the user explicitly saves them. They must not automatically rewrite official Champion legality, mechanics truth, or global leaderboard rankings.
+
+Current protocol bridge:
+
+- `-ability` rows become structured ability evidence.
+- `-item`, `-enditem`, and `-activate` rows become structured item/activation evidence.
+- `cant` rows become structured action-denial evidence.
+- `detailschange`, `formechange`, and `-mega` rows become structured form-change evidence.
+- `-singleturn` rows become structured single-turn protection/effect evidence.
+- `-supereffective` and `-resisted` rows become structured matchup/effectiveness evidence.
+
+These rows are the next feed for explaining why a real match turn worked or failed: blocked moves, flinch turns, Mega timing, item activation, ability activation, spread pressure, and matchup damage context.
+
+Visible cards shipped from this bridge:
+
+- `Action Denial Review` explains `cant`, miss, fail, and immunity rows.
+- It separates player-side denied actions from opponent-side denied actions.
+- It tells the player what happened, why the skipped/blocked action mattered, and what to check next.
+- It remains replay-evidence only; it does not infer hidden opponent intent or rewrite simulator rules.
+- `Ability / Item Impact Review` explains ability, item, consumption, and activation rows.
+- `Mega Timing Review` explains Mega/form-change timing and why the new form can change the board.
+- `Damage Context Review` explains super-effective, resisted, and major HP-threshold damage context.
 
 Data retention policy:
 

@@ -214,7 +214,26 @@ T('10. extracts pipe-delimited log lines from exported replay HTML', () => {
   truthy(normalized.indexOf('|move|p1a: Incineroar|Fake Out|p2a: Indeedee-F') >= 0, 'html move line preserved');
 });
 
-T('11. converts replay URLs to .log endpoints and fetches them through the helper', async () => {
+T('11. extracts entity-escaped Showdown HTML replay logs', () => {
+  const replayHtml = [
+    '<!doctype html>',
+    '<html><body>',
+    '<pre class="battle-log-data">',
+    '&#124;player&#124;p1&#124;Alice<br>',
+    '&#124;player&#124;p2&#124;Bob<br>',
+    '&#124;turn&#124;1<br>',
+    '&#124;move&#124;p1a: Incineroar&#124;Fake Out&#124;p2a: Indeedee-F',
+    '</pre>',
+    '</body></html>'
+  ].join('');
+  const normalized = replayCoach.normalizeReplayLogInput(replayHtml);
+  eq(normalized.split('\n').length, 4, 'entity html normalized replay line count');
+  truthy(normalized.indexOf('&#124;') < 0, 'entity pipes decoded');
+  truthy(normalized.indexOf('|player|p1|Alice') >= 0, 'entity player line preserved');
+  truthy(normalized.indexOf('|move|p1a: Incineroar|Fake Out|p2a: Indeedee-F') >= 0, 'entity html move line preserved');
+});
+
+T('12. converts replay URLs to .log endpoints and fetches them through the helper', async () => {
   const logUrl = replayCoach.replayUrlToLogUrl('https://replay.pokemonshowdown.com/gen9vgc2026-123456');
   eq(logUrl, 'https://replay.pokemonshowdown.com/gen9vgc2026-123456.log', 'log endpoint');
   let fetched = '';
@@ -231,7 +250,7 @@ T('11. converts replay URLs to .log endpoints and fetches them through the helpe
   eq(text, '|player|p1|Alice\n|turn|1', 'fetched log normalized');
 });
 
-T('12. recognizes Trick Room reversing opposing Tailwind without false speed penalty', () => {
+T('13. recognizes Trick Room reversing opposing Tailwind without false speed penalty', () => {
   const log = [
     '|player|p1|Alice',
     '|player|p2|Bob',
@@ -257,7 +276,7 @@ T('12. recognizes Trick Room reversing opposing Tailwind without false speed pen
   eq(turn.stateShift, 'Speed control reversed', 'turn state shift');
 });
 
-T('13. recognizes same-turn Tailwind neutralization', () => {
+T('14. recognizes same-turn Tailwind neutralization', () => {
   const log = [
     '|player|p1|Alice',
     '|player|p2|Bob',
@@ -279,7 +298,7 @@ T('13. recognizes same-turn Tailwind neutralization', () => {
   eq(turn.stateShift, 'Speed control neutralized', 'turn state shift');
 });
 
-T('14. recognizes deferred payoff within three turns', () => {
+T('15. recognizes deferred payoff within three turns', () => {
   const log = [
     '|player|p1|Alice',
     '|player|p2|Bob',
@@ -308,7 +327,7 @@ T('14. recognizes deferred payoff within three turns', () => {
   eq(turn.stateShift, 'Setup paid off later', 'turn state shift');
 });
 
-T('15. recognizes complementary setup turn payoff', () => {
+T('16. recognizes complementary setup turn payoff', () => {
   const log = [
     '|player|p1|Alice',
     '|player|p2|Bob',
@@ -333,7 +352,7 @@ T('15. recognizes complementary setup turn payoff', () => {
   eq(turn.stateShift, 'Complementary turn paid off', 'turn state shift');
 });
 
-T('16. recognizes planned speed transition after Trick Room ends from structured speed evidence', () => {
+T('17. recognizes planned speed transition after Trick Room ends from structured speed evidence', () => {
   const parsed = replayCoach.parseShowdownLog([
     '|player|p1|Alice',
     '|player|p2|Bob',
@@ -366,6 +385,80 @@ T('16. recognizes planned speed transition after Trick Room ends from structured
   includes(ids, 'planned_speed_transition', 'planned transition tag');
   const turn = review.turnTimeline.find((row) => row.turn === 2);
   eq(turn.stateShift, 'Planned speed transition', 'turn state shift');
+});
+
+T('18. structures real-match protocol rows used by coaching feed', () => {
+  const replay = [
+    '|player|p1|Alice',
+    '|player|p2|Bob',
+    '|gametype|doubles',
+    '|poke|p1|Manectric, L50, M|',
+    '|poke|p1|Sneasler, L50, M|',
+    '|poke|p2|Garchomp, L50, M|',
+    '|poke|p2|Torkoal, L50, M|',
+    '|start',
+    '|switch|p1a: Manectric|Manectric, L50, M|100/100',
+    '|switch|p1b: Sneasler|Sneasler, L50, M|100/100',
+    '|switch|p2a: Garchomp|Garchomp, L50, M|100/100',
+    '|switch|p2b: Torkoal|Torkoal, L50, M|100/100',
+    '|turn|1',
+    '|-mega|p1a: Manectric|Manectric|Manectite',
+    '|detailschange|p1a: Manectric|Manectric-Mega, L50, M|100/100',
+    '|-ability|p1a: Manectric|Intimidate|boost',
+    '|-unboost|p2a: Garchomp|atk|1',
+    '|move|p1b: Sneasler|Fake Out|p2b: Torkoal',
+    '|-singleturn|p2b: Torkoal|move: Protect',
+    '|cant|p2b: Torkoal|flinch|Eruption',
+    '|move|p2a: Garchomp|Earthquake|p1a: Manectric|[spread] p1b',
+    '|-supereffective|p1a: Manectric',
+    '|-resisted|p1b: Sneasler',
+    '|-damage|p1a: Manectric|40/100',
+    '|-item|p1a: Manectric|Sitrus Berry',
+    '|-heal|p1a: Manectric|65/100|[from] item: Sitrus Berry',
+    '|-enditem|p1a: Manectric|Sitrus Berry',
+    '|-activate|p2a: Garchomp|ability: Rough Skin',
+    '|win|Alice'
+  ].join('\n');
+  const parsed = replayCoach.parseShowdownLog(replay, { selectedSide: 'p1' });
+  const turn1 = parsed.turns.find((t) => t.number === 1);
+  truthy(turn1, 'turn 1 missing');
+  truthy(turn1.formChanges.some((row) => row.type === 'mega' && row.pokemon === 'Manectric-Mega'), 'mega form row missing');
+  truthy(turn1.formChanges.some((row) => row.type === 'detailschange' && row.pokemon === 'Manectric-Mega'), 'detailschange row missing');
+  truthy(turn1.abilities.some((row) => row.ability === 'Intimidate' && row.pokemon === 'Manectric-Mega'), 'ability row missing');
+  truthy(turn1.actionDenials.some((row) => row.reason === 'flinch' && row.move === 'Eruption'), 'cant/action denial row missing');
+  truthy(turn1.singleTurn.some((row) => row.effect === 'move: Protect'), 'single-turn row missing');
+  truthy(turn1.effectiveness.some((row) => row.type === 'supereffective' && row.pokemon === 'Manectric-Mega'), 'supereffective row missing');
+  truthy(turn1.effectiveness.some((row) => row.type === 'resisted' && row.pokemon === 'Sneasler'), 'resisted row missing');
+  truthy(turn1.items.some((row) => row.type === 'item' && row.item === 'Sitrus Berry'), 'item row missing');
+  truthy(turn1.items.some((row) => row.type === 'enditem' && row.item === 'Sitrus Berry'), 'enditem row missing');
+  truthy(turn1.items.some((row) => row.type === 'activate' && /Rough Skin/.test(row.item)), 'activate row missing');
+  const review = replayCoach.buildReplayCoachReview(parsed, { selectedSide: 'p1' });
+  truthy(review.actionDenialCards.some((row) => row.reason === 'flinch' && row.move === 'Eruption'), 'action denial card missing');
+  truthy(review.abilityItemImpactCards.some((row) => row.kind === 'ability' && row.sourceName === 'Intimidate'), 'ability impact card missing');
+  truthy(review.abilityItemImpactCards.some((row) => row.kind === 'item' && row.sourceName === 'Sitrus Berry'), 'item impact card missing');
+  truthy(review.megaTimingCards.some((row) => row.pokemon === 'Manectric-Mega'), 'mega timing card missing');
+  truthy(review.damageContextCards.some((row) => row.pokemon === 'Manectric-Mega' && row.effects.includes('supereffective')), 'damage context card missing');
+  truthy(Array.isArray(review.scenarioQueue) && review.scenarioQueue.length >= 3, 'scenario queue missing');
+  truthy(review.scenarioQueue.some((row) => /Action-denial branch/.test(row.title)), 'action-denial scenario missing');
+  truthy(review.scenarioQueue.some((row) => /Mega timing branch/.test(row.title)), 'mega timing scenario missing');
+  truthy(review.scenarioQueue.some((row) => /Damage threshold branch/.test(row.title)), 'damage threshold scenario missing');
+  truthy(review.scenarioQueue.every((row) => row.regulationStatus === 'not_rule_truth'), 'scenario queue must not become rule truth');
+  truthy(review.scenarioQueue.every((row) => Array.isArray(row.sourceGaps) && row.sourceGaps.length), 'scenario source gaps missing');
+});
+
+T('19. builds a source-bound claim audit for every replay review', () => {
+  const analysis = replayCoach.analyzeShowdownReplay(sample, { selectedSide: 'p1' });
+  const audit = analysis.review.claimAudit;
+  truthy(audit, 'claim audit missing');
+  eq(audit.schema_version, 'champions-replay-claim-audit-v1', 'claim audit schema');
+  eq(audit.source, 'showdown_replay_import', 'claim audit source');
+  truthy(audit.observed.count > 0, 'observed count should be positive');
+  truthy(audit.inferred.count >= analysis.review.coachingTags.length, 'inferred count should cover coaching tags');
+  truthy(audit.sim_derived.count === analysis.review.scenarioQueue.length, 'scenario count should match queue');
+  truthy(audit.source_gaps.some((gap) => gap.code === 'CHAMPION_LEGALITY_NOT_VALIDATED'), 'Champion legality source gap missing');
+  truthy(audit.source_gaps.some((gap) => gap.code === 'ALTERNATIVE_BRANCHES_NOT_EXHAUSTIVE'), 'alternative branch source gap missing');
+  truthy(audit.forbidden_claims.some((claim) => /definitely best/i.test(claim)), 'best-claim guard missing');
+  truthy(audit.forbidden_claims.some((claim) => /official Pokemon Champion legality/i.test(claim)), 'legality guard missing');
 });
 
 runTests().then(() => {
