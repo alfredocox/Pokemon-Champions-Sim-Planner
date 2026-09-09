@@ -1,6 +1,6 @@
 # Ability Coverage Audit
 
-Date: 2026-06-22
+Date: 2026-08-29
 
 Scope:
 - curated shipped teams in `data.js` excluding `player` and `custom_*`
@@ -8,8 +8,8 @@ Scope:
 - current battle engine ability hooks and inline checks in `engine.js`
 
 Summary:
-- unique curated-team + mega abilities audited: 80
-- modeled by the engine: 80
+- unique curated-team + Mega abilities audited: 84
+- modeled by the engine: 84
 - still unmodeled and classified: 0
 
 Why this exists:
@@ -30,6 +30,7 @@ Resolved high-impact gaps in this pass:
 - `Mind's Eye`: blocks accuracy drops, ignores target evasion, and lets Normal/Fighting moves hit Ghost targets.
 - `No Guard`, `Compound Eyes`, `Sand Veil`, `Snow Cloak`: route through the shared accuracy gate.
 - `Poison Touch`: contact damage can poison the target.
+- `Regenerator`: successful switch-outs restore one third max HP rounded down through the shared switch hook.
 
 Resolved lower-impact or narrow gaps:
 - `Bulletproof`: blocks ballistic moves using Showdown flags plus local fallbacks.
@@ -55,5 +56,5 @@ Focused coverage:
 - `tests/ability_coverage_audit_tests.js`
 
 Known trust boundary:
-- The current spread-move accuracy path still uses one shared roll for the move. The new accuracy helper applies ability/stage/weather modifiers to that roll, but full per-target spread accuracy remains a mechanics-parity follow-up.
+- Spread moves now roll accuracy independently per target. Immunity-before-accuracy ordering and mixed-target ability interactions remain explicit case-level follow-ups.
 - Champion-specific differences must stay as explicit sourced overrides. If Showdown or secondary Champion sources change, the overview should show an update-needed state before any trust claim is upgraded.

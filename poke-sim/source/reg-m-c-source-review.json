@@ -1,0 +1,94 @@
+{
+  "schema_version": "champions-regulation-source-review-v1",
+  "package_id": "champions-reg-m-c-2026-source-review-v1",
+  "regulation_id": "champions_reg_m_c_2026",
+  "ruleset_version": "champions-reg-mc-source-review-v1",
+  "format_scope": ["singles", "doubles"],
+  "review_status": "needs_review",
+  "competitive_use": false,
+  "learning_eligible": false,
+  "observed_at_utc": "2026-09-08T00:52:48.095Z",
+  "official_notice": {
+    "url": "https://www.pokemon.com/us/news/get-ready-for-regulation-set-m-c-in-pokemon-champions",
+    "published_date": "2026-09-02",
+    "retrieved_sha256": "1559f6bc356ce1a507922f6e563ceb59f94a8e4935f6e43129b17e4a3b088a42",
+    "retrieved_bytes": 309739,
+    "effective_from_utc": "2026-09-09T02:00:00Z",
+    "effective_to_utc": "2026-12-02T01:59:00Z",
+    "confirmed_facts": [
+      "Pokemon eligible in previous regulation sets remain eligible.",
+      "Mega Salamence, Mega Golisopod and Mega Baxcalibur are newly named contenders.",
+      "Mega Absol Z, Mega Garchomp Z and Mega Lucario Z join as Z Mega Evolutions.",
+      "The update says 24 Pokemon will be newly available for battle and names Rillaboom as one example.",
+      "The complete roster is available only through Recruit, Recruit Pokemon, Roster Info, Pokemon Featured in This Roster."
+    ]
+  },
+  "named_additions": {
+    "mega_forms": [
+      "Salamence-Mega",
+      "Golisopod-Mega",
+      "Baxcalibur-Mega",
+      "Absol-Mega-Z",
+      "Garchomp-Mega-Z",
+      "Lucario-Mega-Z"
+    ],
+    "ordinary_species_examples": ["Rillaboom"],
+    "complete_new_species_list": null
+  },
+  "official_roster": {
+    "capture": "source/reg-m-c-official-roster.json",
+    "notice_url": "https://champions-news.pokemon-home.com/en/page/816.html",
+    "roster_url": "https://web-view.app.pokemonchampions.jp/battle/pages/events/rs178713870219xeaaio/en/pokemon.html",
+    "captured_rows": 262,
+    "status": "captured_identity_reconciliation_required",
+    "open_identity": "Maushold changes official ID from 0925-000 to 0925-001; do not silently substitute forms."
+  },
+  "showdown_observation": {
+    "repository": "https://github.com/smogon/pokemon-showdown",
+    "master_commit": "efe4948570d5e8189751792136d26e71710c6c66",
+    "format_status": "m_c_reference_formats_present_not_approved",
+    "candidate_data_status": "isolated_pinned_inventory_and_set_probes",
+    "reference_capture": "source/reg-m-c-reference-intake.json",
+    "mc_mod": "champions",
+    "historical_mb_mod": "championsregmb",
+    "runtime_reference_upgraded": false,
+    "notes": ["M-C BSS, VGC and VGC Bo3 reference formats now exist.", "Seven individual-set probes pass under each M-C format and reject under the corresponding historical M-B format. These are not complete-team or official in-game tests.", "Do not upgrade the installed reference without migrating historical mod routing."]
+  },
+  "historical_showdown_observation_2026_09_08": {
+    "repository": "https://github.com/smogon/pokemon-showdown",
+    "master_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+    "observed_at_utc": "2026-09-08T00:52:48.095Z",
+    "format_status": "m_c_format_not_present",
+    "aliases_status": "champions_vgc_alias_still_targets_m_b",
+    "candidate_data_status": "partial_upstream_rows_only",
+    "candidate_commit": "7340ea497118a6752336d735e193cdf89a1adb5f",
+    "notes": [
+      "Showdown master contains species, item and Ability candidate rows for the six named Mega forms.",
+      "Aura Guard halves contact damage in the observed upstream implementation; this is mechanics-reference data, not official Champions proof.",
+      "The installed reference package remains pinned and must not be silently upgraded when master changes."
+    ]
+  },
+  "sprite_observation": {
+    "base_url": "https://play.pokemonshowdown.com/sprites/",
+    "observed_at_utc": "2026-09-08T00:52:48.095Z",
+    "exact_assets": {
+      "Salamence-Mega": "available_ani_and_gen5",
+      "Golisopod-Mega": "missing_ani_and_gen5",
+      "Baxcalibur-Mega": "missing_ani_and_gen5",
+      "Absol-Mega-Z": "missing_ani_and_gen5",
+      "Garchomp-Mega-Z": "missing_ani_and_gen5",
+      "Lucario-Mega-Z": "missing_ani_and_gen5"
+    },
+    "runtime_policy": "Use the exact sprite when present; otherwise label and render the base-form fallback. Sprite availability never proves legality."
+  },
+  "required_before_promotion": [
+    "Reconcile all 262 captured official roster IDs, including Maushold's changed form ID, and confirm format scope.",
+    "Capture in-game rules, team size, bring size, level, clauses and timers.",
+    "Capture and normalize all newly available species/forms, Mega Stones, moves, Abilities and items.",
+    "Compare every normalized row with the pinned Showdown baseline and review Champion overrides.",
+    "Add accepted and rejected in-game team fixtures for each legality boundary.",
+    "Verify Mega and Z Mega timing, item requirements, types, stats, Abilities and edge interactions in Champions.",
+    "Acquire or approve exact sprite assets and preserve labeled base-form fallbacks where exact assets are unavailable.",
+    "Publish an immutable reviewed package digest and bind saved battles to that exact version."
+  ]
+}

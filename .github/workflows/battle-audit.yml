@@ -1,0 +1,43 @@
+name: Battle Audit
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  battle-audit:
+    name: Mechanics fixtures, parity, golden traces, and seeded stress
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: poke-sim/package-lock.json
+
+      - name: Install dependencies
+        working-directory: poke-sim
+        run: npm ci
+
+      - name: Run declared battle audit
+        working-directory: poke-sim
+        run: npm run test:battle-audit -- --report battle-audit-report.json
+
+      - name: Upload battle evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: battle-audit-${{ github.sha }}
+          if-no-files-found: warn
+          path: |
+            poke-sim/battle-audit-report.json
+            poke-sim/tests/audit_matrix.json
+          retention-days: 30

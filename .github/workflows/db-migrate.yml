@@ -20,15 +20,17 @@ jobs:
     name: Apply Supabase Migration
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      SUPABASE_DB_URL_T: ${{ secrets.SUPABASE_DB_URL_T }}
-      SUPABASE_DB_URL_P: ${{ secrets.SUPABASE_DB_URL_P }}
-      SUPABASE_DB_URL_FALLBACK: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      PGSSLROOTCERT: ${{ github.workspace }}/.github/certs/prod-ca-2021.crt
+    environment: production
     steps:
       - uses: actions/checkout@v7
+
+      - name: Require main branch
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Production migrations may only run from main."
+            exit 1
+          fi
 
       - name: Install PostgreSQL client
         run: |
@@ -38,9 +40,16 @@ jobs:
 
       - name: Validate migration input
         id: migration
+        env:
+          MIGRATION_FILENAME: ${{ inputs.migration }}
         run: |
           set -euo pipefail
-          migration="${{ inputs.migration }}"
+          migration="$MIGRATION_FILENAME"
+
+          if [[ ! "$migration" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*\.sql$ ]]; then
+            echo "::error::Migration must be a simple SQL filename."
+            exit 1
+          fi
 
           case "$migration" in
             /*|*..*|*/*)
@@ -59,20 +68,38 @@ jobs:
           echo "filename=$migration" >> "$GITHUB_OUTPUT"
 
       - name: Apply migration
+        env:
+          SUPABASE_DB_URL_P: ${{ secrets.SUPABASE_DB_URL_P }}
+          PGSSLROOTCERT: ${{ github.workspace }}/.github/certs/prod-ca-2021.crt
         run: |
           set -euo pipefail
-          db_url="${SUPABASE_DB_URL_T:-${SUPABASE_DB_URL_P:-${SUPABASE_DB_URL_FALLBACK:-}}}"
-          if [ -z "$db_url" ]; then
-            echo "::error::Missing SUPABASE_DB_URL_T, SUPABASE_DB_URL_P, or SUPABASE_DB_URL repository secret"
+          if [ -z "${SUPABASE_DB_URL_P:-}" ]; then
+            echo "::error::Missing production-scoped SUPABASE_DB_URL_P secret"
             exit 1
           fi
 
-          psql "$db_url" \
-            --set ON_ERROR_STOP=1 \
-            --file "${{ steps.migration.outputs.path }}"
+          path="${{ steps.migration.outputs.path }}"
+          has_begin=false
+          has_commit=false
+          grep -Eiq '^[[:space:]]*BEGIN[[:space:]]*;' "$path" && has_begin=true
+          grep -Eiq '^[[:space:]]*COMMIT[[:space:]]*;' "$path" && has_commit=true
+
+          if [ "$has_begin" != "$has_commit" ]; then
+            echo "::error::Migration must contain both BEGIN and COMMIT, or neither."
+            exit 1
+          fi
+
+          if [ "$has_begin" = true ]; then
+            psql "$SUPABASE_DB_URL_P" --set ON_ERROR_STOP=1 --file "$path"
+          else
+            psql "$SUPABASE_DB_URL_P" --set ON_ERROR_STOP=1 --single-transaction --file "$path"
+          fi
 
       - name: Verify Reg M-A prior snapshot
         if: ${{ steps.migration.outputs.filename == '2026_05_12_align_reg_ma_meta_sources.sql' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then

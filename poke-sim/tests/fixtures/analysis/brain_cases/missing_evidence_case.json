@@ -1,0 +1,11 @@
+{
+  "case_id": "brain_case_missing_evidence_v1",
+  "case_type": "missing_evidence",
+  "analysis_type": "team-review",
+  "description": "Brain output must fail when a major claim has no evidence IDs.",
+  "expected_properties": {
+    "must_fail_validation": true,
+    "must_include_error_code": "MAJOR_CLAIM_EVIDENCE_MISSING",
+    "must_include_card": "major_threats"
+  }
+}

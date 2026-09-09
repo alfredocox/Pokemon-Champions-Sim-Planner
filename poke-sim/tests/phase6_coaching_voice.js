@@ -66,9 +66,13 @@ vm.createContext(ctx);
 
 function load(file) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), ctx, { filename: file });
+  if (file === 'move_legality.js') ctx.window.ChampionsSim = ctx.ChampionsSim;
 }
 
 load('data.js');
+load('generated/pokemon_showdown_legal_data.js');
+load('generated/champions_move_pools.js');
+load('move_legality.js');
 load('logger.js');
 try { load('legality.js'); } catch (_) {}
 load('engine.js');
@@ -128,14 +132,15 @@ T('T6-2 coachPost win debrief avoids blame language', () => {
   truthy(!/should have|you misplayed|you need to/i.test(out), 'blame language leaked');
 });
 
-T('T6-3 RNG-blame gate neutralizes loss framing', () => {
+T('T6-3 nearby random events do not establish an outcome cause', () => {
   const rngLog = [
     { turn: 4, events: [{ text: 'A critical hit!' }], post: { position_score: 0.51 }, delta: { position_score: 0 } },
     { turn: 5, swingTurn: true, events: [{ text: 'Mon used Hydro Pump! It missed!' }], post: { position_score: 0.22 }, delta: { position_score: -0.29 } }
   ];
   truthy(ctx.isRNGBlame(rngLog, 5), 'RNG gate did not trigger');
   const out = ctx.coachPost({ wins: 0, losses: 1, draws: 0, winRate: 0, turnLog: rngLog, turning_point: { turn: 5 } });
-  eq((out.match(/\bRNG\b/g) || []).length, 1, 'RNG mention count');
+  eq((out.match(/\bRNG\b/g) || []).length, 0, 'unsupported RNG cause');
+  truthy(/Not established/.test(out), 'causal uncertainty missing');
   truthy(!/you misplayed|should have/i.test(out), 'loss blame leaked');
 });
 
@@ -170,7 +175,8 @@ T('T7 tournament-claim regex blocks overclaim phrases', () => {
 T('T8 permanent epistemic footer present on PRE and POST', () => {
   [ctx.coachPre('player', 'mega_altaria', { result: sampleResult() }), ctx.coachPost(sampleResult())].forEach(out => {
     truthy(/AI-vs-AI simulations/.test(out), 'AI footer missing');
-    truthy(/Battle-tested\. Always evolving\./.test(out), 'tagline missing');
+    truthy(/not verified real-game performance/.test(out), 'evidence limit missing');
+    truthy(!/Battle-tested/.test(out), 'unverified tagline returned');
   });
 });
 

@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -27,6 +27,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
+          cache: npm
+          cache-dependency-path: poke-sim/package-lock.json
 
       - name: Validate Champion sim artifact before deploy
         env:
@@ -39,17 +41,15 @@ jobs:
             export RUN_LIVE_DB=1
             echo "Live Supabase seed parity enabled for Pages deploy."
           else
-            unset SUPABASE_URL
-            unset SUPABASE_ANON_KEY
-            unset SUPABASE_KEY
-            unset RUN_LIVE_DB
-            echo "::warning::Supabase anon secrets missing; Pages deploy seed parity will run local-only."
+            echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY are required for production Pages deploys."
+            exit 1
           fi
+          cd poke-sim
+          npm ci
+          # Includes source-truth, legality and bundle contract suites once.
+          npm run test:fast
+          cd ..
           node poke-sim/tests/db_m2_seed_tests.js
-          node poke-sim/tests/champion_pack_legality_tests.js
-          node poke-sim/tests/preloaded_team_legality_tests.js
-          node poke-sim/tests/t9j11_tests.js
-          node poke-sim/tests/bundle_load_order_tests.js
           bash poke-sim/tools/check-bundle.sh
 
       - uses: actions/configure-pages@v6
@@ -64,8 +64,8 @@ jobs:
           set -euo pipefail
 
           if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
-            echo "::warning::SUPABASE_URL or SUPABASE_ANON_KEY is missing; deployed site will run local-only."
-            exit 0
+            echo "::error::SUPABASE_URL and SUPABASE_ANON_KEY are required for production Pages deploys."
+            exit 1
           fi
 
           python3 - <<'PY'
@@ -137,11 +137,47 @@ jobs:
           mkdir -p pages-dist/poke-sim
           cp index.html pages-dist/index.html
           cp .nojekyll pages-dist/.nojekyll
-          cp -R poke-sim/. pages-dist/poke-sim/
+          runtime_files=(
+            index.html pokemon-champion-2026.html style.css manifest.json sw.js
+            icon-192.png icon-512.png local-credentials.js release_manifest.js
+            app_shell.js data.js engine.js legality_evidence_package.js legality.js
+            logger.js move_legality.js move_support.js regmb_source_conversion.js
+            replay_coach.js replay_import_service.js replay_learning.js rulesets.js
+            runtime_data.js sim_evidence.js source_truth.js storage_adapter.js
+            strategy-injectable.js supabase_adapter.js team_lab.js ui.js
+          )
+          for file in "${runtime_files[@]}"; do
+            install -m 0644 "poke-sim/$file" "pages-dist/poke-sim/$file"
+          done
+          cp -R poke-sim/assets pages-dist/poke-sim/assets
+          mkdir -p pages-dist/poke-sim/generated
+          generated_files=(
+            news_feed.js pokemon_showdown_legal_data.js champions_move_overrides.js
+            champions_move_pools.js
+            pokemon_showdown_species_weights.js release_artifact.json
+            source_registry.js source_sync_status.js tournament_catalog.js
+            project_roadmap.js
+          )
+          for file in "${generated_files[@]}"; do
+            install -m 0644 "poke-sim/generated/$file" "pages-dist/poke-sim/generated/$file"
+          done
+          test ! -e pages-dist/poke-sim/tests
+          test ! -e pages-dist/poke-sim/db
+          test ! -e pages-dist/poke-sim/reports
+          test ! -e pages-dist/poke-sim/docs
+
+      - name: Verify staged external release assets
+        run: node poke-sim/tools/verify-release-assets.cjs pages-dist/poke-sim
 
       - uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: pages-dist
 
       - id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+          timeout: 600000
+          error_count: 30
+          reporting_interval: 10000

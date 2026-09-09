@@ -1,0 +1,271 @@
+{
+  "schema_version": "champions-source-inventory-v1",
+  "reviewed_at": "2026-08-29",
+  "policy": {
+    "automatic_collection": "Public official pages and approved executable baselines may be fetched for metadata, hashes, and structured candidate facts.",
+    "promotion": "No fetched fact changes runtime data until source scope, reviewer decision, Champion override status, and regression coverage are recorded.",
+    "copyright": "Do not commit or republish full third-party page bodies. Store source pointers, hashes, small structured facts, and reviewer notes.",
+    "unknowns": "Missing or conflicting facts remain needs_verification."
+  },
+  "public_sources": [
+    {
+      "source_id": "champions_official_home",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://champions.pokemon.com/en-us/",
+      "kind": "official_product",
+      "cadence": "weekly",
+      "required": true,
+      "claim_scopes": ["product", "platforms", "official_news_links"]
+    },
+    {
+      "source_id": "champions_official_gameplay",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://champions.pokemon.com/en-us/gameplay/",
+      "kind": "official_gameplay",
+      "cadence": "weekly",
+      "required": true,
+      "claim_scopes": ["battle_modes", "formats", "mega_evolution", "seasons", "regulations"]
+    },
+    {
+      "source_id": "champions_official_pokemon",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://champions.pokemon.com/en-us/pokemon/",
+      "kind": "official_roster_policy",
+      "cadence": "weekly",
+      "required": true,
+      "claim_scopes": ["home_transfer", "training", "move_replacement", "forms", "recruitment"]
+    },
+    {
+      "source_id": "champions_official_news",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://champions.pokemon.com/en-us/news/",
+      "kind": "official_news_index",
+      "cadence": "daily",
+      "required": true,
+      "claim_scopes": ["regulation_notices", "patches", "events", "official_article_discovery"]
+    },
+    {
+      "source_id": "pokemon_reg_m_b_notice",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://www.pokemon.com/us/pokemon-news/regulation-set-m-b-kicks-off-a-new-ranked-battles-season-and-battle-pass-in-pokemon-champions",
+      "kind": "official_regulation_notice",
+      "cadence": "weekly",
+      "required": true,
+      "claim_scopes": ["regulation_id", "effective_dates", "new_species", "mega_stones", "ranked_season"]
+    },
+    {
+      "source_id": "pokemon_reg_m_b_strategy",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://www.pokemon.com/us/features/pokemon-champions-regulation-m-b-double-battles-overview",
+      "kind": "official_strategy",
+      "cadence": "weekly",
+      "required": true,
+      "claim_scopes": ["regulation_context", "official_strategy_examples", "named_species", "named_moves", "named_items"]
+    },
+    {
+      "source_id": "pokemon_reg_m_c_notice",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://www.pokemon.com/us/news/get-ready-for-regulation-set-m-c-in-pokemon-champions",
+      "kind": "official_regulation_notice",
+      "cadence": "daily",
+      "required": true,
+      "claim_scopes": ["regulation_id", "effective_dates", "inheritance_policy", "named_species", "named_mega_forms", "in_game_roster_location"]
+    },
+    {
+      "source_id": "champions_reg_mc_game_notice",
+      "owner": "The Pokemon Company",
+      "tier": 0,
+      "url": "https://champions-news.pokemon-home.com/en/page/816.html",
+      "kind": "official_regulation_notice",
+      "cadence": "daily",
+      "required": true,
+      "claim_scopes": ["regulation_id", "effective_dates", "eligible_roster_link", "mega_rules", "item_clause", "timers"]
+    },
+    {
+      "source_id": "champions_reg_mc_official_roster",
+      "owner": "The Pokemon Company",
+      "tier": 0,
+      "url": "https://web-view.app.pokemonchampions.jp/battle/pages/events/rs178713870219xeaaio/en/pokemon.html",
+      "kind": "official_roster",
+      "cadence": "daily",
+      "required": true,
+      "claim_scopes": ["eligible_species", "official_form_ids"]
+    },
+    {
+      "source_id": "play_pokemon_vgc_handbook",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://mcdn.pokemon.com/pokemon-prod/raw/upload/v1/live/static-assets/content-assets/cms2/pdf/play-pokemon/rules/play-pokemon-vgc-tournament-handbook-en.pdf",
+      "kind": "official_rules_pdf",
+      "cadence": "weekly",
+      "required": true,
+      "claim_scopes": ["team_construction", "item_clause", "species_clause", "level", "forms", "moves", "abilities", "team_list", "event_rules"]
+    },
+    {
+      "source_id": "pokemon_home_move",
+      "owner": "The Pokemon Company",
+      "tier": 0,
+      "url": "https://home.pokemon.com/en-us/move/",
+      "kind": "official_transfer_policy",
+      "cadence": "weekly",
+      "required": true,
+      "claim_scopes": ["home_transfer", "origin_restrictions", "move_replacement", "promotional_species", "promotional_mega_stones"]
+    },
+    {
+      "source_id": "pokemon_support_champions",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://support.pokemon.com/hc/en-us/articles/34698966331668-Pok%C3%A9mon-Champions-Support",
+      "kind": "official_support",
+      "cadence": "weekly",
+      "required": false,
+      "claim_scopes": ["support", "official_support_links", "known_issue_discovery"]
+    },
+    {
+      "source_id": "pokemon_support_home_moves",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://support.pokemon.com/hc/en-us/articles/6372731346452-Why-did-my-Pok%C3%A9mon-s-moves-change",
+      "kind": "official_support",
+      "cadence": "monthly",
+      "required": false,
+      "claim_scopes": ["home_move_replacement", "per_game_movesets"]
+    },
+    {
+      "source_id": "championships_official",
+      "owner": "The Pokemon Company International",
+      "tier": 0,
+      "url": "https://championships.pokemon.com/",
+      "kind": "official_competition",
+      "cadence": "weekly",
+      "required": false,
+      "claim_scopes": ["championship_events", "transition_notices", "results"]
+    }
+  ],
+  "manual_captures": [
+    {
+      "source_id": "champions_client_build",
+      "tier": 0,
+      "kind": "official_client_capture",
+      "required": true,
+      "capture": "Game version/build screen with platform, locale, and UTC timestamp.",
+      "claim_scopes": ["client_version", "effective_data_version"]
+    },
+    {
+      "source_id": "champions_client_regulation",
+      "tier": 0,
+      "kind": "official_client_capture",
+      "required": true,
+      "capture": "Every page of the active regulation details for Singles and Doubles.",
+      "claim_scopes": ["regulation_id", "dates", "team_size", "bring_size", "level", "clauses", "timers", "eligible_roster"]
+    },
+    {
+      "source_id": "champions_client_roster",
+      "tier": 0,
+      "kind": "official_client_capture",
+      "required": true,
+      "capture": "Complete Roster Info/featured Pokemon pages, including forms and Mega forms.",
+      "claim_scopes": ["champion_species", "champion_forms", "recruitment_availability"]
+    },
+    {
+      "source_id": "champions_client_training",
+      "tier": 0,
+      "kind": "official_client_capture",
+      "required": true,
+      "capture": "Per-species training availability for moves and Abilities, sampled exhaustively by roster automation or reviewed capture.",
+      "claim_scopes": ["champion_learnsets", "champion_abilities", "move_availability"]
+    },
+    {
+      "source_id": "champions_client_items",
+      "tier": 0,
+      "kind": "official_client_capture",
+      "required": true,
+      "capture": "Complete held-item, Mega Stone, reward, and item-description inventory.",
+      "claim_scopes": ["champion_items", "item_availability", "mega_stones", "item_descriptions"]
+    },
+    {
+      "source_id": "champions_client_species_details",
+      "tier": 0,
+      "kind": "official_client_capture",
+      "required": true,
+      "capture": "Species/form type, displayed stats, weight, Ability, move, and Mega details with controlled training inputs.",
+      "claim_scopes": ["champion_stats", "types", "weight", "forms", "mega_stats", "mega_types", "mega_abilities"]
+    },
+    {
+      "source_id": "champions_client_validation_cases",
+      "tier": 0,
+      "kind": "official_client_capture",
+      "required": true,
+      "capture": "Known accepted and rejected teams covering species, form, duplicate species/item, move, Ability, and Mega constraints.",
+      "claim_scopes": ["legality_fixtures", "validator_messages"]
+    }
+  ],
+  "baseline_manifests": [
+    {
+      "source_id": "pokemon_showdown_manifest",
+      "tier": 2,
+      "path": "tools/showdown_sources.json",
+      "kind": "executable_baseline",
+      "required": true,
+      "claim_scopes": ["species", "forms", "stats", "types", "moves", "abilities", "items", "learnsets", "typechart", "aliases", "baseline_mechanics"]
+    }
+  ],
+  "field_inventory": [
+    {
+      "entity": "species_form",
+      "fields": ["canonical_id", "name", "base_species", "forme", "national_dex", "types", "base_stats", "abilities", "weight_kg", "gender", "required_item", "mega_evolution"],
+      "baseline": "pokemon_showdown_manifest",
+      "champion_authority": ["champions_client_roster", "champions_client_species_details"],
+      "promotion_rule": "Showdown baseline plus reviewed Champion override; roster legality requires client/official proof."
+    },
+    {
+      "entity": "move",
+      "fields": ["canonical_id", "name", "type", "category", "base_power", "accuracy", "priority", "pp", "target", "flags", "secondary_effects", "recoil", "drain", "description"],
+      "baseline": "pokemon_showdown_manifest",
+      "champion_authority": ["champions_client_training", "champions_client_species_details"],
+      "promotion_rule": "Static row parity is separate from executable mechanics parity."
+    },
+    {
+      "entity": "ability",
+      "fields": ["canonical_id", "name", "description", "flags", "event_hooks", "species_forms"],
+      "baseline": "pokemon_showdown_manifest",
+      "champion_authority": ["champions_client_training", "champions_client_species_details"],
+      "promotion_rule": "Availability and behavior must be reviewed separately."
+    },
+    {
+      "entity": "item",
+      "fields": ["canonical_id", "name", "description", "fling_power", "berry", "mega_stone", "required_species", "consumption", "event_hooks"],
+      "baseline": "pokemon_showdown_manifest",
+      "champion_authority": ["champions_client_items", "play_pokemon_vgc_handbook"],
+      "promotion_rule": "Obtainability, legality, and mechanical behavior are distinct facts."
+    },
+    {
+      "entity": "learnset",
+      "fields": ["species_form_id", "move_id", "source_method", "event_only", "champions_trainable"],
+      "baseline": "pokemon_showdown_manifest",
+      "champion_authority": ["champions_client_training", "champions_official_pokemon", "pokemon_home_move"],
+      "promotion_rule": "HOME compatibility does not prove Champions move availability."
+    },
+    {
+      "entity": "battle_rules",
+      "fields": ["regulation_id", "format", "effective_from", "effective_to", "registered_team_size", "bring_size", "level", "species_clause", "item_clause", "mechanics", "timers"],
+      "baseline": "pokemon_showdown_manifest",
+      "champion_authority": ["champions_client_regulation", "play_pokemon_vgc_handbook", "pokemon_reg_m_b_notice"],
+      "promotion_rule": "Event rules may differ from Ranked Battles; scope every row."
+    },
+    {
+      "entity": "mechanics",
+      "fields": ["turn_order", "priority", "speed", "damage", "targeting", "switching", "fainting", "status", "weather", "terrain", "items", "abilities", "mega_evolution", "rng"],
+      "baseline": "pokemon_showdown_manifest",
+      "champion_authority": ["champions_client_build", "champions_client_validation_cases"],
+      "promotion_rule": "Requires executable oracle/replay fixture or explicit official statement; descriptive rows alone are insufficient."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "case_id": "brain_case_illegal_suggestion_v1",
+  "case_type": "illegal_suggestion",
+  "analysis_type": "team-review",
+  "description": "Brain output must fail if a recommendation backed by illegal evidence is marked legal.",
+  "expected_properties": {
+    "must_fail_validation": true,
+    "must_include_error_code": "ILLEGAL_SUGGESTION_MARKED_LEGAL",
+    "must_include_card": "recommended_changes"
+  }
+}

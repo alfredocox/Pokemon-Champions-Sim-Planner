@@ -295,3 +295,14 @@ Default policy:
 - Private teams stay personal-only.
 
 A disabled admin QA reset control is visible in Team Lab so the test workflow is planned, but public browser users still cannot mutate ranking evidence. The real reset action must run through a trusted admin/server workflow and record an audit reason.
+
+## 2026-07-04 update: browser-capped evidence and leaderboard promotion
+
+Team Lab must treat browser-capped runs as simulator evidence with explicit scope, not as absolute ladder truth.
+
+Promotion requirements:
+- regulation_id, format, engine_version, ruleset_version, bo, requested_series, executed_series, estimated_game_budget, and stale status are required.
+- Illegal teams are excluded.
+- needs_verification teams remain experimental.
+- Capped runs can inform confidence, but the UI/API must expose that the run was capped or browser-budgeted.
+- Adaptive Bo policy changes stale older leaderboard entries because selected 3/4 lineup behavior affects match results.

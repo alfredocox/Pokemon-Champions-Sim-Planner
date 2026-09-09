@@ -1,0 +1,38 @@
+{
+  "schema_version": "champions-accuracy-harness-v1",
+  "warning_budget": 0,
+  "regulations": [
+    {
+      "id": "champions_custom_practice",
+      "version": "champions-practice-v1",
+      "status": "experimental",
+      "runtime_promotable": false,
+      "harness_lane": "practice_mechanics_only",
+      "formats": ["singles", "doubles"]
+    },
+    {
+      "id": "champions_reg_m_a_2026",
+      "version": "champions-reg-ma-2026-v1",
+      "status": "historical",
+      "runtime_promotable": true,
+      "harness_lane": "historical_doubles_mechanics",
+      "formats": ["doubles"]
+    },
+    {
+      "id": "champions_reg_m_b_2026",
+      "version": "champions-reg-mb-source-review-v1",
+      "status": "source_review",
+      "runtime_promotable": false,
+      "harness_lane": "blocked_source_review",
+      "formats": []
+    },
+    {
+      "id": "champions_reg_m_c_2026",
+      "version": "champions-reg-mc-source-review-v1",
+      "status": "source_review",
+      "runtime_promotable": false,
+      "harness_lane": "blocked_source_review",
+      "formats": []
+    }
+  ]
+}

@@ -73,6 +73,8 @@ function load(f) { vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), 
 load('data.js');
 load('engine.js');
 load('ui.js');
+// Synthetic sweep fixtures, not reviewed regulation evidence.
+ctx.canRunRegulationAnalysis = () => true;
 
 // Expose the helpers we want to assert on.
 vm.runInContext([

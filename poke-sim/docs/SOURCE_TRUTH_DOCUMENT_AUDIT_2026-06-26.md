@@ -265,3 +265,11 @@ The app should not claim top-tier sim credibility until it can prove:
 - replay and sim logs expose the tactical evidence used by coaching,
 - coaching claims are confidence-labeled and never exceed their evidence,
 - QA artifacts can reproduce the proof after every release.
+
+## 2026-07-04 validation note: simulator policy versus Champion truth
+
+The adaptive Bo lineup layer and browser run budget are simulator product policies, not new Pokemon Champion legality facts.
+
+- Champion legality remains source-bound and unknown rows must stay needs_verification.
+- Bo3/Bo5 lineup adaptation reflects competitive set play from a locked registered six; it should be tested against replay evidence where possible.
+- Large run counts are evidence volume, not source truth. A 5,000-series or 10,000-series run still needs engine_version, ruleset_version, regulation_id, sample size, and stale handling.

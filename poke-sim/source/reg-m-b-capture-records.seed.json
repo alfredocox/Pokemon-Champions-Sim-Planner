@@ -1,0 +1,378 @@
+[
+  {
+    "capture_id": "C001",
+    "title": "Regulation M-B rules screen",
+    "evidence_type": "in_game_screenshot_or_video",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C001_reg_mb_rules_screen_YYYYMMDD_platform_vNN.png",
+    "required_claims": [
+      "Pokémon Champions has a Regulation Set M-B rules screen and the report's rule summary matches it."
+    ],
+    "fields_to_extract": [
+      "regulation_name",
+      "format",
+      "battle_type",
+      "duration",
+      "eligible_roster_rule",
+      "item_rule",
+      "mega_rule",
+      "timers",
+      "bans",
+      "update/version if visible"
+    ],
+    "source_ids": [
+      "SRC-INGAME-001",
+      "SRC-OFFICIAL-003",
+      "SRC-OFFICIAL-004"
+    ],
+    "notes": "Most important capture. Do not summarize M-B from secondary sources.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C002",
+    "title": "Official Regulation M-B announcement context",
+    "evidence_type": "official_web_capture",
+    "credibility_tier": "primary_official",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C002_official_reg_mb_news_YYYYMMDD_vNN.png",
+    "required_claims": [
+      "Regulation Set M-B is an official Pokémon Champions Ranked Battles regulation and Battle Pass season item."
+    ],
+    "fields_to_extract": [
+      "article_title",
+      "publish_date",
+      "official_url",
+      "M-B label",
+      "duration text if visible"
+    ],
+    "source_ids": [
+      "SRC-OFFICIAL-003",
+      "SRC-OFFICIAL-004"
+    ],
+    "notes": "Use official site screenshot if article content is blocked by automation.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C003",
+    "title": "Eligible Pokémon list overview",
+    "evidence_type": "in_game_video_preferred",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C003_eligible_roster_scroll_YYYYMMDD_platform_vNN.mp4",
+    "required_claims": [
+      "The report's eligible Pokémon roster is derived from the in-game Regulation M-B list."
+    ],
+    "fields_to_extract": [
+      "all_species_names",
+      "forms",
+      "page_number_or_scroll_position",
+      "regulation_name"
+    ],
+    "source_ids": [
+      "SRC-INGAME-002"
+    ],
+    "notes": "Prefer continuous scroll video over individual screenshots.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C004",
+    "title": "Eligible forms detail",
+    "evidence_type": "in_game_screenshot_set",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C004_forms_detail_YYYYMMDD_platform_pageNN.png",
+    "required_claims": [
+      "Specific forms included/excluded in the report match the in-game Regulation M-B list."
+    ],
+    "fields_to_extract": [
+      "species",
+      "form_name",
+      "visual_form_indicator",
+      "eligible_status",
+      "page_reference"
+    ],
+    "source_ids": [
+      "SRC-INGAME-002"
+    ],
+    "notes": "Forms must be proven explicitly; do not infer forms from species names.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C005",
+    "title": "Mega eligibility under Regulation M-B",
+    "evidence_type": "in_game_screenshot_or_video",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C005_mega_eligibility_YYYYMMDD_platform_vNN.png",
+    "required_claims": [
+      "Mega-eligible Pokémon/forms in the report are allowed by Pokémon Champions under Regulation M-B."
+    ],
+    "fields_to_extract": [
+      "mega_species",
+      "mega_form",
+      "required_item",
+      "rule_text",
+      "regulation_name"
+    ],
+    "source_ids": [
+      "SRC-INGAME-003",
+      "SRC-OFFICIAL-002"
+    ],
+    "notes": "Official gameplay page supports Mega/Omni Ring generally; in-game UI must support exact M-B eligibility.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C006",
+    "title": "Omni Ring proof",
+    "evidence_type": "official_web_plus_in_game",
+    "credibility_tier": "primary_official_and_primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C006_omni_ring_YYYYMMDD_vNN.png",
+    "required_claims": [
+      "The Omni Ring is relevant to Mega Evolution in Pokémon Champions and/or visibly present in the account/team setup."
+    ],
+    "fields_to_extract": [
+      "Omni Ring text",
+      "screenshot source",
+      "player equipment state if applicable"
+    ],
+    "source_ids": [
+      "SRC-OFFICIAL-002",
+      "SRC-INGAME-003"
+    ],
+    "notes": "Not a substitute for Mega eligibility proof.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C007",
+    "title": "Mega Stone / held item proof",
+    "evidence_type": "in_game_screenshot_or_video",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C007_mega_stone_proof_YYYYMMDD_platform_slotNN.png",
+    "required_claims": [
+      "Any Mega Evolution claim tied to a team has the required in-game item/equipment proof."
+    ],
+    "fields_to_extract": [
+      "species",
+      "form",
+      "held_item",
+      "Mega Stone name",
+      "validation status",
+      "regulation_name"
+    ],
+    "source_ids": [
+      "SRC-INGAME-003"
+    ],
+    "notes": "Capture each Mega-relevant team slot.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C008",
+    "title": "Team accepted under Regulation M-B",
+    "evidence_type": "continuous_in_game_video_preferred",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C008_team_accepts_reg_mb_YYYYMMDD_platform_vNN.mp4",
+    "required_claims": [
+      "Pokémon Champions accepts at least one complete team under Regulation M-B."
+    ],
+    "fields_to_extract": [
+      "team_id",
+      "six slots or selected battle roster",
+      "species",
+      "forms",
+      "held_items",
+      "regulation_name",
+      "accepted_status"
+    ],
+    "source_ids": [
+      "SRC-INGAME-004"
+    ],
+    "notes": "Do not crop out the selected regulation or validation message.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C009",
+    "title": "Team rejected under Regulation M-B",
+    "evidence_type": "continuous_in_game_video_preferred",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C009_team_rejects_reg_mb_YYYYMMDD_platform_vNN.mp4",
+    "required_claims": [
+      "Pokémon Champions rejects an invalid team under Regulation M-B and gives a rejection reason."
+    ],
+    "fields_to_extract": [
+      "team_id",
+      "mutation_from_control",
+      "species",
+      "forms",
+      "held_items",
+      "regulation_name",
+      "rejected_status",
+      "rejection_reason_text"
+    ],
+    "source_ids": [
+      "SRC-INGAME-005",
+      "SRC-INGAME-001"
+    ],
+    "notes": "Best practice: clone accepted team, change exactly one rule-breaking element, then validate.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C010",
+    "title": "Game version / date / platform proof",
+    "evidence_type": "in_game_screenshot",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C010_version_date_platform_YYYYMMDD_platform_vNN.png",
+    "required_claims": [
+      "The capture set was recorded on a specific platform, version, and date while M-B was active."
+    ],
+    "fields_to_extract": [
+      "game_version",
+      "platform",
+      "account_region",
+      "capture_date",
+      "timezone",
+      "regulation_active_period if visible"
+    ],
+    "source_ids": [
+      "SRC-INGAME-001",
+      "SRC-OFFICIAL-003"
+    ],
+    "notes": "Useful for auditability, especially if rules rotate later.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C011",
+    "title": "Uncut continuity video",
+    "evidence_type": "continuous_video",
+    "credibility_tier": "primary_in_game",
+    "status": "not_captured",
+    "required_file_pattern": "captures/C011_uncut_reg_mb_evidence_session_YYYYMMDD_platform_vNN.mp4",
+    "required_claims": [
+      "Screenshots were taken from a continuous session and are not isolated/out-of-context images."
+    ],
+    "fields_to_extract": [
+      "start_time",
+      "end_time",
+      "capture_ids_covered",
+      "platform",
+      "regulation_name",
+      "team_validation_results"
+    ],
+    "source_ids": [
+      "SRC-INGAME-001",
+      "SRC-INGAME-002",
+      "SRC-INGAME-003",
+      "SRC-INGAME-004",
+      "SRC-INGAME-005"
+    ],
+    "notes": "Strongest credibility booster for the whole package.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  },
+  {
+    "capture_id": "C012",
+    "title": "Manual transcription QA",
+    "evidence_type": "derived_row",
+    "credibility_tier": "derived_from_primary",
+    "status": "pending_primary_captures",
+    "required_file_pattern": "data/extracted_claims_reg_mb.csv",
+    "required_claims": [
+      "Every extracted row has a traceable source, reviewer, and confidence level."
+    ],
+    "fields_to_extract": [
+      "claim_id",
+      "source_id",
+      "file",
+      "timestamp_or_page",
+      "exact_text",
+      "normalized_value",
+      "reviewer",
+      "confidence"
+    ],
+    "source_ids": [
+      "SRC-INGAME-001",
+      "SRC-INGAME-002",
+      "SRC-INGAME-003",
+      "SRC-INGAME-004",
+      "SRC-INGAME-005"
+    ],
+    "notes": "Codex should not fabricate these rows; generate them only after capture files exist.",
+    "capture_files": [],
+    "review": {
+      "reviewer": "TBD",
+      "review_date": "TBD",
+      "confidence": "TBD",
+      "blockers": []
+    }
+  }
+]

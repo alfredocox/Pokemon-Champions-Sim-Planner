@@ -1,0 +1,11 @@
+{
+  "case_id": "brain_case_missed_turning_point_feedback_v1",
+  "case_type": "missed_turning_point",
+  "analysis_type": "replay-review",
+  "description": "Missed turning-point feedback should produce a benchmark that keeps replay scope explicit.",
+  "expected_properties": {
+    "must_include_card": "replay_turning_point",
+    "must_mark_single_replay_observation": true,
+    "confidence_max": "medium"
+  }
+}

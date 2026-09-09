@@ -198,6 +198,40 @@ function stripStableFields(payload) {
     eq(res.summary.errors, 0, JSON.stringify(res.findings));
   });
 
+  T('6b. Gale Wings uses Showdown move type and exact full HP', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const actor = turn.pre.roster.player[0];
+    actor.ability = 'Gale Wings';
+    actor.calculatedStats = '300/1/1/1/1/60';
+    actor.hp_current = actor.hp_max = 300;
+    turn.pre.roster.opponent[0].calculatedStats = '100/1/1/1/1/90';
+    turn.actions.player[0].move = 'Dual Wingbeat';
+    turn.events = [{ text: 'Incineroar used Dual Wingbeat!' }, { text: 'Milotic used Scald!' }];
+    truthy(!validateTurnLogPayload(payload).findings.some(f => f.code === 'observed-action-order-mismatch'), 'full HP priority should precede faster neutral move');
+    actor.hp_current = 299;
+    truthy(validateTurnLogPayload(payload).findings.some(f => f.code === 'observed-action-order-mismatch'), 'rounded 100% must not grant priority when exact HP is missing one point');
+  });
+
+  T('6c. Pollen Puff cannot target its user after its ally faints', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const actor = turn.pre.roster.player[0];
+    const ally = turn.pre.roster.player[1];
+    turn.pre.active_stable_keys.player = [actor.stableKey, ally.stableKey];
+    turn.post.active_stable_keys.player = [actor.stableKey];
+    turn.actions.player = [{ actor: actor.species, actor_key: actor.stableKey, move: 'Pollen Puff', target: ally.species,
+      target_side: 'player', target_key: ally.stableKey }];
+    turn.actions.opponent = [];
+    turn.events = [{ text: actor.species + ' used Pollen Puff! (no valid target)' }];
+    truthy(!validateTurnLogPayload(payload).findings.some(f => f.code === 'no-valid-target-with-live-target'), 'self is not an eligible ally');
+    turn.post.active_stable_keys.player.push(ally.stableKey);
+    truthy(validateTurnLogPayload(payload).findings.some(f => f.code === 'no-valid-target-with-live-target'), 'a surviving eligible ally must still be flagged');
+    turn.actions.player[0].target_side = 'opponent';
+    turn.actions.player[0].target_key = turn.pre.roster.opponent[0].stableKey;
+    truthy(validateTurnLogPayload(payload).findings.some(f => f.code === 'no-valid-target-with-live-target'), 'enemy-targeted Pollen Puff must still be checked');
+  });
+
   T('7. observed action order rejects non-tied same-priority reversals', () => {
     const payload = stableFixture();
     const turn = payload.turnLog[0];
@@ -210,6 +244,133 @@ function stripStableFields(payload) {
     ];
     const res = validateTurnLogPayload(payload, { requireStable: true });
     truthy(res.findings.some(f => f.code === 'observed-action-order-mismatch' && f.reason === 'speed'), 'missing speed order mismatch');
+  });
+
+  T('7b. observed action order accepts a mid-turn Tailwind reorder supported by the post snapshot', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const incin = turn.pre.roster.player[0];
+    const milotic = turn.pre.roster.opponent[0];
+    const setter = Object.assign({}, milotic, {
+      displayName: 'Whimsicott', species: 'Whimsicott', ability: 'Prankster',
+      stableKey: 'player:slot:2:Whimsicott', key: 'player:active:1:Whimsicott'
+    });
+    turn.pre.roster.player.push(setter);
+    turn.post.roster.player.push(Object.assign({}, setter));
+    turn.actions.player[0].move = 'Knock Off';
+    turn.actions.player.push({ actor: 'Whimsicott', actor_key: setter.stableKey, move: 'Tailwind' });
+    turn.pre.speed_order_details = [
+      { stableKey: setter.stableKey, pokemon: 'Whimsicott', effective_speed: 184, tailwind: false },
+      { stableKey: milotic.stableKey, pokemon: 'Milotic', effective_speed: 168, tailwind: false },
+      { stableKey: incin.stableKey, pokemon: 'Incineroar', effective_speed: 88, tailwind: false }
+    ];
+    turn.post.speed_order_details = [
+      { stableKey: setter.stableKey, pokemon: 'Whimsicott', effective_speed: 368, tailwind: true },
+      { stableKey: incin.stableKey, pokemon: 'Incineroar', effective_speed: 176, tailwind: true },
+      { stableKey: milotic.stableKey, pokemon: 'Milotic', effective_speed: 168, tailwind: false }
+    ];
+    turn.events = [
+      { type: 'field', text: 'Whimsicott used Tailwind!' },
+      { type: 'log', text: 'Incineroar used Knock Off!' },
+      { type: 'log', text: 'Milotic used Scald!' }
+    ];
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(!res.findings.some(f => f.code === 'observed-action-order-mismatch'), JSON.stringify(res.findings));
+  });
+
+  T('7bb. a post-turn Speed snapshot cannot retroactively justify an impossible Agility order', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const incin = turn.pre.roster.player[0];
+    const milotic = turn.pre.roster.opponent[0];
+    turn.actions.player[0].move = 'Agility';
+    turn.pre.speed_order_details = [
+      { stableKey: milotic.stableKey, key: milotic.key, pokemon: 'Milotic', effective_speed: 168 },
+      { stableKey: incin.stableKey, key: incin.key, pokemon: 'Incineroar', effective_speed: 88 }
+    ];
+    turn.post.speed_order_details = [
+      { stableKey: incin.stableKey, key: incin.key, pokemon: 'Incineroar', effective_speed: 176 },
+      { stableKey: milotic.stableKey, key: milotic.key, pokemon: 'Milotic', effective_speed: 168 }
+    ];
+    turn.events = [
+      { type: 'log', text: 'Incineroar used Agility!' },
+      { type: 'log', text: 'Milotic used Scald!' }
+    ];
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(res.findings.some(f => f.code === 'observed-action-order-mismatch' && f.reason === 'speed'), 'post snapshot incorrectly justified Agility before the faster action');
+  });
+
+  T('7c. observed action order reconstructs Tailwind under Trick Room before end-turn expiry', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const incin = turn.pre.roster.player[0];
+    const milotic = turn.pre.roster.opponent[0];
+    const setter = Object.assign({}, milotic, {
+      displayName: 'Whimsicott',
+      species: 'Whimsicott',
+      ability: 'Prankster',
+      stableKey: 'opponent:slot:2:Whimsicott',
+      key: 'opponent:active:1:Whimsicott'
+    });
+    turn.pre.roster.opponent.push(setter);
+    turn.post.roster.opponent.push(Object.assign({}, setter));
+    turn.actions.player[0].move = 'Knock Off';
+    turn.actions.opponent = [
+      { actor: 'Milotic', actor_key: milotic.stableKey, move: 'Scald' },
+      { actor: 'Whimsicott', actor_key: setter.stableKey, move: 'Tailwind' }
+    ];
+    turn.pre.field = { trick_room: 1 };
+    turn.pre.speed_order_details = [
+      { side: 'player', stableKey: incin.stableKey, key: incin.key, pokemon: 'Incineroar', effective_speed: 102, tailwind: false },
+      { side: 'opponent', stableKey: milotic.stableKey, key: milotic.key, pokemon: 'Milotic', effective_speed: 92, tailwind: false },
+      { side: 'opponent', stableKey: setter.stableKey, key: setter.key, pokemon: 'Whimsicott', effective_speed: 168, tailwind: false }
+    ];
+    turn.post.field = { trick_room: 0 };
+    turn.post.speed_order_details = [
+      { side: 'opponent', stableKey: setter.stableKey, key: setter.key, pokemon: 'Whimsicott', effective_speed: 336, tailwind: true },
+      { side: 'opponent', stableKey: milotic.stableKey, key: milotic.key, pokemon: 'Milotic', effective_speed: 184, tailwind: true },
+      { side: 'player', stableKey: incin.stableKey, key: incin.key, pokemon: 'Incineroar', effective_speed: 102, tailwind: false }
+    ];
+    turn.events = [
+      { text: 'Whimsicott used Tailwind!' },
+      { text: 'Incineroar used Knock Off!' },
+      { text: 'Milotic used Scald!' }
+    ];
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(!res.findings.some(f => f.code === 'observed-action-order-mismatch'), JSON.stringify(res.findings));
+  });
+
+  T('7d. observed action order reconstructs a mid-turn paralysis Speed drop', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const incin = turn.pre.roster.player[0];
+    const milotic = turn.pre.roster.opponent[0];
+    const sneasler = Object.assign({}, milotic, {
+      displayName: 'Sneasler',
+      species: 'Sneasler',
+      stableKey: 'opponent:slot:2:Sneasler',
+      key: 'opponent:active:1:Sneasler'
+    });
+    turn.pre.roster.opponent.push(sneasler);
+    turn.post.roster.opponent.push(Object.assign({}, sneasler));
+    turn.actions.player[0].move = 'Knock Off';
+    turn.actions.opponent = [
+      { actor: 'Milotic', actor_key: milotic.stableKey, move: 'Scald' },
+      { actor: 'Sneasler', actor_key: sneasler.stableKey, move: 'Dire Claw' }
+    ];
+    turn.pre.speed_order_details = [
+      { side: 'opponent', stableKey: sneasler.stableKey, key: sneasler.key, pokemon: 'Sneasler', effective_speed: 170, status: '' },
+      { side: 'player', stableKey: incin.stableKey, key: incin.key, pokemon: 'Incineroar', effective_speed: 120, status: '' },
+      { side: 'opponent', stableKey: milotic.stableKey, key: milotic.key, pokemon: 'Milotic', effective_speed: 100, status: '' }
+    ];
+    turn.events = [
+      { text: 'Sneasler used Dire Claw!' },
+      { text: 'Incineroar was paralysed by Sneasler\'s Dire Claw!' },
+      { text: 'Milotic used Scald!' },
+      { text: 'Incineroar used Knock Off!' }
+    ];
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(!res.findings.some(f => f.code === 'observed-action-order-mismatch'), JSON.stringify(res.findings));
   });
 
   T('8. speed_order_details provide SP-aware order evidence over legacy name order', () => {
@@ -410,7 +571,51 @@ function stripStableFields(payload) {
     truthy(!res.findings.some(f => f.code === 'no-valid-target-with-live-target'), 'post-turn replacements should not make the earlier skip invalid');
   });
 
-  T('11c. observed action order uses side and stable keys for mirror species', () => {
+  T('11c. structured event identity resolves mirror-name no-valid-target actions', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const player = turn.pre.roster.player[0];
+    const opponent = turn.pre.roster.opponent[0];
+    turn.actions.player = [{
+      actor: player.name,
+      actor_key: player.stableKey,
+      kind: 'move',
+      move: 'Knock Off',
+      target: opponent.name,
+      target_key: opponent.stableKey,
+      target_side: 'opponent'
+    }];
+    turn.actions.opponent = [{
+      actor: player.name,
+      actor_key: opponent.stableKey,
+      kind: 'move',
+      move: 'Knock Off',
+      target: player.name,
+      target_key: player.stableKey,
+      target_side: 'player'
+    }];
+    turn.events = [{
+      type: 'log',
+      text: `${player.name} used Knock Off! (no valid target)`,
+      actor: player.name,
+      actor_key: player.stableKey,
+      side: 'player',
+      move: 'Knock Off',
+      target: opponent.name,
+      target_key: opponent.stableKey,
+      target_side: 'opponent'
+    }];
+
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(!res.findings.some(f => f.code === 'no-valid-target-actor-unresolved'), 'structured identity must resolve the acting side');
+    truthy(res.findings.some(f => f.code === 'no-valid-target-with-live-target'), 'resolved event must still be checked for a live target');
+
+    turn.events[0].actor_key = opponent.stableKey;
+    const contradicted = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(contradicted.findings.some(f => f.code === 'no-valid-target-actor-unresolved'), 'contradictory side and actor key must fail closed');
+  });
+
+  T('11d. observed action order uses side and stable keys for mirror species', () => {
     const payload = stableFixture();
     const turn = payload.turnLog[0];
     const playerIncin = Object.assign({}, baseRow('player', 'active', 0, 'Incineroar', 'Sitrus Berry', 'Intimidate', 0), {
@@ -481,6 +686,57 @@ function stripStableFields(payload) {
     const res = validateTurnLogPayload(payload, { requireStable: true });
     eq(res.summary.errors, 0, JSON.stringify(res.findings));
     truthy(!res.findings.some(f => f.code === 'observed-action-order-mismatch'), 'mirror Incineroar names should not corrupt speed order');
+  });
+
+  T('11e. identical mirror actions remain visible as an explicit identity ambiguity', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const mirror = Object.assign({}, turn.pre.roster.player[0], {
+      stableKey: 'opponent:slot:1:Incineroar', key: 'opponent:active:0:Incineroar'
+    });
+    turn.pre.roster.opponent[0] = mirror;
+    turn.post.roster.opponent[0] = Object.assign({}, mirror);
+    turn.actions.player[0].move = 'Protect';
+    turn.actions.opponent[0] = { actor: 'Incineroar', actor_key: mirror.stableKey, move: 'Protect' };
+    turn.events = [
+      { text: 'Incineroar used Protect!' },
+      { text: 'Incineroar used Protect!' }
+    ];
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(res.findings.some(f => f.code === 'observed-action-identity-ambiguous'), 'mirror action ambiguity was silently discarded');
+  });
+
+  T('11f. stable actor identity resolves identical mirror action text', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const player = turn.pre.roster.player[0];
+    const mirror = Object.assign({}, player, {
+      stableKey: 'opponent:slot:1:Incineroar', key: 'opponent:active:0:Incineroar'
+    });
+    turn.pre.roster.opponent[0] = mirror;
+    turn.post.roster.opponent[0] = Object.assign({}, mirror);
+    turn.actions.player[0] = { actor: 'Incineroar', actor_key: player.stableKey, move: 'Protect' };
+    turn.actions.opponent[0] = { actor: 'Incineroar', actor_key: mirror.stableKey, move: 'Protect' };
+    turn.events = [
+      { text: 'Incineroar used Protect!', actor_key: player.stableKey, side: 'player' },
+      { text: 'Incineroar used Protect!', actor_key: mirror.stableKey, side: 'opponent' }
+    ];
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(!res.findings.some(f => f.code === 'observed-action-identity-ambiguous'), 'stable identity still reported as ambiguous');
+  });
+
+  T('11g. structured action identity ignores repeated damage-detail text', () => {
+    const payload = stableFixture();
+    const turn = payload.turnLog[0];
+    const playerAction = turn.actions.player[0];
+    turn.events = [
+      { text: 'Incineroar used Knock Off!', actor: playerAction.actor, move: playerAction.move, actor_key: playerAction.actor_key, side: 'player' },
+      { text: 'Incineroar used Knock Off! -> Milotic [20 dmg]' },
+      { text: 'Milotic used Scald!', actor: 'Milotic', move: 'Scald', actor_key: turn.actions.opponent[0].actor_key, side: 'opponent' }
+    ];
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    eq(res.summary.errors, 0, JSON.stringify(res.findings));
+    truthy(!res.findings.some(f => f.code === 'observed-action-identity-ambiguous'), 'damage detail was mistaken for a second action');
   });
 
   T('12. calculated damage_events pass validation with modifier evidence', () => {
@@ -658,6 +914,21 @@ function stripStableFields(payload) {
     const res = validateTurnLogPayload(payload, { requireStable: true });
     truthy(res.findings.some(f => f.code === 'qa-coverage-total-mismatch' && f.field === 'turns'), 'missing QA coverage turn mismatch');
     truthy(res.findings.some(f => f.code === 'qa-coverage-total-mismatch' && f.field === 'damage_events'), 'missing QA coverage damage mismatch');
+  });
+
+  T('17. top-level turns fails when it drifts from turnLog evidence', () => {
+    const payload = stableFixture();
+    payload.schema_version = 'champions-turn-log-v2';
+    payload.turns = null;
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(res.findings.some(f => f.code === 'top-level-turn-count-mismatch' && f.field === 'turns'), 'missing top-level turns mismatch');
+  });
+
+  T('18. champions-turn-log-v2 requires top-level turns', () => {
+    const payload = stableFixture();
+    payload.schema_version = 'champions-turn-log-v2';
+    const res = validateTurnLogPayload(payload, { requireStable: true });
+    truthy(res.findings.some(f => f.code === 'top-level-turn-count-missing' && f.field === 'turns'), 'missing top-level turns required error');
   });
 
   console.log('\nturn log export validator:', pass + ' pass, ' + fail + ' fail\n');

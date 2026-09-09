@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "audit_version": "2026-09-02.1",
+  "scope": "Curated Champion doubles teams, imported-team shared paths, and explicitly supported simulator mechanics",
+  "edge_case_matrix": "battle_edge_case_matrix.json",
+  "claim_policy": {
+    "universal_accuracy_proven": false,
+    "showdown_is_baseline_not_champion_override": true,
+    "unknowns_block_authoritative_claims": true
+  },
+  "inventories": [
+    {
+      "id": "shipped-moves",
+      "scope": "Distinct moves used by shipped teams",
+      "status": "partial",
+      "source": "reports/move_support_audit.md",
+      "classification_test": "tests/move_support_audit_tests.js",
+      "declared_counts": { "total": 134, "verified": 123, "baseline": 11, "incomplete": 0 },
+      "known_gaps": ["Eleven baseline moves have metadata but insufficient dedicated behavior evidence."]
+    },
+    {
+      "id": "curated-abilities",
+      "scope": "Abilities used by curated teams and registered Champion Mega forms",
+      "status": "partial",
+      "source": "tests/fixtures/ability_gap_classification.json",
+      "classification_test": "tests/ability_coverage_audit_tests.js",
+      "declared_counts": { "total": 84, "modeled": 84, "unmodeled": 0 },
+      "known_gaps": ["The curated inventory is modeled, but it does not cover every importable ability or every ability interaction."]
+    },
+    {
+      "id": "supported-species-forms",
+      "scope": "Species/forms represented by generated Showdown data and shipped runtime teams",
+      "status": "partial",
+      "source": "generated/pokemon_showdown_legal_data.js",
+      "classification_test": "tests/pokemon_data_audit_tests.js",
+      "known_gaps": ["Not every import-enabled species/form has an executable battle-stat and transformation fixture."]
+    },
+    {
+      "id": "held-items",
+      "scope": "Held items used by shipped and imported teams",
+      "status": "gap",
+      "source": "generated/pokemon_showdown_legal_data.js",
+      "classification_test": "tests/items_tests.js",
+      "known_gaps": ["No complete item behavior registry reconciles all import-enabled items to executable interaction tests."]
+    },
+    {
+      "id": "import-enabled-surface",
+      "scope": "Moves, abilities, items, species, and forms accepted through team imports",
+      "status": "gap",
+      "source": "generated/pokemon_showdown_legal_data.js",
+      "classification_test": "tests/t9j11_tests.js",
+      "known_gaps": ["Import legality coverage is broader than locally verified battle behavior coverage."]
+    }
+  ],
+  "families": [
+    {
+      "id": "identity-lifecycle",
+      "name": "Pokemon identity, items, switching, bench, fainting, and replacement",
+      "status": "regression_covered",
+      "tests": ["tests/phase5_turn_log_tests.js", "tests/turn_log_export_validator_tests.js", "tests/recoil_faint_turn_log_tests.js", "tests/battle_system_mechanics_tests.js"],
+      "known_gaps": []
+    },
+    {
+      "id": "turn-order",
+      "name": "Priority brackets, effective Speed, Trick Room, ties, and doubles ordering",
+      "status": "partial",
+      "tests": ["tests/turn_order_priority_tests.js", "tests/ability_priority_targeting_tests.js", "tests/t155_speed_control_secondary_tests.js", "tests/tailwind_dynamic_order_tests.mjs", "tests/showdown_complete_game_tests.mjs"],
+      "known_gaps": ["Scoped same-turn Tailwind and one complete-game fixture agree with the pinned reference; arbitrary mid-turn Speed changes, changed exact ties and official Champions confirmation remain unproved."]
+    },
+    {
+      "id": "stats-forms",
+      "name": "Base stats, Champion SP, natures, stages, forms, and effective battle stats",
+      "status": "partial",
+      "tests": ["tests/regional_variant_stats_tests.js", "tests/t9j13_tests.js", "tests/mega_runtime_form_guard_tests.js", "tests/roster_runtime_consumer_tests.mjs", "tests/reg_mb_roster_baseline_tests.mjs"],
+      "known_gaps": ["The complete legal species and form inventory is not represented by executable stat fixtures."]
+    },
+    {
+      "id": "damage-formula",
+      "name": "Damage pipeline, typing, STAB, spread, critical, weather, terrain, and modifier order",
+      "status": "partial",
+      "tests": ["tests/damage_pipeline_tests.js", "tests/showdown_damage_oracle_tests.js", "tests/type_multiplier_audit_tests.js", "tests/seismic_toss_tests.mjs"],
+      "known_gaps": ["Oracle fixtures cover selected supported moves and modifier combinations, not the complete Showdown interaction space.", "Seismic Toss isolated damage/immunity/Protect probes agree locally; broader fixed-damage interactions and Champions-specific approval remain unproved."]
+    },
+    {
+      "id": "moves-effects",
+      "name": "Move metadata, accuracy, recoil, contact, secondary effects, multi-hit, and failure behavior",
+      "status": "partial",
+      "tests": ["tests/move_support_audit_tests.js", "tests/move_verification_registry_tests.js", "tests/move_secondary_effect_audit_tests.js", "tests/move_contact_flag_audit_tests.js", "tests/growl_leer_stage_tests.mjs", "tests/pp_pressure_tests.mjs", "tests/pp_drain_move_tests.mjs", "tests/pp_substitute_reference_tests.mjs", "tests/showdown_complete_game_tests.mjs"],
+      "known_gaps": ["Imported legal moves may be baseline-supported without dedicated local behavior fixtures.", "Growl, Leer and the declared PP/Pressure boundaries have scoped pinned-reference proof, but the wider status-stage and move-resource interaction inventory remains incomplete."]
+    },
+    {
+      "id": "abilities",
+      "name": "Ability activation, suppression, targeting, damage, priority, and entry effects",
+      "status": "partial",
+      "tests": ["tests/ability_coverage_audit_tests.js", "tests/ability_damage_parity_tests.js", "tests/ability_priority_targeting_tests.js"],
+      "known_gaps": ["The curated and Mega inventory is modeled, but the full legal ability inventory and all interaction orders are not covered."]
+    },
+    {
+      "id": "items",
+      "name": "Held-item activation, consumption, choice locks, defensive effects, and ownership continuity",
+      "status": "partial",
+      "tests": ["tests/items_tests.js", "tests/screens_terrain_item_tests.js", "tests/turn_log_export_validator_tests.js"],
+      "known_gaps": ["The complete legal item inventory and all item-ability-move interaction orders are not covered."]
+    },
+    {
+      "id": "status",
+      "name": "Major status, volatile status, immunities, duration, denial, and end-of-turn effects",
+      "status": "partial",
+      "tests": ["tests/status_tests.js", "tests/battle_system_mechanics_tests.js", "tests/company_audit_regressions.mjs", "tests/perish_song_reference_tests.mjs"],
+      "known_gaps": ["Leftovers/Toxic ordering and rounding have bounded doubles parity. Full residual event ordering, lethal boundaries, Heal Block expiry and mixed recovery remain unproved."]
+    },
+    {
+      "id": "field-effects",
+      "name": "Weather, terrain, screens, Tailwind, Trick Room, and field duration",
+      "status": "regression_covered",
+      "tests": ["tests/engine_terrain_tests.js", "tests/screens_terrain_item_tests.js", "tests/turn_order_priority_tests.js"],
+      "known_gaps": []
+    },
+    {
+      "id": "targeting-spread",
+      "name": "Doubles targeting, redirection, adjacency, spread resolution, and no-valid-target paths",
+      "status": "partial",
+      "tests": ["tests/ability_priority_targeting_tests.js", "tests/battle_system_mechanics_tests.js", "tests/turn_log_export_validator_tests.js"],
+      "known_gaps": ["Per-target spread accuracy is covered, but immunity-before-accuracy and mixed-target interaction ordering remain unproved."]
+    },
+    {
+      "id": "transformations",
+      "name": "Mega activation, runtime form changes, and supported Tera behavior",
+      "status": "regression_covered",
+      "tests": ["tests/mega_tests.js", "tests/mega_runtime_battle_effect_tests.js", "tests/mega_runtime_form_guard_tests.js", "tests/t152_tera_activation_tests.js"],
+      "known_gaps": []
+    },
+    {
+      "id": "legality-imports",
+      "name": "Champion legality and shared mechanics for bundled and imported teams",
+      "status": "regression_covered",
+      "tests": ["tests/champion_pack_legality_tests.js", "tests/move_legality_tests.js", "tests/species_ability_legality_tests.js", "tests/preloaded_team_legality_tests.js", "tests/replay_import_service_tests.js"],
+      "known_gaps": []
+    },
+    {
+      "id": "battle-determinism",
+      "name": "Seeded whole-battle traces, termination, outcomes, and curated matchup stability",
+      "status": "regression_covered",
+      "tests": ["tests/db_m7_golden_battles_tests.js", "tests/t139_audit_mirror_hard_fail_tests.js"],
+      "known_gaps": []
+    },
+    {
+      "id": "champion-regulation-deltas",
+      "name": "Champion-specific rules and Regulation M-B differences",
+      "status": "gap",
+      "tests": ["tests/t192_regmb_source_audit_tests.js"],
+      "known_gaps": ["Required official or captured Regulation M-B evidence is incomplete, so Showdown baseline behavior cannot be promoted as Champion truth."]
+    },
+    {
+      "id": "combinatorial-interactions",
+      "name": "All legal move, ability, item, species, field, and timing combinations",
+      "status": "gap",
+      "tests": [],
+      "known_gaps": ["The interaction space is combinatorial and no exhaustive state-space or differential oracle runner exists."]
+    }
+  ]
+}

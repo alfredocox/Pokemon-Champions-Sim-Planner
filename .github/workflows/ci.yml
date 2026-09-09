@@ -3,18 +3,13 @@
 #
 # Jobs:
 #   1. syntax          — node --check all source JS (fast, ~30s)
-#   2. tests           — auto-discovers all tests/*.js except helper/manual files (~2-4 min)
-#   3. detect-changes  — checks if engine.js or data.js were touched
-#   4. audit           — 5,070-battle audit ONLY when engine/data changed (~5-8 min)
+#   2. tests           — shared .js/.mjs fast and DB-contract gate
+#   3. detect-changes  — checks battle, source, test and DB inputs
+#   4. audit           — reusable battle audit for relevant changes
 #
 # Bundle freshness + sw cache bump are enforced by their own dedicated workflows.
 #
-# EXCLUDED TESTS (re-enable when unblocked):
-#   db_m*.js            — run in mock mode by default; only enable live DB smoke on DB/data-relevant PRs
-#   _db_helpers.js      — shared helper, not a test runner
-#   phase4c_detectors.js — requires classifyPokemon() (blocked by #141)
-#   nightly_bring_harness.js — manual harness only
-#   golden_battles_runner.js — helper, not standalone test
+# Test discovery and exclusions are owned by poke-sim/tools/run-project-gate.mjs.
 
 name: CI
 
@@ -55,6 +50,7 @@ jobs:
             poke-sim/storage_adapter.js
             poke-sim/supabase_adapter.js
             poke-sim/move_legality.js
+            poke-sim/generated/champions_move_pools.js
             poke-sim/move_support.js
             poke-sim/replay_coach.js
             poke-sim/replay_learning.js
@@ -71,14 +67,7 @@ jobs:
 
   # ----------------------------------------------------------------
   # 2. TEST SUITE
-  # Auto-discovers every file in poke-sim/tests/*.js.
-  # Excluded files:
-  #   - audit.js              → runs in gated audit job below
-  #   - db_m*.js              → run normally; live DB smoke only turns on for DB/data-relevant PRs
-  #   - _db_helpers.js        → shared helper, not a test runner
-  #   - phase4c_detectors.js  → requires classifyPokemon() (#141 blocker)
-  #   - nightly_bring_harness.js → manual harness only
-  #   - golden_battles_runner.js → helper, not standalone test
+  # Shared discovery includes fast and DB suites; live DB uses an isolated project.
   # Runs after syntax passes.
   # ----------------------------------------------------------------
   tests:
@@ -86,6 +75,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     needs: [syntax, detect-changes]
+    # The isolated test project has shared fixture IDs; serialize its users.
+    # A different repository/manual test runner must use a separate test project.
+    concurrency:
+      group: ${{ needs.detect-changes.outputs.live_db_relevant == 'true' && 'champions-supabase-test-project' || format('champions-offline-tests-{0}', github.run_id) }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
 
@@ -93,26 +87,29 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install locked dependencies
+        id: dependencies
+        working-directory: poke-sim
+        run: npm ci
+
       - name: Run all test suites (auto-discovered, with exclusions)
+        id: suite
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
           LIVE_DB_RELEVANT: ${{ needs.detect-changes.outputs.live_db_relevant }}
         run: |
-          set -e
+          set -euo pipefail
           cd poke-sim
-          # Install dependencies for live DB testing
-          if [ -f package.json ]; then
-            npm install
-          fi
           # Only turn on live DB smoke when the PR touches data / DB-relevant files.
           # UI-only and replay-only changes should not fail on unrelated hosted roster drift.
-          if [ "$LIVE_DB_RELEVANT" = "true" ] && [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
-            export SUPABASE_URL="$SUPABASE_URL"
-            export SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
-            export SUPABASE_KEY="$SUPABASE_ANON_KEY"
+          if [ "$LIVE_DB_RELEVANT" = "true" ] && [ -n "$SUPABASE_TEST_URL" ] && [ -n "$SUPABASE_TEST_ANON_KEY" ]; then
+            export SUPABASE_URL="$SUPABASE_TEST_URL"
+            export SUPABASE_ANON_KEY="$SUPABASE_TEST_ANON_KEY"
+            export SUPABASE_KEY="$SUPABASE_TEST_ANON_KEY"
             export RUN_LIVE_DB=1
-            echo "🔗 Live Supabase credentials configured for DB tests"
+            echo "live_db=true" >> "$GITHUB_OUTPUT"
+            echo "🔗 Isolated Supabase test-project credentials configured for DB tests"
           else
             unset SUPABASE_URL
             unset SUPABASE_ANON_KEY
@@ -121,85 +118,17 @@ jobs:
             echo "⚠️  Live DB smoke disabled for this PR - DB tests will use mock/skip mode"
           fi
           
-          FAILED=0
-          COUNT=0
-          SKIPPED=0
-          for t in tests/*.js; do
-            BASE="$(basename "$t")"
+          # Use the same cross-platform discovery and classification gate as local work.
+          npm test
 
-            # Always skip — runs in gated audit job
-            [ "$BASE" = "audit.js" ] && continue
-
-            # DB tests always run, but live DB smoke only activates when
-            # the PR touches DB/data-relevant files and credentials exist.
-            [ "$BASE" = "_db_helpers.js" ] && { echo "⏭ SKIP (helper, not test): $t"; SKIPPED=$((SKIPPED + 1)); continue; }
-
-            # Skip: requires classifyPokemon() (blocked by issue #141)
-            [ "$BASE" = "phase4c_detectors.js" ] && { echo "⏭ SKIP (needs #141 classifyPokemon): $t"; SKIPPED=$((SKIPPED + 1)); continue; }
-
-            # Skip: manual harnesses / helpers, not CI unit tests
-            [ "$BASE" = "nightly_bring_harness.js" ] && { echo "⏭ SKIP (manual harness): $t"; SKIPPED=$((SKIPPED + 1)); continue; }
-            [ "$BASE" = "golden_battles_runner.js" ] && { echo "⏭ SKIP (helper): $t"; SKIPPED=$((SKIPPED + 1)); continue; }
-
-            # Skip: M9 not implemented yet
-            [ "$BASE" = "db_m9_hardening_tests.js" ] && { echo "⏭ SKIP (M9 not implemented): $t"; SKIPPED=$((SKIPPED + 1)); continue; }
-
-            echo "▶ $t"
-            node "$t"
-            TEST_RESULT=$?
-            if [ $TEST_RESULT -eq 0 ]; then
-              COUNT=$((COUNT + 1))
-            else
-              echo "❌ Test file failed: $t (exit code: $TEST_RESULT)"
-              FAILED=1
-            fi
-          done
-          echo ""
-          echo "Ran $COUNT test file(s). Skipped $SKIPPED file(s)."
-          if [ $FAILED -ne 0 ]; then
-            echo "❌ One or more test suites failed."
-            exit 1
-          fi
-          echo "✅ All test suites passed."
-          # Clean up test data from live database
-          echo ""
-          echo "🧹 Cleaning up test data..."
-          node -e "const { cleanupTestData } = require('./tests/_db_helpers.js'); cleanupTestData();"
-
-          # Build production bundle with injected credentials
-          echo ""
-          echo "🚀 Building production bundle with credential injection..."
-          
-          # Create production HTML with injected Supabase credentials
-          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
-            echo "🔗 Injecting live Supabase credentials into production bundle"
-            
-            # Replace safe empty defaults with runtime credentials. Use Node so
-            # shell/sed delimiters cannot be confused by JavaScript `||`.
-            node <<'NODE'
-          const fs = require('fs');
-          const file = 'pokemon-champion-2026.html';
-          let html = fs.readFileSync(file, 'utf8');
-          html = html.replace(
-            "window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || '';",
-            "window.__SUPABASE_URL__ = window.__SUPABASE_URL__ || " + JSON.stringify(process.env.SUPABASE_URL) + ";"
-          );
-          html = html.replace(
-            "window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || '';",
-            "window.__SUPABASE_KEY__ = window.__SUPABASE_KEY__ || " + JSON.stringify(process.env.SUPABASE_ANON_KEY) + ";"
-          );
-          fs.writeFileSync(file, html);
-          NODE
-            
-            echo "✅ Production bundle built with live credentials"
-            echo "📦 Bundle ready for deployment"
-            
-            # Verify URL injection without printing secret material.
-            echo "🔍 URL injected: ${SUPABASE_URL:0:50}..."
-            echo "🔍 Anon key injected: yes"
-          else
-            echo "⚠️  No Supabase credentials available - keeping placeholder bundle"
-          fi
+      - name: Clean up isolated Supabase test data
+        if: always() && steps.dependencies.outcome == 'success' && steps.suite.outputs.live_db == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+        run: |
+          cd poke-sim
+          node -e "const { cleanupTestData } = require('./tests/_db_helpers.js'); cleanupTestData().catch(error => { console.error(error); process.exit(1); });"
 
   # ----------------------------------------------------------------
   # 3. DETECT ENGINE / DATA CHANGES
@@ -223,8 +152,25 @@ jobs:
             engine:
               - 'poke-sim/engine.js'
               - 'poke-sim/data.js'
+              - 'poke-sim/runtime_data.js'
+              - 'poke-sim/source_truth.js'
+              - 'poke-sim/move_support.js'
+              - 'poke-sim/move_legality.js'
+              - 'poke-sim/team_lab.js'
+              - 'poke-sim/generated/pokemon_showdown_legal_data.js'
+              - 'poke-sim/generated/**'
               - 'poke-sim/rulesets.js'
               - 'poke-sim/regmb_source_conversion.js'
+              - 'poke-sim/battle_audit_manifest.json'
+              - 'poke-sim/tools/run-battle-audit.mjs'
+              - 'poke-sim/tools/generate-champions-move-pools.mjs'
+              - 'poke-sim/tests/**'
+              - 'poke-sim/package.json'
+              - 'poke-sim/package-lock.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/battle-audit.yml'
+              - '.agents/skills/pokemon-battle-audit/**'
+              - '.codex/agents/battle-auditor.toml'
             live_db_relevant:
               - 'poke-sim/data.js'
               - 'poke-sim/db/**'
@@ -232,67 +178,11 @@ jobs:
 
   # ----------------------------------------------------------------
   # 4. BATTLE AUDIT (GATED)
-  # Only runs when engine.js or data.js changed.
-  # Runs 5,070 battles. Expensive — skip it on doc/style-only PRs.
-  # Requires both tests AND detect-changes to complete first.
+  # Runs the reusable mechanics-fixture, parity, golden-trace, and seeded-stress
+  # workflow whenever battle code, evidence, or tests change.
   # ----------------------------------------------------------------
   audit:
-    name: "Battle Audit (5,070 battles)"
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: "Battle Audit"
     needs: [tests, detect-changes]
     if: needs.detect-changes.outputs.engine == 'true'
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-
-      - name: Run DB Module Tests
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          cd poke-sim
-          bash tests/_run_all_db.sh --live
-
-      - name: Run full battle audit
-        run: |
-          cd poke-sim
-          echo "▶ Running audit.js (5,070 battles)…"
-          node tests/audit.js
-          echo "✅ Battle audit passed."
-
-  # ----------------------------------------------------------------
-  # 5. DEPLOYMENT (CREDENTIAL-INJECTED BUNDLE)
-  # Deploys the production bundle with injected Supabase credentials
-  # Only runs after tests pass successfully
-  # ----------------------------------------------------------------
-  deploy:
-    name: "Deploy Production Bundle"
-    runs-on: ubuntu-latest
-    needs: tests
-    if: success() && github.ref == 'refs/heads/deployment/credential-injection'
-    steps:
-      - uses: actions/checkout@v7
-      
-      - name: Download production bundle
-        run: |
-          echo "📦 Downloading production bundle with injected credentials"
-          # The bundle was built and modified in the tests job
-          
-      - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/deployment/credential-injection'
-        run: |
-          echo "🚀 Deploying credential-injected bundle to GitHub Pages"
-          echo "🔗 This bundle contains live Supabase credentials"
-          echo "📁 Source: poke-sim/pokemon-champion-2026.html"
-          echo "🌐 Target: GitHub Pages"
-          
-          # For now, just indicate deployment readiness
-          echo "✅ Bundle ready for manual deployment"
-          echo "📋 Next steps:"
-          echo "   1. Merge this branch to main"
-          echo "   2. Enable GitHub Pages on main branch"
-          echo "   3. Deploy pokemon-champion-2026.html"
+    uses: ./.github/workflows/battle-audit.yml

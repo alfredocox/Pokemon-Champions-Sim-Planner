@@ -44,6 +44,10 @@
   const DEFAULT_RULESET_ID = 'champions_reg_m_doubles_bo3';
   const TEAM_LAB_SIM_JOBS_TABLE = 'team_lab_sim_jobs';
   const TEAM_LAB_REPLAYS_TABLE = 'team_lab_replays';
+  const TEAM_LAB_TEAM_KEY_MAPPINGS_TABLE = 'team_lab_team_key_mappings';
+  const TRAINER_REPLAY_IMPORTS_TABLE = 'trainer_replay_imports';
+  const TRAINER_REPLAY_IMPORT_REFS_TABLE = 'trainer_replay_import_refs';
+  const TRAINER_REPLAY_IMPORT_EVENTS_TABLE = 'trainer_replay_import_events';
 
   if (!ENABLED) {
     log.info('No credentials; running in local-only mode');
@@ -624,11 +628,24 @@
       return null;
     }
 
+    const provenance = payload.analysis_json && payload.analysis_json.provenance;
+    const evidencePolicy = typeof window.getSimulationEvidencePolicy === 'function'
+      ? window.getSimulationEvidencePolicy(provenance, payload.analysis_json && payload.analysis_json.game_provenance) : null;
+    if (!evidencePolicy || !evidencePolicy.runtime_promotable || evidencePolicy.provenance_gaps.length ||
+        provenance.player_team_id !== payload.player_team_id || provenance.opp_team_id !== payload.opp_team_id ||
+        provenance.bo !== payload.bo || provenance.ruleset_id !== payload.ruleset_id ||
+        provenance.engine_version !== payload.engine_version || provenance.policy_model !== payload.policy_model ||
+        provenance.format !== payload.format ||
+        payload.poisoning_guard === 'identity_mismatch_do_not_train_or_rank') {
+      log.warn('saveAnalysis quarantined: missing or conflicting execution provenance');
+      return null;
+    }
+
     const analysis_id = uuid();
     const row = {
       analysis_id,
-      engine_version:    payload.engine_version   || 'v1',
-      ruleset_id:        payload.ruleset_id        || DEFAULT_RULESET_ID,
+      engine_version:    provenance.engine_version,
+      ruleset_id:        provenance.ruleset_id,
       player_team_id:    payload.player_team_id,
       opp_team_id:       payload.opp_team_id,
       prior_id:          payload.prior_id          || null,
@@ -644,7 +661,7 @@
       ci_low:            payload.ci_low            || null,
       ci_high:           payload.ci_high           || null,
       hidden_info_model: payload.hidden_info_model  || null,
-      analysis_json:     payload.analysis_json     || {}
+      analysis_json:     Object.assign({}, payload.analysis_json, { evidence_policy: evidencePolicy })
     };
 
     try {
@@ -683,6 +700,22 @@
     }
   }
 
+  function analysisWithEvidence(row) {
+    const provenance = row.analysis_json && row.analysis_json.provenance;
+    const policy = typeof window.getSimulationEvidencePolicy === 'function'
+      ? window.getSimulationEvidencePolicy(provenance, row.analysis_json && row.analysis_json.game_provenance)
+      : { learning_eligibility: 'blocked_missing_provenance', poisoning_guard: 'unverified_evidence_do_not_train_or_rank' };
+    if (provenance && (provenance.engine_version !== row.engine_version || provenance.ruleset_id !== row.ruleset_id ||
+        provenance.player_team_id !== row.player_team_id || provenance.opp_team_id !== row.opp_team_id || provenance.bo !== row.bo ||
+        provenance.policy_model !== row.policy_model)) {
+      policy.learning_eligibility = 'blocked_identity_mismatch';
+      policy.poisoning_guard = 'identity_mismatch_do_not_train_or_rank';
+      policy.data_policy = 'do_not_write_trusted_stats';
+      policy.coaching_policy = 'review_only_no_matchup_learning';
+    }
+    return Object.assign({}, row, { format: provenance && provenance.format || 'unknown', evidence_policy: policy });
+  }
+
   // ── loadRecentAnalyses ────────────────────────────────────────────────────
   async function loadRecentAnalyses(limit) {
     limit = limit || 20;
@@ -691,11 +724,11 @@
     try {
       const { data, error } = await sb
         .from('analyses')
-        .select('analysis_id, created_at, player_team_id, opp_team_id, bo, win_rate, wins, losses, sample_size')
+        .select('analysis_id, created_at, player_team_id, opp_team_id, bo, win_rate, wins, losses, sample_size, engine_version, ruleset_id, policy_model, analysis_json')
         .order('created_at', { ascending: false })
         .limit(limit);
       if (error) throw error;
-      return data || [];
+      return (data || []).map(analysisWithEvidence);
     } catch (err) {
       log.warn('loadRecentAnalyses failed', err);
       return [];
@@ -728,26 +761,26 @@
       if (tErr) throw tErr;
 
       // Delete existing members then re-insert (normalized replace)
-      await sb.from('team_members').delete().eq('team_id', payload.team_id);
+      const deleteResult = await sb.from('team_members').delete().eq('team_id', payload.team_id);
+      if (deleteResult && deleteResult.error) throw deleteResult.error;
 
       if (payload.members && payload.members.length) {
         const memberRows = payload.members.map(function(m, i) {
           return {
             team_id:    payload.team_id,
-            slot_index: i,
+            slot:       i + 1,
             species:    m.species || m.name || 'Unknown',
             ability:    m.ability || null,
             item:       m.item    || null,
             nature:     m.nature  || null,
             evs:        m.evs     || null,
-            ivs:        m.ivs     || null,
             moves:      m.moves   || [],
             level:      m.level   || 50,
             tera_type:  m.tera_type || m.teraType || null
           };
         });
         const { error: mErr } = await sb.from('team_members').insert(memberRows);
-        if (mErr) log.warn('team_members insert error', mErr);
+        if (mErr) throw mErr;
       }
 
       log.info('Saved team', { team_id: payload.team_id });
@@ -766,12 +799,12 @@
     try {
       const { data, error } = await sb
         .from('analyses')
-        .select('analysis_id, created_at, player_team_id, opp_team_id, bo, win_rate, wins, losses, sample_size')
+        .select('analysis_id, created_at, player_team_id, opp_team_id, bo, win_rate, wins, losses, sample_size, engine_version, ruleset_id, policy_model, analysis_json')
         .eq('player_team_id', playerKey)
         .order('created_at', { ascending: false })
         .limit(limit);
       if (error) throw error;
-      return data || [];
+      return (data || []).map(analysisWithEvidence);
     } catch (err) {
       log.warn('loadAnalysesForPlayer failed', err);
       return [];
@@ -785,9 +818,9 @@
     try {
       const { data, error } = await sb
         .from('analysis_logs')
-        .select('game_number, result, turns, tr_turns, win_condition, log')
+        .select('log_index, result, turns, tr_turns, win_condition, log')
         .eq('analysis_id', analysisId)
-        .order('game_number', { ascending: true });
+        .order('log_index', { ascending: true });
       if (error) throw error;
       return data || [];
     } catch (err) {
@@ -1426,6 +1459,270 @@
     }
   }
 
+  function normalizeReplayImportChildRows(rows, importId) {
+    return (Array.isArray(rows) ? rows : []).map(function(row) {
+      var copy = Object.assign({}, row || {});
+      copy.import_id = importId;
+      return copy;
+    });
+  }
+
+  function uniqueTextRows(rows) {
+    var seen = {};
+    var out = [];
+    (Array.isArray(rows) ? rows : []).forEach(function(value) {
+      var key = safeTextForDb(value, '');
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push(key);
+    });
+    return out;
+  }
+
+  function mappingGapCode(value) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'string') return value;
+    return value.code || value.message || String(value);
+  }
+
+  function clearResolvedMappingGaps(gaps) {
+    return uniqueTextRows(gaps).filter(function(code) {
+      if (code === 'TEAM_ID_MAPPING_NEEDED' || code === 'TEAM_MAPPING_NEEDS_REVIEW') return false;
+      return String(code).indexOf('TEAM_KEY_MAPPING_') !== 0;
+    });
+  }
+
+  function teamLabApi() {
+    if (typeof window === 'undefined') return null;
+    return window.TeamLab || (window.ChampionsSim && window.ChampionsSim.TeamLab) || null;
+  }
+
+  function mappingSourceSystemForImport(importRow, opts) {
+    if (opts && (opts.source_system || opts.sourceSystem)) return safeTextForDb(opts.source_system || opts.sourceSystem, null);
+    var sourceType = safeTextForDb(importRow && importRow.source_type, '');
+    if (sourceType === 'qa_artifact' || sourceType === 'champions_turn_log') return 'qa_artifact';
+    if (sourceType === 'showdown_html' || sourceType === 'showdown_text') return 'showdown_import';
+    return 'manual_admin';
+  }
+
+  function replayImportMappingFilters(payload, opts) {
+    opts = opts || {};
+    var row = payload && (payload.import_row || payload.import) || {};
+    var evidence = payload && payload.evidence || {};
+    var simJob = evidence && evidence.sim_job || {};
+    var replay = evidence && Array.isArray(evidence.replay_records) ? evidence.replay_records[0] || {} : {};
+    return {
+      source_system: mappingSourceSystemForImport(row, opts),
+      regulation_id: safeTextForDb(opts.regulation_id || row.regulation_id || simJob.regulation_id || replay.regulation_id, null),
+      format: safeTextForDb(opts.format || row.format || simJob.format || replay.format, null)
+    };
+  }
+
+  function mappingStatusFromResolution(resolution) {
+    if (!resolution || !resolution.refs || !resolution.refs.length) return 'pending';
+    if (resolution.ok) return 'mapped';
+    if (resolution.status === 'ambiguous') return 'failed';
+    if (Number(resolution.resolved_count || 0) > 0) return 'partial';
+    return 'needs_review';
+  }
+
+  function refsFromMappingResolution(importId, resolution) {
+    var refs = [];
+    var seen = {};
+    (resolution && resolution.mappings || []).forEach(function(row) {
+      if (!row || !row.ok) return;
+      var mapping = row.mapping || {};
+      if (mapping.id && !seen['mapping:' + mapping.id]) {
+        seen['mapping:' + mapping.id] = true;
+        refs.push({
+          import_id: importId || 'import-id-after-insert',
+          ref_type: 'team_key_mapping',
+          ref_id: String(mapping.id),
+          verification_status: 'verified',
+          notes: 'Trusted import worker verified artifact key "' + String(row.source_team_key || row.raw_key || 'team') + '" maps to Team Lab team ' + String(row.team_lab_team_id || '')
+        });
+      }
+      if (row.team_lab_team_id && !seen['team:' + row.team_lab_team_id]) {
+        seen['team:' + row.team_lab_team_id] = true;
+        refs.push({
+          import_id: importId || 'import-id-after-insert',
+          ref_type: 'team_lab_team',
+          ref_id: String(row.team_lab_team_id),
+          verification_status: 'verified',
+          notes: 'Trusted import worker resolved artifact team key "' + String(row.source_team_key || row.raw_key || 'team') + '".'
+        });
+      }
+    });
+    return refs;
+  }
+
+  function applyReplayImportMappingResolution(payload, resolution) {
+    payload = payload || {};
+    var importRow = Object.assign({}, payload.import_row || payload.import || {});
+    importRow.metadata = Object.assign({}, importRow.metadata || {});
+    var existingGaps = uniqueTextRows(importRow.source_gaps || []);
+    var resolutionGaps = uniqueTextRows((resolution && resolution.source_gaps || []).map(mappingGapCode).filter(Boolean));
+    importRow.source_gaps = resolution && resolution.ok
+      ? uniqueTextRows(clearResolvedMappingGaps(existingGaps).concat(resolutionGaps))
+      : uniqueTextRows(existingGaps.concat(resolutionGaps));
+    if (importRow.source_gaps.indexOf('PRIVATE_IMPORT_NOT_PROMOTED') < 0) importRow.source_gaps.push('PRIVATE_IMPORT_NOT_PROMOTED');
+    importRow.team_mapping_status = mappingStatusFromResolution(resolution);
+    importRow.metadata.team_lab_mapping_resolution = resolution || null;
+    importRow.metadata.promotion_blocked_until = 'trusted_worker_mapping_legality_consent_review';
+
+    var importId = importRow.id || 'import-id-after-insert';
+    var refs = normalizeReplayImportChildRows(payload.refs || payload.import_refs, importId)
+      .concat(refsFromMappingResolution(importId, resolution));
+    return Object.assign({}, payload, {
+      import_row: importRow,
+      refs: refs,
+      events: normalizeReplayImportChildRows(payload.events || payload.import_events, importId),
+      team_lab_mapping_resolution: resolution || null
+    });
+  }
+
+  async function listTeamKeyMappings(filters) {
+    const sb = getClient();
+    if (!sb) return teamLabEvidenceUnavailableResult('supabase_unavailable', filters);
+    try {
+      var query = sb
+        .from(TEAM_LAB_TEAM_KEY_MAPPINGS_TABLE)
+        .select('*');
+      if (filters && filters.source_system) query = query.eq('source_system', filters.source_system);
+      if (filters && filters.regulation_id) query = query.eq('regulation_id', filters.regulation_id);
+      const { data, error } = await query;
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      log.warn('listTeamKeyMappings failed', err);
+      if (teamLabTrustedWriteError(err)) return teamLabEvidenceUnavailableResult('trusted_writer_required', { filters: filters, error: normalizeDbError(err) });
+      return teamLabEvidenceUnavailableResult('read_failed', { filters: filters, error: normalizeDbError(err) });
+    }
+  }
+
+  async function prepareTrustedReplayImport(payload, opts) {
+    payload = payload || {};
+    opts = opts || {};
+    var teamLab = teamLabApi();
+    if (!teamLab || typeof teamLab.resolveArtifactTeamMappings !== 'function') {
+      return applyReplayImportMappingResolution(payload, {
+        ok: false,
+        status: 'needs_review',
+        refs: [],
+        mappings: [],
+        team_id_map: {},
+        source_gaps: ['TEAM_KEY_MAPPING_RESOLVER_MISSING'],
+        unresolved_count: 0,
+        ambiguous_count: 0,
+        resolved_count: 0
+      });
+    }
+    if (!payload.evidence) {
+      return applyReplayImportMappingResolution(payload, {
+        ok: false,
+        status: 'needs_review',
+        refs: [],
+        mappings: [],
+        team_id_map: {},
+        source_gaps: ['TEAM_KEY_MAPPING_EVIDENCE_MISSING'],
+        unresolved_count: 0,
+        ambiguous_count: 0,
+        resolved_count: 0
+      });
+    }
+    var filters = replayImportMappingFilters(payload, opts);
+    var mappings = await listTeamKeyMappings(filters);
+    if (!Array.isArray(mappings)) {
+      return applyReplayImportMappingResolution(payload, {
+        ok: false,
+        status: mappings && mappings.reason === 'trusted_writer_required' ? 'needs_trusted_worker' : 'needs_review',
+        refs: [],
+        mappings: [],
+        team_id_map: {},
+        source_gaps: [mappings && mappings.reason === 'trusted_writer_required' ? 'TEAM_KEY_MAPPING_TRUSTED_WORKER_REQUIRED' : 'TEAM_KEY_MAPPING_LOOKUP_FAILED'],
+        lookup_result: mappings,
+        unresolved_count: 0,
+        ambiguous_count: 0,
+        resolved_count: 0
+      });
+    }
+    var resolution = teamLab.resolveArtifactTeamMappings(payload.evidence, mappings, filters);
+    return applyReplayImportMappingResolution(payload, resolution);
+  }
+
+  async function saveTrustedReplayImport(payload, opts) {
+    var prepared = await prepareTrustedReplayImport(payload, opts || {});
+    var saved = await saveReplayImport(prepared);
+    if (!saved) return saved;
+    return Object.assign({}, saved, {
+      team_lab_mapping_resolution: prepared.team_lab_mapping_resolution || null
+    });
+  }
+
+  function sanitizeReplayImportPayload(payload) {
+    payload = payload || {};
+    var importRow = Object.assign({}, payload.import_row || payload.import || {});
+    if (!importRow.id) importRow.id = uuid();
+    importRow.metadata = stripJsonbForDb(importRow.metadata, {});
+    importRow.source_gaps = Array.isArray(importRow.source_gaps) ? importRow.source_gaps : [];
+    importRow.confidence_flags = Array.isArray(importRow.confidence_flags) ? importRow.confidence_flags : [];
+    importRow.source_type = safeTextForDb(importRow.source_type, 'unknown');
+    importRow.parser_version = safeTextForDb(importRow.parser_version, 'trainer-replay-import-parser-v1');
+    importRow.parse_status = safeTextForDb(importRow.parse_status, 'needs_review');
+    importRow.team_mapping_status = safeTextForDb(importRow.team_mapping_status, 'pending');
+    return {
+      import_row: importRow,
+      refs: normalizeReplayImportChildRows(payload.refs || payload.import_refs, importRow.id),
+      events: normalizeReplayImportChildRows(payload.events || payload.import_events, importRow.id)
+    };
+  }
+
+  async function saveReplayImport(payload) {
+    const sb = getClient();
+    if (!sb) return null;
+    var normalized = sanitizeReplayImportPayload(payload);
+    var importRow = normalized.import_row;
+    try {
+      const { data, error } = await sb
+        .from(TRAINER_REPLAY_IMPORTS_TABLE)
+        .insert(importRow)
+        .select('*')
+        .single();
+      if (error) throw error;
+      var savedImport = data || importRow;
+      var importId = savedImport.id || importRow.id;
+      var refs = normalizeReplayImportChildRows(normalized.refs, importId);
+      var events = normalizeReplayImportChildRows(normalized.events, importId);
+
+      if (refs.length) {
+        const { error: refsError } = await sb
+          .from(TRAINER_REPLAY_IMPORT_REFS_TABLE)
+          .insert(refs);
+        if (refsError) throw refsError;
+      }
+
+      if (events.length) {
+        const { error: eventsError } = await sb
+          .from(TRAINER_REPLAY_IMPORT_EVENTS_TABLE)
+          .insert(events);
+        if (eventsError) throw eventsError;
+      }
+
+      return {
+        import_row: savedImport,
+        refs: refs,
+        events: events,
+        saved_counts: {
+          refs: refs.length,
+          events: events.length
+        }
+      };
+    } catch (err) {
+      log.warn('saveReplayImport failed; private replay import not persisted', err);
+      return null;
+    }
+  }
+
   async function listSimJobs(filters) {
     const sb = getClient();
     if (!sb) return [];
@@ -1485,6 +1782,10 @@
     createSimJob,
     updateSimJobStatus,
     saveReplayRecord,
+    listTeamKeyMappings,
+    prepareTrustedReplayImport,
+    saveTrustedReplayImport,
+    saveReplayImport,
     listSimJobs,
     listReplays
   };

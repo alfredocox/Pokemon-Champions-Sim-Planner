@@ -1,0 +1,11 @@
+{
+  "case_id": "brain_case_replay_overstatement_v1",
+  "case_type": "replay_overstatement",
+  "analysis_type": "replay-review",
+  "description": "Brain output must fail if a single replay observation is described as a global matchup rule.",
+  "expected_properties": {
+    "must_fail_validation": true,
+    "must_include_error_code": "REPLAY_OBSERVATION_OVERSTATED",
+    "must_mark_single_replay_observation": true
+  }
+}

@@ -6,6 +6,7 @@ const path = require('path');
 
 const swPath = path.resolve(__dirname, '..', 'sw.js');
 const sw = fs.readFileSync(swPath, 'utf8');
+const manifest = require('../release_manifest.js');
 
 let pass = 0;
 let fail = 0;
@@ -41,7 +42,7 @@ T('3. missing local-credentials.js returns empty JavaScript instead of cached ap
 
 T('4. service worker cache is bumped for current source-registry release', () => {
   truthy(sw.includes("importScripts('./release_manifest.js')"), 'service worker should import canonical release manifest');
-  truthy(sw.includes("RELEASE_MANIFEST.service_worker_cache || 'champions-sim-v207-mega-battle-effect-proof'"), 'CACHE_NAME should derive from release manifest fallback');
+  truthy(sw.includes("RELEASE_MANIFEST.service_worker_cache || '" + manifest.service_worker_cache + "'"), 'CACHE_NAME fallback should match the current canonical manifest');
   truthy(sw.includes('./release_manifest.js'), 'release manifest should be pre-cached');
   truthy(sw.includes('./generated/pokemon_showdown_species_weights.js'), 'weight companion file should be pre-cached');
   truthy(sw.includes('./generated/source_sync_status.js'), 'source sync status companion file should be pre-cached');

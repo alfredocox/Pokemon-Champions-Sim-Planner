@@ -46,7 +46,7 @@ node tests/t175_mobile_tab_grid_tests.js # Mobile tab grid safeguards
 node tests/t176_mobile_teams_panel_tests.js # Mobile teams panel safeguards
 node tests/phase5_turn_log_tests.js # Phase 5 — turnLog, positionScore, Replay Log v2 — 25 cases
 node tests/recoil_faint_turn_log_tests.js # Recoil KO cleanup + imported Showdown move metadata — 3 cases
-node tests/turn_log_export_validator_tests.js # Exported turn-log identity/item/order/target/damage/effect validator — 16 cases
+node tests/turn_log_export_validator_tests.js # Exported turn-log identity/item/order/target/damage/effect validator — 18+ checks
 node tests/showdown_priority_drift_tests.js # Showdown priority drift audit for shipped moves — 4 cases
 node tests/showdown_approved_data_generator_tests.js # Approved Showdown DB rows + Champions override generator — 4 cases
 node tests/phase6_coaching_voice.js # Phase 6 — coaching templates, linter, RNG gate — 9 cases
@@ -94,7 +94,8 @@ N=500 node tests/nightly_bring_harness.js    # end-to-end bring picker wiring ch
 | mechanics_audit | 20/20 | Core move-rule checks: Protect, Taunt, support leads, Sucker Punch, Feint, shield riders, recovery, sleep, Substitute, Imprison, Ally Switch, Mega weather triggers, slot retargeting, Roost grounding |
 | move_support_audit | 5/5 | Shipped move registry completeness + verified/baseline/imported Showdown support audit |
 | move_verification_registry | 6/6 | First promoted verified move slice with source/test metadata |
-| ability_coverage_audit | 5/5 | Curated-team + mega ability inventory guard, currently 80/80 modeled |
+| ability_coverage_audit | 5/5 | Curated-team + Mega ability inventory guard, currently 84/84 modeled; broader imported interactions remain outside this count |
+| battle_edge_case_behavior | 7/7 | Regenerator switch hooks, Showdown accuracy boundaries, independent spread accuracy, grouped multi-action Speed ties, and immunity-before-accuracy evidence |
 | ability_damage_parity | 18/18 | Bulletproof, Shell Armor, Berserk, Stamina, Mummy, Innards Out, Skill Link, Unnerve |
 | ability_priority_targeting | 21/21 | Gale Wings, Flower Veil, Mind's Eye, accuracy/evasion, Stalwart, Shadow Tag, Protean, Trace |
 | phase5 | 25/25 | Turn log struct, positionScore, swing-turn delta, Replay Log v2, decision-gap audit |

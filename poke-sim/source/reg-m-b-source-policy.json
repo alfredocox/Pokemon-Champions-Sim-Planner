@@ -1,0 +1,26 @@
+{
+  "policy_name": "Pokemon Champions Regulation M-B Source Policy",
+  "created": "2026-07-02",
+  "final_report_allowed_sources": [
+    "primary_official",
+    "primary_in_game",
+    "primary_official_and_primary_in_game",
+    "derived_from_primary"
+  ],
+  "blocked_as_final_sources": [
+    "secondary_discovery_only",
+    "community_reference"
+  ],
+  "hard_rules": [
+    "Do not cite community posts, forums, or fan databases as final proof for Regulation M-B legality.",
+    "Use official Pokémon/TPC/Nintendo pages for general context and in-game captures for exact rule/eligibility details.",
+    "Mark unknown values as TBD or not_captured; never infer missing Pokémon/forms/items.",
+    "A team is not confirmed accepted or rejected until the in-game validation result is captured."
+  ],
+  "recommended_final_source_order": [
+    "In-game continuous video",
+    "In-game screenshots from same session",
+    "Official Pokémon/TPC/Nintendo web pages",
+    "Derived transcriptions tied to one of the above"
+  ]
+}

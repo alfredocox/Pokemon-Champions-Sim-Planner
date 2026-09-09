@@ -97,12 +97,14 @@ DROP POLICY IF EXISTS team_lab_read_public_or_owner_sim_jobs ON team_lab_sim_job
 CREATE POLICY team_lab_read_public_or_owner_sim_jobs ON team_lab_sim_jobs
   FOR SELECT TO anon, authenticated
   USING (
-    owner_user_id = auth.uid()
-    OR EXISTS (
+    owner_user_id = (SELECT auth.uid())
+    OR NOT EXISTS (
       SELECT 1 FROM team_lab_teams t
-      WHERE t.id = ANY(team_lab_sim_jobs.team_ids)
-        AND t.visibility IN ('public', 'hidden_details')
-        AND t.legality_status <> 'illegal'
+      WHERE t.id = ANY(team_lab_sim_jobs.team_ids || team_lab_sim_jobs.opponent_team_ids)
+        AND NOT (
+          t.visibility IN ('public', 'hidden_details')
+          AND t.legality_status <> 'illegal'
+        )
     )
   );
 

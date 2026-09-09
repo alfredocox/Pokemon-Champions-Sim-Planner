@@ -1,0 +1,45 @@
+{
+  "schema_version": "champions-form-identity-evidence-v1",
+  "regulation_id": "champions_reg_m_b_2026",
+  "reviewed_at": "2026-09-08",
+  "competitive_use": false,
+  "approval_status": "unapproved",
+  "scope": "Explicit review-only identity reconciliation from official rendered sprites; not stats, moves, abilities or legality approval",
+  "source_url": "https://web-view.app.pokemonchampions.jp/battle/pages/events/rs178066986988lmoqpm/en/pokemon.html",
+  "source_sha256": "8b0c6db8dcd403bb1f5453c1c6f9ac35c80192762219a308c80023375a93d617",
+  "asset_readback_at": "2026-09-08T05:49:56.253Z",
+  "assets": [
+    { "url": "https://web-view.app.pokemonchampions.jp/battle/pages/resources/pokemon.js", "sha256": "a97c373d21551268b089109aef54724fda5360ac5128149dfba02df6cbb12a27" },
+    { "url": "https://web-view.app.pokemonchampions.jp/battle/pages/resources/sprite_poke_2.css", "sha256": "3861921d44d47dd356dbe5e9d9e34c82926ba03a16316cff53ab6c9af21003ac" },
+    { "url": "https://web-view.app.pokemonchampions.jp/battle/pages/resources/sprite_poke_2.png", "sha256": "ac15c558fcbe591424b384207903ca2a3db5023c4b898c615ee9fca1dd8e9870" }
+  ],
+  "review": {
+    "parent": "Observed official DOM IDs, tooltip labels, computed sprite positions and screenshots",
+    "independent": "Arendt inspected the two sprites and Floette context, corroborated official named references and baseline Dex numbers; exact DOM binding was parent-supplied",
+    "limits": "Visual identification is an explicit review inference, not a general numeric-form decoder. Some Pokemon.com direct reads were challenged; named text was available through search readback. Screenshots stay local; no third-party page or sprite sheet republished. The builder binds recorded evidence assertions; it does not re-fetch assets or independently validate screenshot contents. Mirrored Floette-Eternal metadata says Past while the pinned Champions mod says null; neither metadata field independently approves regulation legality."
+  },
+  "rows": [
+    {
+      "official_id": "0666-018",
+      "official_label": "Vivillon",
+      "runtime_species_key": "Vivillon-Fancy",
+      "sprite_class": "sprite-poke-ui_PokeIcon_02_0666_18_0",
+      "background_position": "73.333% 78.571%",
+      "observed_features": "Pale floral mosaic wings with green borders, unlike the red/white Poke Ball pattern",
+      "references": ["https://www.pokemon.com/us/pokedex/vivillon", "https://www.pokemon.jp/special/forme/zukan02/zukan2-14.html", "https://www.pokemon.jp/special/forme/img/pic/zukan2-14_slide1-19.png"],
+      "screenshot": "artifacts/official-form-hlpoLo/0666_18.png",
+      "screenshot_sha256": "a5a1d338dccd19864a77455eda3e72df5373af104813e4a2391dedcc1d9a66f2"
+    },
+    {
+      "official_id": "0670-005",
+      "official_label": "Floette",
+      "runtime_species_key": "Floette-Eternal",
+      "sprite_class": "sprite-poke-ui_PokeIcon_02_0670_05_0",
+      "background_position": "80% 7.143%",
+      "observed_features": "Distinctive black/red flower matches the officially named Eternal Flower form",
+      "references": ["https://legends.pokemon.com/en-us/story-world/characters/eternal-flower-floette", "https://www.pokemon.com/uk/news/pokemon-champions-is-coming-to-nintendo-switch-in-april-2026"],
+      "screenshot": "artifacts/official-form-hlpoLo/0670_05.png",
+      "screenshot_sha256": "20336ad9ef3a32632bfce5c5bfcf7c180c6160eb40a457011d0377a6e4f5bdf1"
+    }
+  ]
+}

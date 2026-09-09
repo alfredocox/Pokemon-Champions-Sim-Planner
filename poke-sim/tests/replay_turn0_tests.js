@@ -70,13 +70,13 @@ T('3. Turn 0 records gender metadata and preserves Mega as a later-turn change',
   truthy(parsed.turns[0].events.some((ev) => ev.type === 'mega' && ev.pokemon === 'Kangaskhan-Mega'), 'Mega event missing on turn 1');
 });
 
-T('4. Turn 0 includes base stats and move legality for known moves', () => {
+T('4. Turn 0 keeps move legality unchecked without a source tier', () => {
   const parsed = replayCoach.parseShowdownLog(log, { selectedSide: 'p1' });
   const kanga = parsed.turn0.sides.p1.leads.find((lead) => lead.species === 'Kangaskhan');
   const arc = parsed.turn0.sides.p1.leads.find((lead) => lead.species === 'Arcanine-Hisui');
   eq(kanga.baseStatsLabel, '105/95/80/40/80/90', 'Kangaskhan starting stats');
-  truthy(kanga.moveLegality.some((row) => row.move === 'Fake Out' && row.legal), 'Fake Out legality');
-  truthy(arc.moveLegality.some((row) => row.move === 'Surf' && !row.legal), 'illegal Surf warning');
+  truthy(kanga.moveLegality.some((row) => row.move === 'Fake Out' && row.verification_status === 'unchecked'), 'Fake Out lacks source context');
+  truthy(arc.moveLegality.some((row) => row.move === 'Surf' && row.verification_status === 'unchecked'), 'Surf lacks source context, not proven illegal');
 });
 
 T('5. Turn timeline records health and knocked-out state', () => {

@@ -62,6 +62,7 @@ describe('Module 7 — Golden battles regression (8 cases)', function() {
       });
       var hash = runner.traceHash(result.log);
       eq(hash, b.expected_trace_hash, b.golden_id + ' trace hash mismatch');
+      eq(result.result, b.expected_winner, b.golden_id + ' winner mismatch');
     }
   });
 
@@ -119,7 +120,7 @@ describe('Module 7 — Golden battles regression (8 cases)', function() {
   T('T-golden-8', function() {
     // Fixture schema validation: all required fields present per battle
     var fixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
-    var required = ['golden_id', 'player_team_id', 'opp_team_id', 'seed', 'description', 'expected_trace_hash'];
+    var required = ['golden_id', 'player_team_id', 'opp_team_id', 'seed', 'description', 'expected_trace_hash', 'expected_winner'];
     for (var i = 0; i < fixture.battles.length; i++) {
       var b = fixture.battles[i];
       for (var j = 0; j < required.length; j++) {

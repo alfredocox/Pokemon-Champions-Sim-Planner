@@ -284,7 +284,7 @@ describe('Module 5 — Imported teams persist (12 cases)', function() {
 
   T('T-import-11', function() {
     // RLS policy file includes INSERT on teams and team_members
-    var rlsPath = path.resolve(__dirname, '..', '..', 'db', 'rls_policies_v1.sql');
+    var rlsPath = path.resolve(__dirname, '..', 'db', 'rls_policies_v1.sql');
     if (!fs.existsSync(rlsPath)) {
       // If RLS file doesn't exist, check for any migration that grants INSERT
       var dbDir = path.resolve(__dirname, '..', '..', 'db');

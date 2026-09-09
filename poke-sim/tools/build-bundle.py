@@ -70,6 +70,8 @@ def fetch_supabase_umd():
 html    = read('index.html')
 css     = read('style.css')
 data    = read('data.js')
+tournament_catalog = read('generated/tournament_catalog.js')
+project_roadmap = read('generated/project_roadmap.js')
 release_manifest = read('release_manifest.js')
 app_shell = read('app_shell.js')
 logger  = read('logger.js')
@@ -88,15 +90,19 @@ source_truth = read('source_truth.js')
 sim_evidence = read('sim_evidence.js')
 pokemon_legal_data = read('generated/pokemon_showdown_legal_data.js')
 pokemon_weight_data = read('generated/pokemon_showdown_species_weights.js')
+champions_move_overrides = read('generated/champions_move_overrides.js')
 news_feed = read('generated/news_feed.js')
 source_registry = read('generated/source_registry.js')
 move_legality = read('move_legality.js')
 move_support = read('move_support.js')
 replay_coach = read('replay_coach.js')
+replay_import_service = read('replay_import_service.js')
 replay_learning = read('replay_learning.js')
 supabase_umd = fetch_supabase_umd()
 
 html = html.replace('<script src="data.js"></script>', '')
+html = html.replace('<script src="generated/tournament_catalog.js"></script>', '')
+html = html.replace('<script src="generated/project_roadmap.js"></script>', '')
 html = html.replace('<script src="release_manifest.js"></script>', '')
 html = html.replace('<script src="app_shell.js"></script>', '')
 html = html.replace('<script src="logger.js"></script>', '')
@@ -113,11 +119,13 @@ html = html.replace('<script src="source_truth.js"></script>', '')
 html = html.replace('<script src="sim_evidence.js"></script>', '')
 html = html.replace('<script src="generated/pokemon_showdown_legal_data.js"></script>', '')
 html = html.replace('<script src="generated/pokemon_showdown_species_weights.js"></script>', '')
+html = html.replace('<script src="generated/champions_move_overrides.js"></script>', '')
 html = html.replace('<script src="generated/news_feed.js"></script>', '')
 html = html.replace('<script src="generated/source_registry.js"></script>', '')
 html = html.replace('<script src="move_legality.js"></script>', '')
 html = html.replace('<script src="move_support.js"></script>', '')
 html = html.replace('<script src="replay_coach.js"></script>', '')
+html = html.replace('<script src="replay_import_service.js"></script>', '')
 html = html.replace('<script src="replay_learning.js"></script>', '')
 html = html.replace('<script src="legality.js"></script>', '')
 html = html.replace('<script src="strategy-injectable.js"></script>', '')
@@ -154,9 +162,12 @@ inline_js = (
     + sanitize_inline_js(release_manifest) + '\n\n'
     + sanitize_inline_js(app_shell) + '\n\n'
     + sanitize_inline_js(data) + '\n\n'
+    + sanitize_inline_js(tournament_catalog) + '\n\n'
+    + sanitize_inline_js(project_roadmap) + '\n\n'
     + sanitize_inline_js(logger) + '\n\n'
     + sanitize_inline_js(pokemon_legal_data) + '\n\n'
     + sanitize_inline_js(pokemon_weight_data) + '\n\n'
+    + sanitize_inline_js(champions_move_overrides) + '\n\n'
     + sanitize_inline_js(news_feed) + '\n\n'
     + sanitize_inline_js(source_registry) + '\n\n'
     + sanitize_inline_js(runtime_data) + '\n\n'
@@ -172,6 +183,7 @@ inline_js = (
     + sanitize_inline_js(move_legality) + '\n\n'
     + sanitize_inline_js(move_support) + '\n\n'
     + sanitize_inline_js(replay_coach) + '\n\n'
+    + sanitize_inline_js(replay_import_service) + '\n\n'
     + sanitize_inline_js(replay_learning) + '\n\n'
     + sanitize_inline_js(legality) + '\n\n'
     + sanitize_inline_js(ui) + '\n\n'
@@ -184,7 +196,7 @@ if '--to-stdout' in sys.argv:
     # On Windows, sys.stdout defaults to cp1252; reconfigure to UTF-8 so
     # `python build-bundle.py --to-stdout > out.html` produces a clean bundle.
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding='utf-8', newline='\n')
     except AttributeError:
         pass  # Python < 3.7 fallback (we require 3.x; this is defensive)
     sys.stdout.write(html)
@@ -204,6 +216,15 @@ else:
         'bundle_bytes': len(bundle_bytes),
         'hash_scope': 'sha256 of committed poke-sim/pokemon-champion-2026.html bytes'
     }
+    artifact['external_assets'] = {}
+    for asset in ['generated/champions_move_pools.js',
+                  'assets/retro-intro/gengar.png', 'assets/retro-intro/nidorino.png']:
+        with open(os.path.join(BASE, asset), 'rb') as f:
+            asset_bytes = f.read()
+        artifact['external_assets'][asset] = {
+            'sha256': hashlib.sha256(asset_bytes).hexdigest(),
+            'bytes': len(asset_bytes)
+        }
     artifact_path = os.path.join(BASE, 'generated', 'release_artifact.json')
     with open(artifact_path, 'w', encoding='utf-8', newline='') as f:
         json.dump(artifact, f, indent=2)

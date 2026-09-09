@@ -596,15 +596,113 @@
     };
   }
 
+  function sourceGapCode(gap) {
+    if (gap == null || gap === '') return null;
+    if (typeof gap === 'string') return gap;
+    return gap.code || gap.message || String(gap);
+  }
+
+  function sourceGapCodes(gaps) {
+    return unique((gaps || []).map(sourceGapCode).filter(Boolean));
+  }
+
+  function normalizeArtifactTeamKey(value) {
+    if (value == null || value === '') return null;
+    var key = String(value);
+    var match = key.match(/^artifact:([^:]+):(.+)$/);
+    return {
+      raw_key: key,
+      source_team_key: match ? match[2] : key,
+      side: match ? match[1] : null
+    };
+  }
+
+  function addArtifactTeamRef(refs, value, role, pointer) {
+    var normalized = normalizeArtifactTeamKey(value);
+    if (!normalized || !normalized.source_team_key) return;
+    refs.push({
+      role: role || normalized.side || 'team',
+      pointer: pointer || null,
+      raw_key: normalized.raw_key,
+      source_team_key: normalized.source_team_key,
+      side: normalized.side
+    });
+  }
+
+  function collectArtifactTeamRefs(artifact) {
+    var refs = [];
+    function visit(row, path) {
+      if (!row || typeof row !== 'object') return;
+      addArtifactTeamRef(refs, row.player_team_id || row.playerTeamId || row.playerKey, 'player', path + '.player_team_id');
+      addArtifactTeamRef(refs, row.opponent_team_id || row.opponentTeamId || row.oppKey, 'opponent', path + '.opponent_team_id');
+      addArtifactTeamRef(refs, row.team_a_id || row.teamAId, 'team_a', path + '.team_a_id');
+      addArtifactTeamRef(refs, row.team_b_id || row.teamBId, 'team_b', path + '.team_b_id');
+      addArtifactTeamRef(refs, row.team_id || row.teamId, 'team', path + '.team_id');
+      if (Array.isArray(row.team_ids)) {
+        row.team_ids.forEach(function(teamId, index) {
+          addArtifactTeamRef(refs, teamId, 'team', path + '.team_ids[' + index + ']');
+        });
+      }
+      if (Array.isArray(row.opponent_team_ids)) {
+        row.opponent_team_ids.forEach(function(teamId, index) {
+          addArtifactTeamRef(refs, teamId, 'opponent', path + '.opponent_team_ids[' + index + ']');
+        });
+      }
+    }
+    if (Array.isArray(artifact)) {
+      artifact.forEach(function(row, index) { visit(row, '[' + index + ']'); });
+    } else {
+      visit(artifact, 'artifact');
+      if (artifact && artifact.sim_job) visit(artifact.sim_job, 'artifact.sim_job');
+      if (artifact && Array.isArray(artifact.replay_records)) {
+        artifact.replay_records.forEach(function(row, index) { visit(row, 'artifact.replay_records[' + index + ']'); });
+      }
+      if (artifact && artifact.retained && Array.isArray(artifact.retained.replay_cards)) {
+        artifact.retained.replay_cards.forEach(function(row, index) { visit(row, 'artifact.retained.replay_cards[' + index + ']'); });
+      }
+    }
+    var seen = {};
+    return refs.filter(function(ref) {
+      var key = ref.raw_key + '|' + ref.role + '|' + ref.pointer;
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
   function resolveTeamKeyMapping(sourceTeamKey, mappings, filters) {
     var f = filters || {};
+    var key = sourceTeamKey == null ? '' : String(sourceTeamKey);
+    if (!key) {
+      return {
+        ok: false,
+        status: 'missing',
+        team_lab_team_id: null,
+        mapping: null,
+        source_gap: 'TEAM_KEY_MAPPING_KEY_MISSING'
+      };
+    }
     var rows = (mappings || []).filter(function(row) {
-      if (!row || row.source_team_key !== sourceTeamKey) return false;
+      if (!row || String(row.source_team_key) !== key) return false;
       if (f.source_system && row.source_system !== f.source_system) return false;
       if (f.regulation_id && row.regulation_id !== f.regulation_id) return false;
       if (f.format && row.format && row.format !== f.format) return false;
       return true;
-    }).sort(function(a, b) {
+    });
+    var verifiedRows = rows.filter(function(row) { return row.mapping_status === 'verified' && row.team_id; });
+    var verifiedTeamIds = unique(verifiedRows.map(function(row) { return row.team_id; }));
+    if (verifiedTeamIds.length > 1) {
+      return {
+        ok: false,
+        status: 'ambiguous',
+        team_lab_team_id: null,
+        mapping: null,
+        candidate_mappings: verifiedRows,
+        candidate_team_ids: verifiedTeamIds,
+        source_gap: 'TEAM_KEY_MAPPING_AMBIGUOUS'
+      };
+    }
+    rows = rows.sort(function(a, b) {
       var rank = { verified: 4, pending: 3, stale: 2, rejected: 1 };
       var ar = rank[a.mapping_status] || 0;
       var br = rank[b.mapping_status] || 0;
@@ -636,6 +734,70 @@
       team_lab_team_id: best.team_id,
       mapping: best,
       source_gap: null
+    };
+  }
+
+  function resolveArtifactTeamMappings(artifact, mappings, opts) {
+    opts = opts || {};
+    var refs = collectArtifactTeamRefs(artifact);
+    var sourceSystem = opts.source_system || opts.sourceSystem || (artifact && artifact.source_system) || (artifact && artifact.source_type) || null;
+    var regulationId = opts.regulation_id || opts.regulationId || (artifact && artifact.regulation_id) || (artifact && artifact.sim_job && artifact.sim_job.regulation_id) || null;
+    var format = opts.format || (artifact && artifact.format) || (artifact && artifact.sim_job && artifact.sim_job.format) || null;
+    var sourceGaps = sourceGapCodes((artifact && artifact.source_gaps) || []);
+    if (artifact && Array.isArray(artifact.source_gaps_detail)) sourceGaps = unique(sourceGaps.concat(sourceGapCodes(artifact.source_gaps_detail)));
+    if (!refs.length) sourceGaps.push('ARTIFACT_TEAM_KEYS_MISSING');
+
+    var byKey = {};
+    var refResults = refs.map(function(ref) {
+      var resolved = resolveTeamKeyMapping(ref.source_team_key, mappings || [], {
+        source_system: sourceSystem,
+        regulation_id: regulationId,
+        format: format
+      });
+      if (!resolved.ok && resolved.source_gap) sourceGaps.push(resolved.source_gap);
+      var row = Object.assign({}, ref, resolved);
+      byKey[ref.raw_key] = row;
+      byKey[ref.source_team_key] = row;
+      return row;
+    });
+
+    var teamIdMap = {};
+    refResults.forEach(function(row) {
+      if (!row.ok || !row.team_lab_team_id) return;
+      teamIdMap[row.raw_key] = row.team_lab_team_id;
+      teamIdMap[row.source_team_key] = row.team_lab_team_id;
+    });
+    unique(refResults.map(function(row) { return row.role; })).forEach(function(role) {
+      var roleIds = unique(refResults.filter(function(row) {
+        return row.role === role && row.ok && row.team_lab_team_id;
+      }).map(function(row) { return row.team_lab_team_id; }));
+      if (roleIds.length === 1) teamIdMap[role] = roleIds[0];
+      else if (roleIds.length > 1) sourceGaps.push('ARTIFACT_TEAM_ROLE_AMBIGUOUS_' + String(role || 'team').toUpperCase());
+    });
+
+    var unresolved = refResults.filter(function(row) { return !row.ok; });
+    var ambiguous = refResults.filter(function(row) { return row.status === 'ambiguous'; });
+    if (refs.length && !unresolved.length && !ambiguous.length) {
+      sourceGaps = sourceGaps.filter(function(code) {
+        if (code === 'TEAM_ID_MAPPING_NEEDED' || code === 'TEAM_MAPPING_NEEDS_REVIEW') return false;
+        return String(code).indexOf('TEAM_KEY_MAPPING_') !== 0;
+      });
+    }
+    sourceGaps = unique(sourceGaps);
+    return {
+      ok: refs.length > 0 && unresolved.length === 0 && ambiguous.length === 0,
+      status: !refs.length ? 'missing' : (ambiguous.length ? 'ambiguous' : (unresolved.length ? 'needs_review' : 'verified')),
+      source_system: sourceSystem,
+      regulation_id: regulationId,
+      format: format,
+      refs: refs,
+      mappings: refResults,
+      mappings_by_key: byKey,
+      team_id_map: teamIdMap,
+      source_gaps: sourceGaps,
+      unresolved_count: unresolved.length,
+      ambiguous_count: ambiguous.length,
+      resolved_count: refResults.length - unresolved.length
     };
   }
 
@@ -796,6 +958,7 @@
     applyTeamVisibility: applyTeamVisibility,
     compareTeamToLeaderboard: compareTeamToLeaderboard,
     resolveTeamKeyMapping: resolveTeamKeyMapping,
+    resolveArtifactTeamMappings: resolveArtifactTeamMappings,
     defaultPromotionRule: defaultPromotionRule,
     evaluateLeaderboardPromotion: evaluateLeaderboardPromotion,
     applyPromotionDecision: applyPromotionDecision,

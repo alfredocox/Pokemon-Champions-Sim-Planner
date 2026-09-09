@@ -170,12 +170,11 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
   npm run showdown:write-db -- --sync-run-id showdown_YYYYMMDD
 ```
 
-Promotion mode:
-
-```bash
-SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
-  npm run showdown:write-db -- --sync-run-id showdown_YYYYMMDD --approve
-```
+Promotion mode is disabled as of 2026-08-30. The legacy `--approve` option now
+fails before artifact reads or network access, including dry runs. A replacement
+must approve an exact reviewed immutable sync-run ID and SHA-256 digest and
+publish a complete snapshot atomically. Do not refetch during approval or use
+manual row flags as a substitute. See the [current review gate](../../docs/release/REGULATION_WATCH_2026-08-30.md).
 
 The public browser must never receive `SUPABASE_SERVICE_ROLE_KEY`; it can only
 read approved rows through anon-safe views/policies.

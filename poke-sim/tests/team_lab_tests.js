@@ -87,7 +87,7 @@ T('2d. mapping and promotion migration protects team identity and official ranki
     'CREATE TABLE IF NOT EXISTS team_lab_team_key_mappings',
     "source_system text NOT NULL CHECK (source_system IN ('local_qa', 'branch_coverage', 'showdown_import', 'qa_artifact', 'manual_admin'))",
     "mapping_status text NOT NULL DEFAULT 'pending' CHECK (mapping_status IN ('pending', 'verified', 'rejected', 'stale'))",
-    'UNIQUE(source_system, source_team_key, regulation_id, format)',
+    'UNIQUE NULLS NOT DISTINCT(source_system, source_team_key, regulation_id, format)',
     'CREATE TABLE IF NOT EXISTS team_lab_promotion_rules',
     'require_verified_team_mapping boolean NOT NULL DEFAULT true',
     'require_approved_benchmark_pool boolean NOT NULL DEFAULT true',
@@ -285,6 +285,70 @@ T('5d. legality evidence package blocks promotion when fixture classes are missi
   truthy(readiness.source_gaps.some((gap) => gap.indexOf('FIXTURE_TYPES_MISSING') === 0), 'missing fixture source gap absent');
 });
 
+T('5e. Regulation M-B skeleton package is Champion-only and blocked until source captures arrive', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'source', 'reg-m-b-legality-evidence-package.json'), 'utf8'));
+  const fixtureSet = JSON.parse(fs.readFileSync(path.join(ROOT, 'source', 'reg-m-b-legality-fixtures.json'), 'utf8'));
+  eq(pkg.schema_version, 'champions-legality-evidence-package-v1', 'package schema');
+  eq(pkg.regulation_id, 'champions_reg_m_b_2026', 'package must target Pokemon Champions Reg M-B');
+  eq(pkg.format, 'doubles', 'package format');
+  eq(pkg.verification_status, 'needs_verification', 'skeleton package must not be verified');
+  truthy(/Pokemon Champions|Champion/.test(pkg.status_note), 'package status should name Champion source boundary');
+  truthy(!JSON.stringify(pkg).toLowerCase().includes('scarlet'), 'Reg M-B package must not use Scarlet source scope');
+  truthy(!JSON.stringify(pkg).toLowerCase().includes('tera'), 'Reg M-B package must not promote Tera source scope');
+  const report = LegalityEvidencePackage.validateLegalityEvidencePackage(pkg);
+  eq(report.status, 'needs_verification', 'skeleton package must fail closed');
+  truthy(report.source_gaps.some((gap) => gap.code === 'SOURCE_CAPTURE_MISSING'), 'source capture gap missing');
+  truthy(report.source_gaps.some((gap) => gap.code === 'TRUSTED_SOURCE_CAPTURE_MISSING'), 'trusted source capture gap missing');
+  LegalityEvidencePackage.LIST_KEYS.forEach((key) => {
+    truthy(report.source_gaps.some((gap) => gap.code === 'ALLOWLIST_MISSING_' + key.toUpperCase()), key + ' missing gap absent');
+    truthy(report.source_gaps.some((gap) => gap.code === 'ALLOWLIST_INCOMPLETE_' + key.toUpperCase()), key + ' incomplete gap absent');
+  });
+  eq(fixtureSet.schema_version, 'champions-legality-fixture-set-v1', 'fixture set schema');
+  eq(fixtureSet.regulation_id, pkg.regulation_id, 'fixture regulation should match package');
+  const readiness = LegalityEvidencePackage.promotionReadinessFromEvidencePackage(pkg, fixtureSet.fixtures);
+  eq(readiness.ready_for_runtime_promotion, false, 'skeleton package must not promote');
+  eq(readiness.status, 'needs_verification', 'readiness status should fail closed');
+  eq(readiness.fixture_counts.total, 4, 'placeholder fixture count');
+  truthy(readiness.source_gaps.includes('SOURCE_CAPTURE_MISSING'), 'readiness should surface source capture gap');
+});
+
+T('5f. Regulation M-B Codex scaffold preserves TBD/not_captured proof boundaries', () => {
+  const captures = JSON.parse(fs.readFileSync(path.join(ROOT, 'source', 'reg-m-b-capture-records.seed.json'), 'utf8'));
+  const teamCases = JSON.parse(fs.readFileSync(path.join(ROOT, 'source', 'reg-m-b-team-validation-cases.seed.json'), 'utf8'));
+  const policy = JSON.parse(fs.readFileSync(path.join(ROOT, 'source', 'reg-m-b-source-policy.json'), 'utf8'));
+  truthy(Array.isArray(captures) && captures.length >= 8, 'capture scaffold missing');
+  truthy(Array.isArray(teamCases) && teamCases.length === 2, 'team validation seed cases missing');
+  ['primary_official', 'primary_in_game', 'derived_from_primary'].forEach((tier) => {
+    truthy(policy.final_report_allowed_sources.includes(tier), tier + ' should be allowed by policy');
+  });
+  truthy(policy.blocked_as_final_sources.includes('secondary_discovery_only'), 'secondary discovery source must stay blocked as final proof');
+  truthy(policy.hard_rules.some((rule) => /never infer missing/i.test(rule)), 'missing no-inference hard rule');
+  const p0 = captures.filter((row) => row.capture_id && ['C001', 'C002', 'C003', 'C004', 'C005', 'C007', 'C008', 'C009'].includes(row.capture_id));
+  eq(p0.length, 8, 'P0 capture set should have eight required rows');
+  truthy(p0.every((row) => row.status === 'not_captured'), 'P0 rows must remain not_captured until real proof is attached');
+  truthy(captures.some((row) => row.capture_id === 'C012' && row.status === 'pending_primary_captures'), 'derived transcription row must wait on primary captures');
+  truthy(teamCases.every((row) => row.game === 'Pokémon Champions'), 'team cases must target Pokemon Champions');
+  truthy(teamCases.every((row) => row.regulation_set === 'Regulation Set M-B'), 'team cases must target Reg M-B');
+  truthy(teamCases.every((row) => row.current_state === 'fixture_seed_only_not_verified'), 'team cases must remain seed-only until in-game validation');
+  truthy(JSON.stringify(teamCases).includes('TBD'), 'team cases should preserve TBD placeholders');
+});
+
+T('5g. Showdown battle folder imports as reference gameplay evidence only', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'source', 'reg-m-b-showdown-reference-battles.json'), 'utf8'));
+  eq(manifest.schema_version, 'champions-showdown-reference-battle-manifest-v1', 'showdown manifest schema');
+  eq(manifest.source_tier, 'showdown_reference', 'showdown manifest tier');
+  eq(manifest.verification_status, 'reference_only', 'showdown manifest status');
+  truthy(manifest.counts.total >= 1, 'showdown manifest should include battle rows');
+  truthy(manifest.counts.reg_m_b >= 1, 'showdown manifest should include Reg M-B rows');
+  truthy(manifest.rows.every((row) => row.source_tier === 'showdown_reference'), 'all rows must stay showdown_reference');
+  truthy(manifest.rows.every((row) => row.verification_status === 'reference_only'), 'all rows must stay reference_only');
+  truthy(manifest.rows.every((row) => row.blocked_use.includes('official_champion_legality')), 'rows must block official legality use');
+  truthy(manifest.rows.every((row) => row.blocked_use.includes('team_lab_official_ranking')), 'rows must block official ranking use');
+  truthy(manifest.rows.some((row) => row.allowed_use.includes('coaching_calibration')), 'rows should support coaching calibration');
+  const regMbRows = manifest.rows.filter((row) => row.regulation_label === 'Reg M-B');
+  truthy(regMbRows.every((row) => row.tier && row.tier.includes('Champions') && row.tier.includes('Reg M-B')), 'Reg M-B rows should preserve Showdown tier labels');
+});
+
 T('6. raw win rate and adjusted win rate are sample-size aware', () => {
   eq(TeamLab.rawWinRate(7, 2, 1), 0.75, 'raw win rate should count draws as half win');
   approx(TeamLab.adjustedWinRate(1, 0, 0, 0.5, 30), 0.516129, 0.000001, 'adjusted win rate should shrink low sample toward prior');
@@ -411,6 +475,72 @@ T('13. team key mapping must be verified before official promotion', () => {
   ], { source_system: 'branch_coverage', regulation_id: 'reg-m-b', format: 'doubles' });
   eq(verified.ok, true, 'verified mapping should resolve');
   eq(verified.team_lab_team_id, 'team-a', 'verified mapping team mismatch');
+});
+
+T('13b. artifact resolver maps verified artifact keys to durable Team Lab IDs', () => {
+  const artifact = {
+    schema_version: 'champions-qa-artifact-v1',
+    regulation_id: 'reg-m-b',
+    format: 'doubles',
+    source_gaps: ['TEAM_ID_MAPPING_NEEDED', 'SEED_MISSING_FROM_ARTIFACT'],
+    retained: {
+      replay_cards: [
+        { player_team_id: 'player', opponent_team_id: 'mega_altaria', seed: 'seed-1' }
+      ]
+    }
+  };
+  const resolved = TeamLab.resolveArtifactTeamMappings(artifact, [
+    { id: 'map-player', source_system: 'qa_artifact', source_team_key: 'player', team_id: 'team-player', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'verified' },
+    { id: 'map-opp', source_system: 'qa_artifact', source_team_key: 'mega_altaria', team_id: 'team-opp', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'verified' }
+  ], { source_system: 'qa_artifact' });
+  eq(resolved.ok, true, 'verified artifact should resolve');
+  eq(resolved.status, 'verified', 'verified artifact status mismatch');
+  eq(resolved.team_id_map.player, 'team-player', 'player role mapping mismatch');
+  eq(resolved.team_id_map.mega_altaria, 'team-opp', 'opponent key mapping mismatch');
+  truthy(!resolved.source_gaps.includes('TEAM_ID_MAPPING_NEEDED'), 'resolved mapping gap should be cleared');
+  truthy(resolved.source_gaps.includes('SEED_MISSING_FROM_ARTIFACT'), 'non-mapping source gap should remain');
+});
+
+T('13c. artifact resolver preserves source gaps when team mapping is missing', () => {
+  const artifact = {
+    regulation_id: 'reg-m-b',
+    format: 'doubles',
+    source_gaps: ['TEAM_ID_MAPPING_NEEDED', 'RULESET_VERSION_INFERRED'],
+    replay_records: [
+      { team_a_id: 'artifact:player:player', team_b_id: 'artifact:opponent:unknown_opp' }
+    ]
+  };
+  const resolved = TeamLab.resolveArtifactTeamMappings(artifact, [
+    { id: 'map-player', source_system: 'qa_artifact', source_team_key: 'player', team_id: 'team-player', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'verified' }
+  ], { source_system: 'qa_artifact' });
+  eq(resolved.ok, false, 'missing opponent mapping should block resolution');
+  eq(resolved.status, 'needs_review', 'missing mapping status mismatch');
+  eq(resolved.unresolved_count, 1, 'unresolved mapping count mismatch');
+  truthy(resolved.source_gaps.includes('TEAM_ID_MAPPING_NEEDED'), 'original mapping source gap should remain');
+  truthy(resolved.source_gaps.includes('TEAM_KEY_MAPPING_MISSING'), 'missing mapping source gap should be added');
+  truthy(resolved.source_gaps.includes('RULESET_VERSION_INFERRED'), 'unrelated source gap should be preserved');
+});
+
+T('13d. artifact resolver refuses ambiguous team-key mappings', () => {
+  const artifact = {
+    regulation_id: 'reg-m-b',
+    format: 'doubles',
+    retained: {
+      replay_cards: [
+        { player_team_id: 'player', opponent_team_id: 'opponent' }
+      ]
+    }
+  };
+  const resolved = TeamLab.resolveArtifactTeamMappings(artifact, [
+    { id: 'map-a', source_system: 'qa_artifact', source_team_key: 'player', team_id: 'team-a', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'verified' },
+    { id: 'map-b', source_system: 'qa_artifact', source_team_key: 'player', team_id: 'team-b', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'verified' },
+    { id: 'map-opp', source_system: 'qa_artifact', source_team_key: 'opponent', team_id: 'team-opp', regulation_id: 'reg-m-b', format: 'doubles', mapping_status: 'verified' }
+  ], { source_system: 'qa_artifact' });
+  eq(resolved.ok, false, 'ambiguous mapping should block resolution');
+  eq(resolved.status, 'ambiguous', 'ambiguous status mismatch');
+  eq(resolved.ambiguous_count, 1, 'ambiguous mapping count mismatch');
+  truthy(resolved.source_gaps.includes('TEAM_KEY_MAPPING_AMBIGUOUS'), 'ambiguous mapping source gap missing');
+  eq(Object.prototype.hasOwnProperty.call(resolved.team_id_map, 'player'), false, 'ambiguous player key should not map');
 });
 
 T('14. promotion gate blocks unsafe evidence and approves only fully mapped current verified rows', () => {

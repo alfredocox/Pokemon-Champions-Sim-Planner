@@ -1,0 +1,1477 @@
+{
+  "schema_version": "champions-official-roster-capture-v1",
+  "regulation_id": "champions_reg_m_c_2026",
+  "source_url": "https://web-view.app.pokemonchampions.jp/battle/pages/events/rs178713870219xeaaio/en/pokemon.html",
+  "parent_notice_url": "https://champions-news.pokemon-home.com/en/page/816.html",
+  "captured_at_utc": "2026-09-09T19:50:34.670Z",
+  "source_sha256": "122529cebbc15cd2a22c781e0fb43ca814be86a18951f1ceaf37cf65297a3627",
+  "source_bytes": 8557,
+  "competitive_use": false,
+  "review_status": "official_roster_captured_mapping_not_approved",
+  "rows": [
+    {
+      "official_id": "0003-000",
+      "eligible": true,
+      "label": "Venusaur"
+    },
+    {
+      "official_id": "0006-000",
+      "eligible": true,
+      "label": "Charizard"
+    },
+    {
+      "official_id": "0009-000",
+      "eligible": true,
+      "label": "Blastoise"
+    },
+    {
+      "official_id": "0015-000",
+      "eligible": true,
+      "label": "Beedrill"
+    },
+    {
+      "official_id": "0018-000",
+      "eligible": true,
+      "label": "Pidgeot"
+    },
+    {
+      "official_id": "0024-000",
+      "eligible": true,
+      "label": "Arbok"
+    },
+    {
+      "official_id": "0025-000",
+      "eligible": true,
+      "label": "Pikachu"
+    },
+    {
+      "official_id": "0026-000",
+      "eligible": true,
+      "label": "Raichu"
+    },
+    {
+      "official_id": "0026-001",
+      "eligible": true,
+      "label": "Raichu (Alolan Form)"
+    },
+    {
+      "official_id": "0036-000",
+      "eligible": true,
+      "label": "Clefable"
+    },
+    {
+      "official_id": "0038-000",
+      "eligible": true,
+      "label": "Ninetales"
+    },
+    {
+      "official_id": "0038-001",
+      "eligible": true,
+      "label": "Ninetales (Alolan Form)"
+    },
+    {
+      "official_id": "0040-000",
+      "eligible": true,
+      "label": "Wigglytuff"
+    },
+    {
+      "official_id": "0045-000",
+      "eligible": true,
+      "label": "Vileplume"
+    },
+    {
+      "official_id": "0053-000",
+      "eligible": true,
+      "label": "Persian"
+    },
+    {
+      "official_id": "0053-001",
+      "eligible": true,
+      "label": "Persian (Alolan Form)"
+    },
+    {
+      "official_id": "0059-000",
+      "eligible": true,
+      "label": "Arcanine"
+    },
+    {
+      "official_id": "0059-001",
+      "eligible": true,
+      "label": "Arcanine (Hisuian Form)"
+    },
+    {
+      "official_id": "0065-000",
+      "eligible": true,
+      "label": "Alakazam"
+    },
+    {
+      "official_id": "0068-000",
+      "eligible": true,
+      "label": "Machamp"
+    },
+    {
+      "official_id": "0071-000",
+      "eligible": true,
+      "label": "Victreebel"
+    },
+    {
+      "official_id": "0080-000",
+      "eligible": true,
+      "label": "Slowbro"
+    },
+    {
+      "official_id": "0080-002",
+      "eligible": true,
+      "label": "Slowbro (Galarian Form)"
+    },
+    {
+      "official_id": "0083-000",
+      "eligible": true,
+      "label": "Farfetch’d"
+    },
+    {
+      "official_id": "0094-000",
+      "eligible": true,
+      "label": "Gengar"
+    },
+    {
+      "official_id": "0115-000",
+      "eligible": true,
+      "label": "Kangaskhan"
+    },
+    {
+      "official_id": "0121-000",
+      "eligible": true,
+      "label": "Starmie"
+    },
+    {
+      "official_id": "0122-000",
+      "eligible": true,
+      "label": "Mr. Mime"
+    },
+    {
+      "official_id": "0127-000",
+      "eligible": true,
+      "label": "Pinsir"
+    },
+    {
+      "official_id": "0128-000",
+      "eligible": true,
+      "label": "Tauros"
+    },
+    {
+      "official_id": "0128-001",
+      "eligible": true,
+      "label": "Tauros (Paldean Form (Combat Breed))"
+    },
+    {
+      "official_id": "0128-002",
+      "eligible": true,
+      "label": "Tauros (Paldean Form (Blaze Breed))"
+    },
+    {
+      "official_id": "0128-003",
+      "eligible": true,
+      "label": "Tauros (Paldean Form (Aqua Breed))"
+    },
+    {
+      "official_id": "0130-000",
+      "eligible": true,
+      "label": "Gyarados"
+    },
+    {
+      "official_id": "0132-000",
+      "eligible": true,
+      "label": "Ditto"
+    },
+    {
+      "official_id": "0134-000",
+      "eligible": true,
+      "label": "Vaporeon"
+    },
+    {
+      "official_id": "0135-000",
+      "eligible": true,
+      "label": "Jolteon"
+    },
+    {
+      "official_id": "0136-000",
+      "eligible": true,
+      "label": "Flareon"
+    },
+    {
+      "official_id": "0142-000",
+      "eligible": true,
+      "label": "Aerodactyl"
+    },
+    {
+      "official_id": "0143-000",
+      "eligible": true,
+      "label": "Snorlax"
+    },
+    {
+      "official_id": "0149-000",
+      "eligible": true,
+      "label": "Dragonite"
+    },
+    {
+      "official_id": "0154-000",
+      "eligible": true,
+      "label": "Meganium"
+    },
+    {
+      "official_id": "0157-000",
+      "eligible": true,
+      "label": "Typhlosion"
+    },
+    {
+      "official_id": "0157-001",
+      "eligible": true,
+      "label": "Typhlosion (Hisuian Form)"
+    },
+    {
+      "official_id": "0160-000",
+      "eligible": true,
+      "label": "Feraligatr"
+    },
+    {
+      "official_id": "0168-000",
+      "eligible": true,
+      "label": "Ariados"
+    },
+    {
+      "official_id": "0181-000",
+      "eligible": true,
+      "label": "Ampharos"
+    },
+    {
+      "official_id": "0184-000",
+      "eligible": true,
+      "label": "Azumarill"
+    },
+    {
+      "official_id": "0186-000",
+      "eligible": true,
+      "label": "Politoed"
+    },
+    {
+      "official_id": "0196-000",
+      "eligible": true,
+      "label": "Espeon"
+    },
+    {
+      "official_id": "0197-000",
+      "eligible": true,
+      "label": "Umbreon"
+    },
+    {
+      "official_id": "0199-000",
+      "eligible": true,
+      "label": "Slowking"
+    },
+    {
+      "official_id": "0199-001",
+      "eligible": true,
+      "label": "Slowking (Galarian Form)"
+    },
+    {
+      "official_id": "0205-000",
+      "eligible": true,
+      "label": "Forretress"
+    },
+    {
+      "official_id": "0208-000",
+      "eligible": true,
+      "label": "Steelix"
+    },
+    {
+      "official_id": "0211-000",
+      "eligible": true,
+      "label": "Qwilfish"
+    },
+    {
+      "official_id": "0212-000",
+      "eligible": true,
+      "label": "Scizor"
+    },
+    {
+      "official_id": "0214-000",
+      "eligible": true,
+      "label": "Heracross"
+    },
+    {
+      "official_id": "0227-000",
+      "eligible": true,
+      "label": "Skarmory"
+    },
+    {
+      "official_id": "0229-000",
+      "eligible": true,
+      "label": "Houndoom"
+    },
+    {
+      "official_id": "0248-000",
+      "eligible": true,
+      "label": "Tyranitar"
+    },
+    {
+      "official_id": "0254-000",
+      "eligible": true,
+      "label": "Sceptile"
+    },
+    {
+      "official_id": "0257-000",
+      "eligible": true,
+      "label": "Blaziken"
+    },
+    {
+      "official_id": "0260-000",
+      "eligible": true,
+      "label": "Swampert"
+    },
+    {
+      "official_id": "0279-000",
+      "eligible": true,
+      "label": "Pelipper"
+    },
+    {
+      "official_id": "0282-000",
+      "eligible": true,
+      "label": "Gardevoir"
+    },
+    {
+      "official_id": "0302-000",
+      "eligible": true,
+      "label": "Sableye"
+    },
+    {
+      "official_id": "0303-000",
+      "eligible": true,
+      "label": "Mawile"
+    },
+    {
+      "official_id": "0306-000",
+      "eligible": true,
+      "label": "Aggron"
+    },
+    {
+      "official_id": "0308-000",
+      "eligible": true,
+      "label": "Medicham"
+    },
+    {
+      "official_id": "0310-000",
+      "eligible": true,
+      "label": "Manectric"
+    },
+    {
+      "official_id": "0317-000",
+      "eligible": true,
+      "label": "Swalot"
+    },
+    {
+      "official_id": "0319-000",
+      "eligible": true,
+      "label": "Sharpedo"
+    },
+    {
+      "official_id": "0323-000",
+      "eligible": true,
+      "label": "Camerupt"
+    },
+    {
+      "official_id": "0324-000",
+      "eligible": true,
+      "label": "Torkoal"
+    },
+    {
+      "official_id": "0334-000",
+      "eligible": true,
+      "label": "Altaria"
+    },
+    {
+      "official_id": "0350-000",
+      "eligible": true,
+      "label": "Milotic"
+    },
+    {
+      "official_id": "0351-000",
+      "eligible": true,
+      "label": "Castform"
+    },
+    {
+      "official_id": "0354-000",
+      "eligible": true,
+      "label": "Banette"
+    },
+    {
+      "official_id": "0358-000",
+      "eligible": true,
+      "label": "Chimecho"
+    },
+    {
+      "official_id": "0359-000",
+      "eligible": true,
+      "label": "Absol"
+    },
+    {
+      "official_id": "0362-000",
+      "eligible": true,
+      "label": "Glalie"
+    },
+    {
+      "official_id": "0373-000",
+      "eligible": true,
+      "label": "Salamence"
+    },
+    {
+      "official_id": "0376-000",
+      "eligible": true,
+      "label": "Metagross"
+    },
+    {
+      "official_id": "0389-000",
+      "eligible": true,
+      "label": "Torterra"
+    },
+    {
+      "official_id": "0392-000",
+      "eligible": true,
+      "label": "Infernape"
+    },
+    {
+      "official_id": "0395-000",
+      "eligible": true,
+      "label": "Empoleon"
+    },
+    {
+      "official_id": "0398-000",
+      "eligible": true,
+      "label": "Staraptor"
+    },
+    {
+      "official_id": "0405-000",
+      "eligible": true,
+      "label": "Luxray"
+    },
+    {
+      "official_id": "0407-000",
+      "eligible": true,
+      "label": "Roserade"
+    },
+    {
+      "official_id": "0409-000",
+      "eligible": true,
+      "label": "Rampardos"
+    },
+    {
+      "official_id": "0411-000",
+      "eligible": true,
+      "label": "Bastiodon"
+    },
+    {
+      "official_id": "0428-000",
+      "eligible": true,
+      "label": "Lopunny"
+    },
+    {
+      "official_id": "0442-000",
+      "eligible": true,
+      "label": "Spiritomb"
+    },
+    {
+      "official_id": "0445-000",
+      "eligible": true,
+      "label": "Garchomp"
+    },
+    {
+      "official_id": "0448-000",
+      "eligible": true,
+      "label": "Lucario"
+    },
+    {
+      "official_id": "0450-000",
+      "eligible": true,
+      "label": "Hippowdon"
+    },
+    {
+      "official_id": "0454-000",
+      "eligible": true,
+      "label": "Toxicroak"
+    },
+    {
+      "official_id": "0460-000",
+      "eligible": true,
+      "label": "Abomasnow"
+    },
+    {
+      "official_id": "0461-000",
+      "eligible": true,
+      "label": "Weavile"
+    },
+    {
+      "official_id": "0464-000",
+      "eligible": true,
+      "label": "Rhyperior"
+    },
+    {
+      "official_id": "0470-000",
+      "eligible": true,
+      "label": "Leafeon"
+    },
+    {
+      "official_id": "0471-000",
+      "eligible": true,
+      "label": "Glaceon"
+    },
+    {
+      "official_id": "0472-000",
+      "eligible": true,
+      "label": "Gliscor"
+    },
+    {
+      "official_id": "0473-000",
+      "eligible": true,
+      "label": "Mamoswine"
+    },
+    {
+      "official_id": "0475-000",
+      "eligible": true,
+      "label": "Gallade"
+    },
+    {
+      "official_id": "0478-000",
+      "eligible": true,
+      "label": "Froslass"
+    },
+    {
+      "official_id": "0479-000",
+      "eligible": true,
+      "label": "Rotom (Rotom)"
+    },
+    {
+      "official_id": "0479-001",
+      "eligible": true,
+      "label": "Rotom (Heat Rotom)"
+    },
+    {
+      "official_id": "0479-002",
+      "eligible": true,
+      "label": "Rotom (Wash Rotom)"
+    },
+    {
+      "official_id": "0479-003",
+      "eligible": true,
+      "label": "Rotom (Frost Rotom)"
+    },
+    {
+      "official_id": "0479-004",
+      "eligible": true,
+      "label": "Rotom (Fan Rotom)"
+    },
+    {
+      "official_id": "0479-005",
+      "eligible": true,
+      "label": "Rotom (Mow Rotom)"
+    },
+    {
+      "official_id": "0497-000",
+      "eligible": true,
+      "label": "Serperior"
+    },
+    {
+      "official_id": "0500-000",
+      "eligible": true,
+      "label": "Emboar"
+    },
+    {
+      "official_id": "0503-000",
+      "eligible": true,
+      "label": "Samurott"
+    },
+    {
+      "official_id": "0503-001",
+      "eligible": true,
+      "label": "Samurott (Hisuian Form)"
+    },
+    {
+      "official_id": "0505-000",
+      "eligible": true,
+      "label": "Watchog"
+    },
+    {
+      "official_id": "0510-000",
+      "eligible": true,
+      "label": "Liepard"
+    },
+    {
+      "official_id": "0512-000",
+      "eligible": true,
+      "label": "Simisage"
+    },
+    {
+      "official_id": "0514-000",
+      "eligible": true,
+      "label": "Simisear"
+    },
+    {
+      "official_id": "0516-000",
+      "eligible": true,
+      "label": "Simipour"
+    },
+    {
+      "official_id": "0518-000",
+      "eligible": true,
+      "label": "Musharna"
+    },
+    {
+      "official_id": "0530-000",
+      "eligible": true,
+      "label": "Excadrill"
+    },
+    {
+      "official_id": "0531-000",
+      "eligible": true,
+      "label": "Audino"
+    },
+    {
+      "official_id": "0534-000",
+      "eligible": true,
+      "label": "Conkeldurr"
+    },
+    {
+      "official_id": "0545-000",
+      "eligible": true,
+      "label": "Scolipede"
+    },
+    {
+      "official_id": "0547-000",
+      "eligible": true,
+      "label": "Whimsicott"
+    },
+    {
+      "official_id": "0553-000",
+      "eligible": true,
+      "label": "Krookodile"
+    },
+    {
+      "official_id": "0560-000",
+      "eligible": true,
+      "label": "Scrafty"
+    },
+    {
+      "official_id": "0563-000",
+      "eligible": true,
+      "label": "Cofagrigus"
+    },
+    {
+      "official_id": "0569-000",
+      "eligible": true,
+      "label": "Garbodor"
+    },
+    {
+      "official_id": "0571-000",
+      "eligible": true,
+      "label": "Zoroark"
+    },
+    {
+      "official_id": "0571-001",
+      "eligible": true,
+      "label": "Zoroark (Hisuian Form)"
+    },
+    {
+      "official_id": "0579-000",
+      "eligible": true,
+      "label": "Reuniclus"
+    },
+    {
+      "official_id": "0584-000",
+      "eligible": true,
+      "label": "Vanilluxe"
+    },
+    {
+      "official_id": "0587-000",
+      "eligible": true,
+      "label": "Emolga"
+    },
+    {
+      "official_id": "0604-000",
+      "eligible": true,
+      "label": "Eelektross"
+    },
+    {
+      "official_id": "0609-000",
+      "eligible": true,
+      "label": "Chandelure"
+    },
+    {
+      "official_id": "0614-000",
+      "eligible": true,
+      "label": "Beartic"
+    },
+    {
+      "official_id": "0618-000",
+      "eligible": true,
+      "label": "Stunfisk"
+    },
+    {
+      "official_id": "0618-001",
+      "eligible": true,
+      "label": "Stunfisk (Galarian Form)"
+    },
+    {
+      "official_id": "0623-000",
+      "eligible": true,
+      "label": "Golurk"
+    },
+    {
+      "official_id": "0635-000",
+      "eligible": true,
+      "label": "Hydreigon"
+    },
+    {
+      "official_id": "0637-000",
+      "eligible": true,
+      "label": "Volcarona"
+    },
+    {
+      "official_id": "0652-000",
+      "eligible": true,
+      "label": "Chesnaught"
+    },
+    {
+      "official_id": "0655-000",
+      "eligible": true,
+      "label": "Delphox"
+    },
+    {
+      "official_id": "0658-000",
+      "eligible": true,
+      "label": "Greninja"
+    },
+    {
+      "official_id": "0660-000",
+      "eligible": true,
+      "label": "Diggersby"
+    },
+    {
+      "official_id": "0663-000",
+      "eligible": true,
+      "label": "Talonflame"
+    },
+    {
+      "official_id": "0666-018",
+      "eligible": true,
+      "label": "Vivillon"
+    },
+    {
+      "official_id": "0668-000",
+      "eligible": true,
+      "label": "Pyroar"
+    },
+    {
+      "official_id": "0670-005",
+      "eligible": true,
+      "label": "Floette"
+    },
+    {
+      "official_id": "0671-000",
+      "eligible": true,
+      "label": "Florges"
+    },
+    {
+      "official_id": "0673-000",
+      "eligible": true,
+      "label": "Gogoat"
+    },
+    {
+      "official_id": "0675-000",
+      "eligible": true,
+      "label": "Pangoro"
+    },
+    {
+      "official_id": "0676-000",
+      "eligible": true,
+      "label": "Furfrou"
+    },
+    {
+      "official_id": "0678-000",
+      "eligible": true,
+      "label": "Meowstic (Male)"
+    },
+    {
+      "official_id": "0678-001",
+      "eligible": true,
+      "label": "Meowstic (Female)"
+    },
+    {
+      "official_id": "0681-000",
+      "eligible": true,
+      "label": "Aegislash"
+    },
+    {
+      "official_id": "0683-000",
+      "eligible": true,
+      "label": "Aromatisse"
+    },
+    {
+      "official_id": "0685-000",
+      "eligible": true,
+      "label": "Slurpuff"
+    },
+    {
+      "official_id": "0687-000",
+      "eligible": true,
+      "label": "Malamar"
+    },
+    {
+      "official_id": "0689-000",
+      "eligible": true,
+      "label": "Barbaracle"
+    },
+    {
+      "official_id": "0691-000",
+      "eligible": true,
+      "label": "Dragalge"
+    },
+    {
+      "official_id": "0693-000",
+      "eligible": true,
+      "label": "Clawitzer"
+    },
+    {
+      "official_id": "0695-000",
+      "eligible": true,
+      "label": "Heliolisk"
+    },
+    {
+      "official_id": "0697-000",
+      "eligible": true,
+      "label": "Tyrantrum"
+    },
+    {
+      "official_id": "0699-000",
+      "eligible": true,
+      "label": "Aurorus"
+    },
+    {
+      "official_id": "0700-000",
+      "eligible": true,
+      "label": "Sylveon"
+    },
+    {
+      "official_id": "0701-000",
+      "eligible": true,
+      "label": "Hawlucha"
+    },
+    {
+      "official_id": "0702-000",
+      "eligible": true,
+      "label": "Dedenne"
+    },
+    {
+      "official_id": "0706-000",
+      "eligible": true,
+      "label": "Goodra"
+    },
+    {
+      "official_id": "0706-001",
+      "eligible": true,
+      "label": "Goodra (Hisuian Form)"
+    },
+    {
+      "official_id": "0707-000",
+      "eligible": true,
+      "label": "Klefki"
+    },
+    {
+      "official_id": "0709-000",
+      "eligible": true,
+      "label": "Trevenant"
+    },
+    {
+      "official_id": "0711-000",
+      "eligible": true,
+      "label": "Gourgeist (Medium Variety)"
+    },
+    {
+      "official_id": "0711-001",
+      "eligible": true,
+      "label": "Gourgeist (Small Variety)"
+    },
+    {
+      "official_id": "0711-002",
+      "eligible": true,
+      "label": "Gourgeist (Large Variety)"
+    },
+    {
+      "official_id": "0711-003",
+      "eligible": true,
+      "label": "Gourgeist (Jumbo Variety)"
+    },
+    {
+      "official_id": "0713-000",
+      "eligible": true,
+      "label": "Avalugg"
+    },
+    {
+      "official_id": "0713-001",
+      "eligible": true,
+      "label": "Avalugg (Hisuian Form)"
+    },
+    {
+      "official_id": "0715-000",
+      "eligible": true,
+      "label": "Noivern"
+    },
+    {
+      "official_id": "0724-000",
+      "eligible": true,
+      "label": "Decidueye"
+    },
+    {
+      "official_id": "0724-001",
+      "eligible": true,
+      "label": "Decidueye (Hisuian Form)"
+    },
+    {
+      "official_id": "0727-000",
+      "eligible": true,
+      "label": "Incineroar"
+    },
+    {
+      "official_id": "0730-000",
+      "eligible": true,
+      "label": "Primarina"
+    },
+    {
+      "official_id": "0733-000",
+      "eligible": true,
+      "label": "Toucannon"
+    },
+    {
+      "official_id": "0740-000",
+      "eligible": true,
+      "label": "Crabominable"
+    },
+    {
+      "official_id": "0745-000",
+      "eligible": true,
+      "label": "Lycanroc (Midday Form)"
+    },
+    {
+      "official_id": "0745-001",
+      "eligible": true,
+      "label": "Lycanroc (Midnight Form)"
+    },
+    {
+      "official_id": "0745-002",
+      "eligible": true,
+      "label": "Lycanroc (Dusk Form)"
+    },
+    {
+      "official_id": "0748-000",
+      "eligible": true,
+      "label": "Toxapex"
+    },
+    {
+      "official_id": "0750-000",
+      "eligible": true,
+      "label": "Mudsdale"
+    },
+    {
+      "official_id": "0752-000",
+      "eligible": true,
+      "label": "Araquanid"
+    },
+    {
+      "official_id": "0758-000",
+      "eligible": true,
+      "label": "Salazzle"
+    },
+    {
+      "official_id": "0763-000",
+      "eligible": true,
+      "label": "Tsareena"
+    },
+    {
+      "official_id": "0765-000",
+      "eligible": true,
+      "label": "Oranguru"
+    },
+    {
+      "official_id": "0766-000",
+      "eligible": true,
+      "label": "Passimian"
+    },
+    {
+      "official_id": "0768-000",
+      "eligible": true,
+      "label": "Golisopod"
+    },
+    {
+      "official_id": "0778-000",
+      "eligible": true,
+      "label": "Mimikyu"
+    },
+    {
+      "official_id": "0780-000",
+      "eligible": true,
+      "label": "Drampa"
+    },
+    {
+      "official_id": "0784-000",
+      "eligible": true,
+      "label": "Kommo-o"
+    },
+    {
+      "official_id": "0812-000",
+      "eligible": true,
+      "label": "Rillaboom"
+    },
+    {
+      "official_id": "0815-000",
+      "eligible": true,
+      "label": "Cinderace"
+    },
+    {
+      "official_id": "0818-000",
+      "eligible": true,
+      "label": "Inteleon"
+    },
+    {
+      "official_id": "0823-000",
+      "eligible": true,
+      "label": "Corviknight"
+    },
+    {
+      "official_id": "0828-000",
+      "eligible": true,
+      "label": "Thievul"
+    },
+    {
+      "official_id": "0841-000",
+      "eligible": true,
+      "label": "Flapple"
+    },
+    {
+      "official_id": "0842-000",
+      "eligible": true,
+      "label": "Appletun"
+    },
+    {
+      "official_id": "0844-000",
+      "eligible": true,
+      "label": "Sandaconda"
+    },
+    {
+      "official_id": "0849-000",
+      "eligible": true,
+      "label": "Toxtricity (Amped Form)"
+    },
+    {
+      "official_id": "0849-001",
+      "eligible": true,
+      "label": "Toxtricity (Low Key Form)"
+    },
+    {
+      "official_id": "0853-000",
+      "eligible": true,
+      "label": "Grapploct"
+    },
+    {
+      "official_id": "0855-000",
+      "eligible": true,
+      "label": "Polteageist"
+    },
+    {
+      "official_id": "0858-000",
+      "eligible": true,
+      "label": "Hatterene"
+    },
+    {
+      "official_id": "0861-000",
+      "eligible": true,
+      "label": "Grimmsnarl"
+    },
+    {
+      "official_id": "0863-000",
+      "eligible": true,
+      "label": "Perrserker"
+    },
+    {
+      "official_id": "0865-000",
+      "eligible": true,
+      "label": "Sirfetch’d"
+    },
+    {
+      "official_id": "0866-000",
+      "eligible": true,
+      "label": "Mr. Rime"
+    },
+    {
+      "official_id": "0867-000",
+      "eligible": true,
+      "label": "Runerigus"
+    },
+    {
+      "official_id": "0869-000",
+      "eligible": true,
+      "label": "Alcremie"
+    },
+    {
+      "official_id": "0870-000",
+      "eligible": true,
+      "label": "Falinks"
+    },
+    {
+      "official_id": "0871-000",
+      "eligible": true,
+      "label": "Pincurchin"
+    },
+    {
+      "official_id": "0876-000",
+      "eligible": true,
+      "label": "Indeedee (Male)"
+    },
+    {
+      "official_id": "0876-001",
+      "eligible": true,
+      "label": "Indeedee (Female)"
+    },
+    {
+      "official_id": "0877-000",
+      "eligible": true,
+      "label": "Morpeko"
+    },
+    {
+      "official_id": "0887-000",
+      "eligible": true,
+      "label": "Dragapult"
+    },
+    {
+      "official_id": "0899-000",
+      "eligible": true,
+      "label": "Wyrdeer"
+    },
+    {
+      "official_id": "0900-000",
+      "eligible": true,
+      "label": "Kleavor"
+    },
+    {
+      "official_id": "0902-000",
+      "eligible": true,
+      "label": "Basculegion (Male)"
+    },
+    {
+      "official_id": "0902-001",
+      "eligible": true,
+      "label": "Basculegion (Female)"
+    },
+    {
+      "official_id": "0903-000",
+      "eligible": true,
+      "label": "Sneasler"
+    },
+    {
+      "official_id": "0904-000",
+      "eligible": true,
+      "label": "Overqwil"
+    },
+    {
+      "official_id": "0908-000",
+      "eligible": true,
+      "label": "Meowscarada"
+    },
+    {
+      "official_id": "0911-000",
+      "eligible": true,
+      "label": "Skeledirge"
+    },
+    {
+      "official_id": "0914-000",
+      "eligible": true,
+      "label": "Quaquaval"
+    },
+    {
+      "official_id": "0923-000",
+      "eligible": true,
+      "label": "Pawmot"
+    },
+    {
+      "official_id": "0925-001",
+      "eligible": true,
+      "label": "Maushold"
+    },
+    {
+      "official_id": "0930-000",
+      "eligible": true,
+      "label": "Arboliva"
+    },
+    {
+      "official_id": "0931-000",
+      "eligible": true,
+      "label": "Squawkabilly"
+    },
+    {
+      "official_id": "0931-002",
+      "eligible": true,
+      "label": "Squawkabilly"
+    },
+    {
+      "official_id": "0934-000",
+      "eligible": true,
+      "label": "Garganacl"
+    },
+    {
+      "official_id": "0936-000",
+      "eligible": true,
+      "label": "Armarouge"
+    },
+    {
+      "official_id": "0937-000",
+      "eligible": true,
+      "label": "Ceruledge"
+    },
+    {
+      "official_id": "0939-000",
+      "eligible": true,
+      "label": "Bellibolt"
+    },
+    {
+      "official_id": "0943-000",
+      "eligible": true,
+      "label": "Mabosstiff"
+    },
+    {
+      "official_id": "0952-000",
+      "eligible": true,
+      "label": "Scovillain"
+    },
+    {
+      "official_id": "0956-000",
+      "eligible": true,
+      "label": "Espathra"
+    },
+    {
+      "official_id": "0959-000",
+      "eligible": true,
+      "label": "Tinkaton"
+    },
+    {
+      "official_id": "0964-000",
+      "eligible": true,
+      "label": "Palafin"
+    },
+    {
+      "official_id": "0968-000",
+      "eligible": true,
+      "label": "Orthworm"
+    },
+    {
+      "official_id": "0970-000",
+      "eligible": true,
+      "label": "Glimmora"
+    },
+    {
+      "official_id": "0972-000",
+      "eligible": true,
+      "label": "Houndstone"
+    },
+    {
+      "official_id": "0979-000",
+      "eligible": true,
+      "label": "Annihilape"
+    },
+    {
+      "official_id": "0981-000",
+      "eligible": true,
+      "label": "Farigiraf"
+    },
+    {
+      "official_id": "0983-000",
+      "eligible": true,
+      "label": "Kingambit"
+    },
+    {
+      "official_id": "0998-000",
+      "eligible": true,
+      "label": "Baxcalibur"
+    },
+    {
+      "official_id": "1000-000",
+      "eligible": true,
+      "label": "Gholdengo"
+    },
+    {
+      "official_id": "1013-000",
+      "eligible": true,
+      "label": "Sinistcha"
+    },
+    {
+      "official_id": "1018-000",
+      "eligible": true,
+      "label": "Archaludon"
+    },
+    {
+      "official_id": "1019-000",
+      "eligible": true,
+      "label": "Hydrapple"
+    }
+  ],
+  "parent_notice_sha256": "c195592cdf52c8ce193cc02d444b19c3272234be66a04764356064be35ff1985",
+  "previous_capture_sha256": "0ceb54b4e4d7135db2dabef54db81105419fa5477869953d0831f78bd545bd15",
+  "identity_delta": {
+    "added": [
+      {
+        "official_id": "0040-000",
+        "eligible": true,
+        "label": "Wigglytuff"
+      },
+      {
+        "official_id": "0053-000",
+        "eligible": true,
+        "label": "Persian"
+      },
+      {
+        "official_id": "0053-001",
+        "eligible": true,
+        "label": "Persian (Alolan Form)"
+      },
+      {
+        "official_id": "0083-000",
+        "eligible": true,
+        "label": "Farfetch’d"
+      },
+      {
+        "official_id": "0122-000",
+        "eligible": true,
+        "label": "Mr. Mime"
+      },
+      {
+        "official_id": "0317-000",
+        "eligible": true,
+        "label": "Swalot"
+      },
+      {
+        "official_id": "0373-000",
+        "eligible": true,
+        "label": "Salamence"
+      },
+      {
+        "official_id": "0673-000",
+        "eligible": true,
+        "label": "Gogoat"
+      },
+      {
+        "official_id": "0768-000",
+        "eligible": true,
+        "label": "Golisopod"
+      },
+      {
+        "official_id": "0812-000",
+        "eligible": true,
+        "label": "Rillaboom"
+      },
+      {
+        "official_id": "0815-000",
+        "eligible": true,
+        "label": "Cinderace"
+      },
+      {
+        "official_id": "0818-000",
+        "eligible": true,
+        "label": "Inteleon"
+      },
+      {
+        "official_id": "0828-000",
+        "eligible": true,
+        "label": "Thievul"
+      },
+      {
+        "official_id": "0849-000",
+        "eligible": true,
+        "label": "Toxtricity (Amped Form)"
+      },
+      {
+        "official_id": "0849-001",
+        "eligible": true,
+        "label": "Toxtricity (Low Key Form)"
+      },
+      {
+        "official_id": "0853-000",
+        "eligible": true,
+        "label": "Grapploct"
+      },
+      {
+        "official_id": "0863-000",
+        "eligible": true,
+        "label": "Perrserker"
+      },
+      {
+        "official_id": "0865-000",
+        "eligible": true,
+        "label": "Sirfetch’d"
+      },
+      {
+        "official_id": "0871-000",
+        "eligible": true,
+        "label": "Pincurchin"
+      },
+      {
+        "official_id": "0876-000",
+        "eligible": true,
+        "label": "Indeedee (Male)"
+      },
+      {
+        "official_id": "0876-001",
+        "eligible": true,
+        "label": "Indeedee (Female)"
+      },
+      {
+        "official_id": "0923-000",
+        "eligible": true,
+        "label": "Pawmot"
+      },
+      {
+        "official_id": "0925-001",
+        "eligible": true,
+        "label": "Maushold"
+      },
+      {
+        "official_id": "0930-000",
+        "eligible": true,
+        "label": "Arboliva"
+      },
+      {
+        "official_id": "0931-000",
+        "eligible": true,
+        "label": "Squawkabilly"
+      },
+      {
+        "official_id": "0931-002",
+        "eligible": true,
+        "label": "Squawkabilly"
+      },
+      {
+        "official_id": "0943-000",
+        "eligible": true,
+        "label": "Mabosstiff"
+      },
+      {
+        "official_id": "0998-000",
+        "eligible": true,
+        "label": "Baxcalibur"
+      }
+    ],
+    "removed": [
+      {
+        "official_id": "0925-000",
+        "eligible": true,
+        "label": "Maushold"
+      }
+    ],
+    "changed": []
+  }
+}

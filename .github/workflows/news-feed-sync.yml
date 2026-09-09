@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: news-feed-sync
@@ -14,37 +15,108 @@ concurrency:
 
 jobs:
   sync-news:
+    if: github.repository == 'TheYfactora12/Pokemon-Champions-Sim-Planner' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare review branch without rewriting history
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          candidates=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/pulls?state=open&base=main&per_page=100" | jq '[.[][] | select(.head.ref | startswith("automation/home-news-"))]')
+          printf '%s' "$candidates" | node poke-sim/tools/news-review-policy.mjs --prs "$GITHUB_REPOSITORY"
+          count=$(jq 'length' <<< "$candidates")
+          [ "$count" -le 1 ] || { echo "Multiple news PRs require human reconciliation."; exit 1; }
+          branch=$(jq -r '.[0].head.ref // empty' <<< "$candidates")
+          if [ -n "$branch" ]; then
+            [[ "$branch" =~ ^automation/home-news-[0-9]+$ ]] || exit 1
+            jq -e --arg repo "$GITHUB_REPOSITORY" '.[0] | .head.repo.full_name == $repo and .user.login == "github-actions[bot]"' <<< "$candidates" > /dev/null
+            git fetch origin "$branch"
+            expected=$(jq -r '.[0].head.sha' <<< "$candidates")
+            [ "$(git rev-parse "origin/$branch")" = "$expected" ] || exit 1
+            git diff --name-only -z origin/main..."origin/$branch" | node poke-sim/tools/news-review-policy.mjs --paths
+            while IFS= read -r file; do
+              case "$file" in
+                poke-sim/generated/news_feed.js|poke-sim/pokemon-champion-2026.html|poke-sim/generated/release_artifact.json) ;;
+                *) echo "Existing PR changes non-news files; manual review required."; exit 1 ;;
+              esac
+            done < <(git diff --name-only origin/main..."origin/$branch")
+            git checkout -b "$branch" "origin/$branch"
+            git merge --no-edit origin/main
+            # Never execute generated JS/HTML from a pending PR. Rebuild from trusted main.
+            git restore --source=origin/main -- poke-sim/generated/news_feed.js poke-sim/pokemon-champion-2026.html poke-sim/generated/release_artifact.json
+            git diff --quiet origin/main -- . ':!poke-sim/generated/news_feed.js' ':!poke-sim/pokemon-champion-2026.html' ':!poke-sim/generated/release_artifact.json'
+          else
+            branch="automation/home-news-${GITHUB_RUN_ID}"
+            git checkout -b "$branch"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
+          cache: npm
+          cache-dependency-path: poke-sim/package-lock.json
 
-      - name: Sync trusted news feeds
+      - name: Install locked tooling
+        working-directory: poke-sim
+        run: npm ci
+
+      - name: Sync curated public feeds
         run: node poke-sim/tools/sync-news-feed.mjs
 
       - name: Rebuild Champion sim bundle
         run: python3 poke-sim/tools/build-bundle.py
 
-      - name: Validate news feed and release artifact
-        run: |
-          node -e "const fs=require('fs'); const text=fs.readFileSync('poke-sim/generated/news_feed.js','utf8'); if(!text.includes('champions-news-feed-v1')) throw new Error('news feed schema missing');"
-          node poke-sim/tools/check-news-image-health.mjs
-          node poke-sim/tests/news_source_trust_guard_tests.js
-          node poke-sim/tests/release_manifest_tests.js
-          node poke-sim/tests/t191_overview_tab_tests.js
+      - name: Validate candidate
+        working-directory: poke-sim
+        run: npm run test:fast
 
-      - name: Commit synced news feed
+      - name: Retain source health
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-source-health
+          path: poke-sim/reports/news-sync-health.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Update a single review PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEWS_BRANCH: ${{ steps.candidate.outputs.branch }}
+        shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- poke-sim/generated/news_feed.js poke-sim/pokemon-champion-2026.html poke-sim/generated/release_artifact.json; then
-            echo "No news feed changes."
+          git add poke-sim/generated/news_feed.js poke-sim/pokemon-champion-2026.html poke-sim/generated/release_artifact.json
+          if git diff --cached --quiet; then
+            echo "No feed artifact changes." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add poke-sim/generated/news_feed.js poke-sim/pokemon-champion-2026.html poke-sim/generated/release_artifact.json
-          git commit -m "Sync homepage news feed"
-          git push
+          git commit -m "Refresh curated Champions coverage"
+          git diff --name-only -z origin/main...HEAD | node poke-sim/tools/news-review-policy.mjs --paths
+          while IFS= read -r file; do
+            case "$file" in
+              poke-sim/generated/news_feed.js|poke-sim/pokemon-champion-2026.html|poke-sim/generated/release_artifact.json) ;;
+              *) echo "Final PR exceeds the news-only boundary."; exit 1 ;;
+            esac
+          done < <(git diff --name-only origin/main...HEAD)
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$NEWS_BRANCH"
+          pr=$(gh pr list --head "$NEWS_BRANCH" --base main --state open --json url --jq '.[0].url // empty')
+          if [ -z "$pr" ]; then
+            pr=$(gh pr create --base main --head "$NEWS_BRANCH" --title "Refresh curated Champions coverage" --body "Scheduled public-news candidate. Review source health in the workflow artifact and the dated feed items. The offline fast gate ran here. Approve workflows to run on this bot PR, then wait for all required checks BEFORE merging. No rules, DB rows, or simulator mechanics are promoted. A human merge runs the normal main/Pages release path. Do not auto-merge or bypass required checks.")
+          fi
+          echo "Review candidate: $pr" >> "$GITHUB_STEP_SUMMARY"
+          echo "Not deployed. Human review and the normal Pages gates remain required." >> "$GITHUB_STEP_SUMMARY"

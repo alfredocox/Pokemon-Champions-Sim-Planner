@@ -4,12 +4,24 @@
   "description": "Pokemon Champions Sim Planner - DB integration testing",
   "main": "tests/_db_helpers.js",
   "scripts": {
-    "test": "bash tests/_run_all.sh",
-    "test:fast": "bash tests/_run_all.sh --skip-db",
-    "test:db": "bash tests/_run_all_db.sh",
-    "test:db:live": "bash tests/_run_all_db.sh --live",
-    "test:source-truth": "node tests/showdown_runtime_data_tests.js && node tests/runtime_data_bridge_tests.js && node tests/damage_pipeline_tests.js && node tests/showdown_damage_oracle_tests.js && node tests/move_verification_registry_tests.js && node tests/showdown_priority_drift_tests.js && node tests/showdown_approved_data_generator_tests.js && node tests/showdown_db_writer_tests.js && node tests/showdown_sync_workflow_tests.js && node tests/pokemon_data_audit_tests.js",
+    "test": "node tools/run-project-gate.mjs",
+    "test:fast": "node tools/run-project-gate.mjs --fast",
+    "test:db": "node tools/run-project-gate.mjs --db",
+    "test:db:live": "node tools/run-project-gate.mjs --db --live",
+    "test:battle-audit:contract": "node tools/run-battle-audit.mjs --check",
+    "test:battle-audit": "node tools/run-battle-audit.mjs",
+    "test:accuracy": "node tools/run-accuracy-validation.mjs",
+    "tournament:capture": "node tools/fetch-worlds-team-candidates.mjs && node tools/build-tournament-catalog.mjs",
+    "tournament:build": "node tools/build-tournament-catalog.mjs",
+    "test:source-truth": "node tests/showdown_runtime_data_tests.js && node tests/runtime_data_bridge_tests.js && node tests/damage_pipeline_tests.js && node tests/showdown_damage_oracle_tests.js && node tests/move_verification_registry_tests.js && node tests/showdown_priority_drift_tests.js && node tests/showdown_approved_data_generator_tests.js && node tests/showdown_db_writer_tests.js && node tests/showdown_sync_workflow_tests.js && node tests/pokemon_data_audit_tests.js && node tests/species_ability_legality_tests.js && node tests/supabase_governance_tests.js && node tests/workflow_governance_tests.js && node tests/news_sync_resilience_tests.mjs",
     "showdown:sync": "node tools/fetch_showdown_data.mjs",
+    "showdown:champions-overrides": "node tools/build-champions-move-overrides.mjs",
+    "showdown:reference": "node tools/run-showdown-reference.mjs",
+    "champions:sources": "node tools/audit-champions-sources.mjs",
+    "regulations:watch": "node tools/watch-regulations.mjs --require-complete",
+    "regulations:stage": "node tools/stage-regulation-candidate.mjs",
+    "roadmap:build": "node tools/build-project-roadmap.mjs",
+    "roadmap:check": "node tools/build-project-roadmap.mjs --check",
     "showdown:write-db": "node tools/write_showdown_data_to_db.mjs",
     "showdown:generate-approved": "node tools/generate-approved-data-from-db.mjs",
     "codex:qa": "node tools/ingest-codex-qa-artifacts.mjs",
@@ -27,5 +39,9 @@
     "database"
   ],
   "author": "Alfredo Cox",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "cheerio": "1.1.2",
+    "pokemon-showdown": "0.11.11"
+  }
 }

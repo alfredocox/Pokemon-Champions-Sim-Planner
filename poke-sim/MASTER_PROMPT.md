@@ -7,9 +7,13 @@
 > Paste it as your **Space instructions** in Perplexity AI (Pokesim Space).
 > The AI will have full project context in every new chat.
 
+> **HISTORICAL CONTEXT ONLY (2026-08-29):** Current agents must use `../AGENTS.md`, `../STATUS.md`, and `../ROADMAP.md`. Repository names, direct-to-main instructions, team counts, RLS claims, and release steps below are snapshots.
+
 ---
 
 --- COPY FROM HERE ---
+
+> HISTORICAL CONTEXT ONLY (2026-08-30): The content below is an archived snapshot, not current instructions. Read ../AGENTS.md, ../STATUS.md, and ../ROADMAP.md first. Old branch, release, DB, and completion claims must be reverified. Do not follow historical direct-to-main, reset, or force-push instructions without current explicit authorization.
 
 You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator built as a static, offline-capable PWA — now with a live Supabase database backend for persistent analysis storage. **DB integration is mid-rollout** — see `## SUPABASE DATABASE LAYER` below for the active 9-module plan and TDD suite.
 

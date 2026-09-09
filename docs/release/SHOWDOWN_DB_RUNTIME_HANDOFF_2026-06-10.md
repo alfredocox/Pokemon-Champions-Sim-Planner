@@ -1,5 +1,11 @@
 # Showdown DB Runtime Handoff - 2026-06-10
 
+> Historical handoff, not current operating instructions. As of 2026-08-30 the
+> `approve=true` workflow input and writer `--approve` path described below are
+> disabled locally. Do not follow those promotion steps. See
+> [the current regulation/source review gate](REGULATION_WATCH_2026-08-30.md)
+> and `STATUS.md` for activation and remaining atomic-promotion requirements.
+
 ## Audience
 
 This note is for Josh, Alfredo, and reviewers validating the Showdown-to-Supabase work before merge.

@@ -1,0 +1,65 @@
+name: Regulation Watch
+
+on:
+  schedule:
+    - cron: '43 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regulation-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    if: github.repository == 'TheYfactora12/Pokemon-Champions-Sim-Planner' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+    defaults:
+      run:
+        working-directory: poke-sim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: poke-sim/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: node --test tests/regulation_watch_tests.mjs
+      - uses: actions/cache/restore@v4
+        with:
+          path: poke-sim/artifacts/regulation-watch-baseline
+          key: regulation-watch-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: regulation-watch-v1-
+      - name: Observe and discover official sources (never approve)
+        run: node tools/watch-regulations.mjs
+        env:
+          REGULATION_EVIDENCE_PUBLIC_KEY: ${{ vars.REGULATION_EVIDENCE_PUBLIC_KEY }}
+      - name: Retain review evidence before any alerts
+        uses: actions/upload-artifact@v4
+        with:
+          name: regulation-watch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: poke-sim/artifacts/regulation-watch/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Deduplicate review issues (including closed issues)
+        run: node tools/report-regulation-changes.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Advance baseline only after evidence and alerts are retained
+        run: |
+          node --input-type=module -e "import fs from 'node:fs/promises'; await fs.mkdir('artifacts/regulation-watch-baseline', {recursive:true}); await fs.copyFile('artifacts/regulation-watch/next-state.json', 'artifacts/regulation-watch-baseline/state.json');"
+      - uses: actions/cache/save@v4
+        with:
+          path: poke-sim/artifacts/regulation-watch-baseline
+          key: regulation-watch-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Fail visibly when required sources could not be checked
+        run: node --input-type=module -e "import fs from 'node:fs'; const r = JSON.parse(fs.readFileSync('artifacts/regulation-watch/report.json')); if (r.incomplete) process.exit(1);"

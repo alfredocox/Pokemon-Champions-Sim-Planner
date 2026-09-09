@@ -96,14 +96,14 @@ T('4. true Champions item-pool violations still remain hard errors', () => {
     format: 'champions',
     members: [{
       name: 'Milotic',
-      item: 'Life Orb',
+      item: 'Loaded Dice',
       ability: 'Competitive',
       nature: 'Bold',
       evs: { hp: 32, atk: 0, def: 10, spa: 23, spd: 0, spe: 1 },
       moves: ['Scald', 'Protect', 'Recover', 'Ice Beam']
     }]
   }, 'vgc');
-  truthy((verdict.errors || []).some(err => err.includes('Life Orb')), 'expected actual item-pool violation to remain');
+  truthy((verdict.errors || []).some(err => err.includes('Loaded Dice')), 'expected actual item-pool violation to remain');
 });
 
 T('5. preloaded Champions legality tags match the validator', () => {

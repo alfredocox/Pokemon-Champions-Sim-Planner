@@ -1,8 +1,8 @@
 # Champions Sim — Database Setup
 
 > **STATUS: ACTIVE**
-> Last reviewed for this branch: 2026-06-28.
-> The live Supabase project is provisioned and the app has DB wiring. Current canonical team seed count is 34 teams, matching `poke-sim/data.js` and the Champions-only shipped catalog.
+> Last source review: 2026-08-30. Read [`../../STATUS.md`](../../STATUS.md) for current truth. Local regulation preflight does not approve M-A/M-B; catalog rows are not competitive legality proof.
+> Live DB measurements below are historical, not reverified by the August 30 cleanup. Use [`diagnostics/cleanup_preflight.sql`](diagnostics/cleanup_preflight.sql) for a bounded read-only inventory; it has not been run against Supabase in this cleanup.
 > Showdown sync/audit and approved-entity migrations have passed in the Kevin fork workflow, and one unapproved Showdown entity write succeeded. Public bundle generation from approved views remains a review/release gate.
 > Alfredo's repo is a separate remote and must be aligned by review/PR, not by blindly overwriting divergent history.
 
@@ -15,10 +15,10 @@ The live Supabase `teams` table is not allowed to be a loose archive of every te
 When adding or removing approved teams:
 
 1. Update `poke-sim/data.js`.
-2. Run `python3 poke-sim/tools/generate_seed_from_data.py`.
-3. Commit the regenerated `db/seed_teams_v2.sql`, `db/migrations/2026_04_28_seed_teams_v2.sql`, and `db/migrations/2026_06_20_align_shared_27_team_catalog.sql`.
-4. Apply `2026_06_20_align_shared_27_team_catalog.sql` with the `Supabase DB Migration` workflow before expecting PR CI or Pages deploy to pass.
-5. Run or confirm `RUN_LIVE_DB=1 node tests/db_m2_seed_tests.js`.
+2. Inspect the seed generator in a disposable checkout first. The legacy generator writes historical migration files; do not regenerate or overwrite applied migration history as routine cleanup.
+3. Create a new additive, reviewed migration for any approved catalog change. Retain source digests, regulation scope, rollback/retirement behavior and original evidence relationships.
+4. Test the migration on an isolated database, then apply through the protected migration workflow only with explicit approval and a verified recovery path.
+5. Read back schema, RLS, grants and rows, then run the live seed gate (`RUN_LIVE_DB=1 node tests/db_m2_seed_tests.js` from `poke-sim/` in the POSIX CI shell, using the authorized environment). Passing catalog consistency is not approval of a competitive regulation.
 
 Old, non-legal, or superseded teams must be marked retired, for example with `metadata.retired = true`, instead of remaining as active rows. The live DB seed test ignores retired rows and fails if active rows are missing legal catalog teams or include extra active teams. This is intentional: it prevents stale/non-legal teams from appearing in selectors, poisoning sim QA, or contaminating future coaching/training stats.
 
@@ -46,7 +46,7 @@ Supabase (Postgres + RLS) + `supabase-js` v2
 > Do not run the delete-first `seed_teams_v2.sql` or `2026_04_28_seed_teams_v2.sql` against a live DB that already has `analyses` rows. Use `2026_06_20_align_shared_27_team_catalog.sql` instead.
 
 App layer: `poke-sim/supabase_adapter.js` — fully implemented. Browser credentials are injected at runtime through ignored local files or CI secrets; real keys must not be committed.
-UI wiring: `poke-sim/ui.js` already loads DB teams on startup and persists analyses after battle runs when the adapter is enabled.
+UI wiring: `poke-sim/ui.js` loads DB teams on startup. Shared analysis, catalog, and QA evidence writes are being moved behind trusted workflows; the public browser must remain read-only.
 
 ---
 
@@ -125,7 +125,7 @@ Without `.env.local`, `npm run test:db` runs the DB suites against mocks/offline
 
 ## GitHub Pages / CI Secrets
 
-The public site needs only read/insert browser credentials:
+The public site needs only read-only browser credentials:
 
 | Secret | Used by | Purpose |
 |---|---|---|
@@ -136,9 +136,7 @@ Admin database changes need a separate secret that is never bundled into the sit
 
 | Secret | Used by | Purpose |
 |---|---|---|
-| `SUPABASE_DB_URL_T` | Manual `Supabase DB Migration` workflow only | Preferred pooler Postgres connection string for DDL migrations |
-| `SUPABASE_DB_URL_P` | Manual `Supabase DB Migration` workflow only | Preferred Postgres connection string for DDL migrations |
-| `SUPABASE_DB_URL` | Manual `Supabase DB Migration` workflow only | Legacy fallback Postgres connection string |
+| `SUPABASE_DB_URL_P` | Protected `production` migration environment only | Explicit production Postgres connection string for DDL migrations |
 
 `SUPABASE_DB_URL_T` should come from Supabase Dashboard -> Project Settings -> Database -> Connection string -> Session Pooler or Transaction Pooler. Use a URI connection string with SSL enabled, for example:
 
@@ -201,10 +199,10 @@ window.__DISABLE_SUPABASE__ = true; // set before adapter loads
 
 - `anon` key is safe to expose in client code — RLS blocks unauthorized writes
 - **Never** put the `service_role` key in any frontend file or commit it to GitHub
-- Anonymous users: read-only on reference/team tables, insert-only on analysis/log tables
-- No UPDATE or DELETE for anonymous users on any table
+- Anonymous users: read-only on shared catalog, mechanics, analysis, log, and QA evidence tables
+- No INSERT, UPDATE, or DELETE for browser roles on shared truth/evidence tables
 - Auth scaffold is in `rls_policies_v1.sql` (commented out) — uncomment when adding login
-- Unrestricted anonymous INSERT on `analyses` is a deliberate accepted-risk decision for a public sim with no auth. Add an Edge Function rate limiter if spam becomes a concern.
+- Private or user-owned writes require authenticated ownership policies; trusted shared writes require a server-side workflow.
 
 ---
 

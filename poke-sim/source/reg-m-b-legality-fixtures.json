@@ -1,0 +1,71 @@
+{
+  "schema_version": "champions-legality-fixture-set-v1",
+  "fixture_set_id": "champions-reg-m-b-2026-doubles-fixtures-v0",
+  "regulation_id": "champions_reg_m_b_2026",
+  "ruleset_version": "reg-m-b-source-package-v0-needs-capture",
+  "format": "doubles",
+  "status": "needs_source_capture",
+  "fixtures": [
+    {
+      "id": "regmb-known-legal-placeholder",
+      "fixture_type": "known_legal",
+      "expected_status": "needs_verification",
+      "source_pointer": "Attach an in-game accepted Regulation M-B team capture before changing expected_status to verified.",
+      "use_missing_source": true,
+      "team": {
+        "name": "Reg M-B known legal placeholder",
+        "format": "doubles",
+        "regulation_id": "champions_reg_m_b_2026",
+        "members": []
+      }
+    },
+    {
+      "id": "regmb-known-illegal-placeholder",
+      "fixture_type": "known_illegal",
+      "expected_status": "needs_verification",
+      "source_pointer": "Attach an in-game rejected species/form/move/item/Mega capture before changing expected_status to illegal.",
+      "use_missing_source": true,
+      "team": {
+        "name": "Reg M-B known illegal placeholder",
+        "format": "doubles",
+        "regulation_id": "champions_reg_m_b_2026",
+        "members": []
+      }
+    },
+    {
+      "id": "regmb-stale-placeholder",
+      "fixture_type": "stale_ruleset",
+      "expected_status": "stale",
+      "ruleset_version": "stale-regulation-placeholder",
+      "source_pointer": "Wrong-ruleset fixture proves stale evidence cannot promote current Reg M-B legality.",
+      "team": {
+        "name": "Reg M-B stale placeholder",
+        "format": "doubles",
+        "regulation_id": "champions_reg_m_b_2026",
+        "members": []
+      }
+    },
+    {
+      "id": "regmb-needs-verification-placeholder",
+      "fixture_type": "needs_verification",
+      "expected_status": "needs_verification",
+      "source_pointer": "Unknown Champion rows must stay needs_verification until source-backed.",
+      "use_missing_source": true,
+      "team": {
+        "name": "Reg M-B unknown placeholder",
+        "format": "doubles",
+        "regulation_id": "champions_reg_m_b_2026",
+        "members": [
+          {
+            "slot": 1,
+            "pokemon_id": "unknown-champion-row",
+            "form_id": null,
+            "item_id": null,
+            "ability_id": null,
+            "moves": []
+          }
+        ]
+      }
+    }
+  ]
+}

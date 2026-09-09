@@ -105,6 +105,46 @@ var CHAMPIONS_LEGAL_ITEMS = new Set([
   'Shell Bell','White Herb','Choice Scarf','Focus Sash'
 ]);
 
+// Regulation M-B review candidates from Champion-specific secondary source
+// pages. These entries are allowed into custom team editing/import as warnings
+// so players can test current-format teams, but they are NOT promoted into the
+// implemented legal item pool and must not train/rank trusted data until
+// official/in-game fixtures and item-effect coverage are complete.
+// Source: https://www.serebii.net/pokemonchampions/items.shtml
+var CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES = new Set([
+  'Big Root','Black Belt','Black Glasses','Bright Powder','Charcoal',
+  'Choice Scarf','Damp Rock','Dragon Fang','Expert Belt','Fairy Feather',
+  'Focus Band','Focus Sash','Hard Stone','Heat Rock','Icy Rock','Iron Ball',
+  "King's Rock",'Leftovers','Life Orb','Light Ball','Light Clay','Magnet',
+  'Mental Herb','Metal Coat','Metronome','Miracle Seed','Muscle Band',
+  'Mystic Water','Never-Melt Ice','Poison Barb','Quick Claw','Scope Lens',
+  'Sharp Beak','Shed Shell','Shell Bell','Silk Scarf','Silver Powder',
+  'Smooth Rock','Soft Sand','Spell Tag','Twisted Spoon','White Herb',
+  'Wide Lens','Wise Glasses','Zoom Lens',
+  'Abomasite','Absolite','Aerodactylite','Aggronite','Alakazite',
+  'Altarianite','Ampharosite','Audinite','Banettite','Barbaracite',
+  'Beedrillite','Blastoisinite','Blazikenite','Cameruptite','Chandelurite',
+  'Charizardite X','Charizardite Y','Chesnaughtite','Chimechite',
+  'Clefablite','Crabominite','Delphoxite','Dragalgite','Dragoninite',
+  'Drampanite','Eelektrossite','Emboarite','Excadrite','Falinksite',
+  'Feraligite','Floettite','Froslassite','Galladite','Garchompite',
+  'Gardevoirite','Gengarite','Glalitite','Glimmoranite','Golurkite',
+  'Greninjite','Gyaradosite','Hawluchanite','Heracronite','Houndoominite',
+  'Kangaskhanite','Lopunnite','Lucarionite','Malamarite','Manectite',
+  'Mawilite','Medichamite','Meganiumite','Meowsticite','Metagrossite',
+  'Pidgeotite','Pinsirite','Pyroarite','Raichunite X','Raichunite Y',
+  'Sablenite','Sceptilite','Scizorite','Scolipite','Scovillainite',
+  'Scraftinite','Sharpedonite','Skarmorite','Slowbronite','Staraptite',
+  'Starminite','Steelixite','Swampertite','Tyranitarite','Venusaurite',
+  'Victreebelite',
+  'Aspear Berry','Babiri Berry','Charti Berry','Cheri Berry','Chesto Berry',
+  'Chilan Berry','Chople Berry','Coba Berry','Colbur Berry','Haban Berry',
+  'Kasib Berry','Kebia Berry','Leppa Berry','Lum Berry','Occa Berry',
+  'Oran Berry','Passho Berry','Payapa Berry','Pecha Berry','Persim Berry',
+  'Rawst Berry','Rindo Berry','Roseli Berry','Shuca Berry','Sitrus Berry',
+  'Tanga Berry','Wacan Berry','Yache Berry'
+]);
+
 // Items confirmed ABSENT from Champions launch item pool. Kept separately so
 // violation messages can distinguish known absent SV carryovers from unknown
 // unreviewed names.
@@ -197,10 +237,15 @@ function validateChampionsLegality(team) {
     var item = mon && mon.item ? mon.item : '';
     if (item && !CHAMPIONS_LEGAL_ITEMS.has(item)) {
       var knownAbsent = CHAMPIONS_BANNED_ITEMS.has(item);
+      var regMbReviewCandidate = typeof CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES !== 'undefined'
+        && CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES
+        && CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES.has(item);
       violations.push({
-        severity: 'error',
-        code: knownAbsent ? 'ITEM_ABSENT' : 'ITEM_NOT_IN_CHAMPIONS_POOL',
-        message: name + ': item "' + item + '" is not in verified implemented Champions item pool'
+        severity: regMbReviewCandidate ? 'warning' : 'error',
+        code: regMbReviewCandidate ? 'REGMB_ITEM_REVIEW_ONLY' : (knownAbsent ? 'ITEM_ABSENT' : 'ITEM_NOT_IN_CHAMPIONS_POOL'),
+        message: regMbReviewCandidate
+          ? name + ': item "' + item + '" is a Reg M-B review candidate, not verified implemented legality; custom testing only, do not train/rank trusted data'
+          : name + ': item "' + item + '" is not in verified implemented Champions item pool'
       });
     }
 
@@ -260,6 +305,16 @@ function validateChampionsLegality(team) {
 function validateTeamForRuleset(team, rulesetId) {
   var ruleset = typeof getChampionsRuleset === 'function' ? getChampionsRuleset(rulesetId) : null;
   var violations = [];
+  if (!ruleset || ruleset.status === 'unknown') {
+    return {
+      ruleset_id: rulesetId == null ? '' : String(rulesetId),
+      ruleset_status: 'unknown',
+      allowed: false,
+      learning_eligible: false,
+      poisoning_guard: 'unknown_ruleset_do_not_train_or_rank',
+      violations: [{ severity: 'error', code: 'UNKNOWN_RULESET', message: 'Select a recognized ruleset before validating this team.' }]
+    };
+  }
   if (ruleset && !ruleset.runtimePromotable) {
     violations.push({
       severity: 'error',
@@ -282,12 +337,14 @@ function validateTeamForRuleset(team, rulesetId) {
   }
   var base = validateChampionsLegality(team);
   var hardErrors = (base.violations || []).filter(function(v){ return v && v.severity === 'error'; });
+  var evidence = typeof getRulesetEvidencePolicy === 'function' ? getRulesetEvidencePolicy(rulesetId) : null;
+  var trusted = !hardErrors.length && evidence && evidence.poisoning_guard === 'trusted_stats_allowed';
   return {
     ruleset_id: ruleset && ruleset.id || 'champions_reg_m_a_2026',
     ruleset_status: ruleset && ruleset.status || 'historical',
     allowed: hardErrors.length === 0,
-    learning_eligible: hardErrors.length === 0,
-    poisoning_guard: hardErrors.length === 0 ? 'trusted_stats_allowed' : 'illegal_team_do_not_train_or_rank',
+    learning_eligible: !!trusted,
+    poisoning_guard: hardErrors.length ? 'illegal_team_do_not_train_or_rank' : (trusted ? 'trusted_stats_allowed' : 'review_only_do_not_train_or_rank'),
     violations: base.violations || []
   };
 }
@@ -299,6 +356,7 @@ if (typeof module !== 'undefined' && module.exports) {
     FAKEMON_BLOCKLIST: FAKEMON_BLOCKLIST,
     CHAMPIONS_REGMB_REVIEW_NEW_MEGAS: CHAMPIONS_REGMB_REVIEW_NEW_MEGAS,
     CHAMPIONS_LEGAL_ITEMS: CHAMPIONS_LEGAL_ITEMS,
+    CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES: CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES,
     CHAMPIONS_BANNED_ITEMS: CHAMPIONS_BANNED_ITEMS,
     CHAMPIONS_BANNED_MECHANIC_MOVES: CHAMPIONS_BANNED_MECHANIC_MOVES,
     CHAMPIONS_BANNED_MECHANIC_ABILITIES: CHAMPIONS_BANNED_MECHANIC_ABILITIES,

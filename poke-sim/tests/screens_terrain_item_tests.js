@@ -301,7 +301,8 @@ T('10. Intimidated mon deals less physical damage on its next move', () => {
 // SECTION 5 — HELD ITEMS IN LIVE BATTLE
 // =============================================================================
 // Champions item set: Leftovers (1/16 HP/turn), Choice Scarf (+50% Spe, move lock).
-// Life Orb and Choice Band/Specs are NOT in Champions (#11 WONTFIX).
+// Life Orb and similar rows can be Reg M-B review candidates, but their item
+// effects remain unpromoted until source fixtures and tests pass (#11 WONTFIX).
 // =============================================================================
 console.log('\n=== SECTION 5: Held items in live battle ===');
 console.log('Expected: Leftovers restores HP. Choice Scarf boosts speed and locks first move.');

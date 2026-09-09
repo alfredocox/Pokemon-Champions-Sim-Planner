@@ -150,6 +150,43 @@ function runDry(args) {
   return result.stdout;
 }
 
+function runIntercepted(args, {approveViaApi = false} = {}) {
+  const script = `
+    import {pathToFileURL} from 'node:url';
+    const requests = [];
+    globalThis.fetch = async (url, options) => {
+      requests.push({url: String(url), rows: JSON.parse(options.body)});
+      return {ok: true};
+    };
+    process.once('beforeExit', () => console.log('DB_WRITER_REQUESTS=' + JSON.stringify(requests)));
+    ${approveViaApi ? '' : `process.argv = ${JSON.stringify([process.execPath, writerPath].concat(args))};`}
+    const writer = await import(pathToFileURL(${JSON.stringify(writerPath)}).href);
+    ${approveViaApi ? `
+      try {
+        const inputs = await writer.loadArtifactInputs(${JSON.stringify(args[0])});
+        writer.buildDbPayload(inputs, {approve: true});
+      } catch (error) {
+        console.error(error.message);
+        process.exitCode = 1;
+      }
+    ` : ''}
+  `;
+  const result = childProcess.spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 10000,
+    env: Object.assign({}, process.env, {
+      SUPABASE_URL: 'https://showdown-writer-test.invalid',
+      SUPABASE_SERVICE_ROLE_KEY: 'fixture-only-not-a-secret',
+      SUPABASE_DB_WRITE_KEY: ''
+    })
+  });
+  truthy(!result.error, String(result.error));
+  const marker = (result.stdout || '').split(/\r?\n/).find(line => line.startsWith('DB_WRITER_REQUESTS='));
+  truthy(marker, 'intercepted request evidence missing: ' + result.stderr);
+  return {result, requests: JSON.parse(marker.slice('DB_WRITER_REQUESTS='.length))};
+}
+
 console.log('\n=== Showdown DB writer tests ===\n');
 
 T('1. dry run reports DB row counts without Supabase credentials', () => {
@@ -166,11 +203,20 @@ T('1. dry run reports DB row counts without Supabase credentials', () => {
   eq(summary.counts.byKind.ability, 1, 'ability kind count');
 });
 
-T('2. approve flag marks promotion mode explicitly', () => {
+T('2. approval fails before artifact reads and network, including dry runs', () => {
   const dir = makeArtifacts();
-  const out = runDry(['--artifact-dir', dir, '--sync-run-id', 'fixture_run', '--approve', '--dry-run', '--json']);
-  const summary = JSON.parse(out);
-  eq(summary.approve, true, 'approve flag');
+  for (const flag of ['--approve', '--approve=true', '--approve=false']) {
+    for (const dry of [[], ['--dry-run', '--json']]) {
+      for (const artifactDir of [dir, path.join(dir, 'missing')]) {
+        const {result, requests} = runIntercepted(['--artifact-dir', artifactDir, flag].concat(dry));
+        eq(result.status, 1, 'approval exit status');
+        truthy(/approval is disabled/i.test(result.stderr), 'explicit approval error required');
+        truthy(/SHA-256 digest.*not implemented/i.test(result.stderr), 'missing promotion contract explanation');
+        eq(requests.length, 0, 'approval must not call fetch');
+        truthy(!result.stderr.includes('ENOENT'), 'reject before reading artifacts');
+      }
+    }
+  }
 });
 
 T('3. real write mode requires a service-role style secret', () => {
@@ -190,6 +236,32 @@ T('3. real write mode requires a service-role style secret', () => {
   });
   truthy(result.status !== 0, 'write should fail without write credentials');
   truthy((result.stderr || '').includes('SUPABASE_SERVICE_ROLE_KEY'), 'missing credential error should name service role key');
+});
+
+T('4. exported payload builder cannot approve rows', () => {
+  const {result, requests} = runIntercepted([makeArtifacts()], {approveViaApi: true});
+  truthy(result.status !== 0, 'API approval must fail');
+  truthy(/approval is disabled/i.test(result.stderr), 'API must reject approval explicitly');
+  eq(requests.length, 0, 'API approval must not call fetch');
+});
+
+T('5. staging writes only unapproved rows through intercepted requests', () => {
+  const {result, requests} = runIntercepted(['--artifact-dir', makeArtifacts(), '--sync-run-id', 'fixture_stage']);
+  eq(result.status, 0, result.stderr);
+  eq(requests.length, 4, 'all staging tables written');
+  const entities = requests.find(r => new URL(r.url).pathname.endsWith('/showdown_entities')).rows;
+  eq(entities.length, 3, 'fixture entity count');
+  truthy(entities.every(row => row.approved === false && row.approved_at === null), 'staged entities cannot be approved');
+  const run = requests.find(r => new URL(r.url).pathname.endsWith('/showdown_sync_runs')).rows[0];
+  eq(run.summary.approvedOnWrite, false, 'sync summary remains unapproved');
+  truthy(!result.stdout.includes('rerun with --approve'), 'no unsafe promotion instructions');
+});
+
+T('6. dry run stays unapproved with credentials present and never calls fetch', () => {
+  const {result, requests} = runIntercepted(['--artifact-dir', makeArtifacts(), '--dry-run']);
+  eq(result.status, 0, result.stderr);
+  eq(requests.length, 0, 'dry run must not call fetch');
+  truthy(result.stdout.includes('Approve on write: no'), 'dry run remains unapproved');
 });
 
 console.log('\nShowdown DB writer:', pass + ' pass, ' + fail + ' fail\n');

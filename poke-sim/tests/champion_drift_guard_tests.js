@@ -108,10 +108,8 @@ T('5. Pages deploy runs Champion source-of-truth checks before publishing', () =
     'SUPABASE_ANON_KEY',
     'SUPABASE_KEY',
     'Live Supabase seed parity enabled for Pages deploy.',
-    'champion_pack_legality_tests.js',
-    'preloaded_team_legality_tests.js',
-    't9j11_tests.js',
-    'bundle_load_order_tests.js',
+    // pages_asset_inventory_tests checks all four former individual suites remain discovered.
+    'npm run test:fast',
     'check-bundle.sh'
   ].forEach((token) => inc(pagesWorkflow, token, 'Pages deploy missing ' + token));
 });

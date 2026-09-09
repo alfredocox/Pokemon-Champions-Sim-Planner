@@ -120,6 +120,12 @@ async function fetchRestRows(viewName, supabaseUrl, supabaseKey) {
   while (true) {
     const url = new URL(`/rest/v1/${viewName}`, supabaseUrl);
     url.searchParams.set('select', '*');
+    url.searchParams.set(
+      'order',
+      viewName === 'approved_champions_data'
+        ? 'entity_kind.asc,entity_key.asc,field_path.asc,created_at.asc,override_id.asc'
+        : 'entity_kind.asc,entity_key.asc'
+    );
     const response = await fetch(url, {
       headers: {
         apikey: supabaseKey,
@@ -255,6 +261,15 @@ function buildRuntime(entityRows, overrideRows, options) {
       const bk = `${normalizeKind(b.entity_kind || b.entityKind || b.kind)}:${toId(b.entity_key || b.entityKey || b.key)}:${b.field_path || b.fieldPath || ''}`;
       return ak.localeCompare(bk);
     });
+
+  const activeOverrideSubjects = new Set();
+  for (const override of activeOverrides) {
+    const subject = `${normalizeKind(override.entity_kind || override.entityKind || override.kind)}:${toId(override.entity_key || override.entityKey || override.key)}:${override.field_path || override.fieldPath || ''}`;
+    if (activeOverrideSubjects.has(subject)) {
+      throw new Error(`Multiple active Champions overrides target ${subject}`);
+    }
+    activeOverrideSubjects.add(subject);
+  }
 
   for (const override of activeOverrides) {
     const kind = normalizeKind(override.entity_kind || override.entityKind || override.kind);

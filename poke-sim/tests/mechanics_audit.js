@@ -16,6 +16,7 @@ function load(file) {
 }
 
 load('data.js');
+load('generated/pokemon_showdown_legal_data.js');
 load('engine.js');
 vm.runInContext('this.simulateBattle = simulateBattle;', ctx);
 

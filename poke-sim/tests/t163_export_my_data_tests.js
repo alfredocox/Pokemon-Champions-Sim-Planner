@@ -100,12 +100,16 @@ vm.createContext(ctx);
 
 function load(file) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), ctx, { filename: file });
+  if (file === 'move_legality.js') ctx.window.ChampionsSim = ctx.ChampionsSim;
 }
 
 [
   'release_manifest.js',
   'app_shell.js',
   'data.js',
+  'generated/pokemon_showdown_legal_data.js',
+  'generated/champions_move_pools.js',
+  'move_legality.js',
   'logger.js',
   'engine.js',
   'storage_adapter.js',
@@ -128,6 +132,8 @@ vm.runInContext([
   'this.addReplays = addReplays;'
 ].join(' '), ctx);
 
+// Synthetic export/algorithm fixtures only. Production preflight is tested separately.
+ctx.canRunRegulationAnalysis = () => true;
 const {
   TEAMS,
   Storage,
@@ -217,7 +223,9 @@ async function main() {
         eq(playerKey, 'player');
         eq(limit, 500);
         return [
-          { analysis_id: 'a1', created_at: '2026-05-15T10:00:00.000Z', player_team_id: 'player', opp_team_id: 'mega_altaria', bo: 3, win_rate: 0.75, wins: 3, losses: 1, sample_size: 4 }
+          { analysis_id: 'a1', created_at: '2026-05-15T10:00:00.000Z', player_team_id: 'player', opp_team_id: 'mega_altaria', bo: 3, win_rate: 0.75, wins: 3, losses: 1, sample_size: 4,
+            engine_version: '1.1.1', format: 'doubles', evidence_policy: { poisoning_guard: 'identity_mismatch_do_not_train_or_rank' },
+            analysis_json: { provenance: { build_id: 'original-build' }, evidence_policy: { poisoning_guard: 'trusted_stats_allowed' } } }
         ];
       },
       loadAnalysisLogs: async function(analysisId) {
@@ -232,6 +240,11 @@ async function main() {
     eq(payload.db.analyses.length, 1, 'analysis count');
     eq(payload.db.analyses[0].analysis_id, 'a1');
     eq(payload.db.analyses[0].logs.length, 1, 'nested logs missing');
+    eq(payload.db.analyses[0].engine_version, '1.1.1', 'execution engine missing');
+    eq(payload.db.analyses[0].analysis_json.provenance.build_id, 'original-build', 'export dropped provenance');
+    eq(payload.db.analyses[0].evidence_policy.poisoning_guard, 'identity_mismatch_do_not_train_or_rank', 'export dropped recomputed quarantine');
+    eq(payload.db.analyses[0].analysis_json.evidence_policy.poisoning_guard, 'identity_mismatch_do_not_train_or_rank', 'nested policy must not remain trusted');
+    eq(payload.db.analyses[0].stored_evidence_policy.poisoning_guard, 'trusted_stats_allowed', 'original policy retained for inspection');
   });
 
   await T('4. export click downloads a JSON file with the expected prefix', async () => {
@@ -258,9 +271,10 @@ async function main() {
     truthy(/id="run-all-export-qa-btn"/.test(html), 'Release Matrix QA button missing');
     truthy(/id="stress-lite-qa-btn"/.test(html), 'Device-Safe Stress QA button missing');
     truthy(/id="tactical-sweep-qa-btn"/.test(html), 'Tactical Coaching QA button missing');
-    truthy(/Quick check: runs one matchup/.test(html), 'Run Simulation hover help missing');
-    truthy(/Broad release check: runs many matchups/.test(html), 'Run All hover help missing');
-    truthy(/Release Matrix QA: runs all matchups/.test(html), 'Release Matrix QA hover help missing');
+    truthy(/On-page battle test: runs the selected matchup/.test(html), 'Run Selected Matchup hover help missing');
+    truthy(/On-page matchup matrix: runs your selected team against every loaded team/.test(html), 'Run All Loaded Teams hover help missing');
+    truthy(/Run All \+ Download QA File/.test(html), 'Run All QA file button label missing');
+    truthy(/QA file export \/ Release Matrix QA: runs all loaded team matchups/.test(html), 'Run All QA file hover help missing');
     truthy(/Device-Safe Stress QA: runs capped lower-load coverage/.test(html), 'Device-Safe Stress QA hover help missing');
     truthy(/Tactical Coaching QA: tests branches/.test(html), 'Tactical Coaching QA hover help missing');
     truthy(/Workflow helper: choose a local folder/.test(html), 'QA drop folder hover help missing');
@@ -268,8 +282,9 @@ async function main() {
     truthy(/id="qa-drop-folder-btn"/.test(html), 'QA drop folder button missing');
     truthy(/Tactical Coaching QA/.test(html), 'Tactical Coaching QA label missing');
     truthy(/id="sim-scope"/.test(html), 'Test Scope selector missing');
+    truthy(/All loaded teams/.test(html), 'All loaded teams scope option missing');
     truthy(/Selected matchup/.test(html), 'Selected matchup scope option missing');
-    truthy(/10,000 series \(full team stress\)/.test(html), '10,000 stress sample option missing');
+    truthy(/5,000 series \(selected-team stress\)/.test(html), '5,000 selected-team stress sample option missing');
     truthy(/id="tactical-depth"/.test(html), 'Tactical Depth selector missing');
     truthy(/Deep 100 branches/.test(html), 'Tactical Depth deep option missing');
     const ui = fs.readFileSync(path.join(ROOT, 'ui.js'), 'utf8');
@@ -316,7 +331,7 @@ async function main() {
     truthy(payload.summary.retained_replay_cards >= 1, 'replay summary missing');
     eq(payload.qa_coverage_summary.schema_version, 'champions-qa-coverage-v1', 'QA artifact coverage schema missing');
     eq(payload.qa_coverage_summary.totals.replay_cards_scanned, 1, 'QA artifact coverage replay count mismatch');
-    eq(payload.qa_coverage_summary.totals.targeted_sweep_runs, 13, 'QA artifact targeted sweep count mismatch');
+    eq(payload.qa_coverage_summary.totals.targeted_sweep_runs, 14, 'QA artifact targeted sweep count mismatch');
     truthy(payload.qa_coverage_summary.totals.turns > 1, 'QA artifact merged coverage should include targeted sweep turns');
     truthy(payload.targeted_qa_sweep && payload.targeted_qa_sweep.status === 'complete', 'targeted QA sweep should be complete');
     truthy(payload.qa_coverage_summary.mechanics_seen.screen_reduction > 0, 'targeted sweep should add screen reduction proof');
@@ -325,6 +340,7 @@ async function main() {
     truthy(payload.qa_coverage_summary.mechanics_seen.item_recovery > 0, 'targeted sweep should add item recovery proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.move_lock_failures > 0, 'targeted sweep should add move-lock proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.blocked_priority_events > 0, 'targeted sweep should add blocked-priority proof');
+    truthy(payload.qa_coverage_summary.mechanics_seen.trick_room_active > 0, 'targeted sweep should add Trick Room active proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.delayed_recovery > 0, 'targeted sweep should add delayed recovery proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.residual_drain > 0, 'targeted sweep should add residual drain proof');
     truthy(payload.qa_coverage_summary.mechanics_seen.nonstandard_stat_source_trace > 0, 'targeted sweep should add stat-source proof');
@@ -341,6 +357,8 @@ async function main() {
     truthy(payload.retained && payload.retained.replay_cards.length >= 1, 'retained replay cards missing');
     eq(payload.retained.replay_cards[0].seed, 'qa-seed-1');
     eq(payload.retained.replay_cards[0].qa_coverage_summary.schema_version, 'champions-qa-coverage-v1', 'retained replay coverage missing');
+    eq(payload.retained.replay_cards[0].turns, payload.retained.replay_cards[0].turnLog.length, 'retained replay turns should match turnLog rows');
+    eq(payload.retained.replay_cards[0].turn_count_source, 'turnLog.length', 'retained replay turn count source');
     truthy(payload.replay_logic_audit, 'replay logic audit missing');
     eq(payload.replay_logic_audit.schema_version, 'champions-replay-logic-audit-v1', 'replay logic audit schema');
     eq(payload.replay_logic_audit.retained_replay_cards, payload.retained.replay_cards.length, 'replay logic audit retained count mismatch');
@@ -374,6 +392,12 @@ async function main() {
     truthy(payload.qa_claim_review.evidence_scope.build_id === payload.build_id, 'QA claim review build scope mismatch');
     truthy(Array.isArray(payload.qa_claim_review.forbidden_claims), 'QA claim review forbidden claims missing');
     truthy(typeof payload.qa_claim_review.reviewer_next_step === 'string' && payload.qa_claim_review.reviewer_next_step.length, 'QA claim review next step missing');
+    truthy(payload.production_readiness_gate, 'production readiness gate missing');
+    eq(payload.production_readiness_gate.schema_version, 'champions-production-readiness-gate-v1', 'production readiness gate schema');
+    eq(payload.production_readiness_gate.can_public_launch, false, 'public launch should stay blocked by source-truth gates');
+    truthy(payload.production_readiness_gate.public_launch_blockers.some(row => row.id === 'legality_truth'), 'production gate should surface legality truth blocker');
+    truthy(payload.qa_dashboard.production_readiness_gate, 'QA dashboard production gate missing');
+    eq(payload.qa_dashboard.can_public_launch, false, 'QA dashboard public launch decision should mirror production gate');
   });
 
   await T('7. QA artifact click downloads a JSON file with the expected prefix', async () => {
@@ -384,7 +408,6 @@ async function main() {
     ctx._downloadBlob = function(filename, mime, text) {
       ctx._downloaded = { filename: filename, mime: mime, text: text };
     };
-    document._els['qa-claim-review-readout'] = makeStubEl('qa-claim-review-readout');
     const payload = await csExportQaArtifactJson('player');
     truthy(ctx._downloaded, 'download not triggered');
     truthy(/^champions-sim-qa-artifact-/.test(ctx._downloaded.filename), 'unexpected filename');
@@ -393,8 +416,16 @@ async function main() {
     eq(parsed.schema_version, 'champions-qa-artifact-v1');
     eq(parsed.player_team_id, 'player');
     truthy(payload.summary && payload.retention, 'returned QA payload malformed');
+    truthy(!document._els['qa-claim-review-readout'], 'QA export should not auto-insert claim review into page flow');
+    document._els['qa-claim-review-readout'] = makeStubEl('qa-claim-review-readout');
+    csRenderQaClaimReviewReadout(payload);
     const readout = document.getElementById('qa-claim-review-readout').innerHTML;
     truthy(/QA Claim Review - Tactical Coaching QA/.test(readout), 'QA claim review slice title missing');
+    truthy(/Active QA gate/.test(readout), 'QA active gate readout missing');
+    truthy(/Recommended test/.test(readout), 'QA recommended test readout missing');
+    truthy(/Production gate/.test(readout), 'QA production gate readout missing');
+    truthy(/Public launch/.test(readout), 'QA public launch metric missing');
+    truthy(!/<details|<summary|<select/i.test(readout), 'QA claim review should render inline, not as a dropdown/disclosure');
     truthy(/Forbidden claims/.test(readout), 'QA claim forbidden-claims readout missing');
     truthy(/Source boundary/.test(readout), 'QA claim source-boundary readout missing');
   });
@@ -452,6 +483,9 @@ async function main() {
     truthy(payload.qa_dashboard.qa_lanes.some(row => row.id === 'coaching_product'), 'coaching/product QA lane missing');
     truthy(payload.qa_dashboard.qa_lanes.some(row => row.id === 'replay_logic'), 'replay logic QA lane missing');
     truthy(typeof payload.qa_dashboard.can_ship === 'boolean', 'QA dashboard ship decision missing');
+    truthy(typeof payload.qa_dashboard.can_public_launch === 'boolean', 'QA dashboard public launch decision missing');
+    truthy(payload.production_readiness_gate && payload.production_readiness_gate.verdict === 'not_ready_for_public_launch', 'production gate should block public launch');
+    truthy(payload.production_readiness_gate.blocked_public_claims.some(claim => /Production-ready public launch/i.test(claim)), 'production gate blocked claims missing');
     truthy(typeof payload.qa_dashboard.battle_engine_trust === 'string', 'battle engine trust missing');
     truthy(typeof payload.qa_dashboard.coaching_product_trust === 'string', 'coaching product trust missing');
     truthy(Array.isArray(payload.qa_dashboard.critical_bugs), 'QA dashboard critical bugs missing');
@@ -466,6 +500,8 @@ async function main() {
     truthy(payload.proof_manifest.coverage_flags.has_tactical_sweep, 'proof manifest tactical flag missing');
     eq(payload.proof_manifest.evidence_counts.tactical_sweep_opponents, 2, 'proof manifest tactical opponent count');
     eq(payload.proof_manifest.evidence_counts.branch_matrix_runs, 2, 'proof manifest branch run count');
+    eq(payload.qa_coverage_summary.totals.move_rule_trace_rows, payload.qa_coverage_summary.mechanics_seen.move_rule_trace_rows, 'coverage totals should mirror move_rule_trace_rows mechanics count');
+    eq(payload.qa_coverage_summary.totals.move_rule_trace_rows, payload.proof_manifest.evidence_counts.move_rule_trace_rows, 'proof manifest should mirror coverage move_rule_trace_rows total');
   });
 
   await T('9. Tactical Sweep QA emits progress callbacks', async () => {

@@ -865,7 +865,7 @@ function showdownAnimatedSpriteUrl(name) {
 // Suffixes we strip when falling back to the base-form dex sprite.
 // Order matters: longer / more specific variants first (Mega-X before Mega).
 const SPRITE_STRIP_SUFFIXES = [
-  '-Mega-X', '-Mega-Y', '-Mega',
+  '-Mega-X', '-Mega-Y', '-Mega-Z', '-Mega',
   '-Alola', '-Galar', '-Hisui', '-Paldea',
   '-Gmax'
 ];
@@ -5529,9 +5529,9 @@ var CHAMPIONS_MEGAS = {
   'Glimmora-Mega': { baseSpecies:'Glimmora', nationalDex:970, types:['Rock','Poison'], ability:'Adaptability', abilityIsNew:false, abilityIsUpdated:false, megaBaseStats:{hp:83,atk:90,def:105,spa:150,spd:96,spe:101}, megaStone:'Glimmoranite', megaStoneSource:"Shop: 2000 VP" },
 };
 
-// New Champions-exclusive abilities (engine hooks to be implemented per
-// filed GitHub issues). Each entry records the Mega holder + effect tag
-// for dispatch wiring.
+// New Champions-exclusive abilities. Runtime Reg M-A abilities are wired in
+// engine.js; Reg M-B-only abilities stay review-only until fixtures and engine
+// hooks are promoted.
 var CHAMPIONS_NEW_ABILITIES = {
   // T9j.17 (Refs #101) -- Piercing Drill rewritten to a flat 25% miss chance
   // on every move. Replaces the prior contact-bypass-Protect interpretation.
@@ -5543,9 +5543,20 @@ var CHAMPIONS_NEW_ABILITIES = {
                       sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
   'Mega Sol':       { holder:'Meganium-Mega',   effect:'personal-sun-no-weather',
                       sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
+  'Eelevate':       { holder:'Eelektross-Mega', effect:'ground-hazard-immunity-ko-highest-stat-plus-one',
+                      reviewOnly:true,
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
+  'Fire Mane':      { holder:'Pyroar-Mega', effect:'fire-move-power-plus-50pct',
+                      reviewOnly:true,
+                      sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] },
   'Spicy Spray':    { holder:'Scovillain-Mega', effect:'burn-attacker-on-damage',
                       sources:['https://www.serebii.net/pokemonchampions/newabilities.shtml'] }
 };
+
+var CHAMPIONS_REGMB_REVIEW_ABILITY_CANDIDATES = new Set([
+  'Piercing Drill','Dragonize','Eelevate','Mega Sol','Fire Mane','Spicy Spray',
+  'Unseen Fist'
+]);
 
 // Abilities nerfed from prior gens for Champions. Engine must apply the
 // new behavior when referenced (see CHAMPIONS_MEGAS.abilityIsUpdated flag
@@ -5636,4 +5647,5 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports.CHAMPIONS_NEW_ABILITIES = CHAMPIONS_NEW_ABILITIES;
   module.exports.CHAMPIONS_UPDATED_ABILITIES = CHAMPIONS_UPDATED_ABILITIES;
   module.exports.CHAMPIONS_BASE_ABILITIES = CHAMPIONS_BASE_ABILITIES;
+  module.exports.CHAMPIONS_REGMB_REVIEW_ABILITY_CANDIDATES = CHAMPIONS_REGMB_REVIEW_ABILITY_CANDIDATES;
 }

@@ -1,0 +1,127 @@
+{
+  "schema_version": "champions-legality-evidence-package-v1",
+  "package_id": "champions-reg-m-b-2026-doubles-source-package-v0",
+  "regulation_id": "champions_reg_m_b_2026",
+  "ruleset_version": "reg-m-b-source-package-v0-needs-capture",
+  "format": "doubles",
+  "verification_status": "needs_verification",
+  "status_note": "Pokemon Champions Regulation M-B skeleton package only. Do not promote runtime legality, Team Lab official rankings, global learning, or coaching certainty until Champion source captures, allowlists, and fixture classes are verified.",
+  "source_captures": [],
+  "allowlists": {
+    "legal_pokemon_ids": [],
+    "legal_form_ids": [],
+    "legal_move_ids": [],
+    "legal_item_ids": [],
+    "legal_ability_ids": []
+  },
+  "allowlist_completeness": {
+    "legal_pokemon_ids": false,
+    "legal_form_ids": false,
+    "legal_move_ids": false,
+    "legal_item_ids": false,
+    "legal_ability_ids": false
+  },
+  "required_source_captures": [
+    {
+      "id": "official_regulation_notice",
+      "source_tier": "official",
+      "required": true,
+      "proves": ["effective dates", "regulation id/name", "format scope", "rules overview"]
+    },
+    {
+      "id": "in_game_rules_screen",
+      "source_tier": "in_game_verified",
+      "required": true,
+      "proves": ["clauses", "team size", "bring size", "level rules", "timer/open sheet notes when visible"]
+    },
+    {
+      "id": "eligible_species_forms_list",
+      "source_tier": "in_game_verified",
+      "required": true,
+      "proves": ["legal_pokemon_ids", "legal_form_ids", "banned or restricted rows"]
+    },
+    {
+      "id": "mega_eligibility_and_stones",
+      "source_tier": "in_game_verified",
+      "required": true,
+      "proves": ["legal Mega forms", "Mega Stone or Omni Ring constraints", "special mechanic boundary"]
+    },
+    {
+      "id": "held_item_pool",
+      "source_tier": "in_game_verified",
+      "required": true,
+      "proves": ["legal_item_ids", "item clause assumptions"]
+    },
+    {
+      "id": "move_ability_training_legality",
+      "source_tier": "in_game_verified",
+      "required": true,
+      "proves": ["legal_move_ids", "legal_ability_ids", "Champion-local training constraints"]
+    }
+  ],
+  "candidate_source_links": [
+    {
+      "id": "pokemon_champions_official_site",
+      "tier": 0,
+      "url": "https://champions.pokemon.com/",
+      "use": "official product/news entry point; claim-specific text still needs capture"
+    },
+    {
+      "id": "pokemon_news",
+      "tier": 0,
+      "url": "https://www.pokemon.com/us/pokemon-news/",
+      "use": "official announcements, patch notes, regulation notices, event posts"
+    },
+    {
+      "id": "play_pokemon_rules_resources",
+      "tier": 0,
+      "url": "https://www.pokemon.com/us/play-pokemon/about/tournaments-rules-and-resources/",
+      "use": "official event rules and tournament procedure"
+    },
+    {
+      "id": "victoryroad_champions_regulations",
+      "tier": 1,
+      "url": "https://victoryroad.pro/champions-regulations/",
+      "use": "Champion-specific mirror for regulation dates, image sheets, and meta context; not final proof alone"
+    },
+    {
+      "id": "victoryroad_regmb_pokemon_1",
+      "tier": 1,
+      "url": "https://victoryroad.pro/wp-content/uploads/2026/06/Reg-M-B-Pokemon1.jpg",
+      "use": "candidate allowed Pokemon/form review queue"
+    },
+    {
+      "id": "victoryroad_regmb_pokemon_2",
+      "tier": 1,
+      "url": "https://victoryroad.pro/wp-content/uploads/2026/06/Reg-M-B-Pokemon2.jpg",
+      "use": "candidate allowed Pokemon/form review queue"
+    },
+    {
+      "id": "victoryroad_regmb_new_megas",
+      "tier": 1,
+      "url": "https://victoryroad.pro/wp-content/uploads/2026/06/NewMegasRMB.png",
+      "use": "candidate Mega additions review queue"
+    },
+    {
+      "id": "serebii_pokemon_champions",
+      "tier": 1,
+      "url": "https://www.serebii.net/pokemonchampions/",
+      "use": "preferred Champion-specific secondary reference when reachable"
+    },
+    {
+      "id": "pokemon_showdown_repo",
+      "tier": 2,
+      "url": "https://github.com/smogon/pokemon-showdown",
+      "use": "standard Pokemon/reference baseline, not Champion legality"
+    },
+    {
+      "id": "pokemon_showdown_champions_scripts",
+      "tier": 2,
+      "url": "https://github.com/smogon/pokemon-showdown/blob/master/data/mods/champions/scripts.ts",
+      "use": "Champion mod executable reference unless official/client evidence differs"
+    }
+  ],
+  "promotion_rule": "LegalityEvidencePackage.promotionReadinessFromEvidencePackage must return verified with all fixture classes present before runtime/team-lab promotion.",
+  "created_at_utc": "2026-07-02T00:00:00Z",
+  "last_updated_utc": "2026-07-02T00:00:00Z"
+}

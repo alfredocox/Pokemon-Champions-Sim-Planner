@@ -2,9 +2,14 @@
 
 ## Supported Versions
 
-This project is a client-side, single-page Pokemon battle simulator. There is
-no backend, no authentication, no user data storage beyond browser `localStorage`
-for team imports. The most recent commit on `main` is the only supported version.
+This project is a client-side, single-page Pokemon battle simulator with a
+Supabase data backend. The public site uses a public anon key protected by
+Postgres grants and row-level security. Trusted GitHub Actions use separate
+server-side credentials for approved Showdown writes and database migrations.
+Trainer Room and replay-governance migrations include authenticated owner
+policies, although those surfaces remain release-gated until live deployment
+and policy tests are complete. The most recent commit on `main` is the only
+supported version.
 
 | Version | Supported |
 | ------- | --------- |
@@ -16,7 +21,7 @@ for team imports. The most recent commit on `main` is the only supported version
 If you believe you have found a security issue in the simulator, please **do
 not open a public GitHub issue**. Instead:
 
-1. Open a [private security advisory](https://github.com/alfredocox/Pokemon-Champions-Sim-Planner/security/advisories/new) on this repository, or
+1. Open a [private security advisory](https://github.com/TheYfactora12/Pokemon-Champions-Sim-Planner/security/advisories/new) on this repository, or
 2. Contact the maintainer via GitHub direct message.
 
 Include:
@@ -35,6 +40,10 @@ We will acknowledge the report within 7 days and aim to triage within 14 days.
 - Prototype pollution in any imported payload
 - Service worker cache poisoning
 - Any way a malicious pokepaste URL can pivot to data exfiltration or persistent compromise
+- Supabase RLS, grant, ownership, or view-policy bypass
+- Anonymous mutation of shared catalog, mechanics, QA, analysis, or replay evidence
+- Leakage or misuse of service-role and PostgreSQL migration credentials
+- Promotion of unreviewed Showdown or Champion override rows into runtime truth
 
 ## Out of Scope
 

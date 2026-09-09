@@ -167,10 +167,10 @@ T('8. sim comparison stays low confidence until matched sim data exists', () => 
       expectedWinPath: 'Set speed control, preserve cleaner, and convert pressure.'
     }
   }).review.learningReport.simComparison;
-  eq(matched.status, 'matched', 'matched status');
+  eq(matched.status, 'unverified_plan', 'a supplied plan does not verify team identity');
   eq(matched.leadMatch, 100, 'lead match score');
   inc(matched.bo3SwapContext, 'Series context', 'series swap context');
-  truthy(matched.evidenceLabel !== 'Needs more data', 'matched evidence improves');
+  eq(matched.evidenceLabel, 'Needs more data', 'reference overlap does not authenticate evidence');
 });
 
 T('8b. sim feedback packet emits calibration signals without auto-updating models', () => {
@@ -188,7 +188,7 @@ T('8b. sim feedback packet emits calibration signals without auto-updating model
     }
   }).review.learningReport.simFeedback;
   truthy(mismatch, 'sim feedback missing');
-  eq(mismatch.shouldUpdateLeadModel, true, 'lead mismatch can update lead model signal');
+  eq(mismatch.shouldUpdateLeadModel, false, 'unverified plan cannot update the lead model');
   eq(mismatch.shouldUpdateBringFourModel, false, 'matched four should not update bring model signal');
   eq(mismatch.shouldUpdateArchetypeModel, false, 'single medium-confidence replay should not update archetype model');
   eq(mismatch.shouldCreateScenario, true, 'replay should create scenario');
@@ -215,7 +215,7 @@ T('8c. sim comparison treats selected lineup as a BO3 swap choice from registere
       matchConfidence: 'medium'
     }
   }).review.learningReport.simComparison;
-  eq(sim.status, 'matched', 'sim matched');
+  eq(sim.status, 'unverified_plan', 'lineup coverage does not verify identity');
   truthy(sim.fourMatch < 100, 'lineup mismatch should be visible');
   inc(sim.firstDeviation, 'game-specific lineup', 'lineup deviation wording');
   inc(sim.decisionChange, 'registered roster', 'registered roster decision wording');

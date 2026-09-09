@@ -1,293 +1,225 @@
-# Pokémon Champion 2026 — Product Roadmap
+# Pokemon Champions Product Roadmap
 
-> **Battle-tested. Always evolving.**
-> Live App: [htmlpreview bundle](https://htmlpreview.github.io/?https://raw.githubusercontent.com/TheYfactora12/Pokemon-Champions-Sim-Planner/main/poke-sim/pokemon-champion-2026.html) | [GitHub Pages](https://theyfactora12.github.io/Pokemon-Champions-Sim-Planner/)
-> **Last updated:** 2026-06-19 | **Baseline:** simulation-truth gate active; `npm run test:fast` green on current Showdown DB review branch
+<!-- Generated from poke-sim/source/project-roadmap.json. Run npm run roadmap:build in poke-sim. -->
 
----
+Reviewed: 2026-09-09. Current runtime/deployment evidence: [STATUS.md](STATUS.md).
 
-## Current Direction Override - 2026-06-06
+**Prove the doubles simulator before expanding coaching.**
 
-Simulation truth is the active product gate. New coaching, premium, Battle IQ, Coach Recommends, and replay-derived claim work is paused until the simulator is accurate enough to safely support those claims.
+Doubles competitive readiness. Singles fixtures test shared mechanics only.
 
-Active order:
+Local tests are not live database, deployment or universal game-accuracy proof. No verified 99% accuracy or top-1% usability claim.
 
-1. Align both repos through PR + CI.
-2. Prove battle mechanics and turn logs against strict tests.
-3. Wire Showdown-mirrored data plus Champions overrides as the source-of-truth path.
-4. Add release gates for unresolved high-severity drift.
-5. Resume coaching expansion only after the sim-truth gate is green.
+## Next Action
 
-Current direction doc: [`docs/release/SIMULATION_FIRST_REALIGNMENT_2026-06-06.md`](docs/release/SIMULATION_FIRST_REALIGNMENT_2026-06-06.md).
-
-Older coaching-first roadmap items remain useful product research, but they are not the active build priority until this gate passes.
-
----
+First establish protected staging and validate shared-evidence write containment plus private-save ownership. While production actions await exact approval, reproduce and fix Toxic rounding, Spite hit resolution, suppressed-item effects and Wish/Leftovers ordering against pinned Showdown. Then extend copy/restore identity, SV IV roundtrip and complete-set legality coverage. Keep M-C source review separate from rule approval. Release only after review, hosted CI and paired live replay/export checks. See docs/release/RELEASE_REVIEW_2026-09-09.md. The live site remains v142; candidate tests do not imply deployment or 99% accuracy.
 
 ## Milestone Index
 
-| # | Milestone | Status | Gate Issue |
-|---|---|---|---|
-| M1 | Engine Truth | 🟡 83% (19/23) | #140 test coverage |
-| M7 | Architecture Foundation | 🟡 In Progress | #78 namespace next |
-| M9 | Observability & QA | 🟡 In Progress | CI ✅ live · #89 logger next |
-| M2 | Dynamic Strategy Coach | 🔴 Open | #141 classifier |
-| M3 | Piloting Analytics | 🔴 Open | #142, #143 |
-| M5 | Tournament Packet | 🔴 Open | #57 parent |
-| M4 | Community & Sharing | 🔴 Open | M3 gate |
-| M6 | Polish & Launch | 🔴 Open | M1–M5 gate |
-| M8 | Profile & Sync | 🟡 Unblocked | Supabase ✅ live |
-| M10 | Performance & Quality | 🟡 Partial | #92, #93, #94 |
-| M11 | Advanced Features | ⏳ Deferred | M8 gate |
-
----
-
-## ⛔ P0 — Blockers (Resolve Immediately)
-
-| # | Issue | Owner | Required Action |
-|---|---|---|---|
-| **#147** | Ko-fi account missing | @alfredocox | Create `ko-fi.com/alfredocox` before merging PR #146 |
-
-> ✅ **#87 CLOSED** — `ci.yml` live 2026-04-30 (commit `4f9579d`). Branch protection on `main` confirmed. Sprint 1 unblocked.
-> ✅ **#158 CLOSED** — Supabase confirmed live. Current canonical seed alignment verified 2026-05-24: 8 tables, RLS enabled, 25 teams seeded, 150 canonical team_members loaded.
-
----
-
-## Sprint 1 — Foundation
-
-> **Gate:** All items here must ship before any Sprint 2 code merges.
-
-| # | Issue | Owner | Milestone | Status |
-|---|---|---|---|---|
-| #87 | GitHub Actions CI (ROOT NODE) | @alfredocox | M9 | ✅ **CLOSED** |
-| #78 | Namespace `window.ChampionsSim` | @alfredocox | M7 | 🔴 Open |
-| #138 | `data.js` placeholder guard (T9j.18 §A) | @Jdoutt38 | M1 | 🔴 Open |
-| #149 | Unit tests for `classifyPokemon()` | @Jdoutt38 | M1 | 🔴 Open |
-| #150 | Stat panel HTML markup | @Josh | M3 | 🔴 Open |
-| #151 | `CONTRIBUTING.md` | @Josh | M7 | 🔴 Open |
-
----
-
-## Sprint 2 — Classifier + Role Engine
-
-> **Gate:** Sprint 1 complete.
-
-| # | Issue | Owner | Milestone | Priority |
-|---|---|---|---|---|
-| #141 | **`classifyPokemon()` 7-role classifier** | @TheYfactora12 | M2 | P1 — critical path |
-| #142 | Stat panel (EVs/IVs/Nature display) | @TheYfactora12 | M3 | P1 |
-| #143 | Bug: lead-selector highlight in Auto mode | @TheYfactora12 | M3 | P1 |
-| #165 | Phase 4c: Archetype detectors | @TheYfactora12 | M2 | P1 |
-| #166 | Phase 4d: Threat-response matrix | @TheYfactora12 | M2 | P2 |
-| #167 | Phase 4e: Policy audit layer | @TheYfactora12 | M2 | P2 |
-| #140 | T9j.18 status immunity tests | @Jdoutt38 | M1 | P2 |
-| #139 | T9j.18 mirror-match hard assertion | @Jdoutt38 | M1 | P2 |
-| #80 | TDZ lazy-init crash risk | @alfredocox | M7 | P2 |
-| #89 | Structured logger | @alfredocox | M9 | P2 |
-| #94 | XSS innerHTML audit | @alfredocox | M10 | P2 |
-
----
-
-## Sprint 3 — Module Split
-
-> **Gate:** #77 (split `ui.js`), #78, #80, #89 all closed.
-
-| # | Issue | Owner | Milestone |
-|---|---|---|---|
-| #77 | Split `ui.js` into feature modules | @alfredocox | M7 |
-| #84 | Schema versioning for localStorage | @alfredocox | M8 |
-| #90 | Performance profiling harness | @alfredocox | M9 |
-| #92 | Memoize `buildStrategyReport()` | @alfredocox | M10 |
-| #93 | Cap battle-log array size | @alfredocox | M10 |
-| #96 | Focus management NVDA/VO audit | @alfredocox | M10 |
-| #168 | Phase 5: Turn log (VGC-authentic) | @TheYfactora12 | M2 |
-| #53 | Lead pair win-rate table | @TheYfactora12 | M3 |
-| #54 | Suboptimal decision flagger | @TheYfactora12 | M3 |
-| #55 | Personal weakness dashboard | @TheYfactora12 | M3 |
-| #56 | Head-to-head delta tracking | @TheYfactora12 | M3 |
-| #72 | Pilot confidence score overlay | @TheYfactora12 | M3 |
-
----
-
-## Sprint 4 — Profile & Sync
-
-> **Gate:** Sprint 3 complete. Supabase already live ✅ — no additional setup required.
-
-| # | Issue | Owner | Milestone |
-|---|---|---|---|
-| #81 | Player profile schema | @alfredocox | M8 |
-| #82 | Cloud sync (Supabase) | @alfredocox | M8 |
-| #83 | Cross-device import/export | @alfredocox | M8 |
-| #85 | Cross-device sync (live) | @alfredocox | M8 |
-| #86 | Profile badge system | @alfredocox | M8 |
-| #91 | localStorage migration runner | @alfredocox | M8 |
-| #169 | Phase 6: Coaching voice + tone layers | @TheYfactora12 | M2 |
-
----
-
-## Backlog — Tournament Packet (M5)
-
-| # | Issue | Priority |
+| Milestone | State | Former lanes |
 |---|---|---|
-| #57 | Tournament packet PDF generator (parent) | P2 |
-| #58 | Per-matchup page template | P2 |
-| #59 | Cover page + appendices | P3 |
-| #60 | Compact mobile layout | P3 |
-| #61 | Packet Preview tab | P3 |
+| [Simulation And Replay Truth](#simulation-truth) | Blocked | M1, M9 |
+| [Regulations And Source Truth](#regulation-source-truth) | Blocked | M1 |
+| [Database And Evidence Integrity](#database-evidence) | Blocked | M8, M9 |
+| [Reviewed Release And Repo Alignment](#release-alignment) | Blocked | M6, M7, M10 |
+| [News And Tournament Reference Coverage](#homepage-news) | Local only | M6 |
+| [Beginner Homepage And Navigation Audit](#beginner-experience) | Queued | M6, M10 |
+| [Evidence-Backed No-API Brain](#evidence-brain) | Deferred | M2, M3 |
+| [Optional Product Expansion](#future-product) | Deferred | M4, M5, M11 |
 
-## Backlog — Battle Sensei Player-Learning Expansion
+Former lanes are archived planning labels, not GitHub milestone numbers or IDs. See the [live queue inventory](docs/release/GITHUB_QUEUE_RECONCILIATION_2026-08-30.md) for actual repository-specific milestones.
 
-These items define the coaching flow needed to turn sim and replay evidence into player-useful decisions. They remain gated by simulation truth and evidence confidence.
+No percentage here measures game accuracy. Local completion notes are narrower than milestone completion. Deferred ideas are not commitments to build everything.
 
-| Item | What it teaches | Required data |
-|---|---|---|
-| Lineup Matrix Report | Best roster subset for BO1/BO3/BO5 | registered six, format, series format, all legal lineup combos, scored/evaluated lineups |
-| Lead Matrix Report | Best opener and what it answers | selected lineup, opponent lead, turn-one board, speed order, field state |
-| Move Tree Turning-Point Report | Better move/target/protect/switch on the critical turn | legal options, actual actions, targets, damage/effect events, post-turn position score, alternative branch scores |
-| Speed-Control Payoff Interpreter | Whether Tailwind, Trick Room, Icy Wind, and priority created advantage, got neutralized, or reversed the opponent plan | turn-by-turn speed moves, TR/Tailwind state, natural speed order, KOs/damage within T+3, position-score delta |
-| Switch and Preservation Report | When to pivot, sacrifice, or preserve the win condition | roster state, HP, field state, speed order, threats, win-condition role |
-| Decision Opportunity Ledger | Denominator-based coaching: how many meaningful decisions existed and how many were executed correctly | decision nodes, category, outcome quadrant, positive/negative notes, score contribution |
-| Loss Cause Classifier | Why the player lost | result, turning point, issue tags, position-score path, key KOs/field events |
-| Practice Drill Generator | What to practice next | repeated mistake pattern, confidence, matchup context, recommended correction |
+## Milestones
 
-Required loss-cause labels:
+<a id="simulation-truth"></a>
 
-- lineup choice
-- lead choice
-- move choice
-- target choice
-- switch timing
-- speed control
-- resource trade
-- variance
-- matchup disadvantage
+### Simulation And Replay Truth
 
-Current alignment note:
+**Blocked** | Owner: Mechanics Engineer and independent mechanics reviewer
 
-- `#223` is the foundation layer: speed-control state interpretation plus deferred payoff checks. It prevents false negatives like penalizing Trick Room when it correctly reverses Tailwind.
-- `#224` comes after `#223`: the Decision Opportunity Ledger should score opportunities only after the tactical interpreter can classify speed-control contests correctly.
-- Later items remain: move-tree alternatives, target-choice comparison, switch/preservation logic, lineup/lead matrix ranking, and practice drill generation from repeated patterns.
+Depends on: Independent workstream; readiness still requires the other release gates.
 
----
+Completed locally / recorded:
+- Unknown-ruleset preflight and default bring-four/participant identity fixes have regression coverage.
+- Scoped switching, immunity, grounding, multi-hit and Seismic Toss fixes are tested. One complete-game Showdown comparison includes forced replacements, winner, HP, stages and PP; one seven-turn browser run has matching visible/export logs.
+- Same-turn Tailwind and Growl/Leer now agree with pinned Showdown in scoped synthetic doubles probes, including side swaps, Trick Room, per-target protection and selected ability/item/Substitute gates. PP, single/double Pressure, depletion and Struggle have deterministic boundary coverage.
+- September 8 PP/Substitute audit corrects earlier wrong Spite, Taunt and Noble Roar test expectations. Side-swapped synthetic reference probes cover named bypass, reflection, protection, ability, secondary-effect and knockout boundaries, with Substitute HP preservation checks. The dated audit owns exact test counts and outstanding gates: poke-sim/reports/pp_substitute_validation_2026-09-08.md.
+- Replay review rejects absent or structurally empty evidence and preserves stable actor/target identity through mirror-name actions. The declared cross-format harness completes 4,624/4,624 runs without state, validator, warning or repeatability failures. This is scoped invariant proof, not universal accuracy.
+- Perish Song candidate tests correct countdown, recipient immunity, concealment and terminal faint-order/winner handling, including Trick Room. Replacement-choice parity and broader residual interactions remain open. Evidence and final gate status: poke-sim/reports/perish_song_validation_2026-09-08.md.
+- Page startup no longer manufactures hidden simulation games. Paired browser audits bind selected matchup identity and preserve re-downloaded history across swaps; replay contrast and mobile reserve overflow are corrected. Scoped proof and exclusions: poke-sim/reports/intentional_replay_validation_2026-09-08.md.
+- Decision audit no longer promotes move inventories or heuristic score gaps into authoritative alternatives or execution diagnoses. Historical action availability is incomplete; re-enabling requires a versioned evidence contract. See poke-sim/reports/decision_evidence_validation_2026-09-08.md.
+- Generic pre/in/post coaching templates no longer invent best plans, default scores, causes or confidence from volume. Unknown or ambiguous turn evidence stays unknown; score output is explicitly heuristic. See poke-sim/reports/coach_template_validation_2026-09-08.md.
 
-## Backlog — Community & Sharing (M4)
+Remaining:
+- [ ] Extend complete-game and visible-replay parity beyond the bounded fixtures; resolve Strategy-cache context mixing and misleading coaching.
+- [ ] Test broader mid-turn Speed and stage interactions, Mirror Armor/Contrary, other fixed-damage moves, entry/residual ordering, Grudge/Disable/berry restoration and imported-team edge cases.
+- [ ] Define the accuracy denominator and human verification gaps; obtain official Champions evidence before promoting Showdown baseline behavior as Champion truth.
 
-| # | Issue | Priority |
-|---|---|---|
-| #62 | Share team link (hash-based) | P2 |
-| #63 | Team export to Pokémon Showdown | P2 |
-| #64 | Embed widget (iFrame) | P3 |
-| #65 | Social preview card generator | P3 |
+**Exit:** No unresolved critical mechanics, identity or evidence errors in the declared benchmark; every accuracy claim has reference evidence and explicit exclusions.
 
----
+Evidence: [showdown_reference_validation_2026-08-30.md](poke-sim/reports/showdown_reference_validation_2026-08-30.md), [visual_replay_audit_2026-08-30.md](poke-sim/reports/visual_replay_audit_2026-08-30.md), [identity_validation_2026-08-30.md](poke-sim/reports/identity_validation_2026-08-30.md), [PLAYER_TRUST_AND_JOURNEY_AUDIT_2026-08-30.md](docs/release/PLAYER_TRUST_AND_JOURNEY_AUDIT_2026-08-30.md), [seismic_toss_validation_2026-08-30.md](poke-sim/reports/seismic_toss_validation_2026-08-30.md), [tailwind_growl_leer_validation_2026-09-01.md](poke-sim/reports/tailwind_growl_leer_validation_2026-09-01.md), [pp_drain_validation_2026-09-03.md](poke-sim/reports/pp_drain_validation_2026-09-03.md), [OODA_REPLAY_ATTRIBUTION_2026-09-08.md](docs/release/OODA_REPLAY_ATTRIBUTION_2026-09-08.md), [OODA_OUTCOME_CLAIMS_2026-09-08.md](docs/release/OODA_OUTCOME_CLAIMS_2026-09-08.md)
 
-## Backlog — Polish & Launch (M6)
+<a id="regulation-source-truth"></a>
 
-| # | Issue | Priority |
-|---|---|---|
-| #66 | VGC format calendar integration | P3 |
-| #67 | Accessibility full audit | P3 |
-| #68 | Performance budget v2.0 | P3 |
-| #69 | Keyboard shortcuts | P3 |
-| #70 | Dark mode override toggle | P3 |
+### Regulations And Source Truth
 
-### M6 Release Track — Public Site, Security, and Revenue Readiness
+**Blocked** | Owner: Source/Data Engineer and human data approver
 
-This is the concrete release path for turning the simulator into a trustworthy public site. Core battle truth ships through reviewed code and deterministic generated artifacts. Supabase may store the audited Showdown mirror, Champions overrides, users, saved teams, replays, subscriptions, notes, and operational metadata, but the public app should consume only approved views or generated release assets.
+Depends on: Independent workstream; readiness still requires the other release gates.
 
-Current public-release plan: [`docs/release/PUBLIC_RELEASE_MILESTONE_PLAN_2026-06-06.md`](docs/release/PUBLIC_RELEASE_MILESTONE_PLAN_2026-06-06.md).
+Completed locally / recorded:
+- Official-source inventory, daily regulation watcher, exact-digest candidate validation, recurrence-aware alerts and protected staging workflow are prepared.
+- Unsafe approval-time refetch is blocked. Generated offline data remains the browser baseline; official Champions evidence must establish legality.
+- The accuracy harness manifest binds regulation IDs, versions, review/promotion states and format lanes. Catalog drift, unreviewed runnable formats and warnings above the zero-warning budget fail closed.
+- The official Regulation M-C notice, exact UTC dates, six named Mega additions and Rillaboom example are captured in a versioned source-review package. The active window fails closed; the later M-B audit corrects the supposed pre-start gap using the official September 9 extension, Showdown's still-M-B format state is recorded, and missing exact Mega sprites use a base-form fallback without implying legality.
+- M-B official identity reconciliation covers all 235 rows using source-linked explicit aliases for Fancy Vivillon and Eternal Flower Floette. The review artifact binds visual evidence and preserves baseline metadata; all mapped baseline stats/types/ability slots/numbers agree with pinned Champions. This does not approve learnsets, runtime consumers or legality.
 
-| Step | What | Why | Owner | Exit Criteria | When |
-|---|---|---|---|---|---|
-| M6.1 | Stable public site on GitHub Pages or equivalent static host | Give users one canonical URL for the known-good build | Kevin | `main` deploy is live, HTTPS works, bundle loads, mobile smoke passes | Before public sharing |
-| M6.2 | Security baseline for site and data flows | Prevent avoidable release mistakes before real users arrive | Kevin + engineering | Secrets not exposed in client bundle, Supabase keys scoped correctly, RLS reviewed, no unsafe admin paths in browser code | Before accounts or payments |
-| M6.3 | Release gates and rollback path | Avoid shipping broken simulator logic or stale bundles | Engineering | CI green, bundle freshness green, heartbeat green, rollback steps documented, previous stable build recoverable | Before every release |
-| M6.4 | Trust UX for sim confidence | Do not fake confidence on partially modeled mechanics | Engineering + product | UI can distinguish verified / baseline / incomplete move support and legality warnings remain visible | Before paid coaching claims |
-| M6.5 | Free public core experience | Grow usage before monetization | Kevin + product | Public users can sim, import teams, review replays, and get basic Battle Sensei output without account friction | First public launch |
-| M6.6 | Donations layer | Allow early supporters to fund hosting and iteration without gating core utility | Kevin | Donation link/page live with clear disclaimer that donations do not affect simulator truth | After stable public launch |
-| M6.7 | Account + saved history layer | Support retention and premium workflow without moving battle truth into DB | Engineering | Users can save teams, replays, notes, and history in Supabase with RLS | After launch stability |
-| M6.8 | Premium subscription layer | Monetize repeat value, not basic correctness | Kevin + product | Premium features are scoped to history, deeper analysis, and workflow convenience rather than core sim access | After free adoption signal |
-| M6.9 | Human coaching offer | Turn software usage into higher-value expert service | Kevin / Josh / Alfredo as assigned | Coaching flow is separate from simulator truth and clearly labeled as human review | After replay trust layer is proven |
+Remaining:
+- [ ] September 9 update: all 262 official M-C roster IDs are captured; 260 map to identity candidates. Resolve Maushold and Squawkabilly form IDs and verify format scope. See docs/release/REG_MC_INTAKE_2026-09-09.md.
+- [ ] A pinned M-C reference now exists with 42 individual-set probes. Verify item/move/Ability inventory with official or in-game evidence, and preserve historical M-B routing during any reference upgrade. M-A, M-B and M-C remain unverified.
+- [ ] Add complete-team accepted/rejected fixtures and controlled Z Mega mechanics fixtures, including Aura Guard contact boundaries, switching, suppression, multi-hit and spread interactions.
+- [ ] Activate hosted monitoring and encrypted evidence retention; validate permissions and immutable candidate readback.
+- [ ] Compile complete regulation-specific eligibility packages and implement separate digest-bound human approval and atomic publication, preserving old versions.
 
-### M6 Security Checklist
+**Exit:** The selected regulation has complete reviewed eligibility evidence and an immutable published package; source outages and unknown facts cannot silently pass.
 
-- Keep canonical mechanics behavior in reviewed code, with generated data artifacts produced from approved Showdown mirror rows plus Champions overrides.
-- Keep Supabase for audited Showdown mirror data, Champions overrides, users, saved teams, replays, subscriptions, notes, and operational metadata.
-- Do not make browser runtime reads from raw battle-truth tables; expose approved views or ship generated release assets.
-- Require green CI, bundle freshness, cache bump, and daily heartbeat before release promotion.
-- Verify GitHub Pages or host config uses HTTPS and only serves the merged `main` bundle.
-- Audit client-visible keys and environment wiring so browser code only gets intentionally public values.
-- Review Supabase RLS and roles before enabling accounts, saved history, or subscriptions.
-- Keep a rollback path: last known-good bundle SHA, previous release note, and restore steps.
+Evidence: [REGULATION_WATCH_2026-08-30.md](docs/release/REGULATION_WATCH_2026-08-30.md), [REGULATION_CONTEXT_AND_ELIGIBILITY.md](poke-sim/docs/REGULATION_CONTEXT_AND_ELIGIBILITY.md), [CHAMPIONS_FULL_SOURCE_INVENTORY_2026-08-29.md](poke-sim/docs/CHAMPIONS_FULL_SOURCE_INVENTORY_2026-08-29.md), [reg_m_c_readiness_2026-09-07.md](poke-sim/reports/reg_m_c_readiness_2026-09-07.md)
 
-### M6 Roles
+<a id="database-evidence"></a>
 
-- Kevin: product owner, release approval, public messaging, monetization sequencing.
-- Engineering repo owner: battle-truth changes, CI gates, bundle/build integrity, release rollback readiness.
-- Josh: workbook/data review, trust-layer QA, pre-release spot checks.
-- Alfredo mirror repo owner: mirror validation and parity once the source repo release is stable.
+### Database And Evidence Integrity
 
----
+**Blocked** | Owner: Database Engineer and human production operator
 
-## Backlog — Advanced Features (M11, Post-M8)
+Depends on: Independent workstream; readiness still requires the other release gates.
 
-| # | Issue | Priority |
-|---|---|---|
-| #97 | Replay shortlink | P3 |
-| #98 | Multi-team compare | P3 |
-| #99 | Live team fingerprinting | P3 |
+Completed locally / recorded:
+- Authorized read-only live metadata was audited on September 2: all 16 public tables have RLS, no public security-definer functions exist, and the Showdown mirror is anonymously readable. The existing local public-data hardening migration matches the anonymous write policies still present in production.
+- September 3 readback confirmed 36 legacy team rows and 204 members with no build/schema/ruleset-version identity. The UI now separates a reachable DB from an accepted catalog and keeps bundled data authoritative when all rows are blocked.
 
----
+Remaining:
+- [ ] Review and apply the exact hardening migration through protected staging and production, then prove anonymous POST/PATCH/DELETE denial. Production currently permits anonymous analysis/coverage inserts and unrestricted branch-coverage updates.
+- [ ] Create an owner-scoped private-save schema before claiming two-user isolation; the current public schema has no user/owner column. Reconcile the four-entry live migration ledger with repository migrations and record checksums.
+- [ ] Design a reviewed versioned roster migration/reseed for the 36 legacy rows; do not relax runtime acceptance to hide drift.
+- [ ] Review the advisor's missing foreign-key indexes against measured query plans. Fix paginated roster reads and complete-snapshot promotion/retention semantics before accepting durable competitive evidence.
 
-## Milestone Definitions
+**Exit:** Live allow/deny, completeness, digest, identity and persistence checks pass for the named project/schema; browser clients cannot promote private or unapproved evidence.
 
-| Milestone | Definition |
-|---|---|
-| **M1 Engine Truth** | All battle-sim math is auditable, tested, reproducible. 343+ test cases pass. |
-| **M2 Dynamic Strategy Coach** | `classifyPokemon()` + Phase 4c/d/e detectors + Phase 5 turn log + Phase 6 coaching voice — one coherent coaching layer. |
-| **M3 Piloting Analytics** | Stat panel, lead pair table, weakness dashboard, decision flagger, confidence overlay all live. |
-| **M4 Community & Sharing** | Users can share teams and replays externally. |
-| **M5 Tournament Packet** | Full tournament-ready PDF: per-matchup pages, cover, mobile layout. |
-| **M6 Polish & Launch** | Public site, security baseline, trust UX, launch gates, donations/accounts/subscription sequencing — public launch quality. |
-| **M7 Architecture Foundation** | Namespace, `ui.js` module split, TDZ safety, CI/CD all operational. |
-| **M8 Profile & Sync** | Per-user profiles, Supabase cloud sync, cross-device support. Supabase layer already live. |
-| **M9 Observability & QA** | Structured logger, CI workflows, performance profiling harness. |
-| **M10 Performance & Quality** | Memoization, log caps, XSS audit, NVDA/VO focus management — measurable gains. |
-| **M11 Advanced Features** | Replay shortlinks, multi-team compare, live fingerprinting. Post-M8 only. |
+Evidence: [SUPABASE_FULL_AUDIT_2026-08-29.md](docs/release/SUPABASE_FULL_AUDIT_2026-08-29.md), [PROJECT_CLEANUP_AUDIT_2026-08-30.md](docs/release/PROJECT_CLEANUP_AUDIT_2026-08-30.md)
 
----
+<a id="release-alignment"></a>
 
-## Tech Stack
+### Reviewed Release And Repo Alignment
 
-| Layer | Technology |
-|---|---|
-| Frontend | Vanilla JS (ES2020+), HTML5, CSS3 — static PWA, no framework |
-| Offline | Service Worker — current cache `champions-sim-v49-approved-showdown-db` |
-| Persistence | localStorage (offline) + Supabase PostgreSQL (cloud, M8) |
-| Database | Supabase — app DB live; current repo target is 29 canonical teams plus staged Showdown sync/entity/approved-view migrations |
-| Bundle | `pokemon-champion-2026.html` single-file artifact |
-| CI/CD | GitHub Actions — CI ✅ + Bundle Freshness ✅ + Cache Bump ✅ (3 workflows active) |
-| Hosting | GitHub Pages (`theyfactora12.github.io/Pokemon-Champions-Sim-Planner`) |
-| Tests | Vanilla JS runner — current fast suite plus focused Showdown DB/runtime tests; live DB suites are opt-in |
+**Blocked** | Owner: Release Engineer and repository owners
 
----
+Depends on: [Simulation And Replay Truth](#simulation-truth), [Regulations And Source Truth](#regulation-source-truth), [Database And Evidence Integrity](#database-evidence)
 
-## Spec Documents
+Completed locally / recorded:
+- Candidate changes through 08451b7 are pushed to PR #195 and hosted CI passed, including bundle freshness and battle audit. Generated metadata and pre-upload checks bind the required move pool and intro sprites to exact bytes; LF checkout regression coverage passes. This is not deployment: live readback remains v142. Runtime v161 identity fixes retain their separate scoped evidence.
 
-All spec files live in [`poke-sim/docs/`](./poke-sim/docs/).
+Remaining:
+- [ ] Reconcile incoming commits and both repository queues through reviewed PRs; do not force-copy or close issues from test counts alone.
+- [ ] Review dependency/install-policy risks, protect main and production environments, and validate hosted CI.
+- [ ] Deploy the exact reviewed artifact, verify browser/cache identity and rollback, and compare both repository heads/trees before claiming alignment.
 
-| File | Phase | Status |
-|---|---|---|
-| `PHASE4_DYNAMIC_ADVICE_SPEC.md` | 4 | ✅ Final |
-| `PHASE4C_DETECTORS_SPEC.md` | 4c | ✅ Final |
-| `PHASE4D_THREAT_RESPONSE_SPEC.md` | 4d | ✅ Final |
-| `PHASE4E_POLICY_AUDIT_SPEC.md` | 4e | ✅ Final |
-| `PHASE5_TURN_LOG_SPEC_DRAFT.md` | 5 | 📝 Draft |
-| `PHASE6_COACHING_VOICE_SPEC.md` | 6 | ✅ Final |
-| `PHASE_ROLLOUT_REVIEW.md` | All | 📋 Review |
-| `COACHING_NORTH_STAR.md` | All | ⭐ Reference |
+**Exit:** A reviewed, reproducible candidate has hosted CI, environment protection, deployed-artifact proof and an explicit repo-alignment record; public-launch claims remain scoped.
 
----
+Evidence: [STATUS.md](STATUS.md), [PROJECT_CLEANUP_AUDIT_2026-08-30.md](docs/release/PROJECT_CLEANUP_AUDIT_2026-08-30.md), [GITHUB_QUEUE_RECONCILIATION_2026-08-30.md](docs/release/GITHUB_QUEUE_RECONCILIATION_2026-08-30.md)
 
-*© 2026 Alfredo Cox (@alfredocox) and Kevin Medeiros (@TheYfactora12). All Rights Reserved.*
-*Pokémon IP attribution: see `NOTICE.md`. Canonical tagline: "Battle-tested. Always evolving."*
+<a id="homepage-news"></a>
+
+### News And Tournament Reference Coverage
+
+**Local only** | Owner: Source/Data Engineer and Release Engineer
+
+Depends on: Independent workstream; readiness still requires the other release gates.
+
+Completed locally / recorded:
+- Curated official/news/player-video feed, source-health fallback, publication sorting, controls and six-hour review-PR workflow are implemented.
+- Worlds Masters top-cut catalog retains 13 review-only teams and 78 member identities; private stat points and approved regulation mappings remain unknown.
+
+Remaining:
+- [ ] Validate hosted news refresh and deployed behavior. Complete Worlds replay coverage is not established.
+- [ ] Keep community commentary and review-only tournament teams separate from official legality and authoritative mechanics data.
+
+**Exit:** Hosted refresh/failure recovery and the deployed feed are verified; every team/replay claim retains scope and provenance.
+
+Evidence: [HOMEPAGE_NEWS_REFRESH_2026-08-30.md](docs/release/HOMEPAGE_NEWS_REFRESH_2026-08-30.md), [worlds_top_cut_validation_2026-08-30.md](poke-sim/reports/worlds_top_cut_validation_2026-08-30.md)
+
+<a id="beginner-experience"></a>
+
+### Beginner Homepage And Navigation Audit
+
+**Queued** | Owner: UI Engineer, product owner and real beginner participants
+
+Depends on: [Simulation And Replay Truth](#simulation-truth), [Regulations And Source Truth](#regulation-source-truth), [Reviewed Release And Repo Alignment](#release-alignment)
+
+Completed locally / recorded:
+- A preliminary agent walkthrough inspected all 11 public sections, three homepage destinations and desktop/mobile homepage layout. Contradictory trust labels, stale source/roadmap copy and navigation friction are documented; the full beginner study remains queued.
+- Bounded site quick wins are locally tested: homepage destination focus and editor routing, neutral replay placeholder, clearer and more compact roadmap disclosures. Desktop and 390px checks are not a full user study.
+- A fresh browser now defaults to the explicitly unverified Practice lane instead of blocked historical M-A. One local doubles Bo3 rendered replay evidence and exported matching build, ruleset, team-digest, participant and item identity fields.
+
+Remaining:
+- [ ] Test fresh-visit comprehension, starter-team-to-result journeys, navigation/back/reload behavior and error recovery.
+- [ ] Stress mobile, keyboard, accessibility, network/DB failures and rapid interactions. Pair every simulation/team change with visible/exported logs.
+- [ ] Fix observed friction, add regressions and retest the deployed candidate with real beginners and competitive players.
+
+**Exit:** No critical journey blockers; predeclared task-completion/comprehension goals are evaluated with real users. Agent walkthroughs alone do not establish top-1% navigation.
+
+Evidence: [BEGINNER_HOMEPAGE_AUDIT_PLAN.md](docs/strategy/BEGINNER_HOMEPAGE_AUDIT_PLAN.md), [SITE_QUICK_WINS_2026-08-30.md](docs/release/SITE_QUICK_WINS_2026-08-30.md), [PLAYER_TRUST_AND_JOURNEY_AUDIT_2026-08-30.md](docs/release/PLAYER_TRUST_AND_JOURNEY_AUDIT_2026-08-30.md)
+
+<a id="evidence-brain"></a>
+
+### Evidence-Backed No-API Brain
+
+**Deferred** | Owner: Evidence/Brain Engineer and independent evidence reviewer
+
+Depends on: [Simulation And Replay Truth](#simulation-truth), [Regulations And Source Truth](#regulation-source-truth), [Database And Evidence Integrity](#database-evidence), [Beginner Homepage And Navigation Audit](#beginner-experience)
+
+Completed locally / recorded:
+- Foundation schemas, deterministic rules/composer/validator, feedback helpers and improvement-pack contracts exist. This is not proof of a fully wired or accurate coaching product.
+
+Remaining:
+- [ ] After simulation readiness, complete one real-evidence-to-validated-analysis-to-feedback-to-improvement-pack journey.
+- [ ] Consolidate lead/lineup reports, turning-point analysis, drills and private Trainer Room learning under this single evidence gate.
+- [ ] Keep feedback-to-fix-to-test-to-release controlled; no live self-training or feedback overriding mechanics.
+
+**Exit:** Every material coaching claim cites validated evidence, uncertainty and versions; feedback fixes have regression coverage and no illegal suggestions.
+
+Evidence: [llm-brain-context.md](docs/architecture/llm-brain-context.md), [llm-brain-integration-audit.md](docs/architecture/llm-brain-integration-audit.md), [LEARNING_BRAIN_ARCHITECTURE_ROADMAP_2026-07-04.md](poke-sim/docs/LEARNING_BRAIN_ARCHITECTURE_ROADMAP_2026-07-04.md)
+
+<a id="future-product"></a>
+
+### Optional Product Expansion
+
+**Deferred** | Owner: Product owner after measured adoption and trust
+
+Depends on: [Evidence-Backed No-API Brain](#evidence-brain), [Reviewed Release And Repo Alignment](#release-alignment)
+
+Completed locally / recorded:
+- Historical ideas are preserved as research, not delivery commitments.
+
+Remaining:
+- [ ] Re-evaluate tournament PDFs, community sharing, accounts/cross-device sync, subscriptions/donations, human coaching offers and advanced comparisons against demonstrated user needs.
+- [ ] Optional real LLM integration and global learning require separate privacy, cost, trust and release decisions. Singles product expansion remains deferred.
+
+**Exit:** Product owner explicitly promotes a justified item into a scoped milestone with acceptance evidence; no promise to build every historical idea.
+
+Evidence: [ROADMAP_PRE_CONSOLIDATION_2026-08-30.md](docs/archive/ROADMAP_PRE_CONSOLIDATION_2026-08-30.md)
+
+## Documentation Authority
+
+1. [AGENTS.md](AGENTS.md): operating policy.
+2. [STATUS.md](STATUS.md): current tested build, deployment and live-proof state.
+3. This roadmap: milestone order, scope and exit gates. Edit the shared JSON source, not this generated file.
+4. Dated release audits: reproducible evidence and historical findings, not overriding plans.
+5. GitHub issues: team execution queue; verify fully qualified references before closing or merging issues.
+
+## Consolidation Record
+
+Superseded sprint plans, percentage scores, old issue snapshots and monetization-first blockers were archived in [the historical roadmap](docs/archive/ROADMAP_PRE_CONSOLIDATION_2026-08-30.md), not erased. Current consolidation decisions: [audit](docs/release/ROADMAP_CONSOLIDATION_2026-08-30.md).
+
+The browser Roadmap tab and this document are generated from the same milestone source. Neither a local build nor a checked box proves deployment. Preserve older audit evidence; add new milestones with stable IDs, dependencies, acceptance criteria and evidence links.

@@ -66,6 +66,9 @@ try { load('legality.js'); } catch (_) {}
 load('engine.js');
 try { load('strategy-injectable.js'); } catch (_) {}
 load('ui.js');
+// Isolated algorithm fixtures explicitly supply a synthetic eligibility gate.
+// Production blocking is exercised in regulation_gate_execution_tests.mjs.
+ctx.canRunRegulationAnalysis = () => true;
 
 vm.runInContext([
   'this.TEAMS = TEAMS;',

@@ -33,6 +33,7 @@ venv/
 coverage/
 .nyc_output/
 poke-sim/tests/audit_matrix.json
+poke-sim/battle-audit-report.json
 poke-sim/artifacts/
 Champions-QA-Drops/
 poke-sim/reports/codex-qa-context-latest.json

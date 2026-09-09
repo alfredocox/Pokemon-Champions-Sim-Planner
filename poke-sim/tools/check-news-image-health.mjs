@@ -2,8 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(new URL('.', import.meta.url).pathname, '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FEED_PATH = path.join(ROOT, 'generated', 'news_feed.js');
 const DEFAULT_TIMEOUT_MS = 10000;
 

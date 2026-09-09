@@ -1,30 +1,45 @@
 {
   "schema_version": "champions-news-sources-v1",
-  "max_items": 25,
+  "max_items": 24,
   "sources": [
     {
-      "id": "pokemon-news-search-champions",
-      "name": "Pokemon.com News Search",
+      "id": "champions-official",
+      "name": "Pokemon Champions",
       "tier": "official",
       "category": "Official news",
-      "url": "https://www.pokemon.com/us/search?keyword=Pokemon+Champions",
-      "type": "html",
-      "enabled": false,
-      "note": "Official source placeholder. Enable only after a stable RSS/Atom or approved scraper endpoint is verified."
+      "type": "champions_index",
+      "enabled": true,
+      "url": "https://champions.pokemon.com/en-us/news/",
+      "fetch_hosts": [
+        "champions.pokemon.com"
+      ],
+      "link_hosts": [
+        "www.pokemon.com",
+        "champions.pokemon.com",
+        "championships.pokemon.com"
+      ],
+      "include_keywords": [],
+      "exclude_keywords": [],
+      "note": "Dated article-card adapter verified 2026-08-30. News only; no automatic legality promotion.",
+      "image_hosts": [
+        "champions.pokemon.com"
+      ]
     },
     {
       "id": "victory-road-news",
       "name": "Victory Road",
       "tier": "competitive_secondary",
       "category": "Competitive meta",
-      "url": "https://victoryroadvgc.com/feed/",
+      "url": "https://victoryroad.pro/feed/",
       "type": "rss",
       "enabled": true,
       "include_keywords": [
-        "Champion",
-        "Champions",
-        "Regulation",
-        "VGC",
+        "Pokemon Champions",
+        "Pokémon Champions",
+        "Regulation Set M-",
+        "Regulation M-",
+        "2026 World Championships",
+        "2027",
         "Monthly Challenge",
         "Champions Arena"
       ],
@@ -32,9 +47,146 @@
         "Scarlet",
         "Violet",
         "Tera Raid",
-        "Unrivaled"
+        "Unrivaled",
+        "2025 World Champion"
       ],
-      "note": "Meta/tournament signal only. Never source mechanics truth from this feed."
+      "note": "Meta/tournament signal only. Never source mechanics truth from this feed.",
+      "fetch_hosts": [
+        "victoryroadvgc.com",
+        "victoryroad.pro"
+      ],
+      "link_hosts": [
+        "victoryroadvgc.com",
+        "victoryroad.pro"
+      ],
+      "filter_description": true,
+      "image_hosts": [
+        "victoryroad.pro",
+        "victoryroadvgc.com"
+      ]
+    },
+    {
+      "id": "play-pokemon",
+      "name": "Play! Pokemon",
+      "tier": "official",
+      "category": "Player videos",
+      "type": "atom",
+      "enabled": true,
+      "channel_id": "UCimuIKQp7_Wlk9lcoSgtaFA",
+      "profile_url": "https://www.youtube.com/@PlayPokemon",
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCimuIKQp7_Wlk9lcoSgtaFA",
+      "fetch_hosts": [
+        "www.youtube.com"
+      ],
+      "link_hosts": [
+        "www.youtube.com",
+        "youtube.com"
+      ],
+      "include_keywords": [
+        "vgc"
+      ],
+      "exclude_keywords": [
+        "Scarlet",
+        "Violet",
+        "Tera Raid",
+        "Unrivaled",
+        "TCG",
+        "UNITE",
+        "GO Day",
+        "PokémonXP"
+      ],
+      "filter_description": false,
+      "note": "Channel RSS identity read from publisher profile 2026-08-30. Strict title filtering avoids unrelated uploads; missing coverage is preferable to guessing the game. No current-best-player ranking claimed.",
+      "image_hosts": [
+        "i1.ytimg.com",
+        "i2.ytimg.com",
+        "i3.ytimg.com",
+        "i4.ytimg.com",
+        "i.ytimg.com"
+      ]
+    },
+    {
+      "id": "cybertronvgc",
+      "name": "CybertronVGC",
+      "tier": "community",
+      "category": "Player videos",
+      "type": "atom",
+      "enabled": true,
+      "channel_id": "UCYoTO-akZCsiusTe4rBxfhA",
+      "profile_url": "https://www.youtube.com/@CybertronVGC",
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCYoTO-akZCsiusTe4rBxfhA",
+      "fetch_hosts": [
+        "www.youtube.com"
+      ],
+      "link_hosts": [
+        "www.youtube.com",
+        "youtube.com"
+      ],
+      "include_keywords": [
+        "champions"
+      ],
+      "exclude_keywords": [
+        "Scarlet",
+        "Violet",
+        "Tera Raid",
+        "Unrivaled",
+        "TCG",
+        "UNITE",
+        "GO Day",
+        "PokémonXP"
+      ],
+      "filter_description": false,
+      "note": "Channel RSS identity read from publisher profile 2026-08-30. Strict title filtering avoids unrelated uploads; missing coverage is preferable to guessing the game. No current-best-player ranking claimed.",
+      "image_hosts": [
+        "i1.ytimg.com",
+        "i2.ytimg.com",
+        "i3.ytimg.com",
+        "i4.ytimg.com",
+        "i.ytimg.com"
+      ]
+    },
+    {
+      "id": "wolfeyvgc",
+      "name": "WolfeyVGC",
+      "tier": "community",
+      "category": "Player videos",
+      "type": "atom",
+      "enabled": true,
+      "channel_id": "UC9OZkS1Mhl5UvKSiPrYqsxg",
+      "profile_url": "https://www.youtube.com/@WolfeyVGC",
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9OZkS1Mhl5UvKSiPrYqsxg",
+      "fetch_hosts": [
+        "www.youtube.com"
+      ],
+      "link_hosts": [
+        "www.youtube.com",
+        "youtube.com"
+      ],
+      "include_keywords": [
+        "champions"
+      ],
+      "exclude_keywords": [
+        "Scarlet",
+        "Violet",
+        "Tera Raid",
+        "Unrivaled",
+        "TCG",
+        "UNITE",
+        "GO Day",
+        "PokémonXP"
+      ],
+      "filter_description": false,
+      "note": "Channel RSS identity read from publisher profile 2026-08-30. Strict title filtering avoids unrelated uploads; missing coverage is preferable to guessing the game. No current-best-player ranking claimed.",
+      "image_hosts": [
+        "i1.ytimg.com",
+        "i2.ytimg.com",
+        "i3.ytimg.com",
+        "i4.ytimg.com",
+        "i.ytimg.com"
+      ]
     }
-  ]
+  ],
+  "max_age_days": 90,
+  "max_per_source": 4,
+  "reviewed_at": "2026-08-30"
 }

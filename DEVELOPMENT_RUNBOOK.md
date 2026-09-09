@@ -256,26 +256,10 @@ Battle truth stays in repo code and generated artifacts. Supabase is for user an
 ### Option D — Rebuild the single-file bundle
 ```bash
 cd poke-sim
-python3 -c "
-import re, os
-with open('index.html','r') as f: html=f.read()
-with open('style.css','r') as f: css=f.read()
-with open('data.js','r') as f: data=f.read()
-with open('engine.js','r') as f: engine=f.read()
-with open('ui.js','r') as f: ui=f.read()
-html=html.replace('<script src=\"data.js\"></script>','')
-html=html.replace('<script src=\"engine.js\"></script>','')
-html=html.replace('<script src=\"ui.js\"></script>','')
-html=html.replace('<link rel=\"stylesheet\" href=\"style.css\"/>','')
-html=re.sub(r'<script>\nif \(.serviceWorker.\).*?</script>','',html,flags=re.DOTALL)
-html=html.replace('<link rel=\"manifest\" href=\"manifest.json\"/>','')
-html=html.replace('<link rel=\"apple-touch-icon\" href=\"icon-192.png\"/>','')
-html=html.replace('</head>','<style>\n'+css+'\n</style>\n</head>')
-html=html.replace('</body>','<script>\n'+data+'\n\n'+engine+'\n\n'+ui+'\n</script>\n</body>')
-with open('pokemon-champion-2026.html','w') as f: f.write(html)
-print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
-"
+python tools/build-bundle.py
 ```
+
+Use the canonical builder for module inclusion, inline-script escaping, and release-manifest handling. Do not use the historical three-script inline recipe. Building locally is not deployment; follow the current gates in `STATUS.md` before publishing.
 
 ### Dependencies
 | Dependency | Required? | Used for |

@@ -78,7 +78,7 @@ Pokemon-Champions-Sim-Planner/
 ## 2. Scripts Reference
 
 ### `build-bundle.py`
-Assembles the single-file offline PWA bundle `pokemon-champion-2026.html` from all source files.
+Assembles the HTML PWA bundle `pokemon-champion-2026.html`. Distribute it with the required `generated` data and `assets` directories, not as a standalone HTML file. `generated/release_artifact.json` binds the external Champions move pool and retro sprites to exact bytes; `node tools/verify-release-assets.cjs` verifies them locally. Pages runs the same verification against its staged files before upload.
 
 **Inlines in order:**
 1. `style.css` → `<style>` block in `<head>`

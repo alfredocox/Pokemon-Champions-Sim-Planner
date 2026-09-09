@@ -125,9 +125,12 @@ vm.createContext(ctx);
 
 function load(file) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), ctx, { filename: file });
+  if (file === 'move_legality.js') ctx.window.ChampionsSim = ctx.ChampionsSim;
 }
 
-['data.js', 'logger.js', 'engine.js', 'storage_adapter.js', 'supabase_adapter.js', 'ui.js'].forEach(load);
+['data.js', 'generated/pokemon_showdown_legal_data.js', 'generated/champions_move_pools.js', 'move_legality.js', 'logger.js', 'engine.js', 'storage_adapter.js', 'supabase_adapter.js', 'ui.js'].forEach(load);
+// Isolate rendering contracts from the separately tested historical-move rejection.
+vm.runInContext("TEAMS.player.members[0].moves = ['Fake Out','Parting Shot','Protect','Flare Blitz'];", ctx);
 
 vm.runInContext([
   'this.TEAMS = TEAMS;',
@@ -276,7 +279,7 @@ T('27. showInlinePilotCard renders favorable verdict branch', () => {
 });
 T('28. showInlinePilotCard renders lead and win condition tips', () => {
   const card = document._els['results-section'].children[0];
-  inc(card.innerHTML, 'Lead Incineroar + Whimsicott');
+  inc(card.innerHTML, 'Best winning lead: Incineroar + Whimsicott');
   inc(card.innerHTML, 'Win condition: Tailwind Win');
 });
 T('29. showInlinePilotCard renders low-win disruption tip', () => {

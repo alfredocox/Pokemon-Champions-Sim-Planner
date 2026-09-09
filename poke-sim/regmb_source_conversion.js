@@ -4,16 +4,24 @@
 
 var CHAMPIONS_REGMB_SOURCE_CONVERSION = {
   rulesetId: 'champions_reg_m_b_doubles_bo3_source_review',
-  rulesetLabel: 'Champions Reg M-B Source Review (Jun 17 - Sep 2, 2026)',
+  rulesetLabel: 'Champions Reg M-B Source Review (Jun 17 - Sep 9, 2026)',
   checkedAtUtc: '2026-06-27T23:20:00Z',
   implementationStatus: 'source_review_not_runtime_promoted',
   runtimePromotionAllowed: false,
+  officialRosterCapture: 'source/reg-m-b-official-roster.json',
+  visualLedgerStatus: 'superseded_for_eligibility_by_official_capture_mapping_review_required',
+  visualLedgerDiscrepancies: {
+    duplicateSpecies: ['Hawlucha'],
+    absentFromOfficialRoster: ['Vikavolt', 'Centiskorch', 'Rabsca'],
+    officialRowsMissingFromVisualLedger: ['Crabominable', 'Falinks', 'Espathra', 'Floette'],
+    formIdentityReviewRequired: ['0670-005']
+  },
   sourceFacts: [
     {
-      claim: 'Regulation Set M-B runs from June 17 to September 2, 2026.',
+      claim: 'Ranked Regulation Set M-B runs from June 17 at 02:00 UTC to September 9 at 01:59 UTC, 2026 (extended August 5).',
       sourceTier: 1,
-      sourceName: 'Victory Road Champion regulations',
-      sourceUrl: 'https://victoryroad.pro/champions-regulations/',
+      sourceName: 'Official Pokemon Champions Regulation Set M-B notice',
+      sourceUrl: 'https://champions-news.pokemon-home.com/en/page/776.html',
       status: 'verified'
     },
     {

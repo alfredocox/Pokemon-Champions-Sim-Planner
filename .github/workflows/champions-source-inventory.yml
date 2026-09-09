@@ -1,0 +1,37 @@
+name: Champion Source Inventory
+
+on:
+  schedule:
+    - cron: '17 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: champions-source-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    name: Audit official Champion source metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate source inventory contract
+        working-directory: poke-sim
+        run: node tests/champions_source_inventory_tests.js
+      - name: Fetch official source metadata and hashes
+        working-directory: poke-sim
+        run: npm run champions:sources
+      - name: Upload source inventory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: champions-source-inventory-${{ github.run_id }}
+          path: poke-sim/reports/champions-source-inventory-latest.json
+          if-no-files-found: error
+          retention-days: 30

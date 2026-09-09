@@ -1,0 +1,11 @@
+{
+  "case_id": "brain_case_bad_confidence_v1",
+  "case_type": "bad_confidence",
+  "analysis_type": "team-review",
+  "description": "Brain output must not claim high confidence when the EvidenceBundle still has uncertainty.",
+  "expected_properties": {
+    "must_fail_validation": true,
+    "must_include_error_code": "HIGH_CONFIDENCE_WITH_UNCERTAINTY",
+    "confidence_max": "medium"
+  }
+}

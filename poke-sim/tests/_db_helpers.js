@@ -132,9 +132,9 @@ function _chain(table, state) {
     order:  function (col, opts) { orderCol = col; orderAsc = opts && opts.ascending !== undefined ? opts.ascending : true; return self; },
     limit:  function (n) { limitN = n; return self; },
     single: function () { var r = _resolveResult(); return Promise.resolve({ data: (r.data && r.data[0]) || null, error: r.error }); },
-    then:   function (resolve) { 
+    then:   function (resolve, reject) {
       var result = _resolveResult();
-      return Promise.resolve({ data: result.data, error: result.error });
+      return Promise.resolve({ data: result.data, error: result.error }).then(resolve, reject);
     }
   };
   return self;
@@ -394,7 +394,7 @@ function assertNoServiceRole(filepath) {
 }
 
 // Test cleanup functionality
-function cleanupTestData() {
+async function cleanupTestData() {
   if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
     console.log('🧹 Cleaning up test data from live database...');
     
@@ -406,62 +406,31 @@ function cleanupTestData() {
       realtime: { transport: require('ws') }
     });
     
-    // Clean up test data with test-specific identifiers
-    const cleanupPromises = [];
+    async function remove(label, query) {
+      const result = await query;
+      if (result && result.error) throw new Error(label + ': ' + result.error.message);
+      console.log('✓ Cleaned ' + label);
+    }
     
     // Clean up test analyses (those with test-specific patterns)
-    cleanupPromises.push(
-      supabase
+    await remove('test analyses', supabase
         .from('analyses')
         .delete()
         .or('player_team_id.like.test%,opp_team_id.like.test%')
-        .then(() => console.log('✓ Cleaned test analyses'))
-        .catch(err => console.log('⚠️ Failed to clean analyses:', err.message))
     );
     
     // Clean up test teams
-    cleanupPromises.push(
-      supabase
-        .from('teams')
-        .delete()
-        .like('team_id', 'test%')
-        .then(() => console.log('✓ Cleaned test teams'))
-        .catch(err => console.log('⚠️ Failed to clean teams:', err.message))
-    );
-    
-    // Clean up test team members
-    cleanupPromises.push(
-      supabase
+    await remove('test team members', supabase
         .from('team_members')
         .delete()
         .in('team_id', ['test_import_fixture_test', 'test_idem_test', 'test_ev_test', 'test_meta_test', 'test_slug_format_123', 'test_offline_test'])
-        .then(() => console.log('✓ Cleaned test team members'))
-        .catch(err => console.log('⚠️ Failed to clean team members:', err.message))
     );
-    
-    // Clean up test analysis win conditions and logs (cascade deletes should handle these, but let's be explicit)
-    cleanupPromises.push(
-      supabase
-        .from('analysis_win_conditions')
-        .delete()
-        .in('analysis_id', [])
-        .then(() => ({ success: true, message: 'win_conditions cleanup skipped (no test IDs)' }))
-        .catch(error => ({ success: false, error: error.message }))
+    await remove('test teams', supabase
+      .from('teams')
+      .delete()
+      .like('team_id', 'test%')
     );
-    
-    cleanupPromises.push(
-      supabase
-        .from('analysis_logs')
-        .delete()
-        .in('analysis_id', [])
-        .then(() => ({ success: true, message: 'analysis_logs cleanup skipped (no test IDs)' }))
-        .catch(error => ({ success: false, error: error.message }))
-    );
-    
-    // Wait for all cleanup operations to complete
-    Promise.allSettled(cleanupPromises).then(() => {
-      console.log('🧹 Test data cleanup completed');
-    });
+    console.log('🧹 Test data cleanup completed');
   } else {
     console.log('🧹 No live DB credentials - skipping cleanup');
   }

@@ -35,5 +35,15 @@ T('4. audit matrix records mirrorFlags for postmortem analysis', () => {
   inc(audit, 'mirrorFlags,');
 });
 
+T('5. audit fails when configured teams are missing or illegal', () => {
+  inc(audit, 'configured audit teams are missing');
+  inc(audit, 'configured audit teams are illegal');
+});
+
+T('6. audit fails on simulation errors or incomplete planned matrix', () => {
+  inc(audit, 'totalErrors > 0');
+  inc(audit, 'totalBattles !== expectedBattles');
+});
+
 console.log(`\naudit mirror hard-fail: ${pass} pass, ${fail} fail\n`);
 process.exit(fail ? 1 : 0);

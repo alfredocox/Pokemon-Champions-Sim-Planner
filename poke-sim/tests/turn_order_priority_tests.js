@@ -24,6 +24,7 @@ vm.runInContext(
     'this.Field = Field;',
     'this.simulateBattle = simulateBattle;',
     'this._compareTurnActionOrder = _compareTurnActionOrder;',
+    'this._speedSort = _speedSort;',
     'this._speedOrderDetailsSnapshot = _speedOrderDetailsSnapshot;',
     'this._statBoostSnapshot = _statBoostSnapshot;',
     'this._getPriority = getPriority;'
@@ -35,6 +36,7 @@ const Pokemon = ctx.Pokemon;
 const Field = ctx.Field;
 const simulateBattle = ctx.simulateBattle;
 const compareTurnActionOrder = ctx._compareTurnActionOrder;
+const speedSort = ctx._speedSort;
 const speedOrderDetailsSnapshot = ctx._speedOrderDetailsSnapshot;
 const statBoostSnapshot = ctx._statBoostSnapshot;
 const getPriority = ctx._getPriority;
@@ -68,7 +70,7 @@ function mk(name, overrides) {
     ability: '',
     nature: 'Hardy',
     level: 50,
-    moves: ['Tackle'],
+    moves: ['Growl'],
     evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
   }, overrides || {}));
 }
@@ -128,14 +130,18 @@ T('4. Speed boosts, Tailwind, and Choice Scarf feed turn order', function() {
     'boosted Pokemon should act first outside Trick Room');
 });
 
-T('5. exact Speed ties use seeded RNG as the final tiebreak', function() {
+T('5. exact Speed ties are grouped before seeded shuffle', function() {
   const field = new Field();
   const a = mk('Garchomp', { evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 32 } });
   const b = mk('Garchomp', { evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 32 } });
-  eq(compareTurnActionOrder(action(a, 0), action(b, 0), field, function() { return 0.25; }), -1,
-    'low RNG roll should put first action first');
-  eq(compareTurnActionOrder(action(a, 0), action(b, 0), field, function() { return 0.75; }), 1,
-    'high RNG roll should put second action first');
+  eq(compareTurnActionOrder(action(a, 0), action(b, 0), field), 0,
+    'the comparator should report an exact tie without consuming RNG');
+  const low = [action(a, 0), action(b, 0)];
+  speedSort(low, function(x, y) { return compareTurnActionOrder(x, y, field); }, function() { return 0.25; });
+  eq(low[0].attacker, b, 'low shuffle roll should swap the two tied actions');
+  const high = [action(a, 0), action(b, 0)];
+  speedSort(high, function(x, y) { return compareTurnActionOrder(x, y, field); }, function() { return 0.75; });
+  eq(high[0].attacker, a, 'high shuffle roll should retain the first tied action');
 });
 
 T('6. speed snapshots expose SP-aware effective Speed stacks and exact ties', function() {
@@ -212,7 +218,7 @@ T('9. live battle order respects Trick Room after it is set', function() {
     ability: 'Drought',
     nature: 'Quiet',
     level: 50,
-    moves: ['Tackle'],
+    moves: ['Growl'],
     evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 0, spe: 0 }
   }]);
   const oppTeam = team([{
@@ -221,7 +227,7 @@ T('9. live battle order respects Trick Room after it is set', function() {
     ability: 'Rough Skin',
     nature: 'Jolly',
     level: 50,
-    moves: ['Tackle'],
+    moves: ['Growl'],
     evs: { hp: 32, atk: 0, def: 0, spa: 0, spd: 0, spe: 32 }
   }, {
     name: 'Arcanine',
@@ -234,8 +240,8 @@ T('9. live battle order respects Trick Room after it is set', function() {
   }]);
   const battle = simulateBattle(playerTeam, oppTeam, { format: 'doubles', seed: [101, 102, 103, 104], maxTurns: 2 });
   const trIdx = battle.log.findIndex(line => String(line).includes('Trick Room was set'));
-  const slowIdx = indexAfter(battle.log, 'Torkoal used Tackle!', trIdx);
-  const fastIdx = indexAfter(battle.log, 'Garchomp used Tackle!', trIdx);
+  const slowIdx = indexAfter(battle.log, 'Torkoal used Growl!', trIdx);
+  const fastIdx = indexAfter(battle.log, 'Garchomp used Growl!', trIdx);
   truthy(trIdx >= 0, 'Trick Room should be set on turn 1');
   truthy(slowIdx >= 0 && fastIdx >= 0, 'both same-priority attackers should move after Trick Room is set');
   truthy(slowIdx < fastIdx, 'Torkoal should move before Garchomp under Trick Room');

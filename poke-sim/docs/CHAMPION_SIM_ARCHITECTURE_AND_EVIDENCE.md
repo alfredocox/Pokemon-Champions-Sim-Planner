@@ -117,6 +117,8 @@ The Stress Lite artifact must also stay readable at a glance. The export now mir
 
 The post-export `QA Claim Review` card is intentionally conservative. It surfaces release blockers, source gaps, damage events, branch rows, forbidden claims, and the next QA move. This is the same principle a strong QA lead would apply: first define what the evidence can prove, then define what it is forbidden to claim. No QA artifact may be used as complete Champion legality, exhaustive mechanics proof, global best-team ranking, or real ladder truth unless the artifact and source-truth gates explicitly support that claim.
 
+`v2.2.131-production-launch-gate` adds a stricter production layer after `qa_100_readiness`. The new `production_readiness_gate` is exported at the top level, mirrored inside `qa_dashboard`, and rendered in the inline QA Claim Review card. It separates "safe for internal QA" from "safe for public production": public launch remains blocked while official legality, replay parity, scenario breadth, singles/doubles coverage, source-gap boundaries, or other QA 100 gates are blocked/partial. This keeps a green scoped artifact from becoming an overclaim.
+
 `v2.2.30-replay-detail-rows` closes the current replay-transparency slice. The replay display now prefers resolved action rows over duplicated move pre-call lines, carries structured move-failure evidence, and groups spread/doubles target damage so one move can show every affected target, miss, failure, and KO reason from the same exported evidence. TheYfactora12 PR #160 and Alfredo sync PR #256 both passed required checks before merge; Alfredo also passed the 5,070-battle Battle Audit.
 
 `v2.2.43-move-effect-logic-matrix` adds a QA coverage matrix for the next simulator-accuracy gate. Every QA coverage summary now reports move/effect families as `proven`, `partial`, or `missing` for damage math, non-standard stat-source moves, HP-changing effects, status/action denial, move-failure prevention, priority prevention, field-duration speed control, contact/item damage, and faint transparency. This is deliberately conservative: a missing family is a next QA target, not an automatic engine bug, and coaching should not make strong claims from a partial/missing family without a caveat.
@@ -141,7 +143,7 @@ The Strategy tab now presents branch and sim evidence in player decision order: 
 
 Supabase is part of source truth and audit, but it is not the live battle calculator in this release.
 
-Current DB-backed responsibilities:
+Designed DB-backed responsibilities (not a live verification checklist):
 
 - Load approved/gated teams when live DB is available.
 - Persist analyses and bounded history rows.
@@ -152,6 +154,8 @@ Current DB-backed responsibilities:
 - Reject or prevent stale/illegal team rows from replacing clean bundled data.
 
 Current DB limitations:
+
+- Verification boundary as of August 30, 2026: the August 29 read audit in `../../STATUS.md` records public source/team reads. August hardening and Team Lab/Trainer Room migrations still need application and readback. Analysis writes, Team Lab persistence, and trusted promotion are not proven by a connected badge or offline contract tests. The August 30 browser review performed no production writes. See [the current review](../reports/competitive_player_review_2026-08-30.md).
 
 - `showdown_entities` rows are not yet the direct battle runtime source.
 - Saved analysis history is summary/capped storage, not full forensic turn-log storage.
@@ -355,3 +359,45 @@ Do not claim broad 100% accuracy until these are closed or explicitly accepted:
 - Source-drift visibility that marks the Overview as update-needed when upstream data changes.
 - Long stress automation with preserved failing seeds.
 - Coach-memory and Strategy-page recommendations must keep confidence, sample size, source age, and evidence boundaries visible so coaching output cannot outrank mechanics proof.
+
+## 2026-07-04 update: adaptive Bo evidence and browser run budget
+
+- v2.2.125 added adaptive Bo-series evidence: registered six stays locked, while the selected 3/4 can adapt between games in Bo3/Bo5.
+- v2.2.126 adds a browser run budget so normal Simulator clicks stay responsive. Selected-matchup stress supports up to 5,000 series, while oversized BO5 work is treated as QA/DB/job-runner evidence rather than a synchronous page task.
+- Run evidence must keep series count separate from actual game count. A 5,000-series BO5 run can still mean up to 25,000 games.
+- Stored/readout evidence should include regulation_id, ruleset_version, engine_version, format, bo, requested_series, executed_series, estimated_game_budget, adaptive_bring_enabled, and retained_replay_sample_count.
+- UI claims must distinguish complete aggregate counts from retained replay examples.
+
+## 2026-07-04 learning brain boundary
+
+The future learning brain must stay evidence-bound:
+
+- Sim data teaches simulator-derived matchup patterns.
+- Showdown/replay uploads teach real-player decision patterns and common lines.
+- Source-truth files define legality and mechanics; learned data cannot override them.
+- Coaching output must cite whether a recommendation came from verified mechanics, replay evidence, simulator aggregate data, or meta inference.
+- Personal Trainer Room learning and global aggregate learning must remain separate until account privacy, consent, RLS, export/delete, and aggregation rules are implemented.
+
+## 2026-07-04 detailed learning-brain roadmap
+
+See `poke-sim/docs/LEARNING_BRAIN_ARCHITECTURE_ROADMAP_2026-07-04.md` for the full architecture plan covering evidence intake, normalized battle rows, feature extraction, aggregate confidence, privacy boundaries, anti-poisoning controls, Trainer Room learning, and future coaching retrieval.
+
+## 2026-07-04 update: exported Trick Room proof
+
+v2.2.127 adds a named targeted QA fixture for Trick Room active-state coverage in browser-exported QA artifacts. This closes the mismatch where standalone targeted proof tests could cover Trick Room, but the exported Tactical Coaching QA artifact still reported `Trick Room active state` as missing.
+
+Required follow-up artifact check: exported `.127` Tactical Coaching QA should show `mechanics_seen.trick_room_active > 0` and should not list `Trick Room active state` under `missing_targeted_proof`.
+
+## 2026-07-04 update: turn-log export scope and turn count
+
+v2.2.128 fixes the downloaded single replay turn-log payload contract after QA logs showed valid `turnLog` rows but top-level `turns: null`. Downloaded `champions-turn-log-v2` files now include `turns`, `qa_scope`, `qa_scope_note`, and `qa_coverage_summary.coverage_scope_note`.
+
+Important interpretation rule: a single replay can prove only the mechanics that occurred in that replay. `single_replay_missing_mechanics` and `qa_coverage_summary.missing_targeted_proof` in a single turn-log export are QA targets for missing coverage, not a release-wide failure by themselves. Use Release Matrix QA or Targeted Mechanic QA artifacts when claiming broad mechanic proof.
+
+## 2026-07-04 update: completed turn-count source
+
+v2.2.129 fixes the sim-page turn-count source after fresh `.128` logs showed `turns` one higher than `turnLog.length`. `simulateBattle().turns`, downloaded turn-log JSON, and retained replay-card evidence now use completed `turnLog` rows. The older/internal loop counter is preserved as `simTurnsReported` in engine results and `sim_turns_reported` in exports for debugging, but QA-facing `turns` must match the structured evidence rows.
+
+## 2026-07-04 update: single replay proof boundary
+
+v2.2.130 separates single-replay coverage from release-wide targeted proof. Downloaded `champions-turn-log-v2` files now keep `qa_coverage_summary.missing_targeted_proof` empty for `single-turn-log` scope, because one replay is not expected to hit every mechanic. Mechanics absent from that one battle remain available under `single_replay_missing_mechanics` with `missing_targeted_proof_note` explaining the boundary.

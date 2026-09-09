@@ -4,6 +4,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const { moves: referenceMoves } = createRequire(import.meta.url)('../generated/pokemon_showdown_legal_data.js');
 
 const SIDES = ['player', 'opponent'];
 
@@ -204,25 +207,39 @@ function validateSnapshot(snapshot, turnNo, snapName, state, findings) {
 }
 
 function actorOrderFromEvents(events) {
+  const structured = (events || [])
+    .filter(event => event && event.actor && event.move && (event.actor_key || event.side))
+    .map(event => ({
+      actor: String(event.actor),
+      move: String(event.move),
+      actor_key: event.actor_key ? String(event.actor_key) : null,
+      side: SIDES.includes(event.side) ? event.side : null
+    }));
+  if (structured.length) return structured;
+
   const out = [];
-  const seen = new Set();
   for (const event of events || []) {
     const text = cleanText(event && event.text);
     if (text && text.includes(String.fromCharCode(0x2192))) continue;
     if (!text || text.includes('->') || text.includes('→') || text.includes('â†’')) continue;
     const match = text.match(/^(.+?) used (.+?)!/);
     if (!match) continue;
-    const key = `${match[1]}:${match[2]}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({ actor: match[1], move: match[2] });
+    out.push({
+      actor: match[1],
+      move: match[2],
+      actor_key: event && event.actor_key ? String(event.actor_key) : null,
+      side: event && SIDES.includes(event.side) ? event.side : null
+    });
   }
   return out;
 }
 
 function movePriority(move, row) {
-  let p = Object.prototype.hasOwnProperty.call(PRIORITY, move) ? PRIORITY[move] : 0;
-  if (row && row.ability === 'Prankster' && STATUS_MOVES.has(move)) p += 1;
+  const reference = referenceMoves[String(move).toLowerCase().replace(/[^a-z0-9]/g, '')];
+  let p = reference && Number.isFinite(reference.priority) ? reference.priority : (PRIORITY[move] || 0);
+  if (row && row.ability === 'Prankster' && (reference ? reference.category === 'Status' : STATUS_MOVES.has(move))) p += 1;
+  if (row && row.ability === 'Gale Wings' && reference && reference.type === 'Flying'
+      && (typeof row.hp_current === 'number' ? row.hp_current === row.hp_max : row.hp === 100)) p += 1;
   return p;
 }
 
@@ -339,6 +356,114 @@ function isSameEffectiveSpeedTie(rowA, rowB, snapshot) {
   return speedA != null && speedB != null && speedA === speedB;
 }
 
+function snapshotSupportsObservedSpeed(first, second, snapshot) {
+  if (!snapshot) return false;
+  const firstIndex = speedOrderIndexForRow(first.row, snapshot);
+  const secondIndex = speedOrderIndexForRow(second.row, snapshot);
+  if (firstIndex == null || secondIndex == null) return false;
+  if (firstIndex <= secondIndex) return true;
+  return isSameEffectiveSpeedTie(first.row, second.row, snapshot);
+}
+
+function speedOrderChangedDuringTurn(turn) {
+  const signature = snapshot => (Array.isArray(snapshot && snapshot.speed_order_details) ? snapshot.speed_order_details : [])
+    .map(row => `${row && (row.stableKey || row.key || row.pokemon)}:${Number(row && row.effective_speed)}`)
+    .join('|');
+  return !!(turn && turn.pre && turn.post && signature(turn.pre) !== signature(turn.post));
+}
+
+function tailwindAdjustedOrderSupports(first, second, turn, actionsBefore) {
+  const activatedSides = new Set((actionsBefore || [])
+    .filter(action => action && action.move === 'Tailwind')
+    .map(action => action.side));
+  if (!activatedSides.size) return false;
+
+  const adjustedSpeed = action => {
+    let speed = snapshotEffectiveSpeed(action.row, turn.pre);
+    if (speed == null) return null;
+    const detail = speedDetailForRow(action.row, turn.pre);
+    const alreadyActive = !!(detail && detail.tailwind);
+    if (activatedSides.has(action.side) && !alreadyActive) speed *= 2;
+    return speed;
+  };
+  const firstSpeed = adjustedSpeed(first);
+  const secondSpeed = adjustedSpeed(second);
+  if (firstSpeed == null || secondSpeed == null) return false;
+  if (firstSpeed === secondSpeed) return true;
+  const trickRoom = Number(turn.pre && turn.pre.field && (turn.pre.field.trick_room || turn.pre.field.trickRoom) || 0) > 0;
+  return trickRoom ? firstSpeed < secondSpeed : firstSpeed > secondSpeed;
+}
+
+function trickRoomAdjustedOrderSupports(first, second, turn, actionsBefore) {
+  const toggles = (actionsBefore || []).filter(action => action && action.move === 'Trick Room').length;
+  if (!toggles) return false;
+  const firstSpeed = snapshotEffectiveSpeed(first.row, turn.pre);
+  const secondSpeed = snapshotEffectiveSpeed(second.row, turn.pre);
+  if (firstSpeed == null || secondSpeed == null) return false;
+  if (firstSpeed === secondSpeed) return true;
+  const preActive = Number(turn.pre && turn.pre.field && (turn.pre.field.trick_room || turn.pre.field.trickRoom) || 0) > 0;
+  const active = toggles % 2 ? !preActive : preActive;
+  return active ? firstSpeed < secondSpeed : firstSpeed > secondSpeed;
+}
+
+function speedStageAdjustedOrderSupports(first, second, turn) {
+  const events = Array.isArray(turn && turn.events) ? turn.events : [];
+  const firstPrefix = `${first.actor} used ${first.move}!`;
+  const boundary = events.findIndex(event => cleanText(event && (event.text || event.message)).startsWith(firstPrefix));
+  if (boundary < 1) return false;
+  const prior = events.slice(0, boundary).map(event => cleanText(event && (event.text || event.message)));
+  const fallCount = action => prior.filter(text => text === `${action.actor}'s Speed fell!` || text === `${action.actor}'s Speed harshly fell!`).length;
+  const firstFalls = fallCount(first);
+  const secondFalls = fallCount(second);
+  if (!firstFalls && !secondFalls) return false;
+  const multiplier = stage => stage >= 0 ? (2 + stage) / 2 : 2 / (2 - stage);
+  const adjustedSpeed = (action, falls) => {
+    const speed = snapshotEffectiveSpeed(action.row, turn.pre);
+    if (speed == null) return null;
+    const detail = speedDetailForRow(action.row, turn.pre) || {};
+    const oldStage = Math.max(-6, Math.min(6, Number(detail.speed_stage || 0)));
+    const newStage = Math.max(-6, oldStage - falls);
+    return Math.floor((speed / multiplier(oldStage)) * multiplier(newStage));
+  };
+  const firstSpeed = adjustedSpeed(first, firstFalls);
+  const secondSpeed = adjustedSpeed(second, secondFalls);
+  if (firstSpeed == null || secondSpeed == null) return false;
+  if (firstSpeed === secondSpeed) return true;
+  const toggles = actualTrickRoomToggleCount(turn, boundary);
+  const preActive = Number(turn.pre && turn.pre.field && (turn.pre.field.trick_room || turn.pre.field.trickRoom) || 0) > 0;
+  const active = toggles % 2 ? !preActive : preActive;
+  return active ? firstSpeed < secondSpeed : firstSpeed > secondSpeed;
+}
+
+function actualTrickRoomToggleCount(turn, eventBoundary) {
+  const events = Array.isArray(turn && turn.events) ? turn.events.slice(0, eventBoundary) : [];
+  return events.filter(event => /^Trick Room (was set|returned to NORMAL)!/.test(cleanText(event && (event.text || event.message)))).length;
+}
+
+function paralysisAdjustedOrderSupports(first, second, turn) {
+  const events = Array.isArray(turn && turn.events) ? turn.events : [];
+  const firstPrefix = `${first.actor} used ${first.move}!`;
+  const firstEventIndex = events.findIndex(event => cleanText(event && (event.text || event.message)).startsWith(firstPrefix));
+  if (firstEventIndex < 0) return false;
+  const priorText = events.slice(0, firstEventIndex).map(event => cleanText(event && (event.text || event.message)));
+  const wasParalyzed = action => {
+    const status = String(action.row && action.row.status || '').toLowerCase();
+    if (status === 'paralysis' || status === 'paralyzed' || status === 'paralysed') return false;
+    return priorText.some(text => text.startsWith(`${action.actor} was paralysed`) || text.startsWith(`${action.actor} was paralyzed`));
+  };
+  const firstChanged = wasParalyzed(first);
+  const secondChanged = wasParalyzed(second);
+  if (!firstChanged && !secondChanged) return false;
+  let firstSpeed = snapshotEffectiveSpeed(first.row, turn.pre);
+  let secondSpeed = snapshotEffectiveSpeed(second.row, turn.pre);
+  if (firstSpeed == null || secondSpeed == null) return false;
+  if (firstChanged) firstSpeed = Math.floor(firstSpeed / 2);
+  if (secondChanged) secondSpeed = Math.floor(secondSpeed / 2);
+  if (firstSpeed === secondSpeed) return true;
+  const trickRoom = Number(turn.pre && turn.pre.field && (turn.pre.field.trick_room || turn.pre.field.trickRoom) || 0) > 0;
+  return trickRoom ? firstSpeed < secondSpeed : firstSpeed > secondSpeed;
+}
+
 function validateObservedActionOrder(turn, findings) {
   const observed = actorOrderFromEvents(turn.events);
   if (observed.length < 2 || !turn.pre || !turn.actions) return;
@@ -358,10 +483,20 @@ function validateObservedActionOrder(turn, findings) {
     if (!actionsByObservedKey.has(key)) actionsByObservedKey.set(key, []);
     actionsByObservedKey.get(key).push(row);
   }
+  for (const [key, matches] of actionsByObservedKey) {
+    if (matches.length < 2 || !observed.some(row => `${row.actor}|${row.move}` === key && !row.actor_key && !row.side)) continue;
+    findings.push(finding('warning', 'observed-action-identity-ambiguous', 'Identical actor and move text spans multiple registered actions; preserve actor_key/side in resolved events before using this pair for order proof.', {
+      turn: turn.turn,
+      key,
+      sides: matches.map(match => match.side)
+    }));
+  }
   const actual = observed
     .map(o => {
       const key = `${o.actor}|${o.move}`;
-      const matches = actionsByObservedKey.get(key) || [];
+      let matches = actionsByObservedKey.get(key) || [];
+      if (o.actor_key) matches = matches.filter(row => String(row.action.actor_key || '') === o.actor_key);
+      if (o.side) matches = matches.filter(row => row.side === o.side);
       if (matches.length !== 1) return null;
       const row = activeRowForAction(turn.pre, matches[0]);
       if (!row) return null;
@@ -404,11 +539,11 @@ function validateObservedActionOrder(turn, findings) {
       if (firstPriority !== secondPriority) continue;
       if (first.speedIndex == null || second.speedIndex == null) continue;
 
-      const firstSpeedIndex = first.speedIndex;
-      const secondSpeedIndex = second.speedIndex;
-      if (firstSpeedIndex <= secondSpeedIndex) continue;
-
-      if (isSameEffectiveSpeedTie(first.row, second.row, turn.pre)) continue;
+      if (snapshotSupportsObservedSpeed(first, second, turn.pre)) continue;
+      if (trickRoomAdjustedOrderSupports(first, second, turn, actual.slice(0, i))) continue;
+      if (tailwindAdjustedOrderSupports(first, second, turn, actual.slice(0, i))) continue;
+      if (paralysisAdjustedOrderSupports(first, second, turn)) continue;
+      if (speedStageAdjustedOrderSupports(first, second, turn)) continue;
 
       failOrder('speed', second.key, first.key);
       return;
@@ -427,6 +562,14 @@ function sideFromActions(turn, actor, move) {
   }
   const sides = Array.from(new Set(matches.map(m => m.side)));
   return sides.length === 1 ? matches.find(m => m.side === sides[0]) : null;
+}
+
+function sideFromStructuredEvent(event) {
+  const explicitSide = SIDES.includes(event && event.side) ? event.side : null;
+  const keySide = sideFromStableKey(event && event.actor_key);
+  if (explicitSide && keySide && explicitSide !== keySide) return null;
+  const resolvedSide = explicitSide || keySide;
+  return resolvedSide ? { side: resolvedSide, action: event } : null;
 }
 
 function activeSideForName(snapshot, name) {
@@ -464,7 +607,7 @@ function validateNoValidTargetSkips(turn, findings) {
 
     const actor = match[1];
     const move = match[2];
-    const resolved = sideFromActions(turn, actor, move);
+    const resolved = sideFromStructuredEvent(event) || sideFromActions(turn, actor, move);
     if (!resolved) {
       findings.push(finding('warning', 'no-valid-target-actor-unresolved', 'Could not resolve the side for a no-valid-target action.', {
         turn: turn && turn.turn,
@@ -482,8 +625,11 @@ function validateNoValidTargetSkips(turn, findings) {
           ? (activeSideForName(turn && turn.pre, actionTarget) || activeSideForName(turn && turn.post, actionTarget))
           : null);
     const checkedSide = targetSide || (resolved.side === 'player' ? 'opponent' : 'player');
-    const preActive = activeTargetKeys(turn && turn.pre, checkedSide);
-    const postActive = activeTargetKeys(turn && turn.post, checkedSide);
+    const actorRow = activeRowForAction(turn.pre, resolved);
+    const eligible = key => !(move === 'Pollen Puff' && checkedSide === resolved.side && actorRow
+      && (key === actorRow.stableKey || key === actorRow.key));
+    const preActive = activeTargetKeys(turn && turn.pre, checkedSide).filter(eligible);
+    const postActive = activeTargetKeys(turn && turn.post, checkedSide).filter(eligible);
     const originalActiveStillPresent = postActive.filter(key => preActive.includes(key));
     const onlyPostTurnReplacementsLive = (
       postActive.length > 0 &&
@@ -780,6 +926,29 @@ function validateQaCoverageSummary(payload, turnLog, findings) {
   }
 }
 
+function validateTopLevelTurnMetadata(payload, turnLog, findings) {
+  if (!payload) return;
+  const isTurnLogV2 = payload.schema_version === 'champions-turn-log-v2';
+  if (!Object.prototype.hasOwnProperty.call(payload, 'turns')) {
+    if (isTurnLogV2) {
+      findings.push(finding('error', 'top-level-turn-count-missing', 'champions-turn-log-v2 payloads must include top-level turns.', {
+        field: 'turns',
+        expected: turnLog.length,
+        actual: undefined
+      }));
+    }
+    return;
+  }
+  const actual = Number(payload.turns);
+  if (!Number.isFinite(actual) || actual !== turnLog.length) {
+    findings.push(finding('error', 'top-level-turn-count-mismatch', 'Top-level turns must match the structured turnLog row count.', {
+      field: 'turns',
+      expected: turnLog.length,
+      actual: payload.turns
+    }));
+  }
+}
+
 function finalizeIdentityChecks(state, findings) {
   for (const id of state.identities.values()) {
     const moves = Array.from(id.moves).filter(Boolean);
@@ -836,6 +1005,7 @@ export function validateTurnLogPayload(payload, options = {}) {
   }
 
   validateQaCoverageSummary(payload, turnLog, findings);
+  validateTopLevelTurnMetadata(payload, turnLog, findings);
   finalizeIdentityChecks(state, findings);
 
   const stableFieldsPresent = state.rowsMissingStableKey === 0 && state.missingStableMaps.size === 0;

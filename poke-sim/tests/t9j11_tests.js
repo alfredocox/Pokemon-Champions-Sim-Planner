@@ -112,11 +112,13 @@ load('data.js');
 load('engine.js');
 load('storage_adapter.js');
 load('generated/pokemon_showdown_legal_data.js');
+load('generated/champions_move_pools.js');
 ctx.ChampionsSim = ctx.ChampionsSim || {};
 ctx.ChampionsSim.pokemonDataAudit = require(path.join(ROOT, 'generated', 'pokemon_showdown_legal_data.js'));
 load('move_legality.js');
 ctx.window.ChampionsSim = ctx.ChampionsSim;
 load('legality.js');
+load('rulesets.js');
 load('ui.js');
 // Expose ctx-scoped const/let bindings on the context object (vm.createContext
 // does NOT auto-attach top-level const/let to the context, only var). This
@@ -178,7 +180,7 @@ function deepInc(hay, needle, msg='') { if (String(hay).indexOf(needle) < 0) thr
 const LEGAL_TEST_MOVES_BY_SPECIES = {
   Arcanine: ['Protect', 'Crunch', 'Flamethrower', 'Will-O-Wisp'],
   Garchomp: ['Earthquake', 'Protect', 'Substitute', 'Rest'],
-  Incineroar: ['Fake Out', 'Protect', 'Knock Off', 'Flare Blitz'],
+  Incineroar: ['Fake Out', 'Protect', 'Parting Shot', 'Flare Blitz'],
   Pikachu: ['Thunderbolt', 'Protect', 'Substitute', 'Rest'],
   'Rotom-Wash': ['Hydro Pump', 'Thunderbolt', 'Protect', 'Rest']
 };
@@ -193,7 +195,7 @@ function mkTeam(name, monNames) {
     format: 'champions',
     legality_status: 'unverified',
     members: monNames.map(n => ({
-      name: n, item: '', ability: '', level: 50, nature: 'Hardy',
+      name: n, item: '', ability: ctx.ChampionsSim.pokemonDataAudit.species[n].abilities['0'], level: 50, nature: 'Hardy',
       moves: LEGAL_TEST_MOVES_BY_SPECIES[n] || ['Protect','Substitute','Rest'],
       evs: { hp:0, atk:0, def:0, spa:0, spd:0, spe:0 }
     }))
@@ -267,11 +269,10 @@ T('4. teamMatchesFilter: mega subset is keys starting with mega_', () => {
   truthy(!teamMatchesFilter('player', TEAMS.player, 'mega'));
 });
 
-T('5. teamMatchesFilter: tournament shows Champions tournament teams only', () => {
-  truthy(teamMatchesFilter('champions_arena_1st', TEAMS.champions_arena_1st, 'tournament'),
-    'adjusted champions_arena_1st should remain discoverable as a tournament-inspired sample');
-  truthy(teamMatchesFilter('champions_arena_2nd', TEAMS.champions_arena_2nd, 'tournament'),
-    'adjusted champions_arena_2nd should remain discoverable as a tournament-inspired sample');
+T('5. stale tournament moves remain reviewable but not runnable', () => {
+  truthy(teamMatchesFilter('champions_arena_1st', TEAMS.champions_arena_1st, 'needs_review'), 'stale moves need review');
+  truthy(teamMatchesFilter('champions_arena_2nd', TEAMS.champions_arena_2nd, 'needs_review'), 'stale moves need review');
+  truthy(!teamMatchesFilter('champions_arena_1st', TEAMS.champions_arena_1st, 'tournament'), 'stale moves are not runnable');
   truthy(!teamMatchesFilter('player', TEAMS.player, 'tournament'), 'starter team should stay separate from tournament packs');
   truthy(!teamMatchesFilter('mega_altaria', TEAMS.mega_altaria, 'tournament'), 'mega is not a tournament team');
 });
@@ -455,6 +456,25 @@ T('15b. imported teams block known illegal Showdown-backed moves', () => {
   eq(res.keys.length, 0, 'known illegal move import should not return a key');
 });
 
+T('15b2. imported teams block real abilities assigned to the wrong species', () => {
+  resetTeams();
+  const member = {
+    name: 'Arcanine',
+    item: '',
+    ability: 'Levitate',
+    level: 50,
+    nature: 'Hardy',
+    moves: ['Protect'],
+    evs: { hp:0, atk:0, def:0, spa:0, spd:0, spe:0 }
+  };
+  const validation = buildImportedTeamValidation([member]);
+  truthy(!validation.valid, 'wrong-species ability should hard-block import');
+  truthy(validation.errors.some(w => /Levitate/.test(w) && /not assigned/.test(w)), 'wrong-species ability error missing');
+  const res = importCustomTeamsBulk([{ name: 'Wrong Ability Import', members: [member] }]);
+  eq(res.added, 0, 'wrong-species ability import should not be added');
+  eq(res.skipped, 1, 'wrong-species ability import should be skipped');
+});
+
 T('15c. imported teams with hard rule errors are rejected', () => {
   resetTeams();
   const res = importCustomTeamsBulk([{ name: 'Illegal Import', members: [
@@ -480,7 +500,8 @@ T('15c2. skipped bulk import returns actionable validation errors', () => {
   eq(res.added, 0, 'invalid upload should not import');
   eq(res.skipped, 1, 'invalid upload should be skipped');
   truthy(res.skippedErrors && res.skippedErrors.length === 1, 'skipped error details should be returned');
-  truthy(res.skippedErrors[0].errors.some(e => /raw Showdown EVs|Life Orb|SP/.test(e)), 'skipped error should explain validation blocker');
+  truthy(res.skippedErrors[0].errors.some(e => /raw Showdown EVs|SP/.test(e)), 'skipped error should explain validation blocker');
+  truthy(res.skippedErrors[0].warnings.some(e => /Life Orb|Reg M-B review candidate/.test(e)), 'review-only item warning should be preserved');
 });
 
 T('15d. Champion SP import parses SPs and validates without EV/IV gate errors', () => {
@@ -518,7 +539,23 @@ T('15e. raw Showdown EV/IV imports are rejected for Champion mode', () => {
   truthy(!validation.valid, 'raw EV/IV import should be invalid');
   truthy(validation.errors.some(e => /raw Showdown EVs/.test(e)), 'EV gate error missing');
   truthy(validation.errors.some(e => /IVs are not configurable/.test(e)), 'IV gate error missing');
-  truthy(validation.errors.some(e => /Life Orb/.test(e)), 'item-pool error missing');
+  truthy(validation.warnings.some(e => /Life Orb|Reg M-B review candidate/.test(e)), 'review-only item warning missing');
+});
+
+T('15e1. Reg M-B review candidate items can be saved for custom testing as warnings', () => {
+  resetTeams();
+  const members = parseShowdownPaste([
+    'Garchomp @ Life Orb',
+    'Ability: Rough Skin',
+    'Level: 50',
+    'SPs: 2 HP / 32 Atk / 32 Spe',
+    'Jolly Nature',
+    '- Earthquake',
+    '- Protect'
+  ].join('\n'));
+  const validation = buildImportedTeamValidation(members, { format: 'champions' });
+  truthy(validation.valid, 'Reg M-B review candidate item should not block custom testing');
+  truthy(validation.warnings.some(e => /Reg M-B review candidate|Life Orb/.test(e)), 'Reg M-B review warning missing');
 });
 
 T('15e2. over-cap Champion SP imports are rejected even when labeled SPs', () => {
@@ -692,28 +729,19 @@ T('15g2. visible preloaded sim teams are approved Champion legal rows only', () 
   resetTeams();
   const visible = getVisibleTeamKeys({ includeCustom: false });
   const expected = [
-    'player',
     'mega_altaria',
     'mega_dragonite',
     'mega_houndoom',
     'rin_sand',
-    'suica_sun',
     'cofagrigus_tr',
-    'champions_arena_1st',
-    'champions_arena_2nd',
-    'aurora_veil_froslass',
-    'targeted_proof_legal',
-    'indeedee_hatterene_tr',
-    'rillaboom_archaludon_balance',
-    'arboliva_seed_sower_balance',
-    'pelipper_basculegion_rain',
-    'kevin_meta_sun'
+    'champions_arena_3rd',
   ];
   eq(visible.length, expected.length, 'approved Champion testing catalog should be visible');
   expected.forEach(key => truthy(visible.includes(key), key + ' should remain visible'));
-  truthy(!TEAMS.champions_arena_3rd, 'still-conflicting tournament row should be removed from runtime catalog');
-  truthy(!TEAMS.perish_trap_gengar, 'inferred perish-trap row should be removed from runtime catalog');
-  truthy(CS_REMOVED_TEAM_CATALOG.champions_arena_3rd, 'removed catalog should record champions_arena_3rd');
+  truthy(TEAMS.champions_arena_3rd, 'conflicting tournament row remains editable');
+  truthy(TEAMS.perish_trap_gengar, 'inferred perish-trap row remains editable');
+  truthy(TEAMS.player.members[0].moves.includes('U-turn'), 'quarantine must not rewrite original moves');
+  truthy(!CS_REMOVED_TEAM_CATALOG.champions_arena_3rd, 'newly verified move pool releases champions_arena_3rd from quarantine');
   truthy(CS_REMOVED_TEAM_CATALOG.perish_trap_gengar, 'removed catalog should record perish_trap_gengar');
   const offenders = visible.filter(key => {
     const team = TEAMS[key];
@@ -794,6 +822,26 @@ T('15j. malformed DB spread payloads cannot replace approved bundled teams', () 
   eq(res.skipped, 1, 'stale DB team with malformed spread should be blocked');
   eq(TEAMS.mega_altaria.name, before, 'approved bundled team should remain intact');
   truthy(res.blocked[0].errors.some(e => /SP spread must be a stat object/.test(e)), 'blocked summary should name malformed spread');
+});
+
+T('15k. DB rows require exact version identity before replacing bundled teams', () => {
+  resetTeams();
+  const candidate = JSON.parse(JSON.stringify(TEAMS.mega_altaria));
+  candidate.name = 'Versioned DB Team';
+  candidate.metadata = Object.assign({}, candidate.metadata, {
+    schema_version: 'champions-team-catalog-v1',
+    build_id: 'db-catalog-test-v1',
+    ruleset_version: 'champions-reg-ma-2026-v1'
+  });
+  delete candidate.metadata.ruleset_id;
+  candidate.ruleset_id = 'champions_reg_m_doubles_bo3';
+  const accepted = mergeDbTeamsIntoCatalog({ mega_altaria: candidate });
+  eq(accepted.replaced, 1, 'matching ruleset version identity should permit an otherwise approved row: ' + JSON.stringify(accepted.blocked));
+  const stale = JSON.parse(JSON.stringify(candidate));
+  stale.metadata.ruleset_version = 'champions-reg-ma-stale';
+  const blocked = mergeDbTeamsIntoCatalog({ mega_altaria: stale });
+  eq(blocked.skipped, 1, 'mismatched ruleset version must be blocked');
+  truthy(blocked.blocked[0].reasons.includes('missing_or_mismatched_version_identity'), 'blocked reason should name version identity');
 });
 
 // ============================================================

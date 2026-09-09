@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "competitive_format": "doubles",
+  "singles_policy": "Retain isolated shared-mechanics regression fixtures; exclude singles results from competitive doubles readiness claims and new team intake",
+  "categories": [
+    {"id": "tournament_candidates", "source": "source/worlds-2026-masters-top-cut.json", "status": "review_only", "purpose": "Current Masters top-cut open sheets; exact stats and ruleset approval required before benchmark promotion"},
+    {"id": "permanent_regressions", "source": "tests/fixtures/golden_battles.json", "status": "runnable", "purpose": "Keep historical regressions when new tournament teams arrive"},
+    {"id": "mechanics_edge_cases", "source": "battle_edge_case_matrix.json", "status": "partial", "purpose": "Target interaction failures that popular teams alone do not cover"}
+  ],
+  "promotion_gates": ["Published player/team identity", "Source URL, retrieval time, and digest", "Verified stat points and battle stats", "Explicit approved Champions ruleset", "Species/form, item, ability and move mapping review", "Shared import legality and stable member identity checks", "Seeded side-swapped matches with explicit bring-four", "Dedicated mechanics assertions, not win-rate-only validation"],
+  "mutation_policy": "Candidate refresh never changes TEAMS, permanent fixtures, database rows, or production automatically"
+}

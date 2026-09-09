@@ -7,6 +7,8 @@
 > Paste it as your **Space instructions** in Perplexity AI (Pokesim Space).
 > The AI will have full project context in every new chat.
 
+> **CURRENT-STATE WARNING (2026-08-29):** This is history, not current authority. Read `AGENTS.md`, `STATUS.md`, and `ROADMAP.md` first. Historical reset and force-push examples are prohibited unless the owner explicitly authorizes the exact checked target.
+
 ---
 
 ## 🗂️ SNAPSHOT — 2026-04-27
@@ -15,16 +17,11 @@
 > **Commit:** `820cc0fc`
 > **Created:** April 27, 2026 — last known-good state of `main` before Alfredo's structural changes.
 
-### How to restore from this snapshot
+### How to inspect this snapshot safely
 ```bash
-# Option 1 — check out the snapshot locally (read-only reference)
 git fetch origin
-git checkout archive/snapshot-2026-04-27
-
-# Option 2 — hard-reset main back to this point (nuclear, coordinate with team first)
-git checkout main
-git reset --hard origin/archive/snapshot-2026-04-27
-git push --force
+git show origin/archive/snapshot-2026-04-27
+git diff origin/archive/snapshot-2026-04-27..HEAD
 ```
 
 > ⚠️ **Team note:** Do NOT delete `archive/snapshot-2026-04-27`. Tag @TheYfactora12 before merging anything that restructures `poke-sim/` source files.
@@ -308,6 +305,8 @@ Then run the bundle rebuild command documented in the repo.
 ---
 
 --- COPY FROM HERE ---
+
+> HISTORICAL CONTEXT ONLY (2026-08-30): The content below is an archived snapshot, not current instructions. Read the repository's AGENTS.md, STATUS.md, and ROADMAP.md first. Old branch, release, DB, and completion claims must be reverified. Do not follow historical direct-to-main, reset, or force-push instructions without current explicit authorization.
 
 You are continuing development of **Pokémon Champion 2026**, a production-grade VGC competitive team simulator built as a static, offline-capable PWA — now with a live Supabase database backend for persistent analysis storage.
 

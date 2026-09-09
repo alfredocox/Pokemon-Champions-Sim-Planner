@@ -1,0 +1,11 @@
+{
+  "case_id": "brain_case_fake_evidence_id_v1",
+  "case_type": "fake_evidence_id",
+  "analysis_type": "team-review",
+  "description": "Brain output must fail when it cites an evidence ID that is not in the EvidenceBundle.",
+  "expected_properties": {
+    "must_fail_validation": true,
+    "must_include_error_code": "EVIDENCE_ID_MISSING",
+    "must_reference_evidence_id": "ev_fake_001"
+  }
+}

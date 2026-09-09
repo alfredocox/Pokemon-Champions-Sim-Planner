@@ -1,4 +1,6 @@
 name: Showdown Sync
+# Staging only. Promotion of an exact reviewed sync-run ID and SHA-256 digest
+# is not implemented; no approval or automatic promotion is available here.
 
 on:
   schedule:
@@ -6,21 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       write_db:
-        description: 'Write normalized Showdown rows to Supabase'
+        description: 'Stage normalized Showdown rows in Supabase, unapproved only'
         required: false
         default: 'true'
         type: choice
         options:
           - 'true'
           - 'false'
-      approve:
-        description: 'Mark written showdown_entities rows approved after human review'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
 
 permissions:
   contents: read
@@ -34,10 +28,6 @@ jobs:
     name: Fetch Showdown source hashes
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
     steps:
       - uses: actions/checkout@v7
 
@@ -63,7 +53,7 @@ jobs:
             npm run showdown:sync
           fi
 
-      - name: Dry-run DB row promotion
+      - name: Dry-run unapproved DB row staging
         run: |
           set -euo pipefail
           cd poke-sim
@@ -97,20 +87,17 @@ jobs:
         run: echo "No Showdown entity changes detected; skipping Supabase writes."
 
       - name: Write unapproved Showdown rows to Supabase
-        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' && steps.change_check.outputs.has_changes == 'true' && github.event_name == 'workflow_dispatch' && github.event.inputs.write_db == 'true' && github.event.inputs.approve != 'true' }}
+        if: ${{ steps.change_check.outputs.has_changes == 'true' && github.event_name == 'workflow_dispatch' && github.event.inputs.write_db == 'true' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
           cd poke-sim
           npm run showdown:write-db -- --sync-run-id "showdown_${GITHUB_RUN_ID}"
 
-      - name: Write approved Showdown rows to Supabase
-        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' && steps.change_check.outputs.has_changes == 'true' && github.event_name == 'workflow_dispatch' && github.event.inputs.write_db == 'true' && github.event.inputs.approve == 'true' }}
-        run: |
-          set -euo pipefail
-          cd poke-sim
-          npm run showdown:write-db -- --sync-run-id "showdown_${GITHUB_RUN_ID}" --approve
-
       - name: Save latest entity hash baseline
+        if: ${{ steps.change_check.outputs.has_changes != 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.write_db == 'true') }}
         run: |
           set -euo pipefail
           mkdir -p poke-sim/artifacts/showdown-sync-cache
@@ -133,7 +120,7 @@ jobs:
 
       - name: Cache latest entity hash baseline
         uses: actions/cache/save@v4
-        if: always()
+        if: ${{ steps.change_check.outputs.has_changes != 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.write_db == 'true') }}
         with:
           path: poke-sim/artifacts/showdown-sync-cache/entity_hashes.json
           key: showdown-sync-entity-hashes-${{ github.run_id }}

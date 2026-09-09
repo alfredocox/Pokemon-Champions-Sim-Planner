@@ -269,7 +269,7 @@ const CASES = [
     }
   },
   {
-    name: 'Substitute blocks enemy status moves',
+    name: 'Taunt bypasses Substitute',
     run(simulateBattle) {
       const battle = simulate(simulateBattle, [
         mon('Whimsicott', 'Substitute', { hp: 140, spe: 252 })
@@ -277,7 +277,7 @@ const CASES = [
         mon('Whimsicott', 'Taunt', { spe: 0 })
       ], { maxTurns: 1, seed: [13, 15, 17, 19] });
       expectLine(battle, 'made a Substitute!', 'Substitute should be created');
-      expectLine(battle, 'used Taunt! But it failed because of Substitute!', 'Substitute should block Taunt');
+      expectLine(battle, 'fell for the Taunt!', 'Taunt should bypass Substitute');
     }
   },
   {

@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 const DEFAULT_ARTIFACT_DIR = path.join(ROOT, 'artifacts', 'showdown-sync');
+const APPROVAL_DISABLED = 'Showdown approval is disabled. Promotion of an exact reviewed sync-run ID and SHA-256 digest is not implemented; this writer only stages unapproved rows. No automatic approval is available.';
 const ENTITY_KINDS = ['species', 'move', 'ability', 'item', 'typechart', 'alias', 'learnset', 'format'];
 const COLLECTION_KIND = {
   species: 'species',
@@ -73,7 +74,7 @@ function entityHashesForKind(entityHashes, kind) {
   return entities[kind] || entities[KIND_COLLECTION[kind]] || {};
 }
 
-function buildSyncRunRow({syncRunId, report, approve, sourceVersion}) {
+function buildSyncRunRow({syncRunId, report, sourceVersion}) {
   const totals = report && report.changeSummary ? report.changeSummary.totals : {};
   return {
     sync_run_id: syncRunId,
@@ -89,7 +90,7 @@ function buildSyncRunRow({syncRunId, report, approve, sourceVersion}) {
       kindHashes: report.kindHashes || {},
       entityTotals: Object.fromEntries(Object.entries(totals).map(([kind, row]) => [kind, row.current])),
       validationFindings: report.validationFindings || [],
-      approvedOnWrite: !!approve
+      approvedOnWrite: false
     }
   };
 }
@@ -108,8 +109,7 @@ function buildSourceFileRows(syncRunId, sourceFiles) {
   }));
 }
 
-function buildEntityRows({syncRunId, entities, entityHashes, approve}) {
-  const approvedAt = approve ? new Date().toISOString() : null;
+function buildEntityRows({syncRunId, entities, entityHashes}) {
   const rows = [];
   for (const [collection, kind] of Object.entries(COLLECTION_KIND)) {
     const rowsForKind = (entities && entities[collection]) || {};
@@ -124,8 +124,8 @@ function buildEntityRows({syncRunId, entities, entityHashes, approve}) {
         display_name: displayNameFor(kind, key, data || {}),
         source_hash: hashesForKind[key] || hashesForKind[entityKey] || '',
         data: data || {},
-        approved: !!approve,
-        approved_at: approvedAt
+        approved: false,
+        approved_at: null
       });
     }
   }
@@ -178,13 +178,13 @@ export async function loadArtifactInputs(artifactDir = DEFAULT_ARTIFACT_DIR) {
 }
 
 export function buildDbPayload(inputs, options = {}) {
+  if (options.approve) throw new Error(APPROVAL_DISABLED);
   const reportId = (inputs.report.startedAt || new Date().toISOString()).replace(/[^0-9TZ]+/g, '').replace(/Z$/, 'Z');
   const syncRunId = options.syncRunId || `showdown_${reportId}`;
-  const approve = !!options.approve;
   const sourceVersion = options.sourceVersion || '';
-  const syncRun = buildSyncRunRow({syncRunId, report: inputs.report, approve, sourceVersion});
+  const syncRun = buildSyncRunRow({syncRunId, report: inputs.report, sourceVersion});
   const sourceFiles = buildSourceFileRows(syncRunId, inputs.sourceFiles);
-  const entities = buildEntityRows({syncRunId, entities: inputs.entities, entityHashes: inputs.entityHashes, approve});
+  const entities = buildEntityRows({syncRunId, entities: inputs.entities, entityHashes: inputs.entityHashes});
   const diffs = buildDiffRows({
     syncRunId,
     entities: inputs.entities,
@@ -193,7 +193,7 @@ export function buildDbPayload(inputs, options = {}) {
   });
   return {
     syncRunId,
-    approve,
+    approve: false,
     counts: {
       sourceFiles: sourceFiles.length,
       entities: entities.length,
@@ -256,14 +256,17 @@ async function writePayload(payload) {
 }
 
 async function main() {
+  // Reject the removed option before artifact reads, credentials, or network use.
+  if (process.argv.slice(2).some(arg => arg === '--approve' || arg.startsWith('--approve='))) {
+    throw new Error(APPROVAL_DISABLED);
+  }
   const artifactDir = argValue('--artifact-dir', DEFAULT_ARTIFACT_DIR);
-  const approve = hasFlag('--approve');
   const dryRun = hasFlag('--dry-run');
   const json = hasFlag('--json');
   const syncRunId = argValue('--sync-run-id', '');
   const sourceVersion = argValue('--source-version', '');
   const inputs = await loadArtifactInputs(artifactDir);
-  const payload = buildDbPayload(inputs, {approve, syncRunId, sourceVersion});
+  const payload = buildDbPayload(inputs, {syncRunId, sourceVersion});
   if (dryRun) {
     if (json) {
       process.stdout.write(`${JSON.stringify({syncRunId: payload.syncRunId, approve: payload.approve, counts: payload.counts}, null, 2)}\n`);
@@ -281,12 +284,15 @@ async function main() {
   for (const result of results) {
     console.log(`  ${result.table}: ${result.count}`);
   }
-  if (!payload.approve) {
-    console.log('Rows were written unapproved. Review diffs, then rerun with --approve or approve rows in DB.');
-  }
+  console.log('Rows were staged unapproved. ' + APPROVAL_DISABLED);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  return path.resolve(process.argv[1]) === __filename;
+}
+
+if (isMainModule()) {
   main().catch((error) => {
     console.error(error && error.stack ? error.stack : error);
     process.exitCode = 1;

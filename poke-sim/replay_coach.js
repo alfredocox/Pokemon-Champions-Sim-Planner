@@ -414,23 +414,86 @@
     if (text && warnings.indexOf(text) < 0) warnings.push(text);
   }
 
-  function legalityForMoves(species, moves) {
+  // Exact supported tier labels from the pinned Showdown 0.11.11 formats.
+  var CHAMPIONS_REPLAY_TIERS = {
+    '[Gen 9 Champions] BSS Reg M-A': 'singles',
+    '[Gen 9 Champions] BSS Reg M-B': 'singles',
+    '[Gen 9 Champions] VGC 2026 Reg M-A': 'doubles',
+    '[Gen 9 Champions] VGC 2026 Reg M-A (Bo3)': 'doubles',
+    '[Gen 9 Champions] VGC 2026 Reg M-B': 'doubles',
+    '[Gen 9 Champions] VGC 2026 Reg M-B (Bo3)': 'doubles'
+  };
+
+  function replayLearnsetContext(tier) {
+    var name = cleanText(tier);
+    if (Object.prototype.hasOwnProperty.call(CHAMPIONS_REPLAY_TIERS, name)) return 'champions';
+    if (/^\[Gen 9\] (?:OU|Ubers|UU|RU|NU|PU|ZU|LC|Monotype|Doubles OU|Doubles Ubers|VGC 20\d{2}(?: Reg [A-Z])?(?: Bo3)?|Battle Stadium (?:Singles|Doubles)(?: Reg [A-Z])?)$/i.test(name)) return 'historical';
+    return '';
+  }
+
+  function resolveReplayMetadata(lines, model) {
+    var tiers = [], gameTypes = [], generations = [], battleStarted = false;
+    model.metadataConflicts = [];
+    lines.forEach(function(line) {
+      var parts = cleanText(line).split('|');
+      if (parts[0] !== '') return;
+      var tag = parts[1], value = cleanText(parts[2]);
+      if (tag === 'tier' || tag === 'gametype' || tag === 'gen') {
+        if (tag !== 'gen') model.format = model.format || value;
+        var values = tag === 'tier' ? tiers : tag === 'gametype' ? gameTypes : generations;
+        if (values.indexOf(value) < 0) values.push(value);
+        if (battleStarted) addReplayWarning(model.metadataConflicts, 'late ' + tag + ' header');
+        if (tag === 'gen' && (parts.length !== 3 || !/^[1-9]\d*$/.test(value))) {
+          addReplayWarning(model.metadataConflicts, 'malformed gen header');
+        }
+      } else if (/^(start|turn|switch|drag|replace|move|faint|win|tie|cant)$/.test(tag) || /^-/.test(tag)) {
+        battleStarted = true;
+      }
+    });
+    model.tier = tiers[0] || '';
+    model.gameType = gameTypes[0] || '';
+    model.generation = generations[0] || '';
+    if (tiers.length > 1) addReplayWarning(model.metadataConflicts, 'conflicting tier headers');
+    if (gameTypes.length > 1) addReplayWarning(model.metadataConflicts, 'conflicting gametype headers');
+    if (generations.length > 1) addReplayWarning(model.metadataConflicts, 'conflicting gen headers');
+    var context = replayLearnsetContext(model.tier);
+    // Every recognized tier above is Gen 9; absence is allowed, contradiction is not.
+    if (context && generations.length && model.generation !== '9') {
+      addReplayWarning(model.metadataConflicts, 'tier and gen disagree');
+    }
+    var expected = context === 'champions' ? CHAMPIONS_REPLAY_TIERS[model.tier] :
+      context === 'historical' ? (/VGC|Doubles/i.test(model.tier) ? 'doubles' : 'singles') : '';
+    if (gameTypes.length && expected && model.gameType !== expected) {
+      addReplayWarning(model.metadataConflicts, 'tier and gametype disagree');
+    }
+    model.learnsetContext = model.metadataConflicts.length ? '' : context;
+    model.metadataConflicts.forEach(function(reason) {
+      addReplayWarning(model.warnings, 'Replay learnset context unchecked: ' + reason + '.');
+    });
+  }
+
+  function legalityForMoves(species, moves, ctx) {
+    var context = ctx && ctx.learnsetContext;
     var api = ChampionsSim.moveLegality;
-    if (!api || typeof api.isMoveLegalForSpecies !== 'function') {
+    if (!context || !api || typeof api.isMoveLegalForSpecies !== 'function') {
       return (moves || []).map(function(move) {
         return {
           move: move,
           legal: false,
-          reason: 'source_unavailable',
+          reason: !context ? 'learnset_context_unavailable' : 'source_unavailable',
+          verification_status: 'unchecked',
+          learnsetContext: context || '',
           notes: 'unchecked'
         };
       });
     }
     return (moves || []).map(function(move) {
-      var out = api.isMoveLegalForSpecies(species, move);
+      var out = api.isMoveLegalForSpecies(species, move, { learnsetContext: context });
       return {
         move: move,
-        legal: !!out.legal,
+        legal: out.verification_status === 'known' && !!out.legal,
+        verification_status: out.verification_status || 'unchecked',
+        learnsetContext: context,
         reason: out.reason || '',
         notes: out.notes || '',
         source: out.source || '',
@@ -450,8 +513,13 @@
 
   function applyMoveLegalityWarnings(warnings, legality) {
     (legality || []).forEach(function(item) {
-      if (item.reason === 'not_in_species_form_learnset') addReplayWarning(warnings, 'move not legal for this species/form: ' + item.move);
-      if (item.reason === 'source_unavailable' || item.reason === 'unknown_species') addReplayWarning(warnings, 'move legality unchecked: ' + item.move);
+      if (item.verification_status === 'unchecked') {
+        addReplayWarning(warnings, 'move legality unchecked: ' + item.move + ' (' + item.reason + ')');
+      } else if (item.learnsetContext === 'historical') {
+        addReplayWarning(warnings, 'historical learnset membership ' + (item.legal ? 'found' : 'not found') + '; not current Champions legality: ' + item.move);
+      } else if (item.verification_status === 'known' && !item.legal) {
+        addReplayWarning(warnings, 'move not legal for this species/form: ' + item.move);
+      }
     });
   }
 
@@ -475,7 +543,7 @@
     var stats = sourceStatsForSpecies(species);
     var moves = observedMovesForSpecies(ctx, species, [row.postImportSpecies, row.resolvedSpecies, row.baseSpecies]);
     if (!stats) addReplayWarning(warnings, 'stats fallback used or source stats unavailable for ' + species);
-    var legality = legalityForMoves(species, moves);
+    var legality = legalityForMoves(species, moves, ctx);
     var support = supportForMoves(moves);
     applyMoveLegalityWarnings(warnings, legality);
     applyMoveSupportWarnings(warnings, support);
@@ -658,6 +726,9 @@
       ok: false,
       selectedSide: selectedSide,
       format: '',
+      tier: '',
+      gameType: '',
+      learnsetContext: '',
       rated: null,
       players: { p1: '', p2: '' },
       teamPreview: { p1: [], p2: [] },
@@ -685,6 +756,9 @@
     var seenFirstTurn = false;
     var activeSeenBeforeTurnOne = { p1: [], p2: [] };
     var activeSpeciesBySlot = {};
+    var faintedSlots = {};
+    var pendingEffectiveness = {};
+    var lastMove = null;
     var previewDetails = { p1: [], p2: [] };
     var startingSlots = { p1: [], p2: [] };
     var startingBySlot = {};
@@ -692,6 +766,8 @@
     var observedMovesBySpecies = {};
     var parserWarnings = [];
     var lines = text.split(/\r?\n/);
+    // Resolve the complete metadata envelope before producing any roster verdict.
+    resolveReplayMetadata(lines, model);
     model.rawPreviewLines = lines.map(cleanText).filter(Boolean).slice(-250);
 
     lines.forEach(function(line) {
@@ -706,7 +782,6 @@
         return;
       }
       if (tag === 'tier' || tag === 'gametype') {
-        model.format = model.format || cleanText(parts[2]);
         return;
       }
       if (tag === 'rated') {
@@ -735,9 +810,11 @@
       }
       if (tag === 'turn') {
         if (currentTurn && currentTurn.number > 0) {
-          currentTurn.rosterState = snapshotRosterState(rosterState, { observedMovesBySpecies: observedMovesBySpecies });
+          currentTurn.rosterState = snapshotRosterState(rosterState, { observedMovesBySpecies: observedMovesBySpecies, learnsetContext: model.learnsetContext });
         }
         seenFirstTurn = true;
+        lastMove = null;
+        pendingEffectiveness = {};
         currentTurn = ensureTurn(model, parts[2]);
         model.totalTurns = Math.max(model.totalTurns, currentTurn.number);
         return;
@@ -762,6 +839,10 @@
         var details = parsedMon.species || mon;
         var hp = hpPercent(parts[4] || '');
         var key = slotKey(slot);
+        var forcedReplacement = tag === 'drag' || !!faintedSlots[key];
+        delete faintedSlots[key];
+        pendingEffectiveness = {};
+        lastMove = null;
         var previous = key ? activeSpeciesBySlot[key] : '';
         if (side && previous && previous !== details) benchSlotOccupant(rosterState, side, previous);
         if (key && details) activeSpeciesBySlot[key] = details;
@@ -807,7 +888,8 @@
           gender: parsedMon.gender,
           level: parsedMon.level,
           hp: hp,
-          forced: tag === 'drag'
+          forced: forcedReplacement,
+          voluntary: tag === 'switch' && !forcedReplacement && seenFirstTurn
         });
         currentTurn.events.push({ type: tag, side: side, pokemon: details, text: raw });
         return;
@@ -889,6 +971,7 @@
       }
 
       if (tag === 'move') {
+        pendingEffectiveness = {};
         var actorSlot = parts[2];
         var actorSide = sideOf(actorSlot);
         var actor = speciesForSlot(activeSpeciesBySlot, actorSlot);
@@ -896,6 +979,7 @@
         var targetSlot = parts[4] || '';
         var targetSide = sideOf(targetSlot);
         var target = speciesForSlot(activeSpeciesBySlot, targetSlot);
+        lastMove = { slot: slotKey(actorSlot), move: move, side: actorSide };
         if (actorSide) addUnique(model.selectedPokemon[actorSide], actor);
         if (actor && move) addUnique((observedMovesBySpecies[actor] = observedMovesBySpecies[actor] || []), move);
         currentTurn.moves.push({ side: actorSide, pokemon: actor, move: move, targetSide: targetSide, target: target });
@@ -905,6 +989,7 @@
 
       if (tag === 'faint') {
         var faintSlot = parts[2];
+        faintedSlots[slotKey(faintSlot)] = true;
         var faintSide = sideOf(faintSlot);
         var faintMon = speciesForSlot(activeSpeciesBySlot, faintSlot);
         if (faintSide) addUnique(model.selectedPokemon[faintSide], faintMon);
@@ -925,6 +1010,8 @@
         var hpMon = speciesForSlot(activeSpeciesBySlot, hpSlot);
         var hpValue = hpPercent(parts[3] || '');
         var row = { side: hpSide, pokemon: hpMon, hp: hpValue, cause: cleanText(parts.slice(4).join('|')) };
+        row.effects = tag === '-damage' && !row.cause ? (pendingEffectiveness[slotKey(hpSlot)] || []).slice() : [];
+        delete pendingEffectiveness[slotKey(hpSlot)];
         ensureRosterEntry(rosterState, hpSide, hpMon, {
           side: hpSide,
           hp: hpValue,
@@ -945,14 +1032,18 @@
       }
 
       if (tag === '-weather' || tag === '-fieldstart' || tag === '-fieldend' || tag === '-fieldactivate' || tag === '-sidestart' || tag === '-sideend' || tag === '-sideactivate') {
-        currentTurn.field.push({ type: tag.slice(1), value: cleanText(parts[2]), side: sideOf(parts[3] || '') });
+        var fieldOwner = parts.find(function(part) { return /^\[of\] /.test(part); });
+        var sideEvent = /^-side/.test(tag);
+        var fieldMatchesMove = lastMove && cleanText(parts[2]).replace(/^move: /, '').replace(/\s/g, '').toLowerCase() === lastMove.move.replace(/\s/g, '').toLowerCase();
+        var fieldSide = sideEvent ? sideOf(parts[2]) : (fieldOwner ? sideOf(fieldOwner.replace(/^\[of\] /, '')) : (fieldMatchesMove ? lastMove.side : ''));
+        currentTurn.field.push({ type: tag.slice(1), value: cleanText(parts[sideEvent ? 3 : 2]), side: fieldSide, upkeep: parts.indexOf('[upkeep]') >= 0 });
         currentTurn.events.push({ type: tag.slice(1), text: raw });
         return;
       }
 
       if (tag === '-crit' || tag === '-miss' || tag === '-fail' || tag === '-immune') {
         var rngSlot = parts[2];
-        currentTurn.rng.push({ type: tag.slice(1), side: sideOf(rngSlot), pokemon: speciesForSlot(activeSpeciesBySlot, rngSlot), value: cleanText(parts[3]) });
+        currentTurn.rng.push({ type: tag.slice(1), side: sideOf(rngSlot), pokemon: speciesForSlot(activeSpeciesBySlot, rngSlot), value: cleanText(parts[3]), move: lastMove && lastMove.slot === slotKey(rngSlot) ? lastMove.move : '' });
         currentTurn.events.push({ type: tag.slice(1), side: sideOf(rngSlot), pokemon: speciesForSlot(activeSpeciesBySlot, rngSlot), text: raw });
         return;
       }
@@ -971,7 +1062,7 @@
         return;
       }
 
-      if (tag === '-ability') {
+      if (tag === '-ability' || (tag === '-activate' && /^ability: /.test(parts[3] || ''))) {
         var abilitySlot = parts[2];
         currentTurn.abilities.push({
           type: 'ability',
@@ -982,6 +1073,11 @@
           text: raw
         });
         currentTurn.events.push({ type: 'ability', side: sideOf(abilitySlot), pokemon: speciesForSlot(activeSpeciesBySlot, abilitySlot), ability: cleanText(parts[3]), text: raw });
+        return;
+      }
+
+      if (tag === '-activate' && !/^item: /.test(parts[3] || '')) {
+        currentTurn.events.push({ type: 'activate', side: sideOf(parts[2]), pokemon: speciesForSlot(activeSpeciesBySlot, parts[2]), effect: cleanText(parts[3]), text: raw });
         return;
       }
 
@@ -1014,6 +1110,7 @@
 
       if (tag === '-supereffective' || tag === '-resisted') {
         var effSlot = parts[2];
+        (pendingEffectiveness[slotKey(effSlot)] = pendingEffectiveness[slotKey(effSlot)] || []).push(tag.slice(1));
         currentTurn.effectiveness.push({
           type: tag.slice(1),
           side: sideOf(effSlot),
@@ -1026,7 +1123,7 @@
     });
 
     if (currentTurn && currentTurn.number > 0) {
-      currentTurn.rosterState = snapshotRosterState(rosterState, { observedMovesBySpecies: observedMovesBySpecies });
+      currentTurn.rosterState = snapshotRosterState(rosterState, { observedMovesBySpecies: observedMovesBySpecies, learnsetContext: model.learnsetContext });
     }
 
     model.leads.p1 = activeSeenBeforeTurnOne.p1.slice(0, 2);
@@ -1077,6 +1174,7 @@
       previewDetails: previewDetails,
       startingSlots: startingSlots,
       observedMovesBySpecies: observedMovesBySpecies,
+      learnsetContext: model.learnsetContext,
       parserWarnings: parserWarnings
     });
     model.ok = model.turns.length > 0 || !!model.winner;
@@ -1127,7 +1225,7 @@
 
   function hasOpponentFieldProgress(turn, oppSide) {
     return (turn.field || []).some(function(f) {
-      return !f.side || f.side === oppSide || /trick room|weather|terrain|tailwind/i.test(f.value || '');
+      return !f.upkeep && /^(weather|fieldstart|sidestart)$/.test(f.type) && f.value !== 'none' && f.side === oppSide;
     });
   }
 
@@ -1240,8 +1338,8 @@
       var oppMoves = turn.moves.filter(function(m) { return m.side === names.opp; });
       var userFaints = turn.faints.filter(function(f) { return f.side === side; });
       var oppFaints = turn.faints.filter(function(f) { return f.side === names.opp; });
-      var userSwitches = turn.switches.filter(function(s) { return s.side === side; });
-      var oppSwitches = turn.switches.filter(function(s) { return s.side === names.opp; });
+      var userSwitches = turn.switches.filter(function(s) { return s.side === side && s.voluntary; });
+      var oppSwitches = turn.switches.filter(function(s) { return s.side === names.opp && s.voluntary; });
       var userSpeed = userMoves.filter(function(m) { return classifyMove(m.move) === 'speed_control'; });
       var oppSpeed = oppMoves.filter(function(m) { return classifyMove(m.move) === 'speed_control'; });
       var tactical = turn.tacticalRead || {};
@@ -1497,41 +1595,41 @@
           evidence: userSpeedNames + ' vs ' + oppSpeedNames
         });
       } else if (userSpeed.length && (immediatePayoff || deferredPayoffTurn)) {
-        insight.stateShift = immediatePayoff ? 'Speed control converted' : 'Setup paid off later';
-        insight.severity = 'good';
-        insight.confidence = deferredPayoffTurn ? 'medium' : 'high';
-        insight.coachingRead = immediatePayoff
-          ? 'Your speed-control turn converted into immediate pressure or material.'
-          : 'This speed-control turn paid off within the next three turns, so it should not be graded as a passive setup turn.';
+        insight.stateShift = 'Speed control and HP changes observed';
+        insight.severity = 'low';
+        insight.confidence = 'low';
+        insight.coachingRead = 'HP or faint events occurred near speed control. These events do not establish that speed control caused an advantage.';
         insight.suppressSpeedNoPressure = true;
         insight.notes.push({
-          id: deferredPayoffTurn ? 'deferred_payoff' : 'speed_control_converted',
-          tag: deferredPayoffTurn ? 'Deferred Payoff Recognized' : 'Speed Control Converted',
+          id: 'speed_control_pressure_observed',
+          observationOnly: true,
+          tag: 'Speed Control Context',
           category: 'speed_control',
-          severity: 'good',
-          confidence: deferredPayoffTurn ? 'medium' : 'high',
-          message: deferredPayoffTurn ? 'Setup paid off on turn ' + deferredPayoffTurn + '.' : 'Speed control created immediate pressure.',
-          whatHappened: 'You used ' + userSpeedNames + (deferredPayoffTurn ? ' and gained payoff by turn ' + deferredPayoffTurn + '.' : ' and gained pressure immediately.'),
-          whyMattered: 'Good speed control is not just the field state; it must become damage, a KO, forced Protect, or preserved win condition.',
-          doInstead: 'Keep this pattern: name the next two turns before setting speed control, then convert the window before it expires.',
-          evidence: deferredPayoffTurn ? 'Payoff detected within T+3' : 'Immediate material or damage pressure'
+          severity: 'low',
+          confidence: 'low',
+          message: 'Speed control and subsequent HP or faint events were observed; causality is unverified.',
+          whatHappened: 'You used ' + userSpeedNames + '. HP or faint events also occurred in this window.',
+          whyMattered: 'Residual damage, existing low HP and unrelated actions can produce the same observation.',
+          doInstead: 'Inspect action order and damage sources before attributing an advantage to speed control.',
+          evidence: deferredPayoffTurn ? 'HP or faint events within T+3; no causal proof' : 'Same-turn HP or faint events; no causal proof'
         });
       } else if (userSetup.length && deferredPayoffTurn) {
-        insight.stateShift = 'Complementary turn paid off';
-        insight.severity = 'good';
-        insight.confidence = 'medium';
-        insight.coachingRead = 'This setup or protection turn enabled material within the next three turns, so it should be credited as part of the line.';
+        insight.stateShift = 'Setup and later HP changes observed';
+        insight.severity = 'low';
+        insight.confidence = 'low';
+        insight.coachingRead = 'HP or faint events followed setup or protection. This does not establish that the earlier action enabled them.';
         insight.notes.push({
-          id: 'complementary_turn_payoff',
-          tag: 'Complementary Turn Payoff',
+          id: 'setup_pressure_observed',
+          observationOnly: true,
+          tag: 'Setup Context',
           category: 'turn_execution',
-          severity: 'good',
-          confidence: 'medium',
-          message: 'Setup or protection paid off on turn ' + deferredPayoffTurn + '.',
-          whatHappened: 'You used ' + userSetup.map(replayMoveName).filter(Boolean).join(', ') + ' and gained payoff by turn ' + deferredPayoffTurn + '.',
-          whyMattered: 'Some correct turns are enabling turns, not immediate damage turns. They should be credited when the next board proves the payoff.',
-          doInstead: 'Keep linking setup/protection turns to a concrete next-turn conversion instead of treating them as isolated pauses.',
-          evidence: 'Payoff detected within T+3'
+          severity: 'low',
+          confidence: 'low',
+          message: 'HP or faint events followed setup or protection; causality is unverified.',
+          whatHappened: 'You used ' + userSetup.map(replayMoveName).filter(Boolean).join(', ') + '. Later HP or faint events were observed by turn ' + deferredPayoffTurn + '.',
+          whyMattered: 'Residual damage and unrelated actions can produce the same sequence.',
+          doInstead: 'Inspect event causes before treating the earlier turn as successful setup.',
+          evidence: 'HP or faint events within T+3; no causal proof'
         });
       }
 
@@ -1563,7 +1661,7 @@
             turn: turn.number,
             side: row.side,
             pokemon: row.pokemon,
-            move: row.value || '',
+            move: row.move || '',
             reason: row.type,
             type: row.type,
             text: row.text || ''
@@ -1698,14 +1796,9 @@
     var opp = side === 'p1' ? 'p2' : 'p1';
     var cards = [];
     (parsed.turns || []).forEach(function(turn) {
-      var effectivenessByPokemon = {};
-      (turn.effectiveness || []).forEach(function(row) {
-        if (!row || !row.pokemon) return;
-        (effectivenessByPokemon[row.pokemon] = effectivenessByPokemon[row.pokemon] || []).push(row.type);
-      });
       (turn.damage || []).forEach(function(row) {
         if (!row || !row.pokemon) return;
-        var effects = effectivenessByPokemon[row.pokemon] || [];
+        var effects = row.effects || [];
         if (!effects.length && !(row.hp != null && Number(row.hp) <= 50)) return;
         var playerOwned = row.side === side;
         var opponentOwned = row.side === opp;
@@ -1896,6 +1989,27 @@
   }
 
   function buildReplayCoachReview(parsed, opts) {
+    var hasBattleEvents = parsed && Array.isArray(parsed.turns) && parsed.turns.some(function(turn) {
+      return Number.isFinite(turn.number) && turn.number > 0 && Array.isArray(turn.events) && turn.events.some(function(event) {
+        var fields = String(event && event.text || '').split('|');
+        var required = {
+          move: 3, switch: 4, drag: 4, replace: 3, detailschange: 3, '-formechange': 3,
+          faint: 2, '-damage': 3, '-heal': 3, '-status': 3, '-curestatus': 3,
+          '-boost': 4, '-unboost': 4, '-weather': 2, '-fieldstart': 2,
+          '-fieldend': 2, '-fieldactivate': 2, '-sidestart': 3, '-sideend': 3,
+          '-sideactivate': 3, '-crit': 2, '-miss': 2, '-fail': 2, '-immune': 2,
+          cant: 3, '-ability': 3, '-item': 3, '-enditem': 3, '-activate': 3,
+          '-singleturn': 3, '-supereffective': 2, '-resisted': 2
+        }[fields[1]];
+        if (!required || fields.length <= required) return false;
+        for (var i = 2; i <= required; i++) if (!String(fields[i] || '').trim()) return false;
+        if (/^-(?:weather|fieldstart|fieldend|fieldactivate)$/.test(fields[1])) return true;
+        return /^p[1-4][a-d]?:\s*\S/.test(fields[2]);
+      });
+    });
+    if (!hasBattleEvents) {
+      throw new Error('No battle events were found. Use a replay with observed turns before requesting coaching.');
+    }
     opts = opts || {};
     var side = normalizeSide(opts.selectedSide || parsed.selectedSide || 'p1');
     var opp = side === 'p1' ? 'p2' : 'p1';
@@ -1969,8 +2083,8 @@
       var userSpeed = userMoves.filter(function(m) { return classifyMove(m.move) === 'speed_control'; });
       var userProtect = userMoves.filter(function(m) { return classifyMove(m.move) === 'protection'; });
       var userFakeOut = userMoves.filter(function(m) { return classifyMove(m.move) === 'fake_out'; });
-      var userSwitches = turn.switches.filter(function(s) { return s.side === side; });
-      var userField = turn.field.filter(function(f) { return f.side === side; });
+      var userSwitches = turn.switches.filter(function(s) { return s.side === side && s.voluntary; });
+      var userField = turn.field.filter(function(f) { return f.side === side && !f.upkeep; });
       var userTookDamage = turn.damage.some(function(d) { return d.side === side && d.hp != null && d.hp < 100; });
       var oppSetupOrSpeed = oppMoves.filter(function(m) {
         var kind = classifyMove(m.move);
@@ -1985,6 +2099,7 @@
       var speedInsight = speedInsights[turn.number] || {};
 
       (speedInsight.notes || []).forEach(function(note) {
+        if (note.observationOnly) return;
         addIssue(issues, note.tag, note.severity || 'low', turn.number, note.message || note.whatHappened, note.confidence || 'medium', note.doInstead, note);
       });
 
@@ -2076,21 +2191,7 @@
       turnScores[turn.number] = (turnScores[turn.number] || 0) + userFaints.length * 3 + oppSetupOrSpeed.length + userRngBad.length + oppRngGood.length;
     });
 
-    if (parsed.result === 'loss' && parsed.turns.length) {
-      var finalTurn = parsed.turns[parsed.turns.length - 1];
-      var finalUserFaints = finalTurn.faints.filter(function(f) { return f.side === side; });
-      var finalOppFaints = finalTurn.faints.filter(function(f) { return f.side === opp; });
-      if (finalUserFaints.length && finalUserFaints.length >= finalOppFaints.length && !hasIssue(issues, 'endgame_misplay', finalTurn.number)) {
-        addIssue(issues, 'Endgame Misplay', 'medium', finalTurn.number, 'The final exchange still lost the game even after your side found some pressure.', 'medium', 'In the endgame, preserve the piece that can close and target the Pokemon that prevents that closer from winning.', {
-          id: 'endgame_misplay',
-          category: 'endgame',
-          whatHappened: 'On the last parsed turn, your side lost a key Pokemon and the game ended in a loss.',
-          whyMattered: 'Endgames are often decided by preservation, target priority, remaining speed control, and whether the final attacker survives long enough to convert.',
-          doInstead: 'Before the final turns, identify the exact closer and choose the line that keeps that Pokemon alive or removes its biggest blocker first.',
-          evidence: 'Final turn ' + finalTurn.number + ': ' + moveNames(finalTurn.moves)
-        });
-      }
-    }
+    // A terminal loss records an outcome, not proof that a better legal line existed.
 
     var criticalTurn = null;
     var criticalScore = -1;

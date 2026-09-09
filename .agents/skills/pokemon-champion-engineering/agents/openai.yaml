@@ -1,0 +1,7 @@
+interface:
+  display_name: "Pokemon Champion Engineering"
+  short_description: "Routes simulator work through the right proof gates"
+  default_prompt: "Use $pokemon-champion-engineering to implement or review this Pokemon Champion task with the correct specialist lane, evidence, tests, and handoff."
+
+policy:
+  allow_implicit_invocation: true

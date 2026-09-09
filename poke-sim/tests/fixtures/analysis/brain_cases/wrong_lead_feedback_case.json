@@ -1,0 +1,11 @@
+{
+  "case_id": "brain_case_wrong_lead_feedback_v1",
+  "case_type": "wrong_lead",
+  "analysis_type": "team-review",
+  "description": "Negative lead feedback should produce a benchmark that checks the Best Leads card and speed evidence.",
+  "expected_properties": {
+    "must_include_card": "best_leads",
+    "must_reference_evidence_category": "speed",
+    "confidence_max": "medium"
+  }
+}

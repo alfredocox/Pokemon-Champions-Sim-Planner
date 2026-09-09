@@ -19,10 +19,17 @@ console.log('\n=== DB status retry tests ===\n');
 T('1. app shell keeps visible DB chip but UI owns clearer states', () => {
   truthy(html.includes('id="db-offline-chip"'), 'DB chip element missing');
   truthy(ui.includes("connected: { text: '[DB connected]'"), 'connected chip state missing');
+  truthy(ui.includes("review: { text: '[DB review needed]'"), 'review-needed chip state missing');
   truthy(ui.includes("retrying: { text: '[DB retrying]'"), 'retrying chip state missing');
   truthy(ui.includes("fallback: { text: '[Bundled roster]'"), 'bundled fallback chip state missing');
   truthy(ui.includes("disabled: { text: '[Local roster]'"), 'local roster chip state missing');
   truthy(ui.includes("chip.setAttribute('data-db-state'"), 'DB state data attribute missing');
+});
+
+T('4. responsive-but-rejected catalog is not presented as healthy', () => {
+  truthy(ui.includes("acceptedDbTeams === 0 && dbMerge.skipped > 0 ? 'review' : 'connected'"), 'all-blocked catalog must use review state');
+  truthy(ui.includes('reason_counts'), 'blocked catalog should expose structured reason counts');
+  truthy(ui.includes('Bundled roster remains authoritative.'), 'fallback authority should be explicit');
 });
 
 T('2. UI retries live DB before bundled fallback', () => {

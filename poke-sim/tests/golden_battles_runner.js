@@ -83,17 +83,19 @@ function run(generateMode) {
       console.log('    hash: ' + hash.substring(0, 16) + '…  winner: ' + winner);
     } else {
       if (!b.expected_trace_hash) {
-        console.log('  [' + b.golden_id + '] SKIP — no expected hash (run --generate first)');
+        console.log('  ✖ [' + b.golden_id + '] MISSING EXPECTED HASH');
+        failed++;
         continue;
       }
-      if (hash === b.expected_trace_hash) {
+      if (hash === b.expected_trace_hash && winner === b.expected_winner) {
         console.log('  ✔ [' + b.golden_id + '] ' + b.description);
         passed++;
       } else {
-        console.log('  ✖ [' + b.golden_id + '] HASH MISMATCH');
+        console.log('  ✖ [' + b.golden_id + '] GOLDEN STATE MISMATCH');
         console.log('    Expected: ' + b.expected_trace_hash.substring(0, 16) + '…');
         console.log('    Actual:   ' + hash.substring(0, 16) + '…');
-        console.log('    Result:   ' + winner + ' in ' + result.turns + ' turns');
+        console.log('    Winner:   expected ' + b.expected_winner + ', got ' + winner);
+        console.log('    Turns:    ' + result.turns);
         // Find first differing line (rough diff)
         if (b._expected_log_length) {
           console.log('    (expected ~' + b._expected_log_length + ' log lines, got ' + (result.log || []).length + ')');
@@ -107,6 +109,10 @@ function run(generateMode) {
     fs.writeFileSync(FIXTURE_PATH, JSON.stringify(fixture, null, 2) + '\n');
     console.log('\n✅ Fixture updated with ' + battles.length + ' hashes.');
   } else if (!generateMode) {
+    if (passed === 0) {
+      console.log('❌ No golden battle was verified.');
+      failed++;
+    }
     console.log('\n' + '='.repeat(50));
     console.log('Golden Battles: ' + passed + ' passed, ' + failed + ' failed');
     if (failed > 0) {

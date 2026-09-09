@@ -15,7 +15,7 @@ A move is not fully trusted for coaching just because its registry row says `ver
 
 | Layer | Current status | What it proves | What it does not prove |
 | --- | --- | --- | --- |
-| Shipped move registry | 120 verified / 0 baseline / 0 incomplete | The current shipped move surface has local source/test metadata and no missing registry fields. | It does not prove every move appeared in fresh live browser QA evidence. |
+| Shipped move registry | 123 verified / 11 baseline / 0 incomplete across 134 moves | The current shipped move surface has local source metadata and no incomplete registry rows. | Baseline rows do not have sufficient local behavior proof and block broad parity claims. |
 | Move rule trace | Present in fresh QA artifacts | Damage rows can expose stat source, modifiers, and fixed ruleset flags when the move occurs. | It does not prove every special stat-source move occurred in the sample. |
 | Move/effect logic matrix | Present in turn logs and QA artifacts | Mechanics are grouped as proven, partial, or missing based on observed evidence. | Missing/partial families are QA targets, not automatic engine bugs. |
 | Targeted QA sweep | Existing targeted configs cover many long-tail mechanics | Forced scenarios can prove specific mechanics without waiting for random sim coverage. | It still needs continuous expansion as new moves/regulations enter the app. |

@@ -25,7 +25,9 @@ T('1. checklist defines practical 100 percent gate and current status', () => {
   inc(report, 'not deployed proof until CI, Pages, and a fresh browser QA Artifact pass');
   inc(report, 'v2.1.37-damage-log-team-catalog');
   inc(report, '56/56');
-  inc(report, '120 verified');
+  inc(report, '123 verified');
+  inc(report, '11 baseline');
+  inc(report, 'battle_audit_manifest.json');
   inc(report, '0 baseline');
   inc(report, '0 incomplete');
 });

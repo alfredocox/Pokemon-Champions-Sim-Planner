@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS team_lab_team_key_mappings (
   rejection_reason text NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(source_system, source_team_key, regulation_id, format)
+  UNIQUE NULLS NOT DISTINCT(source_system, source_team_key, regulation_id, format)
 );
 
 CREATE INDEX IF NOT EXISTS idx_team_lab_key_mappings_source

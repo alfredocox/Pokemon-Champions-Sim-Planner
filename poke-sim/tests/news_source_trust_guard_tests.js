@@ -67,18 +67,18 @@ T('2. enabled RSS sources must carry Champion include filters and non-Champion e
   for (const source of enabledRss) {
     const include = (source.include_keywords || []).join(' ');
     const exclude = (source.exclude_keywords || []).join(' ');
-    truthy(/Champion|Champions|VGC|Regulation|Monthly Challenge|Champions Arena/.test(include), 'enabled source lacks Champion include filters: ' + source.id);
+    truthy(/Champion|Champions|VGC|Regulation|Monthly Challenge|Champions Arena/i.test(include), 'enabled source lacks Champion include filters: ' + source.id);
     truthy(/Scarlet/.test(exclude) && /Violet/.test(exclude) && /Tera Raid/.test(exclude), 'enabled source lacks non-Champion excludes: ' + source.id);
   }
 });
 
-T('3. official HTML placeholders stay disabled until a stable feed/scraper is approved', () => {
-  const officialHtml = (newsSources.sources || []).filter(source => source.tier === 'official' && source.type === 'html');
-  truthy(officialHtml.length >= 1, 'expected official HTML placeholder source');
-  for (const source of officialHtml) {
-    eq(source.enabled, false, 'official HTML source must not be auto-enabled');
-    truthy(/stable RSS\/Atom|approved scraper/i.test(source.note || ''), 'official placeholder note must require stable feed or approved scraper');
-  }
+T('3. official ingestion has an explicit adapter and exact source hosts', () => {
+  const source = newsSources.sources.find(source => source.id === 'champions-official');
+  eq(source.type, 'champions_index');
+  eq(source.enabled, true);
+  eq(source.url, 'https://champions.pokemon.com/en-us/news/');
+  truthy(source.fetch_hosts.includes('champions.pokemon.com'));
+  for (const item of feed.items) eq(item.rules_authority, false, 'news is never rules approval');
 });
 
 T('4. source registry preserves Showdown as reference only, not Champion truth', () => {

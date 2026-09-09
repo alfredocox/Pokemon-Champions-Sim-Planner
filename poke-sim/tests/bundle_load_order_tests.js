@@ -27,6 +27,7 @@ console.log('\n=== bundle load order tests ===\n');
 T('1. source HTML loads legality/support/replay scripts in order', () => {
   const order = [
     'generated/pokemon_showdown_legal_data.js',
+    'generated/champions_move_pools.js',
     'generated/pokemon_showdown_species_weights.js',
     'runtime_data.js',
     'rulesets.js',
@@ -72,5 +73,12 @@ T('2. bundle builder inlines legality/support/replay sources', () => {
   ].forEach((token) => truthy(builder.includes(token), 'missing bundle inline ' + token));
 });
 
+T('3. Champions pools stay a separately cached asset before bundled consumers', () => {
+  const bundle = fs.readFileSync(path.join(ROOT, 'pokemon-champion-2026.html'), 'utf8');
+  const tag = '<script src="generated/champions_move_pools.js"></script>';
+  truthy(bundle.includes(tag), 'missing external pinned data asset');
+  truthy(bundle.indexOf(tag) < bundle.indexOf('function resolveLearnsetPool('), 'pool asset must load before consumer');
+  truthy(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8').includes("'./generated/champions_move_pools.js'"), 'pool asset must be cached');
+});
 console.log(`\nbundle load order: ${pass} pass, ${fail} fail\n`);
 process.exit(fail ? 1 : 0);

@@ -998,3 +998,72 @@ The top-level `qa_coverage_summary` remains the full artifact summary for backwa
 - `coverage_breakdown.tactical_sweep_summary`: all tactical sweep branch matrix summaries merged together.
 
 Acceptance rule: replay-card validation must use `retained_replay_card_summary`. Broader coverage claims can use `full_artifact_summary`, but reports must say that targeted and tactical sweep evidence may add totals beyond the retained replay-card count.
+
+## Josh / QA Showdown Replay Corpus Handoff
+
+Current assignment: GitHub #190, owner Josh (`@Jdoutt38`).
+
+Current live build for the replay-corpus handoff: `v2.2.116-regmb-review-items-abilities`.
+
+Current evidence package:
+
+- Source folder: `/Users/kevinmedeiros/Downloads/battles`
+- Manifest: `source/reg-m-b-showdown-reference-battles.json`
+- Corpus: 39 Showdown HTML replays, including 5 Reg M-B and 34 Reg M-A logs.
+- Latest reviewed QA artifact: `/Users/kevinmedeiros/Downloads/champions-sim-qa-artifact-2026-07-02T18-13-16.json`
+- Recommended first Reg M-B file: `Gen9ChampionsVGC2026RegMB-2026-06-24-pcrlbot02888784c1-silvijd.html`
+
+Josh should test whether the Review upload flow accepts Showdown HTML, extracts embedded `battle-log-data`, maps teams/players/winner/turn events, and keeps every row labeled `showdown_reference`. These logs can calibrate parser behavior, Battle Sensei language, and tactical replay learning. They must not promote Champion legality, official Team Lab rankings, accepted/rejected in-game validation, or verified global learning by themselves.
+
+## QA Slice Contract
+
+Schema addition: `qa_slice_contract`
+
+Purpose: make every QA export state what it is actually testing before the team or Codex uses it to make a fix or claim.
+
+Supported slice labels:
+
+- `Current Evidence QA`: quick review of evidence already retained in the browser.
+- `Device-Safe Stress QA`: capped stress proof intended to stay under the 50 MB artifact budget.
+- `Tactical Coaching QA`: branch/decision evidence for Battle Sensei, not ladder truth.
+- `Targeted Mechanic Proof QA`: forced high-risk mechanics such as Foul Play, Body Press, Psyshock, action denial, priority prevention, field duration, recoil, drain, and faint transparency.
+- `Release Matrix QA`: broad integration/regression coverage, not a complete mechanic oracle.
+
+Required fields:
+
+- `slice_id`
+- `label`
+- `purpose`
+- `best_for`
+- `not_for`
+- `must_have`
+- `pass_when`
+- `status`
+- `blockers`
+- `next_if_fails`
+- `evidence_counts`
+- `claim_boundary`
+
+Acceptance rule: QA reviews should start from `qa_slice_contract` before interpreting `qa_dashboard`, `qa_coverage_summary`, or replay cards. A ready slice only validates the named purpose for that artifact. It must not be promoted into official Champion legality, complete battle-mechanic truth, coaching certainty, or global leaderboard truth without the separate source/ruleset/sample gates.
+
+## QA 100 Readiness Gate
+
+Schema addition: `qa_100_readiness`
+
+Purpose: answer the harder question: "Does this evidence prove the simulator plays like the real game across all important possibilities?"
+
+This gate is intentionally stricter than `qa_slice_contract`. A slice can be ready while 100% readiness remains blocked.
+
+Required gate categories:
+
+- release identity and artifact provenance
+- official Champion legality source package
+- damage math and move-rule trace evidence
+- mechanic-family breadth
+- replay transparency and explainability
+- scenario breadth across branches and possibilities
+- real battle replay parity
+- singles and doubles coverage
+- source-gap boundary
+
+Acceptance rule: a QA artifact can guide fixes when `qa_slice_contract.status` is ready, but it cannot support a public 100% real-game claim unless `qa_100_readiness.verdict` reaches `ready_for_100_claim_review` and the source/legal gates have human-reviewed proof. Expected normal states before beta are `not_ready` or `partial_not_100`, with the next engineering priority coming from the first blocked or partial gate.

@@ -9,6 +9,10 @@
   if (!data && typeof require === 'function') {
     try { data = require('./generated/pokemon_showdown_legal_data.js'); } catch (_e) { data = null; }
   }
+  var championsPools = ChampionsSim.championsMovePools;
+  if (!championsPools && typeof require === 'function') {
+    try { championsPools = require('./generated/champions_move_pools.js'); } catch (_e) { championsPools = null; }
+  }
 
   function clean(value) {
     return String(value == null ? '' : value).trim();
@@ -97,6 +101,9 @@
     speciesIndex[toId(key)] = key;
   });
 
+  // These labels name the default male identities, not shared female pools.
+  var EXACT_MALE_IDENTITIES = { 'Indeedee-M': 'Indeedee', 'Meowstic-M': 'Meowstic' };
+
   function canonicalSpeciesKey(speciesKey) {
     var raw = clean(speciesKey);
     if (!raw) return '';
@@ -171,7 +178,7 @@
     };
   }
 
-  function isMoveLegalForSpecies(speciesKey, moveName, opts) {
+  function historicalMoveVerdict(speciesKey, moveName, opts) {
     opts = opts || {};
     if (!data || !data.species || !data.moves) {
       return unchecked(speciesKey, moveName, 'source_unavailable', 'Generated Pokemon Showdown legality data is not loaded.');
@@ -234,6 +241,83 @@
     };
   }
 
+  function resolveLearnsetPool(speciesKey, opts) {
+    var context = opts && opts.learnsetContext;
+    var species = canonicalSpeciesKey(speciesKey);
+    var result = {
+      status: 'unchecked', moves: [], source: 'unavailable', context: context || null,
+      referenceSpeciesId: species ? toId(species) : '', canonicalSpeciesKey: species,
+      reason: 'learnset_context_unavailable'
+    };
+    if (context !== 'champions' && context !== 'historical') return result;
+    if (context === 'champions') {
+      result.reason = 'champions_pool_unavailable';
+      var sourceRow = data && data.species && data.species[species];
+      var maleKey = EXACT_MALE_IDENTITIES[species];
+      if (!sourceRow && maleKey && data && data.species && data.species[maleKey] && data.species[maleKey].gender === 'M') {
+        species = maleKey;
+        sourceRow = data.species[species];
+        result.canonicalSpeciesKey = species;
+      }
+      // A conflicting or virtual identity must not select a different pinned pool.
+      if (!sourceRow || typeof sourceRow.id !== 'string' || !/^[a-z0-9]+$/.test(sourceRow.id) ||
+          sourceRow.id !== toId(species)) return result;
+      result.referenceSpeciesId = sourceRow.id;
+      if (!championsPools || championsPools.schema_version !== 'champions-inherited-move-pools-v1' ||
+          championsPools.mod !== 'champions' || !championsPools.reference || championsPools.reference.version !== '0.11.11' ||
+          !species || !championsPools.species || !Object.prototype.hasOwnProperty.call(championsPools.species, result.referenceSpeciesId)) return result;
+      var pool = championsPools.species[result.referenceSpeciesId];
+      if (!pool || pool.reference_species_id !== sourceRow.id || pool.status !== 'known' || !Array.isArray(pool.moves) ||
+          !pool.moves.every(function(id) { return typeof id === 'string' && /^[a-z0-9]+$/.test(id); }) ||
+          !Array.isArray(pool.inherited_from) || !pool.inherited_from.every(function(id) { return typeof id === 'string' && /^[a-z0-9]+$/.test(id); })) return result;
+      result.moves = Array.from(new Set(pool.moves));
+      result.source = 'champions-inherited-move-pools-v1';
+      result.sourceVersion = championsPools.reference.version;
+      result.inheritedFrom = pool.inherited_from.slice();
+    } else {
+      result.reason = !data || !data.species || !data.moves ? 'source_unavailable' : 'unknown_species';
+      if (!data || !data.species || !data.moves || !species) return result;
+      var seen = Object.create(null);
+      candidateLearnsetKeys(species).forEach(function(key) {
+        Object.keys(data.species[key].moves || {}).forEach(function(id) { seen[id] = true; });
+      });
+      result.moves = Object.keys(seen);
+      result.source = data.source;
+      result.sourceVersion = data.sourceCommitOrVersion;
+    }
+    result.status = 'known';
+    result.reason = 'pool_available';
+    return result;
+  }
+
+  function isMoveLegalForSpecies(speciesKey, moveName, opts) {
+    var pool = resolveLearnsetPool(speciesKey, opts);
+    if (pool.status !== 'known') {
+      return Object.assign(unchecked(speciesKey, moveName, pool.reason, 'No verified pool for the requested learnset context.'), {
+        verification_status: 'unchecked', source: pool.source, sourceVersion: pool.sourceVersion || 'unavailable', learnsetContext: pool.context,
+        canonicalSpeciesKey: pool.canonicalSpeciesKey, referenceSpeciesId: pool.referenceSpeciesId
+      });
+    }
+    if (pool.context === 'historical') {
+      var historical = historicalMoveVerdict(speciesKey, moveName, opts);
+      historical.learnsetContext = 'historical';
+      historical.verification_status = historical.reason === 'unknown_move' ? 'unchecked' : 'known';
+      historical.notes = 'Historical learnset evidence only; not current SV or Champions approval. ' + historical.notes;
+      return historical;
+    }
+    var id = canonicalMoveId(moveName);
+    var legal = pool.moves.indexOf(id) !== -1;
+    return {
+      legal: legal, speciesKey: clean(speciesKey), canonicalSpeciesKey: pool.canonicalSpeciesKey,
+      moveName: clean(moveName), canonicalMoveName: moveDisplayName(id, moveName),
+      source: pool.source, sourceVersion: pool.sourceVersion, learnsetContext: pool.context,
+      referenceSpeciesId: pool.referenceSpeciesId, verification_status: 'known',
+      reason: legal ? 'learnset_match' : 'not_in_species_form_learnset',
+      notes: 'Pinned Champions inherited move pool only; not full-set or regulation approval.',
+      inheritedFrom: pool.inheritedFrom.slice()
+    };
+  }
+
   function validateMovesForSet(member, opts) {
     member = member || {};
     return (member.moves || []).filter(Boolean).map(function(move) {
@@ -241,28 +325,66 @@
     });
   }
 
-  function legalMoveDisplayNamesForSpecies(speciesKey) {
-    if (!data || !data.species || !data.moves) return [];
+  function isAbilityLegalForSpecies(speciesKey, abilityName) {
+    var requested = clean(abilityName);
+    if (!data || !data.species || !data.abilities) {
+      return unchecked(speciesKey, requested, 'source_unavailable', 'Generated Pokemon Showdown ability data is not loaded.');
+    }
     var species = canonicalSpeciesKey(speciesKey);
-    if (!species) return [];
-    var seen = Object.create(null);
-    var out = [];
-    candidateLearnsetKeys(species).forEach(function(key) {
-      var row = data.species[key] || {};
-      Object.keys(row.moves || {}).forEach(function(moveId) {
-        if (seen[moveId]) return;
-        seen[moveId] = true;
-        out.push(moveDisplayName(moveId, moveId));
-      });
-    });
+    if (!species) return unchecked(speciesKey, requested, 'unknown_species', 'Species/form was not found in generated source data.');
+    var abilityId = toId(requested);
+    if (!abilityId || !data.abilities[abilityId]) {
+      return {
+        legal: false,
+        speciesKey: clean(speciesKey),
+        canonicalSpeciesKey: species,
+        abilityName: requested,
+        source: data.source,
+        sourceVersion: data.sourceCommitOrVersion,
+        reason: 'unknown_ability',
+        notes: 'Ability was not found in Pokemon Showdown ability data.'
+      };
+    }
+    var row = data.species[species] || {};
+    var allowed = Object.keys(row.abilities || {}).map(function(slot) { return clean(row.abilities[slot]); }).filter(Boolean);
+    var legal = allowed.some(function(name) { return toId(name) === abilityId; });
+    return {
+      legal: legal,
+      speciesKey: clean(speciesKey),
+      canonicalSpeciesKey: species,
+      abilityName: requested,
+      canonicalAbilityName: data.abilities[abilityId].name || requested,
+      legalAbilities: allowed,
+      source: data.source,
+      sourceVersion: data.sourceCommitOrVersion,
+      reason: legal ? 'species_form_ability_match' : 'not_in_species_form_abilities',
+      notes: legal
+        ? 'Ability matches the exact species/form source row.'
+        : 'Ability exists globally but is not assigned to this species/form.'
+    };
+  }
+
+  function validateAbilityForSet(member) {
+    member = member || {};
+    if (!clean(member.ability)) return null;
+    return isAbilityLegalForSpecies(member.name || member.species || '', member.ability);
+  }
+
+  function legalMoveDisplayNamesForSpecies(speciesKey, opts) {
+    var pool = resolveLearnsetPool(speciesKey, opts);
+    if (pool.status !== 'known') return [];
+    var out = pool.moves.map(function(id) { return moveDisplayName(id, id); });
     return out.sort(function(a, b) { return a.localeCompare(b); });
   }
 
   ChampionsSim.moveLegality.isMoveLegalForSpecies = isMoveLegalForSpecies;
   ChampionsSim.moveLegality.validateMovesForSet = validateMovesForSet;
+  ChampionsSim.moveLegality.isAbilityLegalForSpecies = isAbilityLegalForSpecies;
+  ChampionsSim.moveLegality.validateAbilityForSet = validateAbilityForSet;
   ChampionsSim.moveLegality.legalMoveDisplayNamesForSpecies = legalMoveDisplayNamesForSpecies;
   ChampionsSim.moveLegality.canonicalSpeciesKey = canonicalSpeciesKey;
   ChampionsSim.moveLegality.canonicalMoveId = canonicalMoveId;
+  ChampionsSim.moveLegality.resolveLearnsetPool = resolveLearnsetPool;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = ChampionsSim.moveLegality;

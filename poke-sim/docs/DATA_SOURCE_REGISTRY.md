@@ -2,15 +2,31 @@
 
 Status: active source-truth control page.
 
-Last repo source review: June 29, 2026.
+Last inventory review: August 29, 2026. Ranked regulation duration rechecked August 30, 2026; this does not refresh every source or promote runtime data.
 
 Purpose: give the team one place to inspect, challenge, replace, and improve the sources used by the Pokemon Champions simulator. If a source is stale, weak, contradicted, or not allowed to prove the claim it is being used for, update this page before changing runtime behavior.
+
+## August 29, 2026 Full Inventory Control
+
+The complete field/source inventory is now machine-readable at `tools/champions_source_inventory.json`. It separates public official pages, required in-game captures, the pinned Showdown baseline manifest, and field-level promotion rules for species/forms, moves, Abilities, items, learnsets, battle rules, and mechanics.
+
+Run `npm run champions:sources` to create the metadata/hash audit at `reports/champions-source-inventory-latest.json`. The collector does not republish full page bodies and does not promote runtime rows.
+
+Review plan: [`CHAMPIONS_FULL_SOURCE_INVENTORY_2026-08-29.md`](CHAMPIONS_FULL_SOURCE_INVENTORY_2026-08-29.md).
+
+First run: 9 of 11 official public endpoints were reachable; two optional Pokemon Support pages returned HTTP 403 to automation; no required public endpoint failed; seven official in-game capture sets remain required. Public pages do not expose a complete catalog of every Champion species/form/stat/move/item/Ability/learnset/mechanic, so those gaps must stay explicit until client capture or executable Champion evidence exists.
 
 Product scope rule: this project is Pokemon Champions only. Non-Champion legacy mechanics/data may be mentioned only when documenting blocked imports, source drift, or migration hazards. They are not player-facing scope and must not train trusted coaching data.
 
 ## Current Ruleset Alert
 
-As of the June 29, 2026 repo review, Champion regulation sources must be treated as ruleset-sensitive. Current research points to Reg M-B as the active live lane, with official/current-source references placing the M-B window around June 16/17, 2026 through September 1/2, 2026 depending on local timezone representation.
+As checked August 30, 2026, the official Ranked Battle M-B window is June 17, 2026 at 02:00 UTC through September 9, 2026 at 01:59 UTC. The August 5 notice extended the originally announced September 2 end date. Source: [official Regulation Set M-B notice](https://champions-news.pokemon-home.com/en/page/776.html). Event-specific competition regulations must be verified separately; ranked eligibility alone does not establish a tournament's rules.
+
+Runtime date drift corrected in the M-B sign-off audit candidate: `../rulesets.js`
+now records September 9 at 01:59 UTC. Boundary regressions pass; this does not
+approve M-B legality. The official roster capture now supplies 235 unique
+species/form IDs and exposes visual-ledger discrepancies. See
+[the sign-off audit](../../docs/release/REG_MB_SIGNOFF_AUDIT.md).
 
 Do not casually call Reg M-A the live ladder unless a current source confirms it. The simulator now treats Reg M-B as the active source-review lane while keeping Reg M-A as the implemented historical runtime lane until source-backed legality and mechanic deltas are promoted.
 
@@ -69,6 +85,62 @@ Promotion checklist before Reg M-B can become the default implemented lane:
 - Keep historical Reg M-A artifacts labeled as historical instead of rewriting old replay/team provenance.
 
 Non-goal: do not enable any unapproved Champion mechanic, form, item, or move from assumption alone.
+
+## Regulation M-B Scrape And Capture Targets
+
+Status: source-capture checklist for the legality evidence package. These links help reviewers collect candidate rows, screenshots, hashes, and source pointers. They do not automatically promote runtime legality.
+
+Promotion rule: scraped/web rows are `working_mirror` until matched to official Pokemon, Play! Pokemon, Pokemon Champions, or timestamped in-client evidence. If a source cannot prove a row, the row stays `needs_verification`.
+
+### Tier 0 official/client capture targets
+
+| Target | Link or capture path | Pull/capture goal | Promotion use |
+|---|---|---|---|
+| Pokemon Champions official site | <https://champions.pokemon.com/> | Official product, mode, cross-platform, HOME/training, and news entry points | Rules/policy claims only when the page text directly states them |
+| Official Pokemon news search | <https://www.pokemon.com/us/pokemon-news/> | Pokemon Champions announcements, regulation notices, patch notes, event/news posts | Official source pointer for regulation windows and policy claims |
+| Play! Pokemon rules/resources | <https://www.pokemon.com/us/play-pokemon/about/tournaments-rules-and-resources/> | Tournament structure, match procedure, team-sheet/rules docs, event rules | Official competitive-format source when Champion-specific event rules reference it |
+| In-game Regulation M-B rules screen | Manual capture: screenshot/video/export with UTC timestamp, build/version, format, and account/device context | Clauses, team size, bring size, level rules, timer/open-sheet notes, format scope | Highest-trust legality package evidence |
+| In-game eligible Pokemon/forms list | Manual capture: all pages/screens, stored as reviewed source rows with image/file names and UTC timestamp | `legal_pokemon_ids`, `legal_form_ids`, banned/restricted rows | Required before Reg M-B runtime promotion |
+| In-game moves/Abilities/items/training screens | Manual capture: selected Pokemon examples plus full available lists when possible | `legal_move_ids`, `legal_ability_ids`, `legal_item_ids`, Mega Stone or Omni Ring constraints | Required before verified team validation |
+| Known accepted/rejected Champion teams | Manual capture: accepted team plus rejected species/form/move/item/Mega examples | legal, illegal, stale, and needs-verification fixtures | Required before Team Lab official ranking promotion |
+
+### Champion-specific mirror targets
+
+| Target | Link | Pull/capture goal | Allowed use |
+|---|---|---|---|
+| Victory Road Champions regulations | <https://victoryroad.pro/champions-regulations/> | Regulation dates, allowed Pokemon image sheets, new Mega image/list, event/meta context | Champion-specific mirror; useful for conversion, not final official proof alone |
+| Victory Road Reg M-B allowed Pokemon sheet 1 | <https://victoryroad.pro/wp-content/uploads/2026/06/Reg-M-B-Pokemon1.jpg> | Candidate allowed Pokemon/form OCR/review queue | Working mirror until official/client confirmed |
+| Victory Road Reg M-B allowed Pokemon sheet 2 | <https://victoryroad.pro/wp-content/uploads/2026/06/Reg-M-B-Pokemon2.jpg> | Candidate allowed Pokemon/form OCR/review queue | Working mirror until official/client confirmed |
+| Victory Road Reg M-B new Mega sheet | <https://victoryroad.pro/wp-content/uploads/2026/06/NewMegasRMB.png> | Candidate Mega additions review queue | Working mirror until official/client confirmed |
+| Serebii Pokemon Champions section | <https://www.serebii.net/pokemonchampions/> | Champion-specific regulation, availability, forms, item, and move references | Preferred Champion-specific secondary reference when reachable |
+| Game8 Pokemon Champions pages | <https://game8.co/games/Pokemon-Champions> | Item/move/team-building convenience references and page-date checks | Secondary mirror; cannot override official/client capture |
+| Pokeos Pokemon Champions pages | <https://www.pokeos.com/> | Champion availability cross-checks when exact Champion page is identified | Secondary mirror only |
+| Bulbapedia Pokemon Champions page | <https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_Champions> | General background and terminology cross-check | Background only unless no stronger source exists |
+
+### Executable/reference scrape targets
+
+| Target | Link | Pull/capture goal | Allowed use |
+|---|---|---|---|
+| Pokemon Showdown repository | <https://github.com/smogon/pokemon-showdown> | Baseline species, moves, abilities, items, learnsets, simulator behavior | Standard Pokemon/reference baseline, not Champion legality |
+| Pokemon Showdown Champions scripts | <https://github.com/smogon/pokemon-showdown/blob/master/data/mods/champions/scripts.ts> | Champion mod stat formula and battle-behavior reference | Executable baseline unless official/client Champion evidence differs |
+| Pokemon Showdown validator | <https://github.com/smogon/pokemon-showdown/blob/master/sim/team-validator.ts> | Stat Point and team validation behavior reference | Validator parity checks; not final Champion source if contradicted |
+| Pokemon Showdown damage calculator | <https://github.com/smogon/damage-calc> | Damage formula oracle cases | Damage/math baseline only |
+| `@pkmn` modular packages | <https://github.com/pkmn/ps> | Portable Showdown data/sim package references | Oracle harness/reference data |
+
+### Capture output requirements
+
+Every scrape/capture output should save:
+
+- source URL or local capture file path
+- `checked_at_utc`
+- source tier
+- regulation id and format scope
+- source hash or screenshot filename when available
+- extractor/parser version when automated
+- reviewer decision: `candidate`, `needs_verification`, `verified`, `conflicting`, or `rejected`
+- linked fixture or test name when the row affects runtime legality
+
+Do not write scraped rows directly into `legal_pokemon_ids`, `legal_move_ids`, `legal_item_ids`, `legal_ability_ids`, or `legal_form_ids` without a verified source tier and passing legal/illegal/stale/needs-verification fixture coverage.
 
 Dataset poisoning guard:
 

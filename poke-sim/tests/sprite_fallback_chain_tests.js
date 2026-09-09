@@ -29,6 +29,8 @@ T('2. app shell emits ordered fallback URL chain', () => {
 T('3. broken form GIFs can recover to exact static and base-form assets', () => {
   truthy(appShell.includes("'Charizard-Mega-X': 'charizard-megax'"), 'Mega Charizard X exact static alias missing');
   truthy(appShell.includes("'-Mega-X'"), 'Mega-X base fallback suffix missing');
+  truthy(appShell.includes("'-Mega-Z'"), 'Mega-Z base fallback suffix missing');
+  truthy(data.includes("'-Mega-Z'"), 'data resolver Mega-Z base fallback suffix missing');
   truthy(appShell.includes('csSpriteStaticUrlFromSlug(exactSlug)'), 'exact static fallback should be first');
   truthy(appShell.includes('csSpriteAniUrlFromSlug(baseSlug)'), 'base animated fallback missing');
   truthy(appShell.includes('csSpriteStaticUrlFromSlug(baseSlug)'), 'base static fallback missing');

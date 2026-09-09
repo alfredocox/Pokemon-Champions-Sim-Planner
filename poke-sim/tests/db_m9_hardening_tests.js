@@ -9,11 +9,19 @@ const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
 const { mockSupabaseClient, installAdapter, offlineMode, assertNoServiceRole } = require('./_db_helpers.js');
-const BUNDLE_SIZE_LIMIT_BYTES = 5428 * 1024;
+const BUNDLE_SIZE_LIMIT_BYTES = 11264 * 1024;
 
 // Test harness
-var _passed = 0, _failed = 0, _total = 0;
-function T(name, fn) { _total++; try { fn(); _passed++; console.log('  ✔ ' + name); } catch (e) { _failed++; console.log('  ✖ FAIL: ' + name + ' — ' + e.message); } }
+var _passed = 0, _failed = 0, _total = 0, _skipped = 0;
+const NOT_RUN = Symbol('not-run');
+function T(name, fn) { _total++; try { if (fn() === NOT_RUN) { _skipped++; console.log('  SKIP ' + name); return; } _passed++; console.log('  ✔ ' + name); } catch (e) { _failed++; console.log('  ✖ FAIL: ' + name + ' — ' + e.message); } }
+function unavailableLiveCheck(name) {
+  if (process.env.RUN_LIVE_DB === '1') {
+    throw new Error('Live verification not implemented: ' + name + '. Local files and mocks are not live security evidence.');
+  }
+  console.log('  NOT VERIFIED: ' + name + ' (requires authorized administrative readback)');
+  return NOT_RUN;
+}
 function describe(name, fn) { console.log('\n▶ ' + name); fn(); }
 function eq(a, b, msg) { if (a !== b) throw new Error(msg + ' expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a)); }
 function truthy(v, msg) { if (!v) throw new Error(msg + ' expected truthy'); }
@@ -54,16 +62,7 @@ describe('Module 9 — Hardening / advisor / migration baseline suite (10 cases)
   });
   
   T('T-hard-3', function() {
-    // Live DB smoke (gated by RUN_LIVE_DB=1): supabase_migrations.schema_migrations contains baseline
-    if (!process.env.RUN_LIVE_DB) {
-      console.log('⚠️ LIVE DB test skipped (RUN_LIVE_DB not set)');
-      return;
-    }
-    
-    // This would connect to real Supabase and check migration table
-    // For now, just check that migration file exists (already tested in T-hard-1)
-    var migrationPath = path.join(__dirname, '..', 'db', 'migrations', '2026_04_27_baseline_v1.sql');
-    eq(fs.existsSync(migrationPath), true, 'baseline migration file exists');
+    return unavailableLiveCheck('applied migration ledger');
   });
   
   T('T-hard-4', function() {
@@ -71,20 +70,30 @@ describe('Module 9 — Hardening / advisor / migration baseline suite (10 cases)
     var rlsPath = path.join(__dirname, '..', 'db', 'rls_policies_v1.sql');
     if (fs.existsSync(rlsPath)) {
       var rlsContent = fs.readFileSync(rlsPath, 'utf8');
+      var executablePolicies = rlsContent.replace(/--[^\r\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
       
-      // Check for required policy patterns
-      // Per-table read + insert policies (matches actual rls_policies_v1.sql)
+      // Browser roles may read shared evidence, but trusted workflows own writes.
       var requiredPolicies = [
         'CREATE POLICY "anon_read_rulesets"',
         'CREATE POLICY "anon_read_teams"',
         'CREATE POLICY "anon_read_analyses"',
-        'CREATE POLICY "anon_insert_analyses"',
-        'CREATE POLICY "anon_insert_analysis_win_conditions"',
-        'CREATE POLICY "anon_insert_analysis_logs"'
+        'FROM anon, authenticated'
       ];
       
       requiredPolicies.forEach(function(policy) {
         eq(rlsContent.includes(policy), true, 'RLS policy found: ' + policy);
+      });
+      eq(rlsContent.includes('anon_insert_analyses'), false, 'anonymous analysis writes are removed');
+      eq(rlsContent.includes('anon_update_branch_coverage_runs'), false, 'anonymous QA evidence updates are removed');
+      // Conservative lexical guard for this simple bootstrap, not a live SQL evaluator.
+      falsy(/CREATE\s+POLICY[^;]*\bFOR\s+(?:INSERT|UPDATE|DELETE|ALL)\b/i.test(executablePolicies), 'shared bootstrap contains a write policy');
+      executablePolicies.split(';').forEach(function(statement) {
+        if (/\bCREATE\s+POLICY\b/i.test(statement)) {
+          truthy(/\bFOR\s+SELECT\b/i.test(statement), 'shared bootstrap policies must explicitly use FOR SELECT');
+        }
+        if (/\bGRANT\b/i.test(statement)) {
+          truthy(/^\s*GRANT\s+SELECT\s+ON\s/i.test(statement), 'shared bootstrap contains a non-read grant');
+        }
       });
     } else {
       throw new Error('rls_policies_v1.sql not found');
@@ -98,45 +107,11 @@ describe('Module 9 — Hardening / advisor / migration baseline suite (10 cases)
   });
   
   T('T-hard-6', function() {
-    // get_advisors(security) (gated, live) returns zero error-level findings
-    if (!process.env.RUN_LIVE_DB) {
-      console.log('⚠️ LIVE DB test skipped (RUN_LIVE_DB not set)');
-      return;
-    }
-    
-    // Mock advisor to return zero errors
-    installAdapter(ctx);
-    mockSupabaseClient.setAdvisorResults({
-      security: [],
-      performance: []
-    });
-    
-    var securityResult = ctx.window.SupabaseAdapter.get_advisors();
-    var perfResult = ctx.window.SupabaseAdapter.get_advisors();
-    
-    eq(Array.isArray(securityResult) && securityResult.length === 0, true, 'security advisor returns zero error-level findings');
-    eq(Array.isArray(perfResult) && perfResult.length === 0, true, 'performance advisor returns zero error-level findings');
+    return unavailableLiveCheck('Supabase security advisor');
   });
   
   T('T-hard-7', function() {
-    // get_advisors(performance) (gated, live) returns zero error-level findings
-    if (!process.env.RUN_LIVE_DB) {
-      console.log('⚠️ LIVE DB test skipped (RUN_LIVE_DB not set)');
-      return;
-    }
-    
-    // Mock advisor to return zero errors
-    installAdapter(ctx);
-    mockSupabaseClient.setAdvisorResults({
-      security: [],
-      performance: []
-    });
-    
-    var securityResult = ctx.window.SupabaseAdapter.get_advisors();
-    var perfResult = ctx.window.SupabaseAdapter.get_advisors();
-    
-    eq(Array.isArray(securityResult) && securityResult.length === 0, true, 'security advisor returns zero error-level findings');
-    eq(Array.isArray(perfResult) && perfResult.length === 0, true, 'performance advisor returns zero error-level findings');
+    return unavailableLiveCheck('Supabase performance advisor');
   });
   
   T('T-hard-8', function() {
@@ -159,11 +134,11 @@ describe('Module 9 — Hardening / advisor / migration baseline suite (10 cases)
   });
   
   T('T-hard-10', function() {
-    // Bundle size stays within the current M1 wiring budget.
+    // Bundle size stays within the current static Pages budget.
     var bundlePath = path.join(__dirname, '..', 'pokemon-champion-2026.html');
     var stats = fs.statSync(bundlePath);
-    // Current bundle intentionally inlines Supabase-js and generated Showdown data.
-    eq(stats.size < BUNDLE_SIZE_LIMIT_BYTES, true, 'bundle size < 5.30 MiB after all modules');
+    // Current bundle intentionally inlines Supabase-js, Battle Sensei, and generated Showdown data.
+    eq(stats.size < BUNDLE_SIZE_LIMIT_BYTES, true, 'bundle size < 11.00 MiB after all modules (got ' + stats.size + ')');
   });
 
   T('T-hard-11', function() {
@@ -180,12 +155,11 @@ describe('Module 9 — Hardening / advisor / migration baseline suite (10 cases)
 
   // Summary
   console.log('\n' + '='.repeat(50));
-  console.log('Module 9 Hardening Test Results: ' + _passed + '/' + _total + ' passed');
+  console.log('Module 9 Hardening Test Results: ' + _passed + ' passed, ' + _failed + ' failed, ' + _skipped + ' not verified; ' + _total + ' total');
   if (_failed > 0) {
     console.log('❌ ' + _failed + ' tests failed');
     process.exit(1);
   }
 });
 
-// RED state: before M9 lands, baseline migration doesn't exist → T-1, T-2, T-3, T-8 fail; T-4, T-5, T-6, T-7, T-9, T-10 pass.
-// GREEN trigger: after M9 impl PR, all 10 pass.
+// Offline success covers local contracts only; the three administrative gates remain unverified.

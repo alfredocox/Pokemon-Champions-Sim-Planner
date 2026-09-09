@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pokemon Season Update"
+  short_description: "Stage and test evidence-backed season changes"
+  default_prompt: "Use $pokemon-season-update to audit the next regulation candidate and its affected teams without promoting unverified rules."

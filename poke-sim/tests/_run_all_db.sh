@@ -29,13 +29,6 @@ fi
 
 failed=0
 for f in tests/db_*_tests.js; do
-  base="$(basename "$f")"
-  if [ "$base" = "db_m9_hardening_tests.js" ]; then
-    echo ""
-    echo "⏭ SKIP (M9 not implemented): $f"
-    continue
-  fi
-
   echo ""
   echo "▶ $f"
   if ! node "$f"; then

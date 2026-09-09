@@ -158,9 +158,13 @@ The validator now uses a positive allowlist from the Game8 Champions item list. 
 
 Source review rule: before expanding or shrinking the legal item pool for Reg M-B or later rulesets, prefer a verified Serebii Champions item/availability page or official Champion/TPC source over generic item pages. If Serebii and Game8 disagree, mark the item pool `needs_review`, do not train coaching data from affected teams, and add a focused legality fixture before changing runtime behavior.
 
-Known absent non-Champion carryovers are also kept in `CHAMPIONS_BANNED_ITEMS` so error messages stay clear. Examples include Life Orb, Choice Band, Choice Specs, Assault Vest, Rocky Helmet, Safety Goggles, Covert Cloak, Clear Amulet, Booster Energy, and Loaded Dice.
+July 2, 2026 Reg M-B editor update: `CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES` now tracks current Champion-specific Serebii item rows as review candidates. These rows can appear in the Set Editor and can be saved/imported for custom testing as warnings, but they are not promoted into `CHAMPIONS_LEGAL_ITEMS`, official Team Lab rankings, or trusted coaching. This intentionally lets players enter current-format Reg M-B teams while preserving the rule that official/client-captured legality fixtures and item-effect tests are required before runtime promotion.
+
+Launch-absent or still-blocked non-Champion carryovers are also kept in `CHAMPIONS_BANNED_ITEMS` so error messages stay clear. Some of these, such as Life Orb and weather rocks, now also appear in the Reg M-B review-candidate list from the Champion-specific Serebii item page; the review-candidate path wins for custom testing, but trusted legality/ranking remains blocked. Items still outside the review list, such as Loaded Dice, remain hard errors.
 
 Any held item outside `CHAMPIONS_LEGAL_ITEMS` is a hard legality error until a stronger Champions source confirms it.
+
+Exception: held items listed in `CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES` are downgraded to `REGMB_ITEM_REVIEW_ONLY` warnings for custom testing only. They remain blocked from trusted training/ranking until the Reg M-B source package is promoted.
 
 ---
 

@@ -362,15 +362,9 @@
         add('turn_1_iq', 6, 'The opening speed contest was handled with a concrete answer.');
       } else if (id === 'speed_control_neutralized') {
         add('speed_control_iq', 4, 'Opponent speed control was matched, making the next board decision more important than raw speed.');
-      } else if (id === 'speed_control_converted' || id === 'deferred_payoff') {
-        add('speed_control_iq', 10, 'Speed control converted into immediate or short-window payoff.');
-        add('resource_iq', 4, 'The setup turn produced value instead of becoming a passive tempo loss.');
       } else if (id === 'planned_speed_transition') {
         add('speed_control_iq', 8, 'The line preserved normal-speed advantage after Trick Room ended.');
         add('endgame_iq', 4, 'The transition window was handled with a clearer closer plan.');
-      } else if (id === 'complementary_turn_payoff') {
-        add('resource_iq', 8, 'A setup/protection turn enabled payoff instead of wasting tempo.');
-        add('turn_1_iq', 3, 'The turn sequence showed multi-turn planning.');
       } else if (id === 'field_control_failure') {
         add('speed_control_iq', -15, 'Opponent field or speed control advanced without a meaningful trade.');
         add('threat_recognition_iq', -12, 'The must-answer field threat was not denied or punished.');
@@ -399,15 +393,7 @@
       }
     });
 
-    if (!issues.some(function(i) { return i.id === 'speed_control_without_pressure' || i.id === 'field_control_failure'; })) {
-      add('speed_control_iq', 6, 'No major speed-control error was detected from this log.');
-    }
-    if (!issues.some(function(i) { return i.id === 'win_condition_exposed' || i.id === 'endgame_misplay'; })) {
-      add('win_condition_iq', 5, 'No clear win-condition abandonment was detected.');
-    }
-    if (!issues.some(function(i) { return i.id === 'protect_misuse' || i.id === 'switch_tempo_loss'; })) {
-      add('resource_iq', 4, 'No major resource misuse was detected from parsed events.');
-    }
+    // Missing detected errors are not positive evidence of decision quality.
 
     Object.keys(scores).forEach(function(k) { scores[k] = clampScore(scores[k]); });
     var weights = Object.assign({}, BATTLE_IQ_WEIGHTS);
@@ -691,16 +677,18 @@
       seriesFormat: seriesFormat
     });
     var evidenceCount = 1 + (leadOverlap != null ? 1 : 0) + (fourOverlap != null ? 1 : 0) + (expectedWinPath ? 1 : 0) + (registeredCount >= lineupSize ? 1 : 0) + (lineupMatrixComplete ? 1 : 0);
-    var tier = evidenceTier(confidence, evidenceCount);
+    // A supplied plan is reference material, not verified two-team/version identity.
+    var tier = 'needs_more_data';
     var firstDeviation = 'Needs more data';
     if (leadOverlap != null && leadOverlap < 1) firstDeviation = 'Actual lead differed from the sim-recommended lead.';
     else if (fourOverlap != null && fourOverlap < 1) firstDeviation = 'Actual game-specific lineup differed from the sim-recommended lineup from the registered roster.';
     else if (expectedWinPath) firstDeviation = 'Lead/four matched; compare turn sequencing against expected win path.';
     return {
-      status: 'matched',
+      status: 'unverified_plan',
       evidenceTier: tier,
       evidenceLabel: evidenceLabel(tier),
-      confidence: confidence === 'high' ? 'medium' : confidence,
+      confidence: 'low',
+      note: 'Replay and simulation team versions, format and ruleset have not been verified together. This plan is reference only.',
       actualLead: actualLead,
       bestSimLead: bestLead,
       actualFour: actualFour,
@@ -725,9 +713,9 @@
       expectedWinPath: expectedWinPath || 'Needs sim win-path data',
       actualPath: summary.mainIssue || 'Needs turn review',
       firstDeviation: firstDeviation,
-      teamVsPilotDiagnosis: firstDeviation.indexOf('Lead/four matched') === 0 ? 'Pilot or sequencing issue is more likely than team selection, but this remains provisional.' : 'Lead/lineup selection may have diverged from the simulated plan; verify across best-of-three games before changing the team.',
-      decisionChange: 'Use this comparison to decide whether the trainer should swap to a different game-specific lineup from the registered roster, practice the same sim plan with cleaner sequencing, or run the missing lineup-matrix sims before changing the team.',
-      source: plan.source || 'matched simulation plan',
+      teamVsPilotDiagnosis: 'Unknown: this reference plan is not matched evidence of team selection or pilot quality.',
+      decisionChange: 'Verify both team versions, format, ruleset and evaluated lineups from the registered roster before using this reference to change a team.',
+      source: plan.source || 'unverified reference plan',
       matchedOpponentKey: plan.matchedOpponentKey || '',
       matchedOpponentName: plan.matchedOpponentName || '',
       matchConfidence: plan.matchConfidence || confidence
@@ -777,7 +765,8 @@
     review = review || {};
     simComparison = simComparison || buildSimComparison(parsed, review, {});
     var ids = issueIds(review);
-    var matched = simComparison.status === 'matched';
+    // No trusted identity resolver exists yet; caller-controlled status is not proof.
+    var matched = false;
     var leadMismatch = matched && typeof simComparison.leadMatch === 'number' && simComparison.leadMatch < 100;
     var fourMismatch = matched && typeof simComparison.fourMatch === 'number' && simComparison.fourMatch < 100;
     var leadIssue = ids.indexOf('bad_lead') >= 0 || leadMismatch;
@@ -836,7 +825,7 @@
       packet.shouldUpdateLeadModel = false;
       packet.shouldUpdateBringFourModel = false;
       packet.shouldUpdateArchetypeModel = false;
-      packet.evidence.note = 'No matched sim plan was available; use this packet for coaching only until the matchup is simulated.';
+      packet.evidence.note = 'No verified sim match was available. Do not automatically rewrite sim models; verify both team versions, format and ruleset before calibration.';
     }
     if (packet.rngContamination === 'moderate') {
       packet.shouldUpdateLeadModel = false;

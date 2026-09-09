@@ -64,11 +64,14 @@ load('data.js');
 vm.runInContext('this.TEAMS = TEAMS;', ctx);
 vm.runInContext('this.__branchTestTeams = { targeted_proof_legal: TEAMS.targeted_proof_legal, cofagrigus_tr: TEAMS.cofagrigus_tr };', ctx);
 try { load('generated/pokemon_showdown_legal_data.js'); } catch (_) {}
+load('generated/champions_move_pools.js');
 try { load('runtime_data.js'); } catch (_) {}
 try { load('move_legality.js'); } catch (_) {}
 try { load('legality.js'); } catch (_) {}
 load('engine.js');
 load('ui.js');
+// Synthetic algorithm fixtures, not reviewed regulation evidence.
+ctx.canRunRegulationAnalysis = () => true;
 vm.runInContext('TEAMS.targeted_proof_legal = this.__branchTestTeams.targeted_proof_legal; TEAMS.cofagrigus_tr = this.__branchTestTeams.cofagrigus_tr;', ctx);
 
 vm.runInContext([

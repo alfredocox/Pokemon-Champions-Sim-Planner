@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { mapOfficialRoster } from '../tools/regulation-roster-mapping.mjs';
+const require = createRequire(import.meta.url);
+const baseline = require('../generated/pokemon_showdown_legal_data.js');
+const capture = JSON.parse(fs.readFileSync(new URL('../source/reg-m-b-official-roster.json', import.meta.url), 'utf8'));
+const before = JSON.stringify(capture);
+const rows = mapOfficialRoster(capture, baseline.species);
+assert.equal(JSON.stringify(capture), before);
+assert.equal(rows.length, 235);
+assert(rows.every(row => !row.competitive_use));
+assert.equal(rows.filter(row => row.runtime_species_key).length, 235);
+assert.deepEqual(rows.filter(row => !row.runtime_species_key).map(row => row.official_id), []);
+assert.equal(rows.find(row => row.official_id === '0666-018').runtime_species_key, 'Vivillon-Fancy');
+assert.equal(rows.find(row => row.official_id === '0670-005').runtime_species_key, 'Floette-Eternal');
+assert.equal(rows.find(row => row.official_id === '0670-005').baseline_metadata.is_nonstandard, 'Past');
+assert.equal(rows.find(row => row.official_id === '0670-005').competitive_use, false);
+for (const [id, key] of [['0128-002', 'Tauros-Paldea-Blaze'], ['0711-003', 'Gourgeist-Super'], ['0902-001', 'Basculegion-F'], ['0479-002', 'Rotom-Wash']]) assert.equal(rows.find(row => row.official_id === id).runtime_species_key, key);
+const one = row => ({ ...capture, rows: [row] });
+assert.equal(mapOfficialRoster(one({ official_id: '0026-001', eligible: true, label: 'Raichu' }), baseline.species)[0].reason, 'official_label_changed');
+assert.equal(mapOfficialRoster(one({ official_id: '0026-999', eligible: true, label: 'Raichu' }), baseline.species)[0].runtime_species_key, null);
+assert.equal(mapOfficialRoster(one({ official_id: '0666-019', eligible: true, label: 'Vivillon' }), baseline.species)[0].runtime_species_key, null);
+assert.equal(mapOfficialRoster(one({ official_id: '0670-005', eligible: true, label: 'Floette (Red Flower)' }), baseline.species)[0].reason, 'official_label_changed');
+assert.equal(mapOfficialRoster(one({ official_id: '0026-000', eligible: true, label: 'Pikachu' }), baseline.species)[0].runtime_species_key, null);
+assert.equal(mapOfficialRoster(one({ official_id: '0025-000', eligible: true, label: 'Pikachu-Cosplay' }), baseline.species)[0].runtime_species_key, null);
+assert.equal(mapOfficialRoster(one({ ...capture.rows[0], eligible: false }), baseline.species)[0].status, 'excluded_by_source');
+assert.throws(() => mapOfficialRoster({ ...capture, rows: [capture.rows[0], capture.rows[0]] }, baseline.species), /duplicate/);
+assert.throws(() => mapOfficialRoster({ ...capture, rows: [] }, baseline.species), /Invalid/);
+execFileSync(process.execPath, [fileURLToPath(new URL('../tools/build-reg-mb-identity-review.mjs', import.meta.url)), '--check'], { stdio: 'inherit' });
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'champions-identity-check-'));
+try {
+  for (const file of ['tools/build-reg-mb-identity-review.mjs', 'tools/regulation-roster-mapping.mjs', 'source/reg-m-b-form-identity-evidence.json', 'source/reg-m-b-official-roster.json', 'source/reg-m-b-identity-review.json', 'generated/pokemon_showdown_legal_data.js']) {
+    const dest = path.join(scratch, file);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8').replace(/\r?\n/g, '\r\n'));
+  }
+  const command = [path.join(scratch, 'tools/build-reg-mb-identity-review.mjs'), '--check'];
+  execFileSync(process.execPath, command, { stdio: 'pipe' });
+  const formPath = path.join(scratch, 'source/reg-m-b-form-identity-evidence.json');
+  const form = fs.readFileSync(formPath, 'utf8');
+  const alteredForm = JSON.parse(form);
+  alteredForm.rows = [];
+  fs.writeFileSync(formPath, JSON.stringify(alteredForm));
+  assert.throws(() => execFileSync(process.execPath, command, { stdio: 'pipe' }), /Command failed/);
+  fs.writeFileSync(formPath, form);
+  const capturePath = path.join(scratch, 'source/reg-m-b-official-roster.json');
+  const changed = JSON.parse(fs.readFileSync(capturePath, 'utf8'));
+  changed.source_sha256 = '0'.repeat(64);
+  fs.writeFileSync(capturePath, JSON.stringify(changed));
+  assert.throws(() => execFileSync(process.execPath, command, { stdio: 'pipe' }), /Command failed/);
+} finally {
+  assert(path.resolve(scratch).startsWith(path.resolve(os.tmpdir()) + path.sep));
+  fs.rmSync(scratch, { recursive: true, force: true });
+}
+console.log('PASS official roster identity: 235 review-only candidates; explicit visual form evidence; no mutation, silent form fallback, or approval');

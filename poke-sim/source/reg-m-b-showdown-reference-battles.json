@@ -1,0 +1,2398 @@
+{
+  "schema_version": "champions-showdown-reference-battle-manifest-v1",
+  "generated_at_utc": "2026-07-02T04:25:38.843Z",
+  "source_folder": "/Users/kevinmedeiros/Downloads/battles",
+  "source_tier": "showdown_reference",
+  "verification_status": "reference_only",
+  "regulation_scope": "Reg M-A and Reg M-B Showdown battle logs from downloaded HTML replays",
+  "policy": "These rows may harden replay parsing, battle-flow QA, coaching calibration, and Showdown parity. They must not promote official Pokemon Champions legality or Team Lab official rankings.",
+  "counts": {
+    "total": 39,
+    "reg_m_a": 34,
+    "reg_m_b": 5,
+    "other": 0
+  },
+  "rows": [
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-23-blastoising-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-23-blastoising-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-23-blastoising-silvijd.html",
+      "sha256": "0836995cf7cc75b14e12ca6b2682d290f2188fd5ef93fd8eb8d761ddb858e0da",
+      "bytes": 16891,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "blastoising",
+        "SilviJD"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Incineroar",
+          "Sableye",
+          "Starmie",
+          "Gengar",
+          "Politoed",
+          "Ninetales-Alola"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 12,
+        "switches": 9,
+        "damage_events": 7,
+        "faints": 2
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd (1) (1)",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd (1) (1).html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd (1) (1).html",
+      "sha256": "915162d92c19098f2309a29ccc41715abd98f28771f2d279e22a2cd1b9359fc6",
+      "bytes": 17812,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "LatomBenne",
+        "SilviJD"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Tyranitar",
+          "Excadrill",
+          "Corviknight",
+          "Primarina",
+          "Incineroar",
+          "Sinistcha"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 14,
+        "switches": 7,
+        "damage_events": 19,
+        "faints": 1
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd (1)",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd (1).html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd (1).html",
+      "sha256": "915162d92c19098f2309a29ccc41715abd98f28771f2d279e22a2cd1b9359fc6",
+      "bytes": 17812,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "LatomBenne",
+        "SilviJD"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Tyranitar",
+          "Excadrill",
+          "Corviknight",
+          "Primarina",
+          "Incineroar",
+          "Sinistcha"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 14,
+        "switches": 7,
+        "damage_events": 19,
+        "faints": 1
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-23-latombenne-silvijd.html",
+      "sha256": "915162d92c19098f2309a29ccc41715abd98f28771f2d279e22a2cd1b9359fc6",
+      "bytes": 17812,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "LatomBenne",
+        "SilviJD"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Tyranitar",
+          "Excadrill",
+          "Corviknight",
+          "Primarina",
+          "Incineroar",
+          "Sinistcha"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 14,
+        "switches": 7,
+        "damage_events": 19,
+        "faints": 1
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-23-roydavid-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-23-roydavid-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-23-roydavid-silvijd.html",
+      "sha256": "85f9154fbee02c13077d242533129170b1e3973a70a9d70cb807061aab52eb20",
+      "bytes": 27911,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "RoyDavid",
+        "SilviJD"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Charizard",
+          "Farigiraf",
+          "Rotom-Wash",
+          "Aerodactyl",
+          "Basculegion",
+          "Sneasler"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 6,
+        "moves": 19,
+        "switches": 8,
+        "damage_events": 21,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-23-silvijd-superr01155",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-23-silvijd-superr01155.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-23-silvijd-superr01155.html",
+      "sha256": "af05883e3da62079b7e3cb4aeb9846288464b2bb38d2b6c06375035bc81d915b",
+      "bytes": 24006,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "SilviJD",
+        "Superr01155"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ],
+        "p2": [
+          "Greninja",
+          "Excadrill",
+          "Typhlosion-Hisui",
+          "Whimsicott",
+          "Kommo-o",
+          "Corviknight"
+        ]
+      },
+      "metrics": {
+        "turns": 8,
+        "moves": 25,
+        "switches": 11,
+        "damage_events": 18,
+        "faints": 5
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-23-truthwatcher2-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-23-truthwatcher2-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-23-truthwatcher2-silvijd.html",
+      "sha256": "e6953086ede77f54864f51684127f95d5450007b6d49a75626c12d59e5b55df4",
+      "bytes": 27265,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "truthwatcher2",
+        "SilviJD",
+        "\n"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Milotic",
+          "Meganium",
+          "Aegislash",
+          "Garchomp",
+          "Arcanine-Hisui",
+          "Talonflame"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 9,
+        "moves": 29,
+        "switches": 10,
+        "damage_events": 25,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-29-rezzonebro-silvercaelum (1)",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-29-rezzonebro-silvercaelum (1).html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-29-rezzonebro-silvercaelum (1).html",
+      "sha256": "e579b0e3795094deac3e9eb4ee2f43be67f9d4f0580e393f8d3fcc83fa4665f1",
+      "bytes": 28342,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "RezzoNebro",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Charizard",
+          "Whimsicott",
+          "Garchomp",
+          "Sneasler",
+          "Gallade",
+          "Incineroar"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Tsareena",
+          "Torkoal",
+          "Sylveon",
+          "Milotic",
+          "Meowstic-F"
+        ]
+      },
+      "metrics": {
+        "turns": 11,
+        "moves": 28,
+        "switches": 9,
+        "damage_events": 26,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-29-rezzonebro-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-29-rezzonebro-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-29-rezzonebro-silvercaelum.html",
+      "sha256": "e579b0e3795094deac3e9eb4ee2f43be67f9d4f0580e393f8d3fcc83fa4665f1",
+      "bytes": 28342,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "RezzoNebro",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Charizard",
+          "Whimsicott",
+          "Garchomp",
+          "Sneasler",
+          "Gallade",
+          "Incineroar"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Tsareena",
+          "Torkoal",
+          "Sylveon",
+          "Milotic",
+          "Meowstic-F"
+        ]
+      },
+      "metrics": {
+        "turns": 11,
+        "moves": 28,
+        "switches": 9,
+        "damage_events": 26,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-30-ashzera-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-30-ashzera-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-30-ashzera-silvijd.html",
+      "sha256": "72d389f32d6b8a4f0e95292274adf149dd07f801767486324e42cb54953f5ad7",
+      "bytes": 23259,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "ashzera",
+        "SilviJD"
+      ],
+      "winner": "SilviJD",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Espathra",
+          "Primarina",
+          "Aegislash",
+          "Sneasler",
+          "Pelipper",
+          "Meganium"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Rotom-Heat",
+          "Dragonite",
+          "Milotic",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 8,
+        "moves": 22,
+        "switches": 11,
+        "damage_events": 20,
+        "faints": 3
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-30-moogking-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-30-moogking-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-30-moogking-silvercaelum.html",
+      "sha256": "b0977a40060d312847672866726def93a5ad5574dc4b0ef38764c9273534a11b",
+      "bytes": 28304,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "MoogKing",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Zoroark-Hisui",
+          "Hawlucha",
+          "Politoed",
+          "Snorlax",
+          "Incineroar",
+          "Sinistcha"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Tsareena",
+          "Torkoal",
+          "Meowstic-F",
+          "Empoleon",
+          "Heliolisk"
+        ]
+      },
+      "metrics": {
+        "turns": 10,
+        "moves": 28,
+        "switches": 12,
+        "damage_events": 17,
+        "faints": 4
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-cimmx",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-cimmx.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-cimmx.html",
+      "sha256": "255361d38680da725e392db48ceae371f4dbfc50c6e632c5cbf034b2d41e09d9",
+      "bytes": 21486,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvercaelum",
+        "cimmx"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Wyrdeer",
+          "Tsareena",
+          "Torkoal",
+          "Meowstic-F",
+          "Empoleon",
+          "Heliolisk"
+        ],
+        "p2": [
+          "Tyrantrum",
+          "Tyranitar",
+          "Meowscarada",
+          "Volcarona",
+          "Empoleon",
+          "Sneasler"
+        ]
+      },
+      "metrics": {
+        "turns": 6,
+        "moves": 15,
+        "switches": 9,
+        "damage_events": 16,
+        "faints": 4
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-mankimon",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-mankimon.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-mankimon.html",
+      "sha256": "43a38178e5167829d323baf375278b65603da4159599f8d99320b131223590da",
+      "bytes": 32373,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvercaelum",
+        "MANKIMON"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Wyrdeer",
+          "Tsareena",
+          "Torkoal",
+          "Meowstic-F",
+          "Empoleon",
+          "Toxicroak"
+        ],
+        "p2": [
+          "Lycanroc",
+          "Tyranitar",
+          "Gliscor",
+          "Venusaur",
+          "Klefki",
+          "Rotom-Wash"
+        ]
+      },
+      "metrics": {
+        "turns": 11,
+        "moves": 32,
+        "switches": 12,
+        "damage_events": 33,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-ograndenoob",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-ograndenoob.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-05-30-silvercaelum-ograndenoob.html",
+      "sha256": "fc2778426a862ccc59aae7eddfcefd357d8a3062f9adc719e40cdf68c0179e89",
+      "bytes": 26712,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvercaelum",
+        "OGrandeNoob"
+      ],
+      "winner": "OGrandeNoob",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Wyrdeer",
+          "Tsareena",
+          "Torkoal",
+          "Meowstic-F",
+          "Empoleon",
+          "Toxicroak"
+        ],
+        "p2": [
+          "Palafin",
+          "Froslass",
+          "Garchomp",
+          "Incineroar",
+          "Whimsicott",
+          "Rotom-Frost"
+        ]
+      },
+      "metrics": {
+        "turns": 8,
+        "moves": 24,
+        "switches": 12,
+        "damage_events": 19,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-07-luominai-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-07-luominai-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-07-luominai-silvercaelum.html",
+      "sha256": "af6a8b9fffbfe8b1347b5f3ec788cd0bdbb18294ddbda6018c370cdbf16e3594",
+      "bytes": 26893,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "Luominai",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Delphox",
+          "Sinistcha",
+          "Sneasler",
+          "Gyarados",
+          "Glimmora",
+          "Serperior"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Meowstic-F",
+          "Empoleon",
+          "Heliolisk",
+          "Toxicroak",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 10,
+        "moves": 30,
+        "switches": 13,
+        "damage_events": 13,
+        "faints": 5
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-07-moktaavya-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-07-moktaavya-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-07-moktaavya-silvercaelum.html",
+      "sha256": "a1c3698829a9c0b6ce57eff3a664db20c22d64de4da401e5b12d1d3c26894823",
+      "bytes": 26428,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "Moktaavya",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Incineroar",
+          "Scizor",
+          "Basculegion",
+          "Gengar",
+          "Farigiraf",
+          "Kingambit"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Meowstic-F",
+          "Empoleon",
+          "Heliolisk",
+          "Toxicroak",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 10,
+        "moves": 26,
+        "switches": 16,
+        "damage_events": 15,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-07-strawberryon24-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-07-strawberryon24-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-07-strawberryon24-silvercaelum.html",
+      "sha256": "ca6e886e512e23a0f940e7673b98150b07fbf84ee8a3661c8268639cbac10115",
+      "bytes": 37504,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "Strawberryon24",
+        "silvercaelum"
+      ],
+      "winner": "Strawberryon24",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Raichu",
+          "Lycanroc-Dusk",
+          "Gengar",
+          "Politoed",
+          "Archaludon",
+          "Meowscarada"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Meowstic-F",
+          "Empoleon",
+          "Heliolisk",
+          "Toxicroak",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 19,
+        "moves": 52,
+        "switches": 8,
+        "damage_events": 19,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-08-and61425-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-08-and61425-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-08-and61425-silvercaelum.html",
+      "sha256": "e0862823e38cd7cc587cfa6d8810314363ccb63f584f673733e6155f3159c6d4",
+      "bytes": 19769,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "and61425",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Sinistcha",
+          "Drampa",
+          "Pelipper",
+          "Ninetales-Alola",
+          "Starmie",
+          "Rotom-Wash"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Meowstic-F",
+          "Empoleon",
+          "Heliolisk",
+          "Toxicroak",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 16,
+        "switches": 8,
+        "damage_events": 13,
+        "faints": 3
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-08-silvijd-brunexxx",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-08-silvijd-brunexxx.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-08-silvijd-brunexxx.html",
+      "sha256": "78a5a06ebf90195f60133c4d705249acf00f0974d34c924b4d75982b8ff85727",
+      "bytes": 18294,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvijd",
+        "brunexxx"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ],
+        "p2": [
+          "Lucario",
+          "Incineroar",
+          "Basculegion",
+          "Vivillon",
+          "Aerodactyl",
+          "Clefable"
+        ]
+      },
+      "metrics": {
+        "turns": 4,
+        "moves": 15,
+        "switches": 6,
+        "damage_events": 14,
+        "faints": 1
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-09-macmooncfr-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-09-macmooncfr-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-09-macmooncfr-silvercaelum.html",
+      "sha256": "301422641878104067aebcb367862b6765f351b1efc9fa347a84d9972793d2a8",
+      "bytes": 33974,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "mac_mooncfr",
+        "silvercaelum"
+      ],
+      "winner": "mac_mooncfr",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Sneasler",
+          "Aegislash",
+          "Charizard",
+          "Heliolisk",
+          "Primarina",
+          "Sinistcha-Masterpiece"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Toxicroak",
+          "Chandelure",
+          "Serperior",
+          "Milotic",
+          "Skarmory"
+        ]
+      },
+      "metrics": {
+        "turns": 14,
+        "moves": 41,
+        "switches": 13,
+        "damage_events": 30,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-09-silvijd-tronzer",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-09-silvijd-tronzer.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-09-silvijd-tronzer.html",
+      "sha256": "0fd225b820caf7ec272dc6c14a4f63a18274c874ed0b145e28ff243c46dbee9a",
+      "bytes": 33324,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvijd",
+        "Tronzer"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ],
+        "p2": [
+          "Hydreigon",
+          "Aegislash",
+          "Floette-Eternal",
+          "Glimmora",
+          "Basculegion",
+          "Sinistcha-Masterpiece"
+        ]
+      },
+      "metrics": {
+        "turns": 13,
+        "moves": 41,
+        "switches": 14,
+        "damage_events": 33,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-10-dennis159753-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-10-dennis159753-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-10-dennis159753-silvijd.html",
+      "sha256": "e4e02822c4824b4fafee2f4b42c496fa3461bdf49f760d8936b0a4ba5758be00",
+      "bytes": 18701,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "dennis159753",
+        "silvijd"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Espathra",
+          "Incineroar",
+          "Aerodactyl",
+          "Maushold-Four",
+          "Gardevoir",
+          "Venusaur"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 16,
+        "switches": 8,
+        "damage_events": 12,
+        "faints": 2
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-10-silvijd-sampz4",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-10-silvijd-sampz4.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-10-silvijd-sampz4.html",
+      "sha256": "b11cee31029d1677066382f995be54fe5bb5362797943eb9a4a461327ac3dae4",
+      "bytes": 27376,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvijd",
+        "SampZ4"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ],
+        "p2": [
+          "Greninja",
+          "Ninetales-Alola",
+          "Aerodactyl",
+          "Basculegion",
+          "Aegislash",
+          "Excadrill"
+        ]
+      },
+      "metrics": {
+        "turns": 9,
+        "moves": 26,
+        "switches": 13,
+        "damage_events": 22,
+        "faints": 3
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-11-rnknight-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-11-rnknight-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-11-rnknight-silvercaelum.html",
+      "sha256": "1df387c0bd5cda3dadb91e8ade681a7603be4d0780e58de9c63b581df9ec867e",
+      "bytes": 26147,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "RNKnight",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Glimmora",
+          "Whimsicott",
+          "Aegislash",
+          "Tyranitar",
+          "Rotom-Wash",
+          "Excadrill"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Toxicroak",
+          "Chandelure",
+          "Serperior",
+          "Milotic",
+          "Weavile"
+        ]
+      },
+      "metrics": {
+        "turns": 10,
+        "moves": 32,
+        "switches": 10,
+        "damage_events": 21,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-13-razii-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-13-razii-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-13-razii-silvercaelum.html",
+      "sha256": "d10fdbf15fa9e61fada7d61139c26786058ffbbaab9dcdd34d8c955035435c47",
+      "bytes": 18880,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "razii",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Pangoro",
+          "Oranguru",
+          "Empoleon",
+          "Scizor",
+          "Sinistcha",
+          "Armarouge"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Toxicroak",
+          "Chandelure",
+          "Milotic",
+          "Weavile",
+          "Scizor"
+        ]
+      },
+      "metrics": {
+        "turns": 6,
+        "moves": 19,
+        "switches": 9,
+        "damage_events": 8,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-13-silvercaelum-dpult",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-13-silvercaelum-dpult.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-13-silvercaelum-dpult.html",
+      "sha256": "71b26bfaf0e1a833e87d54eb5cf7dd8506832eba17af41058e5046403007c451",
+      "bytes": 25459,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvercaelum",
+        "D-pult"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Wyrdeer",
+          "Toxicroak",
+          "Chandelure",
+          "Milotic",
+          "Weavile",
+          "Scizor"
+        ],
+        "p2": [
+          "Incineroar",
+          "Sinistcha-Masterpiece",
+          "Floette-Eternal",
+          "Garchomp",
+          "Charizard",
+          "Venusaur"
+        ]
+      },
+      "metrics": {
+        "turns": 7,
+        "moves": 19,
+        "switches": 11,
+        "damage_events": 14,
+        "faints": 5
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-13-silvercaelum-ramonateamo",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-13-silvercaelum-ramonateamo.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-13-silvercaelum-ramonateamo.html",
+      "sha256": "bd2566c517de8c7d4bedf817d6411313714c8e9560a02c216949e21d39499f3a",
+      "bytes": 21333,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvercaelum",
+        "Ramona Te amo"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Wyrdeer",
+          "Toxicroak",
+          "Chandelure",
+          "Milotic",
+          "Weavile",
+          "Scizor"
+        ],
+        "p2": [
+          "Whimsicott",
+          "Floette-Eternal",
+          "Typhlosion-Hisui",
+          "Kingambit",
+          "Farigiraf",
+          "Aerodactyl"
+        ]
+      },
+      "metrics": {
+        "turns": 6,
+        "moves": 17,
+        "switches": 8,
+        "damage_events": 10,
+        "faints": 4
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-13-xiaolqlilx-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-13-xiaolqlilx-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-13-xiaolqlilx-silvercaelum.html",
+      "sha256": "69eadc6c386ff33511bba4d2ad065c3451474621c8f2bf08253668a57ad491a2",
+      "bytes": 16779,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "XiaolqLilx",
+        "silvercaelum"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Glimmora",
+          "Whimsicott",
+          "Basculegion",
+          "Charizard",
+          "Floette-Eternal",
+          "Garchomp"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Toxicroak",
+          "Chandelure",
+          "Milotic",
+          "Weavile",
+          "Scizor"
+        ]
+      },
+      "metrics": {
+        "turns": 4,
+        "moves": 10,
+        "switches": 8,
+        "damage_events": 12,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-14-300376l-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-14-300376l-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-14-300376l-silvijd.html",
+      "sha256": "012aae64df972b77b2ed57b78274a06df00bb5c6ab81e4eafef5460bfe6d7e9e",
+      "bytes": 21524,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "300376L",
+        "silvijd"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Glimmora",
+          "Whimsicott",
+          "Ariados",
+          "Incineroar",
+          "Ninetales-Alola",
+          "Azumarill"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 7,
+        "moves": 21,
+        "switches": 9,
+        "damage_events": 15,
+        "faints": 4
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-14-adolin99-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-14-adolin99-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-14-adolin99-silvijd.html",
+      "sha256": "996d09680af03d523a9187a626d46b8f0795af0243908b66f8326702649283b0",
+      "bytes": 21414,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "adolin99",
+        "silvijd"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Aggron",
+          "Sinistcha",
+          "Farigiraf",
+          "Tyranitar",
+          "Sneasler",
+          "Floette-Eternal"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 7,
+        "moves": 21,
+        "switches": 9,
+        "damage_events": 21,
+        "faints": 5
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-14-chenko8899-silvercaelum",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-14-chenko8899-silvercaelum.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-14-chenko8899-silvercaelum.html",
+      "sha256": "dc2b8bad6be1e0ffa903f578ecdafd534788869286162fd6571a2eb00daa3dac",
+      "bytes": 21341,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "chenko8899",
+        "silvercaelum"
+      ],
+      "winner": "chenko8899",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Basculegion",
+          "Charizard",
+          "Floette-Eternal",
+          "Kingambit",
+          "Aerodactyl",
+          "Garchomp"
+        ],
+        "p2": [
+          "Wyrdeer",
+          "Toxicroak",
+          "Chandelure",
+          "Milotic",
+          "Weavile",
+          "Scizor"
+        ]
+      },
+      "metrics": {
+        "turns": 7,
+        "moves": 19,
+        "switches": 10,
+        "damage_events": 14,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-14-gallade589-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-14-gallade589-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-14-gallade589-silvijd.html",
+      "sha256": "702462fec7c33a88e6aa9f4f0a4af9e30bc7c0a64a3507fa1f6df795eea98981",
+      "bytes": 25531,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "Gallade589",
+        "silvijd"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Charizard",
+          "Blastoise",
+          "Incineroar",
+          "Sneasler",
+          "Sinistcha-Masterpiece",
+          "Kangaskhan"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 9,
+        "moves": 28,
+        "switches": 8,
+        "damage_events": 21,
+        "faints": 5
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-14-reign1997-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-14-reign1997-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-14-reign1997-silvijd.html",
+      "sha256": "b21a60829c466403a6e9ef3ceb48b5640af5e00067524f4239315028d7da7a81",
+      "bytes": 25972,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "Reign1997",
+        "silvijd"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Sylveon",
+          "Kingambit",
+          "Aerodactyl",
+          "Garchomp",
+          "Basculegion",
+          "Delphox"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 9,
+        "moves": 27,
+        "switches": 10,
+        "damage_events": 28,
+        "faints": 5
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMA-2026-06-14-silvijd-sampv404",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMA-2026-06-14-silvijd-sampv404.html",
+      "file_name": "Gen9ChampionsVGC2026RegMA-2026-06-14-silvijd-sampv404.html",
+      "sha256": "b9b455e479f1b69f958c796326c237200e8e9162e0c8dd4afb713e77b7ade224",
+      "bytes": 20274,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-A",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-A",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvijd",
+        "sampv404"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ],
+        "p2": [
+          "Aerodactyl",
+          "Tyranitar",
+          "Garchomp",
+          "Rotom-Wash",
+          "Aegislash",
+          "Sneasler"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 14,
+        "switches": 7,
+        "damage_events": 22,
+        "faints": 2
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMB-2026-06-22-silvercaelum-oghostiumz",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMB-2026-06-22-silvercaelum-oghostiumz.html",
+      "file_name": "Gen9ChampionsVGC2026RegMB-2026-06-22-silvercaelum-oghostiumz.html",
+      "sha256": "23131cfecf544558b047614eb28aae33c66620f1929445885885fc7bb0acbc16",
+      "bytes": 24896,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-B",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-B",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvercaelum",
+        "OGhostium Z"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Scizor",
+          "Armarouge",
+          "Sinistcha",
+          "Swampert",
+          "Sneasler",
+          "Sylveon"
+        ],
+        "p2": [
+          "Oranguru",
+          "Torkoal",
+          "Rampardos",
+          "Araquanid",
+          "Dragalge",
+          "Aromatisse"
+        ]
+      },
+      "metrics": {
+        "turns": 8,
+        "moves": 22,
+        "switches": 11,
+        "damage_events": 19,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMB-2026-06-23-silvijd-griffithsdream",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMB-2026-06-23-silvijd-griffithsdream.html",
+      "file_name": "Gen9ChampionsVGC2026RegMB-2026-06-23-silvijd-griffithsdream.html",
+      "sha256": "1e84615436e2ab8e8178307a1093de28f7bb581e705980d07e3f1ae87375d4ea",
+      "bytes": 17522,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-B",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-B",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvijd",
+        "GriffithsDream"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ],
+        "p2": [
+          "Whimsicott",
+          "Floette-Eternal",
+          "Annihilape",
+          "Milotic",
+          "Metagross",
+          "Sinistcha"
+        ]
+      },
+      "metrics": {
+        "turns": 4,
+        "moves": 14,
+        "switches": 5,
+        "damage_events": 14,
+        "faints": 2
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMB-2026-06-24-pcrlbot02888784c1-silvijd",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMB-2026-06-24-pcrlbot02888784c1-silvijd.html",
+      "file_name": "Gen9ChampionsVGC2026RegMB-2026-06-24-pcrlbot02888784c1-silvijd.html",
+      "sha256": "a0d8b66ad7fa780516d07b749adad17a2cabfc2fa7311f3c8cc09ab77b2bc476",
+      "bytes": 18415,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-B",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-B",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "pcrlbot02888784c1",
+        "silvijd",
+        "\n"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Pelipper",
+          "Basculegion-F",
+          "Archaludon",
+          "Incineroar",
+          "Kingambit",
+          "Rotom-Wash"
+        ],
+        "p2": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ]
+      },
+      "metrics": {
+        "turns": 5,
+        "moves": 14,
+        "switches": 8,
+        "damage_events": 11,
+        "faints": 5
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMB-2026-06-24-silvercaelum-jerabels",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMB-2026-06-24-silvercaelum-jerabels.html",
+      "file_name": "Gen9ChampionsVGC2026RegMB-2026-06-24-silvercaelum-jerabels.html",
+      "sha256": "0615556b4b905c2db4a9d68b83f911c19a3e2dce809a8d6db65a84eeb337da7d",
+      "bytes": 28150,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-B",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-B",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvercaelum",
+        "jerabels"
+      ],
+      "winner": "silvercaelum",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Scizor",
+          "Armarouge",
+          "Sinistcha",
+          "Swampert",
+          "Sneasler",
+          "Sylveon"
+        ],
+        "p2": [
+          "Houndstone",
+          "Excadrill",
+          "Rotom-Wash",
+          "Tyranitar",
+          "Sinistcha",
+          "Farigiraf"
+        ]
+      },
+      "metrics": {
+        "turns": 10,
+        "moves": 33,
+        "switches": 10,
+        "damage_events": 25,
+        "faints": 6
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    },
+    {
+      "id": "Gen9ChampionsVGC2026RegMB-2026-06-24-silvijd-vioklet",
+      "file_path": "/Users/kevinmedeiros/Downloads/battles/Gen9ChampionsVGC2026RegMB-2026-06-24-silvijd-vioklet.html",
+      "file_name": "Gen9ChampionsVGC2026RegMB-2026-06-24-silvijd-vioklet.html",
+      "sha256": "14307265ecf603d661821e93acdddc3ab2c88fab855f7ef0d6c4e9268bd281f6",
+      "bytes": 33075,
+      "source_tier": "showdown_reference",
+      "verification_status": "reference_only",
+      "regulation_label": "Reg M-B",
+      "tier": "[Gen 9 Champions] VGC 2026 Reg M-B",
+      "game_format": "doubles",
+      "gen": "9",
+      "rated": true,
+      "players": [
+        "silvijd",
+        "vioklet"
+      ],
+      "winner": "silvijd",
+      "rules": [
+        "Species Clause: Limit one of each Pokémon",
+        "Item Clause: Limit 1 of each item"
+      ],
+      "rosters": {
+        "p1": [
+          "Ninetales-Alola",
+          "Kangaskhan",
+          "Sneasler",
+          "Milotic",
+          "Sinistcha",
+          "Chandelure"
+        ],
+        "p2": [
+          "Delphox",
+          "Tsareena",
+          "Milotic",
+          "Garchomp",
+          "Clefable",
+          "Whimsicott"
+        ]
+      },
+      "metrics": {
+        "turns": 10,
+        "moves": 29,
+        "switches": 12,
+        "damage_events": 34,
+        "faints": 7
+      },
+      "allowed_use": [
+        "replay_parser_qa",
+        "battle_flow_reference",
+        "coaching_calibration",
+        "showdown_parity_review"
+      ],
+      "blocked_use": [
+        "official_champion_legality",
+        "reg_m_b_runtime_promotion",
+        "team_lab_official_ranking",
+        "global_verified_learning"
+      ],
+      "notes": "Pokemon Showdown replay HTML. Useful reference gameplay evidence, not official Pokemon Champions in-game legality proof."
+    }
+  ]
+}

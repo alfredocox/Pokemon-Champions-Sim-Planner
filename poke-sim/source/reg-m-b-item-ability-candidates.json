@@ -1,0 +1,62 @@
+{
+  "schema_version": "champions-regmb-item-ability-candidates-v1",
+  "regulation_id": "champions_reg_m_b_2026",
+  "ruleset_version": "reg-m-b-source-package-v0-needs-capture",
+  "status": "review_only_not_runtime_promoted",
+  "source_tier": "champion_specific_secondary",
+  "checked_at_utc": "2026-07-02T00:00:00Z",
+  "sources": [
+    {
+      "name": "Serebii Pokemon Champions Items",
+      "url": "https://www.serebii.net/pokemonchampions/items.shtml",
+      "use": "candidate held item and Mega Stone review list"
+    },
+    {
+      "name": "Serebii Pokemon Champions New Abilities",
+      "url": "https://www.serebii.net/pokemonchampions/newabilities.shtml",
+      "use": "candidate Champion ability review list"
+    },
+    {
+      "name": "Serebii Pokemon Champions Updated Abilities",
+      "url": "https://www.serebii.net/pokemonchampions/updatedabilities.shtml",
+      "use": "candidate changed ability review list"
+    }
+  ],
+  "policy": {
+    "editor_import": "allow_as_warning_for_custom_testing",
+    "official_legality": "needs_official_or_in_game_capture",
+    "team_lab_official_ranking": "blocked",
+    "global_learning": "blocked",
+    "trusted_coaching": "blocked_until_item_effects_and_fixtures_pass"
+  },
+  "candidate_abilities": [
+    "Piercing Drill",
+    "Dragonize",
+    "Eelevate",
+    "Mega Sol",
+    "Fire Mane",
+    "Spicy Spray",
+    "Unseen Fist"
+  ],
+  "candidate_items_sample": [
+    "Life Orb",
+    "Light Clay",
+    "Damp Rock",
+    "Heat Rock",
+    "Icy Rock",
+    "Expert Belt",
+    "Muscle Band",
+    "Wide Lens",
+    "Wise Glasses",
+    "Zoom Lens",
+    "Raichunite X",
+    "Raichunite Y",
+    "Blazikenite",
+    "Swampertite",
+    "Metagrossite",
+    "Eelektrossite",
+    "Pyroarite",
+    "Falinksite"
+  ],
+  "blocked_runtime_reason": "The source identifies current Champion candidate rows, but the app still needs official/in-game legality fixtures, item-effect implementation coverage, and stale-source checks before these rows can become trusted legality."
+}

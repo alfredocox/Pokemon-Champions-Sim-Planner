@@ -1,0 +1,48 @@
+name: M-C Reference Drafts
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/mc-reference-drafts.yml'
+      - 'poke-sim/tools/test-mc-draft-teams.cjs'
+      - 'poke-sim/source/reg-m-c-reference-intake.json'
+
+permissions:
+  contents: read
+
+jobs:
+  reference-only:
+    name: Experimental M-C teams (not app parity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: smogon/pokemon-showdown
+          ref: efe4948570d5e8189751792136d26e71710c6c66
+          path: poke-sim/artifacts/showdown-mc-reference
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install isolated locked reference dependencies
+        working-directory: poke-sim/artifacts/showdown-mc-reference
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Compile isolated reference without automatic install hooks
+        working-directory: poke-sim/artifacts/showdown-mc-reference
+        run: node -e "require('./tools/build-utils').transpile(false)"
+      - name: Validate drafts, stats, negative controls and repeated reference games
+        run: node poke-sim/tools/test-mc-draft-teams.cjs
+      - name: Retain reference evidence (not competitive approval)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mc-reference-drafts-${{ github.sha }}
+          path: poke-sim/artifacts/mc-draft-teams/
+          if-no-files-found: warn
+          retention-days: 14

@@ -2,6 +2,8 @@
 
 Generated: 2026-06-28
 
+> Current interpretation (2026-08-29): this is a truth-gate checklist, not a 100% accuracy claim. Machine-readable current coverage lives in `battle_audit_manifest.json`; partial and gap families keep universal accuracy explicitly false.
+
 This file defines what we mean by "100% Champion accuracy" for the simulator. It is a release gate, not a claim that every possible future Pokemon edge case has been mathematically proven. The practical standard is: every shipped Champion team, move, item, ability, spread, target rule, and exported proof path must be legal, traceable to source truth, tested, and visibly labeled when any part is still under review.
 
 ## Current Snapshot
@@ -13,8 +15,9 @@ This file defines what we mean by "100% Champion accuracy" for the simulator. It
 - Primary mechanics source truth: Pokemon Showdown data and behavior, with Champion-specific differences documented as explicit overrides.
 - Showdown source snapshot in generated data: `3f5079d395ad018f13e8f785a675a13bd4cbf59e (2026-05-24)`
 - Showdown damage oracle: `56/56` local cases passing after the core shipped-move parity slice.
-- Move support audit: `120 verified`, `0 baseline`, `0 incomplete` across `120` shipped distinct moves.
-- Ability inventory: `80/80` curated and mega abilities modeled.
+- Move support audit: `123 verified`, `11 baseline`, `0 incomplete` across `134` shipped distinct moves. Baseline means metadata is available, not that behavior parity is proven.
+- Ability inventory: `84/84` curated and Mega abilities modeled; the complete importable ability surface and interaction ordering remain open.
+- Battle edge matrix: `15/37` cases covered, `12/37` partial, and `10/37` open. Passing stress tests do not promote open cases. A repeatable mirror side-bias signal is an explicit competitive-parity blocker.
 - Latest live QA Artifact reviewed: `v2.2.17-stress-lite-qa` Stress Lite export was Codex-ready and kept the capped-proof boundary visible.
 - Damage applied-vs-calculated logging bug: fixed. Turn logs keep applied HP loss and formula output as separate fields.
 - Runtime team catalog: only approved Champion-legal rows should remain visible at runtime. Current runtime catalog has 10 approved Champion-legal testing rows and removes 17 legacy/inferred rows into the audit object.

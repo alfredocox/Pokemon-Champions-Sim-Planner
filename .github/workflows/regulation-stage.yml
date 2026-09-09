@@ -1,0 +1,68 @@
+name: Stage Regulation Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: Completed Regulation Watch run ID (no new source fetch)
+        required: true
+        type: string
+      source_attempt:
+        description: Exact watcher run attempt
+        required: true
+        default: '1'
+        type: string
+      candidate_sha256:
+        description: Exact candidate fingerprint from the review artifact
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: regulation-stage
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    if: github.repository == 'TheYfactora12/Pokemon-Champions-Sim-Planner' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Configure required reviewers and main-only deployment before adding secrets.
+    environment: regulation-staging
+    defaults:
+      run:
+        working-directory: poke-sim
+    env:
+      SOURCE_RUN: ${{ inputs.source_run }}
+      SOURCE_ATTEMPT: ${{ inputs.source_attempt }}
+      CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: poke-sim/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: node tools/regulation-artifact-policy.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: regulation-watch-${{ inputs.source_run }}-${{ inputs.source_attempt }}
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+          path: poke-sim/artifacts/regulation-stage-input
+      - name: Validate exact candidate offline
+        run: node tools/stage-regulation-candidate.mjs --candidate "artifacts/regulation-stage-input/$CANDIDATE_SHA256.json" --expected-sha256 "$CANDIDATE_SHA256"
+      - name: Insert private candidate and verify readback (not approval)
+        run: node tools/stage-regulation-candidate.mjs --candidate "artifacts/regulation-stage-input/$CANDIDATE_SHA256.json" --expected-sha256 "$CANDIDATE_SHA256" --write
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_REGULATION_STAGING_KEY: ${{ secrets.SUPABASE_REGULATION_STAGING_KEY }}
+          REGULATION_STAGING_PROVISIONING_VERIFIED: ${{ vars.REGULATION_STAGING_PROVISIONING_VERIFIED }}

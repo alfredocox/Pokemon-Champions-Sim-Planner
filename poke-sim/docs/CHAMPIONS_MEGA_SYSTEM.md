@@ -38,7 +38,7 @@ CHAMPIONS_MEGAS['Base-Mega'] = {
   nationalDex:    N,
   types:          ['Type1','Type2'],
   ability:        'AbilityName',
-  abilityIsNew:   false,      // true for 4 Champions-only abilities
+  abilityIsNew:   false,      // true for implemented Champions-only abilities
   abilityIsUpdated: false,    // true for nerfed abilities (Unseen Fist, Parental Bond, Protean)
   megaBaseStats:  { hp, atk, def, spa, spd, spe },
   megaStone:      'StoneName',
@@ -52,7 +52,7 @@ Keys follow `BaseSpecies-Mega` / `BaseSpecies-Mega-X|Y|M|F|EF` convention matchi
 
 ## New Abilities (Champions-exclusive)
 
-All four debut on Champions-introduced Megas. Engine hooks are **not yet implemented**; spec captured here for the engine ticket.
+Six rows are now tracked from the Champion-specific new-abilities source. Four are implemented in the current historical runtime lane; two Reg M-B rows are review-only until engine hooks and accepted/rejected fixtures are promoted.
 
 ### Piercing Drill (Mega Excadrill)
 
@@ -67,6 +67,16 @@ Normal-type moves become Dragon-type with +20% BP. Combined with Water/Dragon ST
 ### Mega Sol (Mega Meganium)
 
 The holder treats all moves as if Harsh Sunlight were active, **without** triggering actual Drought weather. Fire moves get x1.5 for holder; Solar Beam requires no charge; Chlorophyll/Flower Gift activate for holder. Water moves from opponents are **not** reduced (not real sun). Personal flag, not a weather setter.
+- Source: [Serebii New Abilities](https://www.serebii.net/pokemonchampions/newabilities.shtml)
+
+### Eelevate (Mega Eelektross)
+
+The holder floats off the ground, gaining Ground and entry-hazard immunity. When it knocks out a target with an attack, its highest stat is boosted by 1 stage. This is currently source-tracked as Reg M-B review-only; do not train or rank trusted data from it until engine tests exist.
+- Source: [Serebii New Abilities](https://www.serebii.net/pokemonchampions/newabilities.shtml)
+
+### Fire Mane (Mega Pyroar)
+
+Boosts the holder's Fire-type moves by 50%. This is currently source-tracked as Reg M-B review-only; do not train or rank trusted data from it until engine tests exist.
 - Source: [Serebii New Abilities](https://www.serebii.net/pokemonchampions/newabilities.shtml)
 
 ### Spicy Spray (Mega Scovillain)

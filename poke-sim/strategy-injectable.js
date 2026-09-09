@@ -585,118 +585,65 @@ function _coachLogLint(surface, text) {
 }
 
 function _coachFooter(n, population) {
-  const count = Math.max(0, Number(n) || 0);
-  return 'Based on ' + count + ' AI-vs-AI simulations. Real ladder + tournament data coming. Battle-tested. Always evolving.';
+  return 'AI-vs-AI simulations are model evidence, not verified real-game performance.';
 }
 
-function _coachResultStats(result) {
-  result = result || {};
-  const wins = result.wins || 0;
-  const losses = result.losses || 0;
-  const draws = result.draws || 0;
-  const n = result.sampleSize || wins + losses + draws || 0;
-  const wr = typeof result.winRate === 'number' ? result.winRate : (n ? wins / n : 0);
-  return { wins: wins, losses: losses, draws: draws, n: n, winPct: Math.round(wr * 100) };
-}
-
-function _coachTopLead(result) {
-  const counts = {};
-  ((result && result.allLogs) || []).forEach(function(g) {
-    const leads = g && g.leads && Array.isArray(g.leads.player) ? g.leads.player : [];
-    const key = leads.join(' + ');
-    if (key) counts[key] = (counts[key] || 0) + 1;
-  });
-  const top = Object.keys(counts).sort(function(a, b) { return counts[b] - counts[a]; })[0];
-  return top || 'current best lead pair';
-}
-
-function _coachTopWinCondition(result) {
-  const entries = Object.entries((result && result.winConditions) || {}).sort(function(a, b) { return b[1] - a[1]; });
-  return entries[0] || ['position control', 0];
-}
 
 function coachPre(playerKey, oppKey, context) {
-  context = context || {};
-  const player = (typeof TEAMS !== 'undefined' && TEAMS[playerKey]) || { name: playerKey, members: [] };
-  const opp = (typeof TEAMS !== 'undefined' && TEAMS[oppKey]) || { name: oppKey, members: [] };
-  const result = context.result || {};
-  const stats = _coachResultStats(result);
-  const topWc = _coachTopWinCondition(result);
-  const lead = _coachTopLead(result);
-  const bring = (player.members || []).slice(0, 4).map(function(m) { return m.name; }).join(', ') || 'first four declared members';
-  const line = stats.n ? ('Best candidate: ' + (stats.winPct >= 50 ? 'pressure line' : 'stabilize line') + ' (' + stats.winPct + '% over ' + stats.n + ', ' + populationQualifier('ai_vs_ai_greedy') + ').')
-    : 'Best candidate: scout line (0% over 0, no game history yet).';
-  const text = [
-    'LINE',
-    '  Recommended: ' + line,
-    '  Lead       : ' + lead,
-    '  Bring      : ' + bring,
+  const player = (typeof TEAMS !== 'undefined' && TEAMS[playerKey]) || { name: typeof playerKey === 'string' && playerKey ? playerKey : 'Unknown team' };
+  const opp = (typeof TEAMS !== 'undefined' && TEAMS[oppKey]) || { name: typeof oppKey === 'string' && oppKey ? oppKey : 'Unknown opponent' };
+  return _coachLogLint('pre', [
+    'MATCHUP',
+    '  Selected: ' + player.name + ' vs ' + opp.name + '.',
+    'PLAN EVIDENCE',
+    '  Best leads, bring choices and win conditions are not established by aggregate results.',
+    '  Review the selected participants and regulation before running a matchup.',
     '',
-    'WIN CONDITION',
-    '  Convert through ' + topWc[0] + ' (' + Math.round((topWc[1] || 0) / Math.max(1, stats.n) * 100) + '% over ' + stats.n + ', ' + populationQualifier('ai_vs_ai_greedy') + ').',
-    '',
-    'LOSS CONDITION',
-    '  Watch ' + opp.name + ' setup turns (' + stats.losses + ' of ' + Math.max(1, stats.n) + ' games, ' + populationQualifier('ai_vs_ai_greedy') + ').',
-    '',
-    'TURN 1 PLAN',
-    '  Lead ' + lead + '.',
-    '  Deny the first setup move before committing ' + ((player.members && player.members[0] && player.members[0].name) || player.name) + '.',
-    '',
-    _coachFooter(stats.n, 'ai_vs_ai_greedy')
-  ].join('\n');
-  return _coachLogLint('pre', text);
+    _coachFooter(null, 'ai_vs_ai_greedy')
+  ].join('\n'));
 }
 
 function coachIn(turnLog, turn) {
   const rows = Array.isArray(turnLog) ? turnLog : [];
-  const row = rows.find(function(t) { return t && t.turn === turn; }) || rows[rows.length - 1] || {};
-  const score = row.post && typeof row.post.position_score === 'number' ? row.post.position_score : row.positionScore || 0.5;
-  const delta = row.delta && typeof row.delta.position_score === 'number' ? row.delta.position_score : 0;
-  const order = row.post && row.post.speed_order ? row.post.speed_order.join(' > ') : 'unknown';
-  const text = [
-    'THREAT TABLE',
-    '  Board state scored at ' + Math.round(score * 100) + '% ' + populationQualifier('ai_vs_ai_greedy') + '.',
-    'SPEED ORDER',
-    '  ' + order,
+  const matches = Number.isInteger(turn) && turn > 0 ? rows.filter(function(t) { return t && t.turn === turn; }) : [];
+  const row = matches.length === 1 ? matches[0] : null;
+  const hasCurrentScore = row && row.post && Object.prototype.hasOwnProperty.call(row.post, 'position_score');
+  const rawScore = hasCurrentScore ? row.post.position_score : row ? row.positionScore : null;
+  const score = Number.isFinite(rawScore) && rawScore >= 0 && rawScore <= 1 ? rawScore : null;
+  const rawDelta = row && row.delta ? row.delta.position_score : null;
+  const delta = Number.isFinite(rawDelta) && rawDelta >= -1 && rawDelta <= 1 ? rawDelta : null;
+  const order = row && row.post && Array.isArray(row.post.speed_order) && row.post.speed_order.length && row.post.speed_order.every(function(name) { return typeof name === 'string' && name.trim(); })
+    ? row.post.speed_order.join(' > ') : 'not recorded';
+  return _coachLogLint('in', [
+    'RECORDED TURN ' + turn,
+    'SPEED SNAPSHOT',
+    '  ' + order + ' (not a complete priority/action order).',
     'POSITION SCORE',
-    '  ' + Math.round(score * 100) + '%; delta ' + (delta >= 0 ? '+' : '') + Math.round(delta * 100) + '.',
-    'DECISION',
-    '  Preserve speed control and trade damage only when the score improves.'
-  ].join('\n');
-  return _coachLogLint('in', text);
+    '  ' + (score === null ? 'Unknown: not recorded.' : 'Heuristic index ' + score.toFixed(2) + '; not a calibrated win probability.'),
+    '  Change: ' + (delta === null ? 'not recorded.' : delta.toFixed(2) + ' heuristic units.'),
+    'DECISION EVIDENCE',
+    '  Alternative availability and outcome are not established by this score.'
+  ].join('\n'));
 }
 
 function coachPost(turnLogOrResult, result) {
   const source = Array.isArray(turnLogOrResult) ? { turnLog: turnLogOrResult } : (turnLogOrResult || {});
   const res = result || source;
-  const turnLog = source.turnLog || res.turnLog || [];
-  const stats = _coachResultStats(res);
-  const swing = (turnLog || []).find(function(t) { return t && t.swingTurn; }) || (res.turning_point ? { turn: res.turning_point.turn } : null);
-  const rngGate = typeof isRNGBlame === 'function' ? isRNGBlame(turnLog, swing && swing.turn) : false;
-  const topWc = _coachTopWinCondition(res);
-  const root = rngGate
-    ? 'RNG affected 2+ events near the swing turn (' + stats.n + '-game sample, ' + populationQualifier('ai_vs_ai_greedy') + ').'
-    : 'Root cause was position control around turn ' + ((swing && swing.turn) || 'endgame') + ' (' + stats.n + '-game sample, ' + populationQualifier('ai_vs_ai_greedy') + ').';
-  const text = [
+  const turnLog = Array.isArray(source.turnLog) ? source.turnLog : Array.isArray(res.turnLog) ? res.turnLog : [];
+  return _coachLogLint('post', [
+    'REPLAY EVIDENCE',
+    '  Supplied turn-log entries: ' + turnLog.length + ' (not a game count or evidence-quality score).',
     'ROOT CAUSE',
-    '  ' + root,
-    '',
-    'WHAT WENT WRONG',
-    '  - Turn ' + ((swing && swing.turn) || 1) + ': position score moved against the plan (' + stats.winPct + '% overall, ' + populationQualifier('ai_vs_ai_greedy') + ').',
-    '  - Keep the lead plan tied to ' + topWc[0] + ' (' + Math.round((topWc[1] || 0) / Math.max(1, stats.n) * 100) + '% over ' + stats.n + ', ' + populationQualifier('ai_vs_ai_greedy') + ').',
-    '',
+    '  Not established. Aggregate outcomes and heuristic score changes do not prove why a battle was won or lost.',
     'TEAM-LEVEL FLAW',
-    '  No unresolved team flaw is proven from this sample (' + stats.n + '-game sample, ' + populationQualifier('ai_vs_ai_greedy') + ').',
-    '',
-    'BEHAVIOR TO CHANGE',
-    '  Cap repeated defensive turns when position score falls (' + stats.n + '-game sample, ' + populationQualifier('ai_vs_ai_greedy') + ').',
-    '',
+    '  Not established by this summary.',
+    'NEXT REVIEW',
+    '  Inspect recorded actions, participants and board changes in the paired replay.',
     'CONFIDENCE',
-    '  ' + (stats.n >= 100 ? 'high' : stats.n >= 20 ? 'moderate' : 'low') + ' (' + stats.n + ' games).',
+    '  Not calibrated. More simulations alone do not verify mechanics or advice.',
     '',
-    _coachFooter(stats.n, 'ai_vs_ai_greedy')
-  ].join('\n');
-  return _coachLogLint('post', text);
+    _coachFooter(null, 'ai_vs_ai_greedy')
+  ].join('\n'));
 }
 
 if (typeof window !== 'undefined') {

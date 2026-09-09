@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { validateNewsPrs, validateNewsPaths } from '../tools/news-review-policy.mjs';
+const repo = 'TheYfactora12/Pokemon-Champions-Sim-Planner';
+const pr = { head: { ref: 'automation/home-news-123', sha: 'a'.repeat(40), repo: { full_name: repo } }, user: { login: 'github-actions[bot]' }, base: { ref: 'main' } };
+validateNewsPrs([], repo); validateNewsPrs([pr], repo);
+assert.throws(() => validateNewsPrs([pr, pr], repo), /Multiple/);
+assert.throws(() => validateNewsPrs([{ ...pr, user: { login: 'someone' } }], repo), /identity/);
+assert.throws(() => validateNewsPrs([{ ...pr, head: { ...pr.head, repo: { full_name: 'other/repo' } } }], repo), /identity/);
+assert.throws(() => validateNewsPrs([{ ...pr, head: { ...pr.head, ref: 'automation/home-news-123;echo' } }], repo), /identity/);
+assert.throws(() => validateNewsPrs([{ ...pr, head: { ...pr.head, sha: 'unknown' } }], repo), /identity/);
+assert.throws(() => validateNewsPrs([{ ...pr, base: { ref: 'development' } }], repo), /identity/);
+validateNewsPaths(['poke-sim/generated/news_feed.js', 'poke-sim/pokemon-champion-2026.html', 'poke-sim/generated/release_artifact.json']);
+for (const file of ['poke-sim/engine.js', 'poke-sim/package.json', 'poke-sim/tools/sync-news-feed.mjs', '.github/workflows/ci.yml', 'poke-sim/generated/news_feed.js\nother']) assert.throws(() => validateNewsPaths([file]), /boundary/);
+console.log('News review policy: 14 executable PR identity and file-boundary scenarios passed.');

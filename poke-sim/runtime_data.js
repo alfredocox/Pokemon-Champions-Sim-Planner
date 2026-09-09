@@ -32,7 +32,7 @@
     if (!rows) return null;
     if (rows[species]) return rows[species];
     var id = toId(species);
-    var altId = id === 'floetteeternalflower' ? 'floetteeternal' : id;
+    var altId = (id === 'floetteeternalflower' || id === 'eternalflowerfloette') ? 'floetteeternal' : id;
     if (id === 'floetteeternalflowermega') altId = 'floettemega';
     for (var key in rows) {
       if (!Object.prototype.hasOwnProperty.call(rows, key)) continue;

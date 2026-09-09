@@ -317,6 +317,19 @@ async function main() {
   tabButtons[1].dispatchKey('Home');
   assert(document.activeElement === tabButtons[0], 'Home did not move focus back to first tab');
 
+  const homeAction = makeNode('home-edit-action');
+  homeAction.setAttribute('data-home-tab', 'editor');
+  const homeRoot = makeNode('home-root');
+  homeRoot._queryMap = { '[data-home-tab]': [homeAction] };
+  ctx.csInitHomeTabActions(homeRoot);
+  homeAction.focus();
+  homeAction.click();
+  assert(document.activeElement === tabPanels[3], 'home action must focus its visible destination panel');
+  assert(!tabPanels[3].hidden, 'home action destination must be visible');
+  homeAction.setAttribute('data-home-tab', 'missing');
+  homeAction.click();
+  assert(document.activeElement === tabPanels[3], 'invalid destination must not steal focus');
+
   const importTrigger = byId('open-import-modal');
   importTrigger.focus();
   ctx.__openImportModal();

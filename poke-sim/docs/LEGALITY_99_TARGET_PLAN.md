@@ -21,6 +21,7 @@ This document defines what the project means by `true 99% legality` for Pokemon 
 
 The next legality closeout pass needs source captures, not guesses:
 
+- use [`DATA_SOURCE_REGISTRY.md`](DATA_SOURCE_REGISTRY.md#regulation-m-b-scrape-and-capture-targets) as the source-capture/scrape target list
 - official Regulation M-B announcement or rule page URL
 - in-game Regulation M-B rules screenshot or recording
 - in-game eligible Pokemon list for the active regulation
@@ -64,6 +65,10 @@ The next implementation should build a `legality_evidence_package` flow:
 - Team Lab promotion checks that exclude illegal teams and route `needs_verification` teams to experimental scopes only
 - Roadmap/QA artifact output that shows which source package and ruleset version were used
 
-Implementation start: `legality_evidence_package.js` now defines the first package contract, package validation, derived regulation conversion, fixture evaluation, and promotion-readiness checks. Current tests use dev fixtures only; they do not claim real Regulation M-B legality. The next pass should replace or extend those fixtures with official/in-game captures from Pokemon Champions.
+Implementation start: `legality_evidence_package.js` now defines the first package contract, package validation, derived regulation conversion, fixture evaluation, and promotion-readiness checks. The active Reg M-B fill target is `source/reg-m-b-legality-evidence-package.json`, with placeholder fixture classes in `source/reg-m-b-legality-fixtures.json`. The Codex capture scaffold lives in `source/reg-m-b-capture-records.seed.json`, `source/reg-m-b-team-validation-cases.seed.json`, and `source/reg-m-b-source-policy.json`. These files intentionally remain `needs_verification`, `not_captured`, or `fixture_seed_only_not_verified` until official/in-game Pokemon Champions captures are attached.
+
+Scrape/capture discipline: web scrapes can populate candidate `working_mirror` rows, but official/client captures are required before a row can promote active Regulation M-B legality or Team Lab official ranking eligibility.
+
+Showdown replay pivot: when in-game captures are unavailable, downloaded Pokemon Showdown battle logs may be stored as `showdown_reference` gameplay evidence. The current manifest is `source/reg-m-b-showdown-reference-battles.json`. These rows can harden replay parsing, battle-flow QA, tactical coaching calibration, and Showdown parity checks. They cannot satisfy official Champion legality, active Reg M-B runtime promotion, Team Lab official ranking promotion, or verified global learning by themselves.
 
 This is the path to a defensible 99% closeout. Anything less is a confidence label, not legality proof.

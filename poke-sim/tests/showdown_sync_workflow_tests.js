@@ -40,14 +40,23 @@ T('2. workflow evaluates change summary before any Supabase write', () => {
   truthy(yaml.includes('change_summary.json'), 'change summary artifact missing');
 });
 
-T('3. approved rows require manual human-reviewed dispatch', () => {
+T('3. approval and approval-triggered refetch are unavailable', () => {
   const yaml = fs.readFileSync(workflowPath, 'utf8');
-  truthy(!yaml.includes('github.event_name == \'schedule\' ||'), 'scheduled sync must not auto-approve rows');
-  truthy(yaml.includes('steps.change_check.outputs.has_changes == \'true\''), 'approved write should still require changes');
-  truthy(yaml.includes('github.event.inputs.approve == \'true\''), 'manual approve gate missing');
-  truthy(yaml.includes('--approve'), 'approved promotion should use approved writer path');
-  truthy(yaml.includes('github.event_name == \'workflow_dispatch\' && github.event.inputs.write_db == \'true\' && github.event.inputs.approve != \'true\''), 'manual unapproved path missing');
-  truthy(yaml.includes('github.event_name == \'workflow_dispatch\' && github.event.inputs.write_db == \'true\' && github.event.inputs.approve == \'true\''), 'manual approved path missing');
+  truthy(!/^\s+approve:/m.test(yaml), 'approval dispatch input must not exist');
+  truthy(!yaml.includes('github.event.inputs.approve'), 'approval dispatch conditions must not exist');
+  truthy(!yaml.includes('--approve'), 'workflow cannot invoke approval');
+  truthy(!yaml.includes('Write approved Showdown rows'), 'approved write step must not exist');
+  truthy(yaml.includes('exact reviewed sync-run ID and SHA-256 digest'), 'missing promotion limitation');
+});
+
+T('4. fetch, dry run and manual unapproved staging remain available', () => {
+  const yaml = fs.readFileSync(workflowPath, 'utf8');
+  truthy(yaml.includes('Fetch upstream Showdown data'), 'fetch step missing');
+  truthy(yaml.includes('npm run showdown:write-db -- --dry-run'), 'staging dry run missing');
+  truthy(yaml.includes('Write unapproved Showdown rows to Supabase'), 'staging step missing');
+  truthy(yaml.includes('github.event_name == \'workflow_dispatch\' && github.event.inputs.write_db == \'true\''), 'manual staging gate missing');
+  truthy(!yaml.includes('github.event_name == \'schedule\' ||'), 'scheduled sync must not write rows');
+  truthy(yaml.includes('npm run showdown:write-db -- --sync-run-id "showdown_${GITHUB_RUN_ID}"'), 'staging writer missing');
 });
 
 console.log('\nShowdown sync workflow:', pass + ' pass, ' + fail + ' fail\n');

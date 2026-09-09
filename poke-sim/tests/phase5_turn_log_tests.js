@@ -106,6 +106,7 @@ T('T5a-1 turnLog is populated after simulateBattle', () => {
   battleA = ctx.simulateBattle(ctx.TEAMS.player, ctx.TEAMS.mega_altaria, {});
   truthy(Array.isArray(battleA.turnLog), 'turnLog array missing');
   truthy(battleA.turnLog.length > 0, 'turnLog empty');
+  eq(battleA.turns, battleA.turnLog.length, 'battle turns should equal completed turnLog rows');
   truthy(battleA.turnLog[0].pre && battleA.turnLog[0].post, 'pre/post state missing');
   truthy(Array.isArray(battleA.turnLog[0].pre.roster.player), 'player roster snapshot missing');
   truthy(Array.isArray(battleA.turnLog[0].pre.roster.opponent), 'opponent roster snapshot missing');
@@ -406,6 +407,67 @@ T('T5c-1ac Replay Log v2 groups spread damage and surfaces miss/failure details'
   truthy(html.includes('Tyranitar used Stone Edge! → Charizard It missed. Accuracy 80%.'), 'accuracy miss detail missing');
 });
 
+T('T5c-1ad Replay Log preserves status moves, resolved move order and Tailwind field tags', () => {
+  const html = ctx.csRenderTurnLogRows([{
+    turn: 1,
+    pre: {
+      roster: {
+        player: [
+          { displayName: 'Whimsicott', species: 'Whimsicott', status: 'active', hp: 100, hpLabel: '100%', moves: ['Tailwind'] },
+          { displayName: 'Incineroar', species: 'Incineroar', status: 'active', hp: 100, hpLabel: '100%', moves: ['Flare Blitz'] }
+        ],
+        opponent: [{ displayName: 'Milotic', species: 'Milotic', status: 'active', hp: 100, hpLabel: '100%', moves: ['Scald'] }]
+      }
+    },
+    post: {
+      roster: {
+        player: [
+          { displayName: 'Whimsicott', species: 'Whimsicott', status: 'active', hp: 100, hpLabel: '100%', moves: ['Tailwind'] },
+          { displayName: 'Incineroar', species: 'Incineroar', status: 'active', hp: 90, hpLabel: '90%', moves: ['Flare Blitz'] }
+        ],
+        opponent: [{ displayName: 'Milotic', species: 'Milotic', status: 'active', hp: 40, hpLabel: '40%', moves: ['Scald'] }]
+      },
+      speed_control: { player: { tailwind_turns: 3 }, opponent: {} },
+      position_score: 0.6
+    },
+    actions: {
+      player: [{ actor: 'Whimsicott', move: 'Tailwind' }, { actor: 'Incineroar', move: 'Flare Blitz', target: 'Milotic' }],
+      opponent: [{ actor: 'Milotic', move: 'Scald', target: 'Incineroar' }]
+    },
+    events: [
+      { type: 'field', text: 'Whimsicott used Tailwind!' },
+      { type: 'log', text: 'Incineroar used Flare Blitz!' },
+      { type: 'damage', text: 'Incineroar used Flare Blitz! → Milotic [60 dmg, 40/100 HP]' },
+      { type: 'log', text: 'Milotic used Scald!' }
+    ],
+    damage_events: [{ attacker: 'Incineroar', attacker_key: 'player:slot:1:Incineroar', move: 'Flare Blitz', target: 'Milotic', applied_damage: 60, target_hp_after: 40, target_max_hp: 100 }],
+    delta: { position_score: 0.1 }
+  }]);
+  const tailwind = html.indexOf('Whimsicott used Tailwind!');
+  const flareBlitz = html.indexOf('Incineroar used Flare Blitz!');
+  const scald = html.indexOf('Milotic used Scald!');
+  truthy(tailwind >= 0 && tailwind < flareBlitz && flareBlitz < scald, 'resolved action order should follow event evidence');
+  truthy(html.includes('Your Tailwind 3T'), 'Tailwind duration tag missing from post-turn board');
+});
+
+T('T5c-1ae Replay Log preserves identical mirror-match move actions', () => {
+  const html = ctx.csRenderTurnLogRows([{
+    turn: 1,
+    pre: { roster: { player: [], opponent: [] } },
+    post: { roster: { player: [], opponent: [] } },
+    actions: {
+      player: [{ actor: 'Incineroar', actor_key: 'player:slot:1:Incineroar', move: 'Protect' }],
+      opponent: [{ actor: 'Incineroar', actor_key: 'opponent:slot:1:Incineroar', move: 'Protect' }]
+    },
+    events: [
+      { type: 'log', text: 'Incineroar used Protect!' },
+      { type: 'log', text: 'Incineroar used Protect!' }
+    ],
+    damage_events: [], effect_events: []
+  }]);
+  eq((html.match(/Incineroar used Protect!/g) || []).length, 2, 'mirror actions were collapsed');
+});
+
 T('T5c-1aa Replay Log v2 supports singles and doubles field visibility', () => {
   const singles = ctx.csRenderTurnLogRows([{
     turn: 1,
@@ -524,6 +586,23 @@ T('T5c-1c replay snapshot surfaces field-state chips and impact summaries', () =
   truthy(html.includes('lost its move: flinch skipped move'), 'skip reason summary missing');
 });
 
+T('T5c-1ca replay impact deduplicates recoil represented by damage and effect evidence', () => {
+  const html = ctx.csRenderReplayLogSnapshot({
+    roster: {
+      player: [{ stable_key: 'p1a', displayName: 'Incineroar', species: 'Incineroar', status: 'active', hp: 82, hpLabel: '41%', moves: ['Flare Blitz'] }],
+      opponent: [{ stable_key: 'p2a', displayName: 'Sableye', species: 'Sableye', status: 'fainted', hp: 0, hpLabel: '0%', moves: ['Recover'] }]
+    }
+  }, 'Turn 6', false, {
+    damage_events: [{
+      attacker_key: 'p1a', attacker: 'Incineroar', target_key: 'p2a', target: 'Sableye', move: 'Flare Blitz',
+      applied_damage: 65, target_hp_before: 65, target_hp_after: 0,
+      recoil_damage: 21, recoil_hp_before: 103, recoil_hp_after: 82
+    }],
+    effect_events: [{ actor_key: 'p1a', actor: 'Incineroar', move: 'Flare Blitz', effect_kind: 'recoil', hp_before: 103, hp_after: 82 }]
+  });
+  eq((html.match(/Incineroar lost 21 HP to recoil/g) || []).length, 1, 'duplicate recoil impact summary');
+});
+
 T('T5c-2 swing turn row is highlighted', () => {
   const rows = [
     { turn: 1, post: { position_score: 0.5 }, delta: { position_score: 0 }, actions: { player: [], opponent: [] } },
@@ -535,20 +614,46 @@ T('T5c-2 swing turn row is highlighted', () => {
 T('T5c-3 JSON download produces valid parseable file', () => {
   let parsed = null;
   ctx.Blob = function(parts) { parsed = JSON.parse(parts[0]); };
-  ctx.downloadReplayTurnLog({ seed: 'abc', result: 'win', playerKey: 'player', oppKey: 'mega_altaria', turnLog: battleA.turnLog, position_path: battleA.position_path });
+  ctx.downloadReplayTurnLog({ seed: 'abc', result: 'win', turns: battleA.turnLog.length + 1, playerKey: 'player', oppKey: 'mega_altaria', turnLog: battleA.turnLog, position_path: battleA.position_path });
   truthy(parsed && Array.isArray(parsed.turnLog), 'download JSON did not parse');
   eq(parsed.schema_version, 'champions-turn-log-v2', 'download schema version missing');
   eq(parsed.build_id, ctx.window.CHAMPIONS_RELEASE_MANIFEST.build_id, 'download build id must match release manifest');
   truthy(typeof parsed.exported_at === 'string' && parsed.exported_at.length > 0, 'download timestamp missing');
+  eq(parsed.turns, parsed.turnLog.length, 'download top-level turns must match turnLog rows');
+  eq(parsed.sim_turns_reported, parsed.turnLog.length + 1, 'download should preserve stale/internal turn counter separately');
+  eq(parsed.turn_count_source, 'turnLog.length', 'download turn count source should be explicit');
+  eq(parsed.qa_scope, 'single-turn-log', 'download QA scope should be explicit');
+  truthy(String(parsed.qa_scope_note || '').includes('one replay sample'), 'download QA scope note missing');
   eq(parsed.player_team_id, 'player', 'download player team id missing');
   eq(parsed.opponent_team_id, 'mega_altaria', 'download opponent team id missing');
   truthy(parsed.player_team && parsed.player_team.members && parsed.player_team.members.length === 6, 'download full player team missing');
   truthy(parsed.opponent_team && parsed.opponent_team.members && parsed.opponent_team.members.length === 6, 'download full opponent team missing');
   truthy(parsed.team_preview && parsed.team_preview.player_brought_count >= 1, 'download brought team preview missing');
   eq(parsed.qa_coverage_summary.schema_version, 'champions-qa-coverage-v1', 'QA coverage schema missing');
+  eq(parsed.qa_coverage_summary.scope, 'single-turn-log', 'QA coverage scope mismatch');
+  truthy(String(parsed.qa_coverage_summary.coverage_scope_note || '').includes('single-replay evidence'), 'QA coverage scope note missing');
   eq(parsed.qa_coverage_summary.totals.turns, parsed.turnLog.length, 'QA coverage turn count mismatch');
   truthy(parsed.qa_coverage_summary.source_truth_versions && parsed.qa_coverage_summary.source_truth_versions.pokemon_showdown, 'QA source truth versions missing');
   truthy(Array.isArray(parsed.qa_coverage_summary.missing_targeted_proof), 'QA missing proof list missing');
+  eq(parsed.qa_coverage_summary.missing_targeted_proof.length, 0, 'single replay download should not expose release-wide missing proof');
+  truthy(String(parsed.qa_coverage_summary.missing_targeted_proof_note || '').includes('Suppressed for single-turn-log'), 'single replay missing proof note missing');
+  truthy(Array.isArray(parsed.qa_coverage_summary.single_replay_missing_mechanics), 'QA coverage single replay missing mechanics missing');
+  truthy(Array.isArray(parsed.single_replay_missing_mechanics), 'single replay missing mechanics list missing');
+});
+
+T('T5c-3identity download retains original run identity and snapshots', () => {
+  let parsed = null;
+  ctx.Blob = function(parts) { parsed = JSON.parse(parts[0]); };
+  const provenance = { build_id: 'execution-build', engine_version: 'execution-engine', format: 'doubles', player_team_id: 'original-player', opp_team_id: 'original-opp' };
+  ctx.downloadReplayTurnLog({ seed: 'identity', turnLog: battleA.turnLog, provenance,
+    team_snapshots: { player: { name: 'Original team', members: [{ name: 'Original member' }] }, opponent: { members: [] } },
+    participants: { player: [{ member_id: 'durable-member', item: 'Original item' }], opponent: [] } }, { playerKey: 'changed', oppKey: 'changed' });
+  eq(parsed.build_id, 'execution-build', 'must not relabel with export build');
+  eq(parsed.player_team_id, 'original-player', 'must not relabel with selected team');
+  eq(parsed.player_team.name, 'Original team', 'must not reload edited team');
+  eq(parsed.provenance.engine_version, 'execution-engine', 'execution provenance dropped');
+  eq(parsed.participants.player[0].member_id, 'durable-member', 'participant identity dropped');
+  eq(parsed.team_snapshot_source, 'execution_time', 'snapshot origin missing');
 });
 
 T('T5c-3a QA coverage counts recoil occurrences once and keeps damage-row evidence separate', () => {
@@ -617,7 +722,7 @@ const DECISION_TURN_LOG = [{
   delta: { position_score: -0.2 }
 }];
 
-T('T5c-5 csBuildDecisionAudit flags a clearly worse line', () => {
+T('T5c-5 move inventories do not prove an alternative was usable', () => {
   const audit = ctx.csBuildDecisionAudit(DECISION_TURN_LOG, {
     playerKey: 'player',
     oppKey: 'opp',
@@ -625,23 +730,22 @@ T('T5c-5 csBuildDecisionAudit flags a clearly worse line', () => {
     oppLookup: DECISION_OPP,
     threshold: 10
   });
-  truthy(audit && audit.total_flags === 1, 'expected one flagged turn');
-  eq(audit.flagged_turns[0].best_move, 'Recover');
-  truthy(audit.flagged_turns[0].score_gap >= 10, 'expected a meaningful score gap');
+  eq(audit.total_flags, 0, 'unverified availability must not produce advice');
+  eq(audit.flagged_turns.length, 0);
 });
 
-T('T5c-6 Replay Log v2 renders decision gap chip', () => {
+T('T5c-6 Replay Log does not render an unsupported better-line chip', () => {
   const html = ctx.csRenderTurnLogRows(DECISION_TURN_LOG, {
     playerKey: 'player',
     oppKey: 'opp',
     teamLookup: DECISION_PLAYER,
     oppLookup: DECISION_OPP
   });
-  truthy(html.includes('decision-gap'), 'missing decision gap class');
-  truthy(html.includes('Better line: Recover'), 'missing best-line chip');
+  truthy(!html.includes('decision-gap'), 'unsupported decision gap rendered');
+  truthy(!html.includes('Better line: Recover'), 'unsupported alternative rendered');
 });
 
-T('T5c-7 replay coaching summary flags execution from turn-log evidence', () => {
+T('T5c-7 replay coaching does not diagnose execution from heuristic scores', () => {
   const out = ctx.csBuildReplayCoachingSummary({
     result: 'loss',
     oppKey: 'opp',
@@ -653,9 +757,9 @@ T('T5c-7 replay coaching summary flags execution from turn-log evidence', () => 
     teamLookup: DECISION_PLAYER,
     oppLookup: DECISION_OPP
   });
-  eq(out.issue_category, 'execution', 'expected execution issue');
-  eq(out.evidence_label, 'replay + turn log', 'expected turn-log evidence label');
-  truthy(/Review T1/.test(out.next_action), 'expected turn review action');
+  eq(out.issue_category, 'not enough evidence', 'expected conservative issue');
+  eq(out.evidence_label, 'not enough evidence', 'expected evidence boundary');
+  truthy(!/clearer line|execution rather/.test(out.detail), 'unsupported causal conclusion');
 });
 
 T('T5c-8 replay coaching summary does not fall back to strategy context in v1', () => {

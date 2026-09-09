@@ -2,12 +2,13 @@ const fs = require('fs');
 const vm = require('vm');
 const engineSrc = fs.readFileSync(require('path').join(__dirname, '..', 'engine.js'),'utf8');
 const dataSrc = fs.readFileSync(require('path').join(__dirname, '..', 'data.js'),'utf8');
+const legalitySrc = fs.readFileSync(require('path').join(__dirname, '..', 'legality.js'),'utf8');
 
-const combined = dataSrc + '\n' + engineSrc + `
-globalThis._exported = { Pokemon, Field, TEAMS, simulateBattle, validateTeam, BASE_STATS };
+const combined = dataSrc + '\n' + legalitySrc + '\n' + engineSrc + `
+globalThis._exported = { Pokemon, Field, TEAMS, simulateBattle, validateTeam, BASE_STATS, ENGINE_VERSION };
 `;
 new vm.Script(combined).runInThisContext();
-const { TEAMS, simulateBattle, validateTeam } = globalThis._exported;
+const { TEAMS, simulateBattle, validateTeam, ENGINE_VERSION } = globalThis._exported;
 
 // Filter to the known shipped teams (skip any custom_* imports)
 const KNOWN_TEAMS = [
@@ -19,10 +20,15 @@ const KNOWN_TEAMS = [
 ];
 
 const available = KNOWN_TEAMS.filter(k => TEAMS[k]);
+const missingTeams = KNOWN_TEAMS.filter(k => !TEAMS[k]);
 console.log('Available teams:', available.length, '/', KNOWN_TEAMS.length);
-console.log('Missing:', KNOWN_TEAMS.filter(k => !TEAMS[k]));
+console.log('Missing:', missingTeams);
 if (available.length === 0) {
   console.error('FATAL: no known teams loaded; audit cannot validate placeholder or empty data.js.');
+  process.exit(1);
+}
+if (missingTeams.length > 0) {
+  console.error('FATAL: configured audit teams are missing: ' + missingTeams.join(', '));
   process.exit(1);
 }
 
@@ -47,22 +53,32 @@ let totalBattles = 0;
 let totalErrors = 0;
 const winConditionCounts = {};
 const jsErrors = [];
+const legalityFailures = [];
+const legalityWarnings = [];
 
 // Legality pre-check
 console.log('\n=== LEGALITY AUDIT ===');
 for (const t of available) {
   const v = validateTeam(TEAMS[t], 'vgc');
   if (!v.valid) {
+    legalityFailures.push({ team: t, errors: v.errors.slice() });
     console.log(`  [INVALID] ${t}: ${v.errors.length} errors`);
     console.log(`    first 3: ${v.errors.slice(0,3).join(' | ')}`);
   } else if (v.warnings.length > 0) {
+    legalityWarnings.push({ team: t, warnings: v.warnings.slice() });
     console.log(`  [WARN]    ${t}: ${v.warnings.length} warnings`);
+    console.log(`    first 3: ${v.warnings.slice(0,3).join(' | ')}`);
   } else {
     console.log(`  [CLEAN]   ${t}`);
   }
 }
+if (legalityFailures.length > 0) {
+  console.error('FATAL: one or more configured audit teams are illegal.');
+  process.exit(1);
+}
 
-console.log('\n=== MATRIX SIM (13x13, N=' + N + ' per cell) ===');
+const expectedBattles = available.length * available.length * N;
+console.log('\n=== MATRIX SIM (' + available.length + 'x' + available.length + ', N=' + N + ' per cell; ' + expectedBattles + ' planned) ===');
 const startTime = Date.now();
 
 for (const player of available) {
@@ -88,8 +104,13 @@ for (const player of available) {
         jsErrors.push({player, opp, error: e.message, stack: e.stack.split('\n').slice(0,3).join(' | ')});
         continue;
       }
+      if (!b || !['win', 'loss', 'draw'].includes(b.result) || !Array.isArray(b.log)) {
+        cell.errors++;
+        totalErrors++;
+        jsErrors.push({ player, opp, error: 'Malformed battle result or log', stack: String(b && b.result) });
+        continue;
+      }
       totalBattles++;
-      if (b.result === 'error') { cell.errors++; continue; }
       cell[b.result === 'win' ? 'wins' : b.result === 'loss' ? 'losses' : 'draws']++;
       cell.totalTurns += b.turns;
       if (b.trTurns > 0) { cell.trSet++; cell.trTurnsSum += b.trTurns; }
@@ -218,16 +239,22 @@ if (jsErrors.length > 0) {
 // Write full matrix to JSON for deeper analysis
 fs.writeFileSync(require('path').join(__dirname, 'audit_matrix.json'), JSON.stringify({
   timestamp: new Date().toISOString(),
+  engineVersion: ENGINE_VERSION,
+  rulesetId: 'champions_reg_m_a_2026',
   teams: available,
   N, format: FORMAT,
   totalBattles, totalErrors, elapsed, mirrorFlags,
-  matrix, winConditionCounts, jsErrors: jsErrors.slice(0,50)
+  matrix, winConditionCounts, legalityWarnings, jsErrors: jsErrors.slice(0,50)
 }, null, 2));
 console.log('\n[wrote tests/audit_matrix.json]');
 
 const hardFailFlags = mirrorFlags.filter(function(f) { return f.severity === 'fail'; });
-if (hardFailFlags.length > 0) {
-  console.error('\nFATAL: mirror-match win-rate hard failures detected:');
+const fatalReasons = [];
+if (hardFailFlags.length > 0) fatalReasons.push('mirror-match win-rate hard failures');
+if (totalErrors > 0) fatalReasons.push(totalErrors + ' simulation error(s)');
+if (totalBattles !== expectedBattles) fatalReasons.push('completed ' + totalBattles + ' of ' + expectedBattles + ' planned battles');
+if (fatalReasons.length > 0) {
+  console.error('\nFATAL: battle audit failed: ' + fatalReasons.join('; '));
   hardFailFlags.forEach(function(f){
     console.error(`  ${f.team}: ${f.winRate}% (${f.wins}w/${f.losses}l/${f.draws}d)`);
   });

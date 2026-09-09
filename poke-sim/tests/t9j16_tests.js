@@ -210,9 +210,9 @@ T('C2.  protect-pp-burn - skips with only 1 Protect user', () => {
 });
 
 // 2. fake-out-illegal-timing
-T('C3.  fake-out-illegal-timing - fires when FO user not in leads', () => {
+T('C3. Fake Out absence from leads cannot prove a timing mistake', () => {
   const c = makeCtx({ members: [makeMember({ name:'Incineroar', moves:['Fake Out'] })], lead_top: ['OtherMon','OtherTwo'] });
-  truthy(ruleFires('fake-out-illegal-timing', c));
+  falsy(ruleFires('fake-out-illegal-timing', c));
 });
 T('C4.  fake-out-illegal-timing - skips when FO user IS in leads', () => {
   const c = makeCtx({ members: [makeMember({ name:'Incineroar', moves:['Fake Out'] })], lead_top: ['Incineroar'] });
@@ -220,9 +220,9 @@ T('C4.  fake-out-illegal-timing - skips when FO user IS in leads', () => {
 });
 
 // 3. redirection-vs-spread
-T('C5.  redirection-vs-spread - fires with spread but no redirect (doubles)', () => {
+T('C5. Spread moves without an allied redirector cannot prove a targeting mistake', () => {
   const c = makeCtx({ members: [makeMember({ name:'A', moves:['Earthquake'] })], format: 'doubles' });
-  truthy(ruleFires('redirection-vs-spread', c));
+  falsy(ruleFires('redirection-vs-spread', c));
 });
 T('C6.  redirection-vs-spread - skips when redirect present', () => {
   const c = makeCtx({ members: [makeMember({ name:'A', moves:['Earthquake'] }), makeMember({ name:'B', moves:['Follow Me'] })], format: 'doubles' });
@@ -521,5 +521,36 @@ T('H2. _renderT9j16PdfSections - includes all 6 expected section headers', () =>
   ['TEAM IDENTITY','PILOT PLAN','ELITE DECISION ANALYSIS','TREND ANALYSIS','COACH'].forEach(h => inc(html, h));
 });
 
+T('OODA identity: each stat edit invalidates reports in both formats', () => {
+  const original = JSON.parse(JSON.stringify(TEAMS.player));
+  try {
+    for (const format of ['singles', 'doubles']) {
+      for (const [field, value] of [['nature','Timid'], ['level',49], ['evs',{hp:1}], ['ivs',{spe:0}], ['sp',{spe:12}]]) {
+        TEAMS.player = JSON.parse(JSON.stringify(original));
+        csClearStrategyReportCache();
+        const before = buildStrategyReport('player', {}, format);
+        TEAMS.player.members[0][field] = value;
+        const after = buildStrategyReport('player', {}, format);
+        falsy(before === after, format + ' stale ' + field);
+      }
+    }
+  } finally { TEAMS.player = original; csClearStrategyReportCache(); }
+});
+T('OODA identity: identical separately registered teams keep their own report ID', () => {
+  TEAMS.audit_clone = JSON.parse(JSON.stringify(TEAMS.player));
+  try {
+    csClearStrategyReportCache();
+    buildStrategyReport('player', {}, 'doubles');
+    eq(buildStrategyReport('audit_clone', {}, 'doubles').team_key, 'audit_clone');
+  } finally { delete TEAMS.audit_clone; csClearStrategyReportCache(); }
+});
+T('OODA identity: Mega advice changes with team edits', () => {
+  const original = JSON.parse(JSON.stringify(TEAMS.player));
+  try {
+    const before = ctx.megaTriggerCacheKey('player','player',3,'doubles');
+    TEAMS.player.members[0].nature = 'Timid';
+    falsy(before === ctx.megaTriggerCacheKey('player','player',3,'doubles'));
+  } finally { TEAMS.player = original; }
+});
 console.log(`\nT9j.16 Results: ${pass} pass, ${fail} fail\n`);
 process.exit(fail > 0 ? 1 : 0);

@@ -1,6 +1,7 @@
 // T9j.6 — Items pass tests (#29 #8 #18 #11 #43)
 // Covers: Leftovers, Focus Sash, Choice Scarf lock, stat-stage reset on switch,
-// and regression of removed placeholders (Band/Specs/AV/Life Orb absent).
+// and regression of removed placeholders. Some items such as Life Orb are now
+// Reg M-B review candidates, but their runtime effects remain unpromoted.
 const fs = require('fs');
 const vm = require('vm');
 const path = require('path');

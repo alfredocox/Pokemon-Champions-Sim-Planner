@@ -1,10 +1,10 @@
 # Pokémon Champion 2026 — VGC Team Simulator
 
-A production-grade VGC competitive team simulator for April 2026 meta play. Built as a fully offline-capable PWA with a static-site deployment path and optional Supabase-backed user features.
+A Pokemon Champions competitive team simulator under evidence-gated development for 2026 doubles play. It is a fully offline-capable PWA with a static-site deployment path and optional Supabase-backed user features; current regulation data remains review-gated rather than advertised as complete.
 
 **Live public site:** https://theyfactora12.github.io/Pokemon-Champions-Sim-Planner/
 
-**Live single-file app:** [`pokemon-champion-2026.html`](./poke-sim/pokemon-champion-2026.html) — open in any browser, works offline.
+**App entry point:** [`pokemon-champion-2026.html`](./poke-sim/pokemon-champion-2026.html). Serve the `poke-sim` directory with its `generated` and `assets` directories intact. The HTML alone is not a complete offline download; offline PWA use requires a successful initial asset cache.
 
 ## Where the App Lives (Shareable URLs)
 
@@ -34,7 +34,7 @@ This project should ship as a public site first, then add optional accounts, don
 - Subscription: for saved history, deeper analysis, and repeat workflow value, not for basic simulator trust.
 - Coaching: separate premium human service layered on top of replay evidence and Battle Sensei outputs.
 
-See [ROADMAP.md](./ROADMAP.md) `M6 Release Track` for the step-by-step launch, security, ownership, and revenue plan.
+See [ROADMAP.md](./ROADMAP.md#release-alignment) for reviewed release gates; optional revenue features remain deferred behind trust and demonstrated player value.
 
 ---
 
@@ -47,7 +47,7 @@ Pokemon-Champions-Sim-Planner/
 ├── MASTER_PROMPT.md                   ← Copy-paste prompt for new AI sessions
 ├── index.html                         ← Landing redirect to bundle
 └── poke-sim/                          ← App sources + bundle
-    ├── pokemon-champion-2026.html     ← Self-contained single-file bundle (~400 KB)
+    ├── pokemon-champion-2026.html     ← HTML bundle; requires generated data and assets
     ├── index.html                     ← App shell, tabs, PWA meta
     ├── style.css                      ← Mobile-first dark theme
     ├── data.js                        ← BASE_STATS, TEAMS (29), POKEMON_TYPES_DB (700+)
@@ -114,7 +114,7 @@ node tests/audit.js            # 5070 battles, 0 errors
 N=500 node tests/nightly_bring_harness.js   # end-to-end bring picker wiring check
 ```
 
-Current review baseline: `npm run test:fast` passes all non-DB suites, with live DB suites skipped unless credentials are explicitly enabled. The latest local Showdown DB review run passed 84 non-DB test files, skipped 14 DB-gated files, and reported 0 failures.
+Current evidence belongs in [STATUS.md](STATUS.md) and its linked dated reports. `npm run test:fast` runs the non-DB gate; `npm test` adds offline/mock DB checks. Live verification requires explicit configuration and cannot be inferred from either command passing.
 
 When a change touches Showdown source data, generated runtime artifacts, fallback stats/types, or DB-generation wiring, also run `npm run test:source-truth` from `poke-sim/`. That is the focused drift guardrail suite for source-truth changes.
 
@@ -123,26 +123,11 @@ When a change touches Showdown source data, generated runtime artifacts, fallbac
 ## Rebuild Bundle (after any source file change)
 
 ```bash
-cd poke-sim && python3 -c "
-import re, os
-with open('index.html','r') as f: html=f.read()
-with open('style.css','r') as f: css=f.read()
-with open('data.js','r') as f: data=f.read()
-with open('engine.js','r') as f: engine=f.read()
-with open('ui.js','r') as f: ui=f.read()
-html=html.replace('<script src=\"data.js\"></script>','')
-html=html.replace('<script src=\"engine.js\"></script>','')
-html=html.replace('<script src=\"ui.js\"></script>','')
-html=html.replace('<link rel=\"stylesheet\" href=\"style.css\"/>','')
-html=re.sub(r'<script>\nif \(.serviceWorker.\).*?</script>','',html,flags=re.DOTALL)
-html=html.replace('<link rel=\"manifest\" href=\"manifest.json\"/>','')
-html=html.replace('<link rel=\"apple-touch-icon\" href=\"icon-192.png\"/>','')
-html=html.replace('</head>','<style>\n'+css+'\n</style>\n</head>')
-html=html.replace('</body>','<script>\n'+data+'\n\n'+engine+'\n\n'+ui+'\n</script>\n</body>')
-with open('pokemon-champion-2026.html','w') as f: f.write(html)
-print(f'Bundle: {os.path.getsize(\"pokemon-champion-2026.html\"):,} bytes')
-"
+cd poke-sim
+python tools/build-bundle.py
 ```
+
+Use the canonical builder for module inclusion, inline-script escaping, and release-manifest handling. Do not use the historical three-script inline recipe. Building locally is not deployment; follow the current gates in `STATUS.md` before publishing.
 
 ---
 

@@ -47,4 +47,5 @@ if [ "$ARTIFACT_SHA" != "$ACTUAL" ]; then
   exit 1
 fi
 
+node "$REPO_ROOT/poke-sim/tools/verify-release-assets.cjs"
 echo "Bundle is fresh -- pokemon-champion-2026.html matches source files."

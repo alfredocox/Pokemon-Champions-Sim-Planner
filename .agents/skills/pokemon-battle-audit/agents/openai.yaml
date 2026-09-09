@@ -1,0 +1,7 @@
+interface:
+  display_name: "Pokemon Battle Audit"
+  short_description: "Audits mechanics, parity, stress, and explicit gaps"
+  default_prompt: "Use $pokemon-battle-audit to test this battle behavior through deterministic fixtures, parity evidence, golden traces, seeded stress, and honest coverage gaps."
+
+policy:
+  allow_implicit_invocation: true

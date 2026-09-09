@@ -10,10 +10,5 @@
     ],
     "note": "As of this snapshot the curated-team + mega ability inventory has engine coverage. Pressure and Frisk are explicit current-sim no-ops because PP drain and hidden item reveal do not affect the current battle math."
   },
-  "classifications": {
-    "Regenerator": {
-      "category": "missing_battle_result_impacting",
-      "why": "Pokemon Showdown metadata says Regenerator restores one third max HP on switch-out. The current sim has pivot/switch paths, but this heal is not modeled yet, so teams using Amoonguss must keep this as an explicit mechanics gap until switch-out healing evidence exists."
-    }
-  }
+  "classifications": {}
 }

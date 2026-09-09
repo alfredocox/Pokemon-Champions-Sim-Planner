@@ -176,8 +176,8 @@ T('4. formerly high-impact shipped ability gaps stay modeled', function() {
   });
 });
 
-T('5. Pressure and Frisk stay modeled as current-sim no-op abilities', function() {
-  truthy(modeled.has('Pressure'), 'Pressure should remain an explicit modeled no-op while PP is unmodeled');
+T('5. Pressure stays modeled through PP and Frisk remains an explicit information-only ability', function() {
+  truthy(modeled.has('Pressure'), 'Pressure should remain modeled by PP consumption');
   truthy(modeled.has('Frisk'), 'Frisk should remain an explicit modeled no-op while items are visible');
 });
 

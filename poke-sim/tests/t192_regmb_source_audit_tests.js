@@ -147,6 +147,43 @@ T('5. unreviewed Reg M-B stones are not added by assumption', () => {
   });
 });
 
+T('5b. Reg M-B item candidates are editor-review rows, not legal promotion rows', () => {
+  truthy(legality.CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES, 'missing Reg M-B review item set');
+  [
+    'Life Orb',
+    'Light Clay',
+    'Expert Belt',
+    'Raichunite X',
+    'Raichunite Y',
+    'Staraptite',
+    'Scolipite',
+    'Scraftinite',
+    'Barbaracite',
+    'Dragalgite',
+    'Falinksite'
+  ].forEach((item) => {
+    truthy(legality.CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES.has(item), 'missing Reg M-B review candidate ' + item);
+    truthy(!legality.CHAMPIONS_LEGAL_ITEMS.has(item), 'review candidate should not be promoted to implemented legal items: ' + item);
+  });
+  const verdict = legality.validateChampionsLegality({ format: 'champions', members: [{
+    name: 'Garchomp',
+    item: 'Life Orb',
+    ability: 'Rough Skin',
+    moves: ['Earthquake']
+  }] });
+  truthy(verdict.violations.some((v) => v.code === 'REGMB_ITEM_REVIEW_ONLY' && v.severity === 'warning'), 'Life Orb should be review-only warning');
+});
+
+T('5c. Reg M-B ability candidates include all Champion new-ability rows', () => {
+  inc(data, 'CHAMPIONS_REGMB_REVIEW_ABILITY_CANDIDATES');
+  ['Piercing Drill', 'Dragonize', 'Eelevate', 'Mega Sol', 'Fire Mane', 'Spicy Spray', 'Unseen Fist'].forEach((ability) => {
+    inc(data, ability, 'missing Reg M-B ability candidate ' + ability);
+  });
+  inc(data, 'reviewOnly:true');
+  inc(ui, 'editor-ability-list');
+  inc(ui, 'Reg M-B review candidate');
+});
+
 T('6. structured conversion ledger keeps Reg M-B rows blocked until fully sourced', () => {
   truthy(conversion.rulesetId === 'champions_reg_m_b_doubles_bo3_source_review', 'wrong ruleset id');
   truthy(conversion.runtimePromotionAllowed === false, 'Reg M-B should not be runtime-promotable yet');
@@ -201,13 +238,13 @@ T('8. ruleset lifecycle blocks source-review teams from trusted legality', () =>
   truthy(result.violations.some((v) => v.code === 'RULESET_NOT_RUNTIME_PROMOTED'), 'missing source-review violation');
 });
 
-T('9. implemented historical lane remains legal-sim eligible when team passes', () => {
+T('9. legacy historical catalog compatibility does not approve regulation evidence', () => {
   const policy = rulesets.getRulesetEvidencePolicy('champions_reg_m_a_2026');
   truthy(policy.runtime_promotable === true, 'Reg M-A historical lane should remain replay/sim eligible');
-  truthy(policy.poisoning_guard === 'trusted_stats_allowed', 'historical lane should allow labeled trusted stats');
+  truthy(policy.poisoning_guard !== 'trusted_stats_allowed', 'unapproved historical package must block trusted stats');
   const result = legality.validateTeamForRuleset({ members: [] }, 'champions_reg_m_a_2026');
   truthy(result.allowed === true, 'empty valid team fixture should pass historical wrapper');
-  truthy(result.poisoning_guard === 'trusted_stats_allowed', 'historical wrapper should allow trusted stats');
+  truthy(result.poisoning_guard !== 'trusted_stats_allowed', 'legacy wrapper must not allow trusted stats');
 });
 
 T('10. analysis payload carries ruleset poisoning guard metadata', () => {

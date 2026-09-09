@@ -84,9 +84,11 @@ T('4. builds a coaching review with tags and critical turn', () => {
   includes(tags, 'Speed Control Without Pressure', 'speed control tag');
   includes(tags, 'Win Condition Exposed', 'win condition tag');
   includes(tags, 'RNG Materiality Check', 'rng tag');
-  ['bad_lead', 'speed_control_without_pressure', 'targeting_error', 'field_control_failure', 'protect_misuse', 'switch_tempo_loss', 'win_condition_exposed', 'rng_material', 'endgame_misplay'].forEach((id) => {
+  ['bad_lead', 'speed_control_without_pressure', 'targeting_error', 'protect_misuse', 'switch_tempo_loss', 'win_condition_exposed', 'rng_material'].forEach((id) => {
     includes(ids, id, 'coaching rule id');
   });
+  truthy(!ids.includes('field_control_failure'), 'own Tailwind is a recorded field response, not absent field control');
+  truthy(!ids.includes('endgame_misplay'), 'a loss alone does not prove an endgame mistake');
   truthy(ids.length >= 5, 'detects at least five rule ids');
   analysis.review.coachingTags.forEach((tag) => {
     truthy(tag.whatHappened, 'tag what happened');
@@ -111,9 +113,11 @@ T('6. fails soft on empty or incomplete logs', () => {
   const empty = replayCoach.parseShowdownLog('', { selectedSide: 'p1' });
   eq(empty.ok, false, 'empty ok flag');
   truthy(empty.warnings.length > 0, 'empty warnings');
-  const partial = replayCoach.analyzeShowdownReplay('|player|p1|Alice\n|win|Alice', { selectedSide: 'p1' });
-  eq(partial.review.summary.result, 'win', 'partial winner result');
-  eq(partial.review.summary.confidence, 'medium', 'partial confidence');
+  const partial = replayCoach.parseShowdownLog('|player|p1|Alice\n|win|Alice', { selectedSide: 'p1' });
+  eq(partial.result, 'win', 'partial winner metadata is preserved');
+  let rejected = false;
+  try { replayCoach.buildReplayCoachReview(partial); } catch (e) { rejected = /No battle events/.test(e.message); }
+  truthy(rejected, 'winner-only metadata must not produce coaching');
 });
 
 T('7. marks partial bring-four evidence without overclaiming', () => {
@@ -298,7 +302,7 @@ T('14. recognizes same-turn Tailwind neutralization', () => {
   eq(turn.stateShift, 'Speed control neutralized', 'turn state shift');
 });
 
-T('15. recognizes deferred payoff within three turns', () => {
+T('15. delayed HP events remain observations rather than proven speed-control payoff', () => {
   const log = [
     '|player|p1|Alice',
     '|player|p2|Bob',
@@ -321,10 +325,11 @@ T('15. recognizes deferred payoff within three turns', () => {
   ].join('\n');
   const analysis = replayCoach.analyzeShowdownReplay(log, { selectedSide: 'p1' });
   const ids = analysis.review.coachingTags.map((tag) => tag.id);
-  includes(ids, 'deferred_payoff', 'deferred payoff tag');
+  if (ids.includes('speed_control_pressure_observed')) throw new Error('observations must not become scored coaching issues');
+  if (ids.includes('deferred_payoff')) throw new Error('temporal proximity does not prove payoff');
   if (ids.includes('speed_control_without_pressure')) throw new Error('deferred payoff should not be penalized as no-pressure speed control');
   const turn = analysis.review.turnTimeline.find((row) => row.turn === 1);
-  eq(turn.stateShift, 'Setup paid off later', 'turn state shift');
+  eq(turn.stateShift, 'Speed control and HP changes observed', 'turn state shift');
 });
 
 T('16. recognizes complementary setup turn payoff', () => {
@@ -347,9 +352,10 @@ T('16. recognizes complementary setup turn payoff', () => {
   ].join('\n');
   const analysis = replayCoach.analyzeShowdownReplay(log, { selectedSide: 'p1' });
   const ids = analysis.review.coachingTags.map((tag) => tag.id);
-  includes(ids, 'complementary_turn_payoff', 'complementary payoff tag');
+  if (ids.includes('setup_pressure_observed')) throw new Error('observations must not become scored coaching issues');
+  if (ids.includes('complementary_turn_payoff')) throw new Error('later events do not prove setup payoff');
   const turn = analysis.review.turnTimeline.find((row) => row.turn === 1);
-  eq(turn.stateShift, 'Complementary turn paid off', 'turn state shift');
+  eq(turn.stateShift, 'Setup and later HP changes observed', 'turn state shift');
 });
 
 T('17. recognizes planned speed transition after Trick Room ends from structured speed evidence', () => {
@@ -431,7 +437,8 @@ T('18. structures real-match protocol rows used by coaching feed', () => {
   truthy(turn1.effectiveness.some((row) => row.type === 'resisted' && row.pokemon === 'Sneasler'), 'resisted row missing');
   truthy(turn1.items.some((row) => row.type === 'item' && row.item === 'Sitrus Berry'), 'item row missing');
   truthy(turn1.items.some((row) => row.type === 'enditem' && row.item === 'Sitrus Berry'), 'enditem row missing');
-  truthy(turn1.items.some((row) => row.type === 'activate' && /Rough Skin/.test(row.item)), 'activate row missing');
+  truthy(turn1.abilities.some((row) => /Rough Skin/.test(row.ability)), 'ability activation missing');
+  truthy(!turn1.items.some((row) => /Rough Skin/.test(row.item)), 'ability must not become item evidence');
   const review = replayCoach.buildReplayCoachReview(parsed, { selectedSide: 'p1' });
   truthy(review.actionDenialCards.some((row) => row.reason === 'flinch' && row.move === 'Eruption'), 'action denial card missing');
   truthy(review.abilityItemImpactCards.some((row) => row.kind === 'ability' && row.sourceName === 'Intimidate'), 'ability impact card missing');

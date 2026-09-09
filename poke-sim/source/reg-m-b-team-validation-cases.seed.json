@@ -1,0 +1,169 @@
+[
+  {
+    "case_id": "TEAM-ACCEPT-001",
+    "case_type": "positive_control",
+    "regulation_set": "Regulation Set M-B",
+    "game": "Pokémon Champions",
+    "expected_validation": "accepted",
+    "current_state": "fixture_seed_only_not_verified",
+    "purpose": "Record one complete team that Pokémon Champions accepts under Regulation M-B.",
+    "construction_rule": "Populate after C003/C004 eligibility proof. Use only species/forms shown as eligible in-game. Keep a screenshot/video trail from team builder to validation.",
+    "team_slots": [
+      {
+        "slot": 1,
+        "species": "TBD_ELIGIBLE_SPECIES_1",
+        "form": "TBD_EXACT_FORM_OR_NONE",
+        "held_item": "TBD_ALLOWED_ITEM_1",
+        "ability": "TBD",
+        "moves": [
+          "TBD",
+          "TBD",
+          "TBD",
+          "TBD"
+        ],
+        "notes": "Fill from accepted validation capture."
+      },
+      {
+        "slot": 2,
+        "species": "TBD_ELIGIBLE_SPECIES_2",
+        "form": "TBD_EXACT_FORM_OR_NONE",
+        "held_item": "TBD_ALLOWED_ITEM_2",
+        "ability": "TBD",
+        "moves": [
+          "TBD",
+          "TBD",
+          "TBD",
+          "TBD"
+        ],
+        "notes": "Fill from accepted validation capture."
+      },
+      {
+        "slot": 3,
+        "species": "TBD_ELIGIBLE_SPECIES_3",
+        "form": "TBD_EXACT_FORM_OR_NONE",
+        "held_item": "TBD_ALLOWED_ITEM_3",
+        "ability": "TBD",
+        "moves": [
+          "TBD",
+          "TBD",
+          "TBD",
+          "TBD"
+        ],
+        "notes": "Fill from accepted validation capture."
+      },
+      {
+        "slot": 4,
+        "species": "TBD_ELIGIBLE_SPECIES_4",
+        "form": "TBD_EXACT_FORM_OR_NONE",
+        "held_item": "TBD_ALLOWED_ITEM_4",
+        "ability": "TBD",
+        "moves": [
+          "TBD",
+          "TBD",
+          "TBD",
+          "TBD"
+        ],
+        "notes": "Fill from accepted validation capture."
+      },
+      {
+        "slot": 5,
+        "species": "TBD_ELIGIBLE_SPECIES_5",
+        "form": "TBD_EXACT_FORM_OR_NONE",
+        "held_item": "TBD_ALLOWED_ITEM_5",
+        "ability": "TBD",
+        "moves": [
+          "TBD",
+          "TBD",
+          "TBD",
+          "TBD"
+        ],
+        "notes": "Fill from accepted validation capture."
+      },
+      {
+        "slot": 6,
+        "species": "TBD_ELIGIBLE_SPECIES_6",
+        "form": "TBD_EXACT_FORM_OR_NONE",
+        "held_item": "TBD_ALLOWED_ITEM_6",
+        "ability": "TBD",
+        "moves": [
+          "TBD",
+          "TBD",
+          "TBD",
+          "TBD"
+        ],
+        "notes": "Fill from accepted validation capture."
+      }
+    ],
+    "evidence_required": [
+      "C001",
+      "C003",
+      "C004",
+      "C007",
+      "C008",
+      "C010"
+    ],
+    "source_ids": [
+      "SRC-INGAME-001",
+      "SRC-INGAME-002",
+      "SRC-INGAME-003",
+      "SRC-INGAME-004"
+    ],
+    "red_lines": [
+      "Do not assert this team is legal until C008 shows accepted status.",
+      "Do not infer forms from species names.",
+      "Do not use community sites as final proof of team legality."
+    ]
+  },
+  {
+    "case_id": "TEAM-REJECT-001",
+    "case_type": "negative_control",
+    "regulation_set": "Regulation Set M-B",
+    "game": "Pokémon Champions",
+    "expected_validation": "rejected",
+    "current_state": "fixture_seed_only_not_verified",
+    "purpose": "Record one complete team that Pokémon Champions rejects under Regulation M-B, preferably by mutating exactly one field from TEAM-ACCEPT-001.",
+    "construction_rule": "Clone TEAM-ACCEPT-001 after it is accepted. Change exactly one rule-sensitive element. Capture the validation rejection and exact reason text.",
+    "preferred_mutations": [
+      {
+        "mutation_id": "MUT-001",
+        "mutation": "Duplicate held item",
+        "use_only_if": "C001 rules screen or C009 rejection reason confirms duplicate held items are not allowed under Regulation M-B.",
+        "expected_rejection_reason": "TBD exact in-game text"
+      },
+      {
+        "mutation_id": "MUT-002",
+        "mutation": "Swap one slot to an ineligible species/form",
+        "use_only_if": "C003/C004 eligible list proves the swapped species/form is not eligible or the validation message says it is not eligible.",
+        "expected_rejection_reason": "TBD exact in-game text"
+      },
+      {
+        "mutation_id": "MUT-003",
+        "mutation": "Remove/change required Mega Stone from a Mega-intended slot",
+        "use_only_if": "C005/C007 proves the team is relying on a Mega requirement and C009 gives a rejection reason.",
+        "expected_rejection_reason": "TBD exact in-game text"
+      }
+    ],
+    "team_slots": "Clone TEAM-ACCEPT-001, then apply one preferred_mutation only.",
+    "evidence_required": [
+      "C001",
+      "C003",
+      "C004",
+      "C007",
+      "C008",
+      "C009",
+      "C010"
+    ],
+    "source_ids": [
+      "SRC-INGAME-001",
+      "SRC-INGAME-002",
+      "SRC-INGAME-003",
+      "SRC-INGAME-004",
+      "SRC-INGAME-005"
+    ],
+    "red_lines": [
+      "Do not create multiple simultaneous invalid changes.",
+      "Do not write a rejection reason unless the game displays it.",
+      "Do not call the mutation illegal unless supported by C001 or C009."
+    ]
+  }
+]

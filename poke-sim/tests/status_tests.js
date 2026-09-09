@@ -65,14 +65,14 @@ T('5. Toxic inflict via move sets counter=1 is handled in spec (counter set on m
 T('6. Tick 1 dmg = floor(maxHp*1/16)', () => {
   const m = mk('Garchomp'); m.status = 'toxic'; m.toxicCounter = 1;
   const n = Math.min(15, m.toxicCounter);
-  const dmg = Math.max(1, Math.floor(m.maxHp * n / 16));
+  const dmg = Math.max(1, Math.floor(m.maxHp / 16)) * n;
   eq(dmg, Math.floor(m.maxHp / 16), 'tick 1');
 });
 T('7. Tick 3 dmg = floor(maxHp*3/16)', () => {
   const m = mk('Garchomp'); m.toxicCounter = 3;
   const n = Math.min(15, m.toxicCounter);
-  const dmg = Math.max(1, Math.floor(m.maxHp * n / 16));
-  eq(dmg, Math.floor(m.maxHp * 3 / 16));
+  const dmg = Math.max(1, Math.floor(m.maxHp / 16)) * n;
+  eq(dmg, Math.max(1, Math.floor(m.maxHp / 16)) * 3);
 });
 T('8. Cap at N=15', () => {
   const m = mk('Garchomp'); m.toxicCounter = 20;

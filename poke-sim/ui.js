@@ -1,5 +1,6 @@
 // ============================================================
 // POKE-E-SIM CHAMPION 2026 — UI CONTROLLER
+// Build marker: v2.2.163-mc-evidence-intake
 // ============================================================
 
 // ---- Theme Toggle ----
@@ -40,7 +41,7 @@ var UILog = ChampionsSim.logger.for ? ChampionsSim.logger.for('ui') : ChampionsS
 // ui.js without the documented app-shell script order.
 var csSpriteFallbackAttrs = (typeof csSpriteFallbackAttrs === 'function') ? csSpriteFallbackAttrs : function() { return ''; };
 var csInitPublicSecurityDelegates = (typeof csInitPublicSecurityDelegates === 'function') ? csInitPublicSecurityDelegates : function() {};
-var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.98-github-release-guard'; };
+var csGetBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId : function() { return 'v2.2.163-mc-evidence-intake'; };
 var csApplyReleaseManifestToHeader = (typeof csApplyReleaseManifestToHeader === 'function') ? csApplyReleaseManifestToHeader : function() {};
 var csReloadAfterBuildCacheReset = (typeof csReloadAfterBuildCacheReset === 'function') ? csReloadAfterBuildCacheReset : function() { return false; };
 var csGetSourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl : function() { return null; };
@@ -197,6 +198,7 @@ function _activateTab(tabId, opts) {
   btn.setAttribute('aria-controls', 'tab-' + tabId);
   if (!btn.id) btn.id = 'tab-btn-' + tabId;
   panel.setAttribute('aria-labelledby', btn.id);
+  if (opts && opts.focusPanel && typeof panel.focus === 'function') panel.focus();
   if ((tabId === 'replays' || tabId === 'replay') && typeof loadAnalysisHistory === 'function') {
     loadAnalysisHistory(typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player');
   }
@@ -336,6 +338,117 @@ document.addEventListener('keydown', _handleModalKeydown, true);
 // ---- Format Toggle (Doubles / Singles) ----
 let currentFormat = 'doubles';
 let currentRuleset = 'champions';
+var selectedRegulationId = 'champions_custom_practice';
+var showUnavailableRegulationChoices = false;
+function getSelectedRegulationId() { return selectedRegulationId; }
+function setSelectedRegulationId(id) {
+  if (typeof simRunning !== 'undefined' && simRunning) { refreshRegulationControls(); return false; }
+  selectedRegulationId = String(id == null ? '' : id);
+  try { Storage.set('regulation:selection:v1', { id: selectedRegulationId }); } catch (_e) {}
+  refreshRegulationControls();
+  if (typeof editingIdx !== 'undefined' && editingIdx !== null) refreshEditorMoveLegality();
+  return true;
+}
+function selectedRegulationCheck(team, bring) {
+  if (typeof checkTeamForSelectedRegulation !== 'function') return { status: 'not_verified', allowed: false, errors: [], source_gaps: ['Regulation validator unavailable.'] };
+  return checkTeamForSelectedRegulation(team, selectedRegulationId, { format: currentFormat, bo: currentBo, bring: bring });
+}
+function canRunRegulationAnalysis(playerTeam, opponentTeam) {
+  if (typeof checkTeamForSelectedRegulation !== 'function') return false;
+  return [playerTeam, opponentTeam].every(function(team) {
+    return selectedRegulationCheck(team).competitive_eligible === true;
+  });
+}
+function regulationCheckHtml(check) {
+  var label = check.status === 'experimental' ? 'Unverified practice only' : (check.status === 'illegal' ? 'Not compliant' : 'Not verified');
+  return '<strong>' + label + '</strong>' + (check.errors || []).concat(check.source_gaps || []).map(function(message) {
+    return '<div>' + _escapeHtml(message) + '</div>';
+  }).join('');
+}
+function hasDbTeamVersionIdentity(team) {
+  var metadata = team && team.metadata;
+  var profile = typeof getChampionsRuleset === 'function' ? getChampionsRuleset(team && team.ruleset_id) : null;
+  return !!(metadata && typeof metadata.schema_version === 'string' && metadata.schema_version &&
+    typeof metadata.build_id === 'string' && metadata.build_id &&
+    typeof metadata.ruleset_version === 'string' && metadata.ruleset_version &&
+    profile && profile.version && metadata.ruleset_version === profile.version);
+}
+function dbTeamCatalogBlockReasons(team, verdict) {
+  var reasons = [];
+  if (!team) return ['missing_team'];
+  if (team.source === 'retired_legacy' || (team.metadata && team.metadata.retired === true)) reasons.push('retired_row');
+  if (!Array.isArray(team.members) || team.members.length !== 6) reasons.push('incomplete_roster');
+  if (team.format !== 'champions') reasons.push('wrong_format');
+  if (team.legality_status !== 'legal') reasons.push('unapproved_legality_status');
+  if (verdict && !verdict.valid) reasons.push('legality_validation_failed');
+  if (!hasDbTeamVersionIdentity(team)) reasons.push('missing_or_mismatched_version_identity');
+  if (!reasons.length) reasons.push('not_approved_champion_team');
+  return reasons;
+}
+function summarizeDbTeamBlocks(blocked) {
+  return (blocked || []).reduce(function(out, row) {
+    (row.reasons || ['unknown']).forEach(function(reason) { out[reason] = (out[reason] || 0) + 1; });
+    return out;
+  }, {});
+}
+function refreshRegulationControls() {
+  if (typeof CHAMPIONS_RULESETS === 'undefined') return;
+  if (typeof applyLadderGate === 'function') applyLadderGate();
+  document.querySelectorAll('[data-regulation-select]').forEach(function(select) {
+    select.innerHTML = Object.values(CHAMPIONS_RULESETS).map(function(row) {
+      return '<option value="' + _escapeHtml(row.id) + '">' + _escapeHtml(row.selectorLabel || row.label) + '</option>';
+    }).join('');
+    if (!Object.prototype.hasOwnProperty.call(CHAMPIONS_RULESETS, selectedRegulationId)) {
+      select.insertAdjacentHTML('beforeend', '<option value="' + _escapeHtml(selectedRegulationId) + '">Unknown regulation</option>');
+    }
+    select.value = selectedRegulationId;
+  });
+  var player = typeof currentPlayerKey !== 'undefined' ? TEAMS[currentPlayerKey] : null;
+  var opponentSelect = document.getElementById('opponent-select');
+  var opponent = opponentSelect && TEAMS[opponentSelect.value];
+  var host = document.getElementById('sim-regulation-status');
+  if (host) host.innerHTML = '<div>Your team: ' + regulationCheckHtml(selectedRegulationCheck(player)) + '</div>' +
+    '<div>Opponent: ' + regulationCheckHtml(selectedRegulationCheck(opponent)) + '</div>' +
+    (typeof getChampionsRegulationCoverage === 'function' && getChampionsRegulationCoverage().status !== 'covered'
+      ? '<div class="regulation-coverage-warning"><strong>Current regulation not verified</strong><div>' + _escapeHtml(getChampionsRegulationCoverage().message) + '</div></div>'
+      : '') +
+    '<div class="regulation-mechanics-status">Mechanics: not verified against the complete game</div>';
+  var editorHost = document.getElementById('editor-regulation-status');
+  if (editorHost) editorHost.innerHTML = regulationCheckHtml(selectedRegulationCheck(player));
+  document.querySelectorAll('[data-regulation-unavailable]').forEach(function(input) { input.checked = showUnavailableRegulationChoices; });
+}
+function editorRegulationChoices(kind, species) {
+  return getRegulationChoices(kind, species, selectedRegulationId, showUnavailableRegulationChoices);
+}
+function renderRegulationDatalist(id, rows) {
+  var list = document.getElementById(id);
+  if (!list) return 0;
+  list.innerHTML = rows.map(function(row) {
+    return '<option value="' + _escapeHtml(row.name) + '" label="' + _escapeHtml(row.status === 'available' ? 'Historical M-A source pool' : row.status.replace('_', ' ')) + '"></option>';
+  }).join('');
+  return rows.length;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    var savedRegulation = Storage.get('regulation:selection:v1');
+    if (savedRegulation && typeof savedRegulation.id === 'string') selectedRegulationId = savedRegulation.id;
+  } catch (_e) {}
+  document.querySelectorAll('[data-regulation-select]').forEach(function(select) {
+    select.addEventListener('change', function() { setSelectedRegulationId(select.value); });
+  });
+  document.querySelectorAll('[data-regulation-unavailable]').forEach(function(input) {
+    input.addEventListener('change', function() {
+      showUnavailableRegulationChoices = input.checked;
+      refreshRegulationControls();
+      if (typeof editingIdx !== 'undefined' && editingIdx !== null) refreshEditorMoveLegality();
+    });
+  });
+  ['player-select', 'opponent-select'].forEach(function(id) {
+    var select = document.getElementById(id); if (select) select.addEventListener('change', refreshRegulationControls);
+  });
+  document.querySelectorAll('.fmt-btn, .bo-btn, #swap-teams-btn').forEach(function(button) { button.addEventListener('click', refreshRegulationControls); });
+  refreshRegulationControls();
+});
 function getCurrentRuleset() {
   return currentRuleset === 'sv' ? 'sv' : 'champions';
 }
@@ -512,10 +625,73 @@ function getChampionSpreadErrorsForTeam(team) {
   return errors;
 }
 
+var csMemberIdSequence = 0;
+function csNewMemberId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  csMemberIdSequence++;
+  return 'local-member-' + Date.now().toString(36) + '-' + csMemberIdSequence.toString(36) + '-' + Math.random().toString(36).slice(2);
+}
+
+function csMemberIdentityKey(member) {
+  var api = ChampionsSim && ChampionsSim.moveLegality;
+  if (!api || typeof api.canonicalSpeciesKey !== 'function') return '';
+  var name = api.canonicalSpeciesKey(member && member.name);
+  var species = member && member.species ? api.canonicalSpeciesKey(member.species) : name;
+  return name && species === name ? name : '';
+}
+
+function csReconcilePasteMembers(previous, incoming, options) {
+  options = options || {};
+  var errors = [], ids = new Set(), before = new Map(), after = new Map();
+  function group(rows, target) {
+    rows.forEach(function(member) {
+      var identity = csMemberIdentityKey(member);
+      if (!identity) errors.push('Every Pokemon needs a known, consistent species/form before editing.');
+      if (!target.has(identity)) target.set(identity, []);
+      target.get(identity).push(member);
+    });
+  }
+  if (!Array.isArray(previous) || !Array.isArray(incoming)) return { valid: false, members: [], errors: ['Invalid team member list.'] };
+  previous.forEach(function(member) {
+    if (!member || !member.member_id) return;
+    if (typeof member.member_id !== 'string' || ids.has(member.member_id)) errors.push('Existing Pokemon identities are invalid or duplicated; the team was not changed.');
+    ids.add(member.member_id);
+  });
+  group(previous, before);
+  group(incoming, after);
+  after.forEach(function(rows, identity) {
+    if (before.has(identity) && (rows.length !== 1 || before.get(identity).length !== 1)) {
+      errors.push(identity + ': ambiguous Pokemon identity in this paste; edit individual sets or import as a separate team.');
+    }
+  });
+  if (errors.length) return { valid: false, members: [], errors: Array.from(new Set(errors)) };
+  if (options.previewOnly) return { valid: true, members: [], errors: [] };
+  var members = incoming.map(function(member) {
+    var candidates = before.get(csMemberIdentityKey(member));
+    var original = candidates && candidates[0];
+    var merged = Object.assign({}, original || {}, member);
+    // Paste represents set fields, not registration IDs or non-paste annotations.
+    merged.member_id = original && original.member_id || (options.createId || csNewMemberId)();
+    if (typeof merged.member_id !== 'string' || !merged.member_id.trim()) errors.push('A valid Pokemon identity could not be allocated; the team was not changed.');
+    merged.species = member.name;
+    if (Object.prototype.hasOwnProperty.call(member, 'tera')) merged.teraType = merged.tera_type = member.tera || '';
+    if (original && !member.role && options.preserveRole !== false) merged.role = original.role || original.role_tag || '';
+    if (ids.has(merged.member_id) && !(original && original.member_id === merged.member_id)) {
+      errors.push('A new Pokemon identity collided; the team was not changed.');
+    }
+    ids.add(merged.member_id);
+    return merged;
+  });
+  return { valid: errors.length === 0, members: errors.length ? [] : members, errors: errors };
+}
+
+function csLearnsetOptionsForTeam(team) {
+  return { learnsetContext: team && team.format === 'champions' ? 'champions' : team && team.format === 'sv' ? 'historical' : null };
+}
+
 function buildImportedTeamValidation(members, opts) {
   opts = opts || {};
-  // Imports stay usable when source data is unavailable, but known illegal
-  // species/form move rows are hard errors so they cannot enter the sim.
+  // Editable input is not verified admission when source evidence is missing.
   var team = {
     name: opts.name || 'Imported Team',
     format: opts.format || 'champions',
@@ -527,7 +703,8 @@ function buildImportedTeamValidation(members, opts) {
     errors: [],
     warnings: [],
     sourceVersion: '',
-    memberWarnings: {}
+    memberWarnings: {},
+    sourceVerified: true
   };
   if ((opts.format || 'champions') === 'champions') {
     out.errors = out.errors.concat(buildChampionImportGateErrors(members));
@@ -544,39 +721,34 @@ function buildImportedTeamValidation(members, opts) {
   });
   if (typeof validateTeam === 'function') {
     try {
-      var verdict = validateTeam(team, getActiveValidationFormat(team)) || {};
+      var verdict = validateTeam(team, team.format) || {};
+      if (typeof verdict.valid !== 'boolean' || !Array.isArray(verdict.errors) ||
+          (verdict.valid === false && verdict.errors.length === 0)) throw new Error('Incomplete team verdict');
       out.errors = out.errors.concat(verdict.errors || []);
       out.warnings = out.warnings.concat(verdict.warnings || []);
     } catch (_e) {
       out.warnings.push('Team rules could not be fully checked.');
+      out.sourceVerified = false;
     }
-  }
-  var root = (typeof globalThis !== 'undefined') ? globalThis : (typeof window !== 'undefined' ? window : null);
-  var simRoot = (typeof ChampionsSim !== 'undefined') ? ChampionsSim : (root && root.ChampionsSim);
-  var api = simRoot && simRoot.moveLegality ? simRoot.moveLegality : null;
-  if (!api || typeof api.validateMovesForSet !== 'function') {
-    out.warnings.push('Showdown species and move legality data is not loaded.');
   } else {
-    (members || []).forEach(function(member, idx) {
-      var checks = api.validateMovesForSet(member || {});
-      checks.forEach(function(row) {
-        if (!out.sourceVersion && row.sourceVersion) out.sourceVersion = row.sourceVersion;
-        if (row.legal) return;
-        var label = (member && member.name ? member.name : 'Pokemon') + ': ' + (row.moveName || 'unknown move') + ' - ' + (row.notes || row.reason || 'not verified');
-        var severity = getMoveLegalityIssueSeverity(row.reason);
-        if (severity === 'error') out.errors.push(label);
-        else out.warnings.push(label);
-        out.memberWarnings[String(idx)] = out.memberWarnings[String(idx)] || [];
-        out.memberWarnings[String(idx)].push({
-          severity: severity,
-          text: label
-        });
-      });
-    });
+    out.sourceVerified = false;
+    out.warnings.push('Team validator is unavailable.');
   }
+  var sourceIssues = collectTeamMoveLegalityIssues(team);
+  out.sourceVersion = sourceIssues.sourceVersion || '';
+  sourceIssues.forEach(function(issue) {
+    if (issue.severity === 'unchecked') out.sourceVerified = false;
+    if (issue.severity === 'error') out.errors.push(issue.label);
+    else out.warnings.push(issue.label);
+    if (issue.memberIndex !== undefined) {
+      var index = String(issue.memberIndex);
+      out.memberWarnings[index] = out.memberWarnings[index] || [];
+      out.memberWarnings[index].push({ severity: issue.severity, text: issue.label });
+    }
+  });
   out.errors = Array.from(new Set(out.errors.filter(Boolean)));
   out.warnings = Array.from(new Set(out.warnings.filter(Boolean)));
-  out.valid = out.errors.length === 0;
+  out.valid = out.errors.length === 0 && out.sourceVerified;
   return out;
 }
 
@@ -625,7 +797,7 @@ function csNormalizeMegaRuntimeMember(member) {
 }
 
 function getMoveLegalityIssueSeverity(reason) {
-  if (reason === 'source_unavailable') return 'unchecked';
+  if (['source_unavailable', 'learnset_context_unavailable', 'champions_pool_unavailable'].indexOf(reason) >= 0) return 'unchecked';
   if (reason === 'unknown_species' ||
       reason === 'unknown_move' ||
       reason === 'not_in_species_form_learnset') {
@@ -654,7 +826,8 @@ function exportTeamToPasteWithOptions(team, opts) {
     lines.push(`${m.name}${itemStr}`);
     if (m.ability) lines.push(`Ability: ${m.ability}`);
     lines.push(`Level: ${m.level || 50}`);
-    if (team.format !== 'champions' && m.tera) lines.push(`Tera Type: ${m.tera}`);
+    var teraType = m.teraType || m.tera_type || m.tera;
+    if (team.format !== 'champions' && teraType) lines.push(`Tera Type: ${teraType}`);
     // SPs — only non-zero
     const evs = m.evs || {};
     const evParts = [];
@@ -682,7 +855,10 @@ function typeColor(type) { return TYPE_COLORS[type] || '#888'; }
 // ROSTER RENDERING
 // ============================================================
 function getPokemonTypes(name) {
-  // Check POKEMON_TYPES_DB first (comprehensive), then BASE_STATS, then fallback
+  const source = typeof _showdownSpeciesBase === 'function' ? _showdownSpeciesBase(name) : null;
+  if (source && Array.isArray(source.types) && source.types.length) return source.types.slice();
+  if (typeof name !== 'string' || !name) return [];
+  // Exact legacy/custom rows may backfill missing generated data, not invent it.
   if (typeof POKEMON_TYPES_DB !== 'undefined' && POKEMON_TYPES_DB[name]) return POKEMON_TYPES_DB[name];
   const base = BASE_STATS[name];
   if (base && base.types) return base.types;
@@ -691,7 +867,7 @@ function getPokemonTypes(name) {
     const key = Object.keys(POKEMON_TYPES_DB).find(k => k.toLowerCase() === name.toLowerCase());
     if (key) return POKEMON_TYPES_DB[key];
   }
-  return ['Normal']; // last resort
+  return [];
 }
 
 function renderRoster(containerId, members) {
@@ -714,7 +890,7 @@ function renderRoster(containerId, members) {
         <div class="poke-moves">${escMoves}</div>
       </div>
       <div class="type-chips">
-        ${types.map(t=>`<span class="type-chip" style="background:${typeColor(t)}20;color:${typeColor(t)};border:1px solid ${typeColor(t)}40">${_escapeHtml(t)}</span>`).join('')}
+        ${types.length ? types.map(t=>`<span class="type-chip" style="background:${typeColor(t)}20;color:${typeColor(t)};border:1px solid ${typeColor(t)}40">${_escapeHtml(t)}</span>`).join('') : '<span class="type-chip">Unknown type</span>'}
       </div>
       <button class="team-mon-detail-btn" type="button" data-team="${containerId === 'player-roster' ? currentPlayerKey : (document.getElementById('opponent-select') ? document.getElementById('opponent-select').value : '')}" data-mon="${escName}" title="View full stat details">Stats</button>`;
     el.appendChild(row);
@@ -743,9 +919,11 @@ function normalizeTeamRecordForSim(teamKey, team) {
   team.metadata = team.metadata || {};
   if (!Array.isArray(team.members)) team.members = [];
 
-  var rulesetId = team.ruleset_id || team.metadata.ruleset_id || 'champions_reg_m_doubles_bo3';
-  team.ruleset_id = team.ruleset_id || rulesetId;
-  team.metadata.ruleset_id = team.metadata.ruleset_id || rulesetId;
+  var rulesetId = team.ruleset_id || team.metadata.ruleset_id || '';
+  if (rulesetId) {
+    team.ruleset_id = team.ruleset_id || rulesetId;
+    team.metadata.ruleset_id = team.metadata.ruleset_id || rulesetId;
+  }
   var rulesetEvidence = typeof getRulesetEvidencePolicy === 'function'
     ? getRulesetEvidencePolicy(rulesetId)
     : null;
@@ -760,6 +938,13 @@ function normalizeTeamRecordForSim(teamKey, team) {
     team.metadata.coaching_policy = team.metadata.coaching_policy || rulesetEvidence.coaching_policy;
     team.metadata.poisoning_guard = team.metadata.poisoning_guard || rulesetEvidence.poisoning_guard;
     team.metadata.source_checked_at_utc = team.metadata.source_checked_at_utc || rulesetEvidence.source_checked_at_utc;
+    if (!rulesetEvidence.runtime_promotable) {
+      team.metadata.runtime_promotable = false;
+      team.metadata.ruleset_status = rulesetEvidence.ruleset_status;
+      team.metadata.learning_eligibility = rulesetEvidence.learning_eligibility;
+      team.metadata.data_policy = rulesetEvidence.data_policy;
+      team.metadata.poisoning_guard = rulesetEvidence.poisoning_guard;
+    }
   }
   var normalizedTags = Array.isArray(team.tags) ? team.tags.slice() : [];
   function addTeamTag(tag) {
@@ -787,9 +972,10 @@ function normalizeTeamRecordForSim(teamKey, team) {
       moves = moves.filter(function(move) { return move !== 'Tera Blast'; });
     }
     var teraType = championFormat ? '' : (member.teraType || member.tera_type || '');
-    return {
+    return Object.assign({}, member, {
       name: name,
       species: member.species || name,
+      member_id: member.member_id || null,
       item: member.item || '',
       ability: member.ability || '',
       nature: member.nature || '',
@@ -800,7 +986,7 @@ function normalizeTeamRecordForSim(teamKey, team) {
       teraType: teraType,
       tera_type: teraType,
       role: member.role || member.role_tag || ''
-    };
+    });
   });
   return team;
 }
@@ -815,10 +1001,11 @@ function removeTeamFromRuntimeCatalog(teamKey, team, verdict, reason) {
     format: team.format || '',
     legality_status: team.legality_status || '',
     reason: reason || 'not_approved_champion_legal',
+    retained_for_review: true,
     errors: verdict && Array.isArray(verdict.errors) ? verdict.errors.slice(0, 8) : [],
     warnings: verdict && Array.isArray(verdict.warnings) ? verdict.warnings.slice(0, 8) : []
   };
-  delete TEAMS[teamKey];
+  // Quarantine from runnable selections without destroying the editable record.
   return true;
 }
 
@@ -833,6 +1020,7 @@ function pruneRuntimeTeamCatalog() {
       : { valid: false, errors: ['Team legality validator is unavailable.'] };
     if (typeof isApprovedPreloadedChampionTeam === 'function' &&
         isApprovedPreloadedChampionTeam(key, team, verdict)) {
+      delete CS_REMOVED_TEAM_CATALOG[key];
       return;
     }
     if (removeTeamFromRuntimeCatalog(key, team, verdict, 'not_approved_champion_legal')) removed++;
@@ -860,6 +1048,7 @@ function isSimReadyTeam(teamKey, team, opts) {
   team = normalizeTeamRecordForSim(teamKey, team || ((typeof TEAMS !== 'undefined') ? TEAMS[teamKey] : null));
   opts = opts || {};
   if (!team || !team.name) return false;
+  // Catalog readiness is not selected-regulation approval. Preflight owns execution.
   if (opts.requireMembers !== false && (!Array.isArray(team.members) || team.members.length === 0)) return false;
   return isVisibleTeamInCatalog(teamKey, team, { includeCustom: opts.includeCustom !== false });
 }
@@ -908,7 +1097,7 @@ function getDefaultVisibleOpponentTeamKey(excludeKey) {
 }
 
 function mergeDbTeamsIntoCatalog(dbTeams) {
-  var summary = { added: 0, replaced: 0, skipped: 0, blocked: [] };
+  var summary = { added: 0, replaced: 0, skipped: 0, blocked: [], reason_counts: {} };
   if (!dbTeams || typeof TEAMS === 'undefined') return summary;
   for (var key in dbTeams) {
     if (!Object.prototype.hasOwnProperty.call(dbTeams, key)) continue;
@@ -917,13 +1106,14 @@ function mergeDbTeamsIntoCatalog(dbTeams) {
     var verdict = (typeof getTeamLegalityVerdict === 'function')
       ? getTeamLegalityVerdict(key, team)
       : { valid: true, errors: [] };
-    if (!team || team.format !== 'champions' || !verdict.valid ||
+    if (!team || team.format !== 'champions' || !verdict.valid || !hasDbTeamVersionIdentity(team) ||
         (typeof isApprovedPreloadedChampionTeam === 'function' &&
           !isApprovedPreloadedChampionTeam(key, team, verdict))) {
       summary.skipped++;
       summary.blocked.push({
         key: key,
         name: team && team.name,
+        reasons: dbTeamCatalogBlockReasons(team, verdict),
         errors: (verdict && verdict.errors && verdict.errors.length)
           ? verdict.errors
           : ['Not an approved Champion-legal team']
@@ -934,6 +1124,7 @@ function mergeDbTeamsIntoCatalog(dbTeams) {
     else summary.added++;
     TEAMS[key] = team;
   }
+  summary.reason_counts = summarizeDbTeamBlocks(summary.blocked);
   return summary;
 }
 
@@ -976,7 +1167,7 @@ function getSimScopeMode() {
 }
 
 function getSimScopeLabel(mode) {
-  return mode === 'selected' ? 'Selected matchup' : 'Preloaded team suite';
+  return mode === 'selected' ? 'Selected matchup' : 'All loaded teams';
 }
 
 function getTacticalDepthMaxRuns() {
@@ -1008,7 +1199,6 @@ function isPreloadedSimTeam(teamKey, team) {
 function getRunAllOpponentKeys(playerKey, simCtx) {
   simCtx = simCtx || {};
   var scope = simCtx.simScope || getSimScopeMode();
-  var includeCustom = scope === 'selected';
   if (scope === 'selected') {
     var selectedOpp = simCtx.oppKey || getDefaultVisibleOpponentTeamKey(playerKey);
     if (selectedOpp
@@ -1019,9 +1209,7 @@ function getRunAllOpponentKeys(playerKey, simCtx) {
     return [];
   }
   return Object.keys(TEAMS).filter(function(k) {
-    if (k === playerKey) return false;
-    if (!isSimReadyTeam(k, TEAMS[k], { includeCustom: includeCustom })) return false;
-    if (!isPreloadedSimTeam(k, TEAMS[k])) return false;
+    if (!isSimReadyTeam(k, TEAMS[k], { includeCustom: true })) return false;
     if (typeof LADDER_MODE !== 'undefined' && LADDER_MODE && typeof isLadderLegal === 'function') {
       return isLadderLegal(k);
     }
@@ -1032,6 +1220,49 @@ function getRunAllOpponentKeys(playerKey, simCtx) {
 function formatSeriesCount(n) {
   n = Number(n) || 0;
   return n.toLocaleString ? n.toLocaleString('en-US') : String(n);
+}
+
+var CS_BROWSER_SELECTED_MAX_GAMES = 25000;
+var CS_BROWSER_RUN_ALL_MAX_GAMES = 6000;
+var CS_BROWSER_OPTION_MAX_SERIES = 5000;
+
+function csBrowserSafeBo(bo) {
+  bo = Number(bo) || 1;
+  return bo > 0 ? bo : 1;
+}
+
+function csBrowserRunBudget(numSeries, bo, opponentCount, mode) {
+  var series = Math.max(1, Math.floor(Number(numSeries) || 1));
+  var safeBo = csBrowserSafeBo(bo);
+  var opponents = Math.max(1, Math.floor(Number(opponentCount) || 1));
+  var maxGames = mode === 'run_all' ? CS_BROWSER_RUN_ALL_MAX_GAMES : CS_BROWSER_SELECTED_MAX_GAMES;
+  var maxSeries = Math.max(1, Math.floor(maxGames / (safeBo * opponents)));
+  maxSeries = Math.min(maxSeries, CS_BROWSER_OPTION_MAX_SERIES);
+  var cappedSeries = Math.min(series, maxSeries);
+  return {
+    requestedSeries: series,
+    numSeries: cappedSeries,
+    bo: safeBo,
+    opponentCount: opponents,
+    maxGames: maxGames,
+    maxSeries: maxSeries,
+    wasClamped: cappedSeries !== series,
+    estimatedMaxGames: cappedSeries * safeBo * opponents
+  };
+}
+
+function csSetSimBudgetNote(message, tone) {
+  var note = (typeof document !== 'undefined') ? document.getElementById('sim-budget-note') : null;
+  if (!note) return;
+  if (!message) {
+    note.textContent = '';
+    note.style.display = 'none';
+    note.removeAttribute('data-tone');
+    return;
+  }
+  note.textContent = message;
+  note.style.display = '';
+  note.setAttribute('data-tone', tone || 'info');
 }
 
 function getRunScopeBadgeText(simCtx, opponentCount) {
@@ -1393,22 +1624,30 @@ function getTeamLegalityVerdict(teamKey, team) {
   var moveIssues = collectTeamMoveLegalityIssues(team);
   var hardMoveIssues = moveIssues.filter(function(row) { return row && row.severity === 'error'; });
   var sourceWarnings = moveIssues.filter(function(row) { return row && row.severity !== 'error'; });
+  var sourceVerified = !sourceWarnings.some(function(row) { return row.severity === 'unchecked'; });
   var fallback = {
-    valid: !!team && hardMoveIssues.length === 0 && (team.legality_status === 'legal' || team.legality_status === 'legal_inferred'),
+    valid: false,
+    sourceVerified: false,
     inferred: !!team && team.legality_status === 'legal_inferred',
     errors: hardMoveIssues.map(function(row) { return row.label; }),
-    warnings: sourceWarnings.map(function(row) { return row.label; }),
-    label: team && team.legality_status === 'legal_inferred' ? 'Legal (inferred)' : 'Legal'
+    warnings: sourceWarnings.map(function(row) { return row.label; }).concat(['Team validator is unavailable or its result could not be verified.']),
+    label: 'Not verified'
   };
   if (!team || typeof validateTeam !== 'function') return fallback;
-  var verdict = validateTeam(team, getActiveValidationFormat(team)) || {};
+  var verdict;
+  try {
+    verdict = validateTeam(team, team.format);
+    if (!verdict || typeof verdict.valid !== 'boolean' || !Array.isArray(verdict.errors) ||
+        (verdict.valid === false && verdict.errors.length === 0)) return fallback;
+  } catch (_e) { return fallback; }
   var errors = Array.isArray(verdict.errors) ? verdict.errors.slice() : [];
   hardMoveIssues.forEach(function(row) { errors.push(row.label); });
   var warnings = Array.isArray(verdict.warnings) ? verdict.warnings.slice() : [];
   sourceWarnings.forEach(function(row) { warnings.push(row.label); });
-  var valid = errors.length === 0;
+  var valid = errors.length === 0 && sourceVerified;
   return {
     valid: valid,
+    sourceVerified: sourceVerified,
     inferred: team.legality_status === 'legal_inferred',
     statAware: false,
     errors: errors,
@@ -1417,7 +1656,7 @@ function getTeamLegalityVerdict(teamKey, team) {
       ? (team.legality_status === 'legal_inferred'
           ? 'Legal (inferred)'
           : 'Legal')
-      : 'Not legal'
+      : (sourceVerified ? 'Team check failed' : 'Not verified')
   };
 }
 
@@ -1434,13 +1673,48 @@ function collectTeamMoveLegalityIssues(team) {
     });
     return out;
   }
-  (team.members || []).forEach(function(member) {
-    var checks = api.validateMovesForSet(member || {});
+  (team.members || []).forEach(function(member, idx) {
+    var abilityCheck = null;
+    var mega = member && typeof CHAMPIONS_MEGAS !== 'undefined' && CHAMPIONS_MEGAS[member.name];
+    if (mega && member.item !== mega.megaStone) {
+      out.push({ severity: 'error', memberIndex: idx,
+        label: member.name + ': the matching Mega Stone is required for this registered form.' });
+    }
+    try {
+      var abilityMember = member;
+      // Match the ruleset registration view, without changing the exact catalog form.
+      if (mega && member.item === mega.megaStone && typeof api.isAbilityLegalForSpecies === 'function') {
+        var baseAbility = api.isAbilityLegalForSpecies(mega.baseSpecies, member.ability);
+        if (baseAbility && baseAbility.legal === true && baseAbility.verification_status !== 'unchecked') {
+          abilityMember = Object.assign({}, member, { name: mega.baseSpecies });
+        }
+      }
+      if (typeof api.validateAbilityForSet === 'function') abilityCheck = api.validateAbilityForSet(abilityMember || {});
+    } catch (_e) { /* Missing source evidence remains unchecked below. */ }
+    if (abilityCheck && abilityCheck.sourceVersion && !out.sourceVersion) out.sourceVersion = abilityCheck.sourceVersion;
+    if (!abilityCheck || abilityCheck.legal !== true || abilityCheck.verification_status === 'unchecked') {
+      var abilityError = abilityCheck && abilityCheck.legal === false && abilityCheck.verification_status !== 'unchecked' &&
+        (abilityCheck.reason === 'not_in_species_form_abilities' || abilityCheck.reason === 'unknown_ability');
+      out.push({ severity: abilityError ? 'error' : 'unchecked', memberIndex: idx,
+        label: (member && member.name || 'Pokemon') + ': ' + (member && member.ability || 'unknown ability') + ' - ' +
+          (abilityCheck && (abilityCheck.notes || abilityCheck.reason) || 'Ability source check is unavailable.') });
+    }
+    var checks;
+    try {
+      checks = api.validateMovesForSet(member || {}, csLearnsetOptionsForTeam(team));
+      if (!Array.isArray(checks) || checks.length !== ((member && member.moves) || []).filter(Boolean).length ||
+          checks.some(function(row) { return !row || typeof row.legal !== 'boolean'; })) throw new Error('Incomplete move checks');
+    } catch (_e) {
+      out.push({ severity: 'unchecked', memberIndex: idx, label: (member && member.name || 'Pokemon') + ': Move source check is unavailable.' });
+      return;
+    }
     checks.forEach(function(row) {
-      if (row.legal) return;
+      if (row.sourceVersion && !out.sourceVersion) out.sourceVersion = row.sourceVersion;
+      if (row.legal && row.verification_status !== 'unchecked') return;
       var label = (member && member.name ? member.name : 'Pokemon') + ': ' + (row.moveName || 'unknown move') + ' - ' + (row.notes || row.reason || 'not verified');
       out.push({
-        severity: getMoveLegalityIssueSeverity(row.reason),
+        severity: row.verification_status === 'unchecked' ? 'unchecked' : getMoveLegalityIssueSeverity(row.reason),
+        memberIndex: idx,
         label: label,
         reason: row.reason,
         member: member && member.name,
@@ -1488,6 +1762,10 @@ function _gateOneSelect(selId) {
       var legalLabel = verdict.label || ((team.legality_status === 'legal_inferred') ? 'Legal (inferred)' : 'Legal');
       opt.textContent = opt.textContent + '  ' + glyph + ' ' +
         (legal ? legalLabel : (!verdict.valid ? legalLabel : (team.legality_status === 'illegal' ? 'Illegal' : (team.format || '?').toUpperCase())));
+      if (typeof checkTeamForSelectedRegulation === 'function') {
+        var selectedCheck = selectedRegulationCheck(team);
+        opt.textContent = team.name + ' [' + (selectedCheck.status === 'experimental' ? 'Practice only' : selectedCheck.status === 'illegal' ? 'Not compliant' : 'Not verified') + ']';
+      }
     }
     if (LADDER_MODE && team && !legal) {
       opt.hidden = true;
@@ -1827,7 +2105,7 @@ function csTeamRulesetEvidence(team) {
       ruleset_id: rulesetId,
       ruleset_label: meta.ruleset_label || rulesetId,
       ruleset_status: meta.ruleset_status || 'unknown',
-      runtime_promotable: meta.runtime_promotable !== false,
+      runtime_promotable: false,
       learning_eligibility: meta.learning_eligibility || 'unknown',
       data_policy: meta.data_policy || 'unknown',
       coaching_policy: meta.coaching_policy || 'unknown',
@@ -1837,12 +2115,12 @@ function csTeamRulesetEvidence(team) {
   return {
     ruleset_id: evidence.ruleset_id || rulesetId,
     ruleset_label: meta.ruleset_label || evidence.ruleset_label || rulesetId,
-    ruleset_status: meta.ruleset_status || evidence.ruleset_status || 'unknown',
-    runtime_promotable: meta.runtime_promotable !== undefined ? meta.runtime_promotable : !!evidence.runtime_promotable,
-    learning_eligibility: meta.learning_eligibility || evidence.learning_eligibility || 'unknown',
-    data_policy: meta.data_policy || evidence.data_policy || 'unknown',
-    coaching_policy: meta.coaching_policy || evidence.coaching_policy || 'unknown',
-    poisoning_guard: meta.poisoning_guard || evidence.poisoning_guard || 'unknown_ruleset_do_not_train_or_rank',
+    ruleset_status: evidence.ruleset_status || 'unknown',
+    runtime_promotable: !!evidence.runtime_promotable && meta.runtime_promotable !== false,
+    learning_eligibility: evidence.learning_eligibility || 'unknown',
+    data_policy: evidence.data_policy || 'unknown',
+    coaching_policy: evidence.coaching_policy || 'unknown',
+    poisoning_guard: evidence.poisoning_guard || 'unknown_ruleset_do_not_train_or_rank',
     source_checked_at_utc: meta.source_checked_at_utc || evidence.source_checked_at_utc || null
   };
 }
@@ -1867,6 +2145,21 @@ function csRenderTeamRulesetBadges(key, team) {
   var title = 'Ruleset: ' + label + ' | data policy: ' + (evidence.data_policy || 'unknown') + ' | coaching: ' + (evidence.coaching_policy || 'unknown');
   return '<span class="' + statusClass + '" title="' + _escapeHtml(title) + '">' + _escapeHtml(label) + '</span>' +
     '<span class="' + statusClass + '" title="' + _escapeHtml(guard) + '">' + _escapeHtml(String(status).replace(/_/g, ' ').toUpperCase()) + '</span>';
+}
+function csRenderTeamValidationBadge(team, verdict) {
+  team = team || {};
+  verdict = verdict || {};
+  var errors = Array.isArray(verdict.errors) ? verdict.errors : [];
+  if (team.format === 'sv') return '<span class="badge-warn">SV COMPAT ONLY</span>';
+  if (verdict.valid === false && (errors.length || verdict.sourceVerified !== false)) return '<span class="badge-illegal" title="' + _escapeHtml(errors.join('; ')) + '">TEAM CHECK FAILED</span>';
+  var evidence = csTeamRulesetEvidence(team);
+  if (verdict.valid !== true || !evidence.runtime_promotable) {
+    return '<span class="badge-warn" title="Team checks do not establish legality under an unverified or historical ruleset.">LEGALITY UNVERIFIED</span>';
+  }
+  if (verdict.inferred || team.legality_status === 'legal_inferred') {
+    return '<span class="badge-warn" title="Some set details are inferred, not source-confirmed.">INFERRED SET</span>';
+  }
+  return '<span class="badge-warn" title="Local team validation passed; this is not tournament approval.">TEAM CHECK PASSED</span>';
 }
 function csGetRegmbCoverageSections() {
   var source = typeof CHAMPIONS_REGMB_SOURCE_CONVERSION !== 'undefined'
@@ -2017,7 +2310,9 @@ function csRenderRegmbCoverageCards(grid) {
 }
 function teamMatchesFilter(key, team, filter) {
   if (!team) return false;
-  if (!isVisibleTeamInCatalog(key, team, { includeCustom: true })) return false;
+  var visible = isVisibleTeamInCatalog(key, team, { includeCustom: true });
+  if (filter === 'needs_review') return !visible && !!team.name;
+  if (!visible) return false;
   var isCustom = team.source === 'custom';
   var evidence = csTeamRulesetEvidence(team);
   var tags = csTeamRulesetTags(key, team);
@@ -2061,6 +2356,7 @@ function renderTeamsFilterRow() {
     { id:'mega',       label:'Mega' },
     { id:'regma',      label:'Reg M-A' },
     { id:'historical', label:'Historical' },
+    { id:'needs_review', label:'Needs review' },
     { id:'regmb_review', label:'Reg M-B Review' }
   ];
   row.innerHTML = chips.map(function(c){
@@ -2095,9 +2391,9 @@ function renderTeamsGrid() {
           ? '<div class="team-legality-note"><strong>SV compatibility team</strong><span>' +
             _escapeHtml(legalityVerdict.errors.slice(0, 3).join('; ') || 'This team is outside the Champions review lane.') +
             '</span><small>Keep this visible for legacy comparison only. Live Champions review and trust scoring stay on Champions-format teams.</small></div>'
-          : '<div class="team-legality-note"><strong>Not legal for current sim rules</strong><span>' +
-            _escapeHtml(legalityVerdict.errors.slice(0, 3).join('; ') || 'Unknown legality issue') +
-            '</span><small>Team remains visible for review/testing, but results should be treated as untrusted until the source data is fixed.</small></div>')
+          : '<div class="team-legality-note"><strong>' + (legalityVerdict.sourceVerified === false && !legalityVerdict.errors.length ? 'Team checks unverified' : 'Team check failed') + '</strong><span>' +
+            _escapeHtml(legalityVerdict.errors.slice(0, 3).join('; ') || legalityVerdict.warnings.slice(0, 3).join('; ') || 'Team validation is unavailable.') +
+            '</span><small>Retained for review and editing. Simulation is blocked until team checks pass.</small></div>')
       : '';
     const card = document.createElement('div');
     card.className = 'team-full-card';
@@ -2112,16 +2408,7 @@ function renderTeamsGrid() {
         <div class="tfcard-badges">
           <span class="badge ${isPlayer?'badge-blue':'badge-red'}">${_escapeHtml(team.label||key)}</span>
           ${csRenderTeamRulesetBadges(key, team)}
-          ${(function(){ /* Issue #T6: legality badge - T9h: legal_inferred */
-            var st = team.legality_status; var fmt = team.format;
-            if (!legalityVerdict.valid && fmt === 'sv') return '<span class="badge-warn" title="' + _escapeHtml((legalityVerdict.errors || []).join('; ')) + '">\u26A0 SV COMPAT ONLY</span>';
-            if (!legalityVerdict.valid) return '<span class="badge-illegal" title="' + _escapeHtml(legalityVerdict.errors.join('; ')) + '">\u274C NOT LEGAL</span>';
-            if (st === 'legal' && fmt === 'champions') return '<span class="badge-legal">\u2705 LEGAL</span>';
-            if (st === 'legal_inferred' && fmt === 'champions') return '<span class="badge-warn" title="' + _escapeHtml((legalityVerdict.warnings || []).join('; ') || 'Tournament-placement team; spreads are inferred from source archetypes.') + '">\u26A0 ' + _escapeHtml(legalityVerdict.label || 'LEGAL (inferred)') + '</span>';
-            if (st === 'illegal') return '<span class="badge-illegal">\u274C ILLEGAL</span>';
-            if (fmt === 'sv') return '<span class="badge-warn">\u26A0 SV FORMAT</span>';
-            return '<span class="badge-warn">\u26A0 UNVERIFIED</span>';
-          })()}
+          ${csRenderTeamValidationBadge(team, legalityVerdict)}
           <button class="export-card-btn" data-team="${key}">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Export
@@ -2259,9 +2546,10 @@ function _uniqueTeamName(wanted) {
   return wanted + ' (' + n + ')';
 }
 
-function importCustomTeamsBulk(teams /* [{name, members}] */) {
+function importCustomTeamsBulk(teams /* [{name, members, format?}] */, opts) {
   // Returns { added, skipped, keys:[...], skippedErrors:[...] } so file-upload
   // imports can tell users exactly why a parsed team did not enter the sim.
+  opts = opts || {};
   var added = 0, skipped = 0, keys = [], skippedErrors = [];
   if (!Array.isArray(teams)) return { added: 0, skipped: 0, keys: [], skippedErrors: [] };
   for (var i = 0; i < teams.length; i++) {
@@ -2271,9 +2559,43 @@ function importCustomTeamsBulk(teams /* [{name, members}] */) {
       skippedErrors.push({ name: (t && t.name) || 'Imported Team', errors: ['No Pokemon or moves were parsed from this team.'], warnings: [] });
       continue;
     }
+    // Reject malformed containers before validators call array/string helpers.
+    var shapeErrors = [];
+    Array.from(t.members).forEach(function(member, index) {
+      var label = 'Pokemon member ' + (index + 1);
+      if (!member || typeof member !== 'object' || Array.isArray(member)) {
+        shapeErrors.push(label + ' must be a Pokemon set object.');
+        return;
+      }
+      if (typeof member.name !== 'string' || !member.name.trim()) shapeErrors.push(label + ' requires a Pokemon name string.');
+      if (!Array.isArray(member.moves) || Array.from(member.moves).some(function(move) { return typeof move !== 'string'; })) {
+        shapeErrors.push(label + ' moves must be an array of move-name strings.');
+      }
+      ['species', 'ability', 'item', 'nature'].forEach(function(field) {
+        if (member[field] !== undefined && typeof member[field] !== 'string') shapeErrors.push(label + ' ' + field + ' must be a string.');
+      });
+      ['evs', 'ivs'].forEach(function(field) {
+        if (member[field] !== undefined && (!member[field] || typeof member[field] !== 'object' || Array.isArray(member[field]))) {
+          shapeErrors.push(label + ' ' + field + ' spread must be an object.');
+        }
+      });
+    });
+    if (shapeErrors.length) {
+      skipped++;
+      skippedErrors.push({ name: t.name || 'Imported Team', errors: shapeErrors, warnings: [] });
+      continue;
+    }
+    // Only the Showdown text path may supply the default Champions context.
+    var format = t.format;
+    if (format === undefined && !opts.requireExplicitFormat) format = 'champions';
+    if (format !== 'champions' && format !== 'sv') {
+      skipped++;
+      skippedErrors.push({ name: t.name || 'Imported Team', errors: ['Missing or unsupported team format; expected explicit "champions" or "sv".'], warnings: [] });
+      continue;
+    }
     var key = _uniqueCustomKey(t.name);
     var name = _uniqueTeamName(t.name || 'Imported Team');
-    var validation = buildImportedTeamValidation(t.members, { name: name, format: 'champions' });
+    var validation = buildImportedTeamValidation(t.members, { name: name, format: format });
     if (!validation.valid) {
       skipped++;
       skippedErrors.push({ name: name, errors: validation.errors.slice(0), warnings: validation.warnings.slice(0) });
@@ -2286,7 +2608,7 @@ function importCustomTeamsBulk(teams /* [{name, members}] */) {
       description: 'Imported via bulk file',
       members: t.members,
       source: 'custom',
-      format: 'champions',
+      format: format,
       legality_status: 'unverified',
       import_warnings: validation.warnings,
       import_errors: validation.errors,
@@ -2317,10 +2639,10 @@ function importFromJsonText(jsonText) {
   for (var k in parsed.teams) {
     var t = parsed.teams[k];
     if (t && Array.isArray(t.members) && t.members.length > 0) {
-      asArr.push({ name: t.name || k, members: t.members });
+      asArr.push({ name: t.name || k, members: t.members, format: t.format });
     }
   }
-  return importCustomTeamsBulk(asArr);
+  return importCustomTeamsBulk(asArr, { requireExplicitFormat: true });
 }
 
 function exportAllCustomAsJson() {
@@ -2765,7 +3087,7 @@ function removeEditorPokemonSlot() {
   if (nextIdx >= 0) openEditorForm(nextIdx);
 }
 
-function buildSetEditorMoveLegalityWarnings(member) {
+function buildSetEditorMoveLegalityWarnings(member, team) {
   var api = ChampionsSim && ChampionsSim.moveLegality;
   if (!api || typeof api.validateMovesForSet !== 'function') {
     return [{
@@ -2773,7 +3095,7 @@ function buildSetEditorMoveLegalityWarnings(member) {
       text: 'Move legality unchecked: generated Pokemon Showdown source data is not loaded.'
     }];
   }
-  var checks = api.validateMovesForSet(member || {});
+  var checks = api.validateMovesForSet(member || {}, csLearnsetOptionsForTeam(team));
   if (!checks.length) return [];
   return checks.filter(function(row) {
     return !row.legal || row.reason === 'source_unavailable' || row.reason === 'unknown_species';
@@ -2786,10 +3108,11 @@ function buildSetEditorMoveLegalityWarnings(member) {
   });
 }
 
-function renderSetEditorMoveLegalityHtml(member) {
-  var warnings = buildSetEditorMoveLegalityWarnings(member);
+function renderSetEditorMoveLegalityHtml(member, team) {
+  if (team && team.format === 'champions' && typeof getChampionsRuleset === 'function' && !getChampionsRuleset(selectedRegulationId).runtimePromotable) return '<div class="editor-legality-warning">Move eligibility: not verified for the selected regulation.</div>';
+  var warnings = buildSetEditorMoveLegalityWarnings(member, team);
   if (!warnings.length) {
-    return '<div class="editor-legality-ok">Move legality checked against Pokemon Showdown species/form learnsets.</div>';
+    return '<div class="editor-legality-ok">Individual moves match the selected reference pool; combinations and regulation eligibility are not established.</div>';
   }
   return '<div class="editor-legality-warnings">' + warnings.map(function(row) {
     return '<div class="editor-legality-warning ' + _escapeHtml(row.severity) + '">' + _escapeHtml(row.text) + '</div>';
@@ -2797,20 +3120,77 @@ function renderSetEditorMoveLegalityHtml(member) {
 }
 
 function csRenderEditorItemDatalist() {
+  if (typeof getRegulationChoices === 'function') return renderRegulationDatalist('editor-item-list', editorRegulationChoices('item', ''));
   var list = document.getElementById('editor-item-list');
   if (!list || typeof CHAMPIONS_LEGAL_ITEMS === 'undefined' || !CHAMPIONS_LEGAL_ITEMS) return 0;
-  var items = Array.from(CHAMPIONS_LEGAL_ITEMS).sort(function(a, b) { return a.localeCompare(b); });
+  var seen = {};
+  var items = [];
+  Array.from(CHAMPIONS_LEGAL_ITEMS).forEach(function(item) {
+    if (!seen[item]) { seen[item] = 'verified'; items.push(item); }
+  });
+  if (typeof CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES !== 'undefined' && CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES) {
+    Array.from(CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES).forEach(function(item) {
+      if (!seen[item]) { seen[item] = 'reg-m-b-review'; items.push(item); }
+    });
+  }
+  items.sort(function(a, b) { return a.localeCompare(b); });
   list.innerHTML = items.map(function(item) {
-    return '<option value="' + _escapeHtml(item) + '"></option>';
+    var label = seen[item] === 'reg-m-b-review' ? 'Reg M-B review candidate' : 'Verified implemented pool';
+    return '<option value="' + _escapeHtml(item) + '" label="' + _escapeHtml(label) + '"></option>';
   }).join('');
   return items.length;
 }
 
+function csRenderEditorAbilityDatalist() {
+  if (typeof getRegulationChoices === 'function') return renderRegulationDatalist('editor-ability-list', editorRegulationChoices('ability', currentEditorMemberForLegality().name));
+  var list = document.getElementById('editor-ability-list');
+  if (!list) return 0;
+  var seen = {};
+  function addAbility(ability, label) {
+    ability = String(ability || '').trim();
+    if (!ability || seen[ability]) return;
+    seen[ability] = label || 'Ability';
+  }
+  if (typeof TEAMS !== 'undefined' && TEAMS) {
+    Object.keys(TEAMS).forEach(function(key) {
+      ((TEAMS[key] && TEAMS[key].members) || []).forEach(function(member) {
+        addAbility(member && member.ability, 'Known team ability');
+      });
+    });
+  }
+  if (typeof CHAMPIONS_MEGAS !== 'undefined' && CHAMPIONS_MEGAS) {
+    Object.keys(CHAMPIONS_MEGAS).forEach(function(key) {
+      addAbility(CHAMPIONS_MEGAS[key] && CHAMPIONS_MEGAS[key].ability, 'Implemented Mega ability');
+    });
+  }
+  if (typeof CHAMPIONS_NEW_ABILITIES !== 'undefined' && CHAMPIONS_NEW_ABILITIES) {
+    Object.keys(CHAMPIONS_NEW_ABILITIES).forEach(function(key) {
+      addAbility(key, CHAMPIONS_NEW_ABILITIES[key] && CHAMPIONS_NEW_ABILITIES[key].reviewOnly ? 'Reg M-B review candidate' : 'Champion ability');
+    });
+  }
+  if (typeof CHAMPIONS_REGMB_REVIEW_ABILITY_CANDIDATES !== 'undefined' && CHAMPIONS_REGMB_REVIEW_ABILITY_CANDIDATES) {
+    Array.from(CHAMPIONS_REGMB_REVIEW_ABILITY_CANDIDATES).forEach(function(key) {
+      addAbility(key, 'Reg M-B review candidate');
+    });
+  }
+  var abilities = Object.keys(seen).sort(function(a, b) { return a.localeCompare(b); });
+  list.innerHTML = abilities.map(function(ability) {
+    return '<option value="' + _escapeHtml(ability) + '" label="' + _escapeHtml(seen[ability]) + '"></option>';
+  }).join('');
+  return abilities.length;
+}
+
 function csRenderEditorItemLegalityHtml(member) {
+  if (typeof getChampionsRuleset === 'function' && !getChampionsRuleset(selectedRegulationId).runtimePromotable) return '<div class="editor-legality-warning">Item eligibility: not verified for the selected regulation.</div>';
   var item = member && member.item ? String(member.item).trim() : '';
   if (!item) return '<div class="editor-legality-ok">No held item selected.</div>';
   if (typeof CHAMPIONS_LEGAL_ITEMS !== 'undefined' && CHAMPIONS_LEGAL_ITEMS && CHAMPIONS_LEGAL_ITEMS.has(item)) {
-    return '<div class="editor-legality-ok">Item checked against the current Champions item pool.</div>';
+    return '<div class="editor-legality-source">Item found in the reference pool; regulation eligibility is not verified.</div>';
+  }
+  if (typeof CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES !== 'undefined' && CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES && CHAMPIONS_REGMB_REVIEW_ITEM_CANDIDATES.has(item)) {
+    return '<div class="editor-legality-warnings"><div class="editor-legality-warning warning">' +
+      _escapeHtml(item + ': Reg M-B review candidate, not verified implemented legality. Regulation preflight blocks simulation until the selected rules and item effects are approved.') +
+      '</div></div>';
   }
   var knownAbsent = typeof CHAMPIONS_BANNED_ITEMS !== 'undefined' && CHAMPIONS_BANNED_ITEMS && CHAMPIONS_BANNED_ITEMS.has(item);
   return '<div class="editor-legality-warnings"><div class="editor-legality-warning error">' +
@@ -2831,13 +3211,14 @@ function csRenderEditorMegaRuntimeHtml(member) {
     '</div>';
 }
 
-function csRenderEditorMoveDatalist(speciesName) {
+function csRenderEditorMoveDatalist(speciesName, team) {
   var list = document.getElementById('editor-move-list');
   if (!list) return 0;
   var api = ChampionsSim && ChampionsSim.moveLegality;
   var moves = api && typeof api.legalMoveDisplayNamesForSpecies === 'function'
-    ? api.legalMoveDisplayNamesForSpecies(speciesName)
+    ? api.legalMoveDisplayNamesForSpecies(speciesName, csLearnsetOptionsForTeam(team))
     : [];
+  if (team && team.format === 'champions' && typeof getRegulationChoices === 'function') moves = editorRegulationChoices('move', speciesName).map(function(row) { return row.name; });
   list.setAttribute('data-moves', JSON.stringify(moves));
   list.innerHTML = moves.slice(0, 450).map(function(move) {
     return '<option value="' + _escapeHtml(move) + '"></option>';
@@ -2883,7 +3264,7 @@ function csRenderMoveSearchMenu(input) {
     return b.score - a.score || a.move.localeCompare(b.move);
   }).slice(0, 12);
   if (!ranked.length) {
-    menu.innerHTML = '<div class="editor-move-empty">No legal move matches. Save will block illegal moves.</div>';
+    menu.innerHTML = '<div class="editor-move-empty">No verified matches for this species and regulation.</div>';
     menu.style.display = 'block';
     return;
   }
@@ -2929,14 +3310,28 @@ function refreshEditorMoveLegality(baseMember) {
   var host = document.getElementById('editor-move-legality');
   if (!host) return;
   var current = currentEditorMemberForLegality(baseMember);
-  var legalMoveCount = csRenderEditorMoveDatalist(current.name);
+  if (typeof getRegulationChoices === 'function') renderRegulationDatalist('editor-species-list', editorRegulationChoices('species', current.name));
+  var legalMoveCount = csRenderEditorMoveDatalist(current.name, getEditablePlayerTeam());
   csRenderEditorItemDatalist();
-  host.innerHTML = csRenderEditorItemLegalityHtml(current) + renderSetEditorMoveLegalityHtml(current) +
+  csRenderEditorAbilityDatalist();
+  if (typeof checkTeamForSelectedRegulation === 'function') {
+    var draftTeam = JSON.parse(JSON.stringify(getEditablePlayerTeam()));
+    if (draftTeam && typeof editingIdx === 'number' && draftTeam.members[editingIdx]) {
+      var nature = document.getElementById('ed-nature'), level = document.getElementById('ed-level');
+      draftTeam.members[editingIdx] = Object.assign({}, draftTeam.members[editingIdx], current, {
+        evs: getEditorSpreadFromInputs(), nature: nature ? nature.value : draftTeam.members[editingIdx].nature,
+        level: level ? Number(level.value) : draftTeam.members[editingIdx].level
+      });
+    }
+    var statusHost = document.getElementById('editor-regulation-status');
+    if (statusHost) statusHost.innerHTML = regulationCheckHtml(selectedRegulationCheck(draftTeam));
+  }
+  host.innerHTML = csRenderEditorItemLegalityHtml(current) + renderSetEditorMoveLegalityHtml(current, getEditablePlayerTeam()) +
     csRenderEditorMegaRuntimeHtml(current) +
     '<div class="editor-move-source">' +
       (legalMoveCount
-        ? _escapeHtml(String(legalMoveCount)) + ' legal move suggestions loaded for ' + _escapeHtml(current.name || 'this Pokemon') + '. You can type a move manually, but Save blocks moves outside this learnset.'
-        : 'No legal move suggestions found for this species/form. Check the spelling or source data before saving.') +
+        ? _escapeHtml(String(legalMoveCount)) + ' reference move suggestions for ' + _escapeHtml(current.name || 'this Pokemon') + '. Regulation eligibility is not verified.'
+        : 'No verified regulation move pool is available for this species/form.') +
     '</div>';
   var normalizeBtn = document.getElementById('editor-mega-normalize');
   if (normalizeBtn) {
@@ -2977,16 +3372,16 @@ function openEditorForm(idx) {
       <div class="editor-save-note" id="editor-save-note">Draft mode: changes are local until you click Save. Save validates Champion item pool, SP caps, and species-specific moves.</div>
     </div>
     <div class="editor-2col">
-      <div class="form-group"><label class="form-label">Pokémon</label><input class="form-input" id="ed-name" value="${_escapeHtml(m.name||'')}" placeholder="Exact species/form name"/></div>
+      <div class="form-group"><label class="form-label">Pokémon</label><input class="form-input" id="ed-name" list="editor-species-list" value="${_escapeHtml(m.name||'')}" placeholder="Exact species/form name"/></div>
       <div class="form-group"><label class="form-label">Item</label><input class="form-input" id="ed-item" list="editor-item-list" value="${_escapeHtml(m.item||'')}" placeholder="Legal held item"/></div>
-      <div class="form-group"><label class="form-label">Ability</label><input class="form-input" id="ed-ability" value="${_escapeHtml(m.ability||'')}"/></div>
+      <div class="form-group"><label class="form-label">Ability</label><input class="form-input" id="ed-ability" list="editor-ability-list" value="${_escapeHtml(m.ability||'')}" placeholder="Search or type ability"/></div>
       <div class="form-group"><label class="form-label">Nature</label><input class="form-input" id="ed-nature" value="${_escapeHtml(m.nature||'Hardy')}"/></div>
       <div class="form-group"><label class="form-label">Level</label><input class="form-input" id="ed-level" value="${_escapeHtml(String(m.level||50))}" type="number" min="1" max="100"/></div>
       <div class="form-group"><label class="form-label">Role</label><input class="form-input" id="ed-role" value="${_escapeHtml(m.role||'')}"/></div>
     </div>
     <div style="margin-top:var(--sp4)"><label class="form-label" style="display:block;margin-bottom:6px">Moves</label>
     <div class="moves-2col">${[0,1,2,3].map((i)=>`<div class="editor-move-combobox"><input class="form-input" id="ed-mv-${i}" data-move-index="${i}" value="${_escapeHtml((m.moves||[])[i] || '')}" placeholder="Search legal move ${i + 1}"/><div class="editor-move-menu" id="ed-mv-menu-${i}" style="display:none"></div></div>`).join('')}</div></div>
-    <div id="editor-move-legality">${renderSetEditorMoveLegalityHtml(m)}</div>
+    <div id="editor-move-legality">${renderSetEditorMoveLegalityHtml(m, getEditablePlayerTeam())}</div>
     ${renderStatPanelHtml(m)}
     <div style="margin-top:var(--sp4)"><label class="form-label" style="display:block;margin-bottom:6px">SPs (max 66 total, 32 per stat)</label>
     <div class="ev-6col">${evsHtml}</div>
@@ -3026,13 +3421,13 @@ function openEditorForm(idx) {
       });
     }
   });
-  ['ed-name','ed-item','ed-ability'].forEach(function(id) {
+  ['ed-name','ed-item','ed-ability','ed-nature','ed-level'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.addEventListener('input', function() { markEditorDraftDirty(); refreshEditorMoveLegality(m); });
   });
   ['hp','atk','def','spa','spd','spe'].forEach(function(stat) {
     var el = document.getElementById('ev-' + stat);
-    if (el) el.addEventListener('input', function() { markEditorDraftDirty(); refreshEditorSpreadGuard(); });
+    if (el) el.addEventListener('input', function() { markEditorDraftDirty(); refreshEditorSpreadGuard(); refreshEditorMoveLegality(m); });
   });
   refreshEditorSpreadGuard();
   refreshEditorMoveLegality(m);
@@ -3101,7 +3496,7 @@ function saveEdits() {
   if (!team || !Array.isArray(team.members) || !team.members[editingIdx]) return;
   var spreadGuard = refreshEditorSpreadGuard();
   if (spreadGuard.errors.length) return;
-  const editedMember = Object.assign({}, team.members[editingIdx], {
+  const editedFields = {
     name: (document.getElementById('ed-name').value.trim() || team.members[editingIdx].name),
     item: document.getElementById('ed-item').value.trim(),
     ability: document.getElementById('ed-ability').value.trim(),
@@ -3110,10 +3505,15 @@ function saveEdits() {
     role: document.getElementById('ed-role').value.trim(),
     moves: [0,1,2,3].map(i => (document.getElementById(`ed-mv-${i}`)?.value||'').trim()).filter(Boolean),
     evs: spreadGuard.evs
-  });
+  };
+  const sameIdentity = csMemberIdentityKey(team.members[editingIdx]) === csMemberIdentityKey(editedFields);
+  const editedMember = Object.assign({}, sameIdentity ? team.members[editingIdx] : {}, editedFields, { species: editedFields.name });
   var candidateMembers = team.members.slice();
   candidateMembers[editingIdx] = editedMember;
-  var validation = buildImportedTeamValidation(candidateMembers, { name: team.name, format: team.format || 'champions' });
+  var reconciliation = csReconcilePasteMembers(team.members, candidateMembers, { preserveRole: false });
+  var validation = buildImportedTeamValidation(reconciliation.valid ? reconciliation.members : candidateMembers, { name: team.name, format: team.format || 'champions' });
+  validation.errors = validation.errors.concat(reconciliation.errors);
+  validation.valid = validation.valid && reconciliation.valid;
   if (!validation.valid) {
     var status = document.getElementById('sp-guard-status');
     if (status) {
@@ -3122,7 +3522,7 @@ function saveEdits() {
     }
     return;
   }
-  team.members[editingIdx] = editedMember;
+  team.members = reconciliation.members;
   team.import_warnings = validation.warnings;
   team.import_errors = validation.errors;
   team.showdown_source_version = validation.sourceVersion;
@@ -3173,6 +3573,27 @@ document.getElementById('copy-export-btn')?.addEventListener('click', function()
 });
 document.getElementById('export-player-btn')?.addEventListener('click', ()=>openExportModal(currentPlayerKey));
 document.getElementById('export-opp-btn')?.addEventListener('click', ()=>{ const oppKey = document.getElementById('opponent-select').value; openExportModal(oppKey); });
+document.getElementById('open-qa-tester-btn')?.addEventListener('click', function() {
+  if (typeof _activateTab === 'function') _activateTab('qa-tester', { focus: true });
+});
+document.getElementById('qa-open-sim-run-all-btn')?.addEventListener('click', function() {
+  if (typeof _activateTab === 'function') _activateTab('simulator', { focus: true });
+  var btn = document.getElementById('run-all-btn');
+  if (btn && typeof btn.focus === 'function') setTimeout(function() { btn.focus(); }, 60);
+});
+document.getElementById('result-view-replays-btn')?.addEventListener('click', function() {
+  if (typeof _activateTab === 'function') _activateTab('replays', { focus: true });
+});
+document.getElementById('result-fix-team-btn')?.addEventListener('click', function() {
+  if (typeof _activateTab === 'function') _activateTab('editor', { focus: true });
+});
+document.getElementById('result-upload-replay-btn')?.addEventListener('click', function() {
+  if (typeof _activateTab === 'function') _activateTab('replay-coach', { focus: true });
+});
+document.getElementById('result-run-again-btn')?.addEventListener('click', function() {
+  var runBtn = document.getElementById('run-sim-btn');
+  if (runBtn) runBtn.click();
+});
 
 // ============================================================
 // IMPORT MODAL
@@ -3233,7 +3654,7 @@ function openEditTeamModal(teamKey) {
   if (hdr) hdr.textContent = 'Edit Team: ' + team.name;
   var hint = document.querySelector('#import-modal .modal-hint');
   if (hint) {
-    hint.innerHTML = 'Editing <strong>' + team.name + '</strong>. Modify the Showdown paste below, then click Load Team. ' +
+    hint.innerHTML = 'Editing <strong>' + _escapeHtml(team.name) + '</strong>. Modify the Showdown paste below, then click Load Team. ' +
       (team.source === 'custom' ? 'Custom team — saved to localStorage.' :
        'Preloaded team — your edits save as an override; use Reset to revert to the original.');
   }
@@ -3302,11 +3723,17 @@ document.getElementById('import-slot')?.addEventListener('change', function() {
 function showImportPreview(members) {
   const preview = document.getElementById('import-preview');
   const roster = document.getElementById('preview-roster');
-  const validation = buildImportedTeamValidation(members, { format: 'champions' });
   const flow = document.getElementById('import-flow-card');
   const dest = document.getElementById('import-destination-card');
   const slotEl = document.getElementById('import-slot');
   const slot = slotEl ? slotEl.value : '__new__';
+  const targetTeam = slot === '__new__' ? null : TEAMS[slot];
+  const validation = buildImportedTeamValidation(members, { format: targetTeam ? targetTeam.format : 'champions' });
+  if (targetTeam) {
+    const reconciliation = csReconcilePasteMembers(targetTeam.members, members, { previewOnly: true });
+    validation.errors = validation.errors.concat(reconciliation.errors);
+    validation.valid = validation.valid && reconciliation.valid;
+  }
   const destination = slot === '__new__' ? 'New custom team' : ((TEAMS[slot] && TEAMS[slot].name) || slot || 'Selected slot');
   const memberWarningsTotal = Object.keys(validation.memberWarnings || {}).reduce(function(sum, key) {
     return sum + ((validation.memberWarnings[key] || []).length);
@@ -3428,14 +3855,21 @@ document.getElementById('do-import-btn')?.addEventListener('click', async functi
   } else {
     const teamKeys = Object.keys(TEAMS);
     if (!teamKeys.includes(slot)) { statusEl.textContent = 'Unknown slot'; statusEl.className='modal-status err'; return; }
-    const validation = buildImportedTeamValidation(members, { name: TEAMS[slot].name, format: TEAMS[slot].format || 'champions' });
-    if (!validation.valid) {
-      statusEl.textContent = validation.errors.slice(0, 3).join(' ');
+    const reconciliation = csReconcilePasteMembers(TEAMS[slot].members, members);
+    if (!reconciliation.valid) {
+      statusEl.textContent = reconciliation.errors.join(' ');
       statusEl.className = 'modal-status err';
       showImportPreview(members);
       return;
     }
-    TEAMS[slot].members = members;
+    const validation = buildImportedTeamValidation(reconciliation.members, { name: TEAMS[slot].name, format: TEAMS[slot].format || 'champions' });
+    if (!validation.valid) {
+      statusEl.textContent = validation.errors.concat(validation.warnings).slice(0, 3).join(' ');
+      statusEl.className = 'modal-status err';
+      showImportPreview(members);
+      return;
+    }
+    TEAMS[slot].members = reconciliation.members;
     TEAMS[slot].legality_status = 'unverified';
     TEAMS[slot].import_warnings = validation.warnings;
     TEAMS[slot].import_errors = validation.errors;
@@ -3530,7 +3964,8 @@ function drawBarChart(canvasId, labels, values, color) {
 function displayResults(res, oppKey, simCtx) {
   simCtx = simCtx || resolveSimContext({ bo: currentBo, oppKey: oppKey });
   oppKey = oppKey || simCtx.oppKey;
-  const total = res.wins + res.losses + res.draws;
+  const total = csResultSeriesCount(res);
+  const totalGames = csResultGameCount(res);
   const winPct = Math.round(res.winRate * 100);
   const team = simCtx.oppTeam || TEAMS[oppKey];
   const boLabel = simCtx.boLabel || `Bo${currentBo}`;
@@ -3538,7 +3973,9 @@ function displayResults(res, oppKey, simCtx) {
 
   document.getElementById('results-section').style.display='';
   document.getElementById('results-title').textContent = `vs ${team?.name||oppKey}`;
-  document.getElementById('results-sub').textContent = `${total} series · ${boLabel} · ${fmtLabel} · ${new Date().toLocaleTimeString()}`;
+  document.getElementById('results-sub').textContent = `${total} series · ${totalGames} games simulated · ${boLabel} · ${fmtLabel}` +
+    (res.adaptiveBringEnabled ? ` · adaptive lineups (${res.playerBringPoolSize || 0} player options)` : '') +
+    ` · ${new Date().toLocaleTimeString()}`;
   document.getElementById('win-pct').textContent = `${winPct}%`;
   document.getElementById('stat-wins').textContent = res.wins;
   document.getElementById('stat-losses').textContent = res.losses;
@@ -3564,7 +4001,7 @@ function displayResults(res, oppKey, simCtx) {
     const maxWC = wcEntries[0][1];
     for (const [cond,cnt] of wcEntries) {
       const barPct = Math.round(cnt/maxWC*100);
-      const labelPct = Math.min(100, Math.round(cnt/total*100));
+      const labelPct = Math.min(100, csWinConditionPct(res, cnt));
       const d = document.createElement('div');
       d.className='win-cond-row';
       d.innerHTML=`<div style="display:flex;justify-content:space-between"><span>${cond}</span><span style="color:var(--primary);font-family:var(--font-mono);font-weight:700">${labelPct}%</span></div><div class="win-cond-bar" style="width:${barPct}%"></div>`;
@@ -3610,6 +4047,7 @@ function displayResults(res, oppKey, simCtx) {
 
   // Auto-show inline pilot card after every single sim
   showInlinePilotCard(oppKey, res, simCtx);
+  if (typeof csRefreshTeamLabTop25Preview === 'function') csRefreshTeamLabTop25Preview();
 
   // PDF progressive reveal (Refs #57) - after ANY single sim, stash the
   // result so the PDF button can build a fresh packet. Each new sim either
@@ -3631,10 +4069,15 @@ function renderAuditPanel(res, oppKey, simCtx) {
   }) || res.allLogs[0] : null;
   const sampleTurnLog = sample && Array.isArray(sample.turnLog) ? sample.turnLog : [];
   const sampleMoves = sample && sample.movesUsed ? sample.movesUsed : {};
+  const totalSeries = csResultSeriesCount(res);
+  const totalGames = csResultGameCount(res);
+  const retainedLogs = Array.isArray(res && res.allLogs) ? res.allLogs.length : 0;
   const metaRows = [
     ['Battle', (playerTeam?.name || playerKey || 'Current Team') + ' vs ' + (TEAMS[oppKey]?.name || oppKey)],
     ['Format', simCtx.formatLabel || (currentFormat === 'doubles' ? 'Doubles' : 'Singles')],
     ['Series', simCtx.boLabel || ('Bo' + currentBo)],
+    ['Evidence', totalSeries + ' series · ' + totalGames + ' games · ' + retainedLogs + ' retained replay samples'],
+    ['Bo adaptation', res && res.adaptiveBringEnabled ? 'On · selected lineup can change between games from the registered six' : 'Off · one lineup used for the battle sample'],
     ['Sample', sample ? ((sample.result || 'unknown') + ' · ' + (sample.turns || 0) + ' turns') : 'No sample battle'],
     ['Win condition', sample && sample.winCondition ? sample.winCondition : '—']
   ];
@@ -3738,7 +4181,8 @@ function showInlinePilotCard(oppKey, res, simCtx) {
     resultsSection.appendChild(container);
   }
 
-  const total = res.wins + res.losses + res.draws;
+  const total = csResultSeriesCount(res);
+  const totalGames = csResultGameCount(res);
   const winPct = Math.round(res.winRate * 100);
   const oppTeam = TEAMS[oppKey];
   const teamName = oppTeam ? oppTeam.name : oppKey;
@@ -3753,17 +4197,24 @@ function showInlinePilotCard(oppKey, res, simCtx) {
 
   // T9j.10 (Refs #16) — Top leads from STRUCTURED battle.leads (post-override team ordering).
   // Old behavior parsed log strings which falsely named fainted or targeted Pokemon as leads.
-  const leadCounts = {};
-  const winLogs = (res.allLogs || []).filter(g => g.result === 'win');
-  for (const game of winLogs) {
-    const names = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : [];
-    for (const n of names) leadCounts[n] = (leadCounts[n]||0)+1;
+  let leadPairs = csTopCountEntries(res.playerWinLeadCounts, 2).map(e => e[0]);
+  if (!leadPairs.length) {
+    const leadCounts = {};
+    const winLogs = (res.allLogs || []).filter(g => g.result === 'win');
+    for (const game of winLogs) {
+      const leadKey = csCountKey(game.leads && game.leads.player);
+      csAddCount(leadCounts, leadKey);
+    }
+    leadPairs = csTopCountEntries(leadCounts, 2).map(e => e[0]);
   }
-  const leads = Object.entries(leadCounts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
 
   const tips = [];
-  if (leads.length >= 2) tips.push(`Lead ${leads[0]} + ${leads[1]}`);
-  if (wcEntries.length) tips.push(`Win condition: ${wcEntries[0][0]} (${Math.round(wcEntries[0][1]/total*100)}%)`);
+  tips.push(`Evidence: ${total} Bo${simCtx.bo || currentBo} series / ${totalGames} games; ${res.retainedLogSampleSize || (res.allLogs || []).length} replay samples retained.`);
+  if (res.adaptiveBringEnabled) tips.push(`Bo adaptation active: each game can keep or change the selected ${getBringCount()} from the registered six.`);
+  if (leadPairs.length) tips.push(`Best winning lead: ${leadPairs[0]}`);
+  const bestLineup = csTopCountEntries(res.playerWinBringCounts, 1)[0];
+  if (bestLineup) tips.push(`Best winning lineup: ${bestLineup[0]}`);
+  if (wcEntries.length) tips.push(`Win condition: ${wcEntries[0][0]} (${csWinConditionPct(res, wcEntries[0][1])}% of player game wins)`);
   if (winPct < 45) tips.push('Use speed control to disrupt their gameplan');
 
   // T9j.16 (Refs #65) - inject top critical/high coaching rule for this matchup.
@@ -3787,7 +4238,8 @@ function showInlinePilotCard(oppKey, res, simCtx) {
         <span style="font-weight:700;font-size:13px">📋 Pilot Notes vs ${_escapeHtml(teamName)}</span>
         <span class="pilot-verdict ${verdictClass}" style="font-size:11px;padding:3px 8px;border-radius:4px">${_escapeHtml(verdict)} · ${_escapeHtml(String(winPct))}%</span>
       </div>
-      ${postCoach ? `<pre class="cs-pilot-card-v2">${_escapeHtml(postCoach)}</pre>` : (tips.length ? `<div style="font-size:11px;color:var(--text-m,#888);line-height:1.7">${tips.map(t=>`• ${_escapeHtml(t)}`).join('<br>')}</div>` : '')}
+      ${tips.length ? `<div style="font-size:11px;color:var(--text-m,#888);line-height:1.7">${tips.map(t=>`• ${_escapeHtml(t)}`).join('<br>')}</div>` : ''}
+      ${postCoach ? `<details style="margin-top:10px"><summary style="font-size:11px;color:var(--text-m,#888);cursor:pointer">Coach draft from retained replay sample</summary><pre class="cs-pilot-card-v2">${_escapeHtml(postCoach)}</pre></details>` : ''}
     </div>`;
 }
 
@@ -4064,7 +4516,7 @@ function csReplayFieldTags(snapshot) {
   }
   ['player', 'opponent'].forEach(function(side) {
     var row = speed && speed[side] ? speed[side] : {};
-    var tailwindTurns = Number(row.tailwind || 0);
+    var tailwindTurns = Number(row.tailwind_turns || row.tailwind || 0);
     if (tailwindTurns > 0) {
       add((side === 'player' ? 'Your Tailwind ' : 'Their Tailwind ') + tailwindTurns + 'T', 'low', 'Tailwind is active for ' + side);
     }
@@ -4102,7 +4554,7 @@ function csReplayBuildImpactMap(turn) {
     out[effect.actor_key].push((effect.actor || 'Pokemon') + ' lost its move: ' + reason.toLowerCase());
   });
   Object.keys(out).forEach(function(key) {
-    out[key] = out[key].filter(Boolean).slice(0, 2);
+    out[key] = Array.from(new Set(out[key].filter(Boolean))).slice(0, 2);
   });
   return out;
 }
@@ -4323,10 +4775,42 @@ function csRenderReplayPlayByPlay(turn) {
   var eventRowsHaveMoves = eventRows.some(function(text) {
     return /\bused\b/.test(String(text || ''));
   });
-  if (structuredRows.length) {
-    rows = structuredRows;
-  } else if (eventRows.length && eventRowsHaveMoves) {
-    rows = eventRows;
+  if (eventRows.length && eventRowsHaveMoves) {
+    var structuredByMove = {};
+    var plannedMoveCounts = {};
+    ['player', 'opponent'].forEach(function(side) {
+      (turn.actions[side] || []).forEach(function(action) {
+        var text = showdownMoveText(action);
+        var match = String(text || '').match(/^(.+? used .+?!)/);
+        if (match) plannedMoveCounts[match[1]] = (plannedMoveCounts[match[1]] || 0) + 1;
+      });
+    });
+    structuredRows.forEach(function(text) {
+      var match = String(text || '').match(/^(.+? used .+?!)/);
+      if (!match) return;
+      if (!structuredByMove[match[1]]) structuredByMove[match[1]] = [];
+      structuredByMove[match[1]].push(text);
+    });
+    var representedMoves = {};
+    eventRows.forEach(function(text) {
+      var match = String(text || '').match(/^(.+? used .+?!)/);
+      if (!match) {
+        rows.push(text);
+        return;
+      }
+      var prefix = match[1];
+      var allowed = plannedMoveCounts[prefix] || 1;
+      if ((representedMoves[prefix] || 0) >= allowed) return;
+      representedMoves[prefix] = (representedMoves[prefix] || 0) + 1;
+      var structuredMatches = structuredByMove[prefix] || [];
+      rows.push(structuredMatches[representedMoves[prefix] - 1] || text);
+    });
+    structuredRows.forEach(function(text) {
+      var match = String(text || '').match(/^(.+? used .+?!)/);
+      if (!match) return;
+      if (representedMoves[match[1]]) return;
+      rows.push(text);
+    });
   } else {
     (turn.actions.player || []).forEach(function(action) {
       if (!action) return;
@@ -4343,7 +4827,10 @@ function csRenderReplayPlayByPlay(turn) {
   var seen = {};
   rows = rows.filter(function(text) {
     var key = String(text || '').trim();
-    if (!key || seen[key]) return false;
+    if (!key) return false;
+    // Identical move text can represent two opposing mirror-match actions.
+    if (/\bused\b/.test(key)) return true;
+    if (seen[key]) return false;
     seen[key] = true;
     return true;
   });
@@ -4497,76 +4984,10 @@ function _csDecisionMoveScore(move, actor, target, turn, opts) {
 }
 
 function csBuildDecisionAudit(turnLog, opts) {
-  var rows = Array.isArray(turnLog) ? turnLog : [];
-  var out = { total_flags: 0, flagged_turns: [], byTurn: {}, byKey: {} };
-  if (!rows.length) return out;
-  opts = opts || {};
-  var playerKey = opts.playerKey || (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player');
-  var oppKey = opts.oppKey || null;
-  var teamLookup = opts.teamLookup || ((typeof TEAMS !== 'undefined' && TEAMS[playerKey] && Array.isArray(TEAMS[playerKey].members)) ? TEAMS[playerKey].members : []);
-  var oppLookup = opts.oppLookup || ((oppKey && typeof TEAMS !== 'undefined' && TEAMS[oppKey] && Array.isArray(TEAMS[oppKey].members)) ? TEAMS[oppKey].members : []);
-  var playerMap = _csDecisionMemberMap(teamLookup);
-  var oppMap = _csDecisionMemberMap(oppLookup);
-  var threshold = typeof opts.threshold === 'number' ? opts.threshold : 12;
-
-  for (var i = 0; i < rows.length; i++) {
-    var turn = rows[i];
-    if (!turn || !turn.pre || !turn.actions) continue;
-    var playerActs = (turn.actions.player || []).slice();
-    if (!playerActs.length) continue;
-    var bestGap = -Infinity;
-    var bestFlag = null;
-
-    for (var a = 0; a < playerActs.length; a++) {
-      var act = playerActs[a];
-      if (!act || !act.actor || !act.move) continue;
-      var actor = playerMap[act.actor] || { name: act.actor, moves: [], types: [] };
-      var legal = (turn.pre.legal_options && turn.pre.legal_options[act.actor]) ? turn.pre.legal_options[act.actor] : [];
-      var candidates = legal.map(function(opt) {
-        return String(opt).split(' -> ')[0];
-      }).filter(function(mv) { return mv && mv.length; });
-      if (!candidates.length && Array.isArray(actor.moves)) candidates = actor.moves.slice();
-      if (!candidates.length) candidates = [act.move];
-      var targetName = act.target || ((turn.pre.active && turn.pre.active.opponent && turn.pre.active.opponent[0]) || null);
-      var target = targetName ? (oppMap[targetName] || { name: targetName, moves: [], types: [] }) : null;
-
-      var chosenScore = _csDecisionMoveScore(act.move, actor, target, turn, { oppLookup: oppMap });
-      var bestMove = act.move;
-      var bestScore = chosenScore;
-      for (var c = 0; c < candidates.length; c++) {
-        var mv = candidates[c];
-        var sc = _csDecisionMoveScore(mv, actor, target, turn, { oppLookup: oppMap });
-        if (sc > bestScore) {
-          bestScore = sc;
-          bestMove = mv;
-        }
-      }
-      var gap = Math.round((bestScore - chosenScore) * 10) / 10;
-      if (bestMove !== act.move && gap >= threshold && gap > bestGap) {
-        bestGap = gap;
-        bestFlag = {
-          turn: turn.turn,
-          actor: act.actor,
-          chosen_move: act.move,
-          best_move: bestMove,
-          chosen_score: Math.round(chosenScore * 10) / 10,
-          best_score: Math.round(bestScore * 10) / 10,
-          score_gap: gap,
-          expected_delta: Math.round(gap),
-          target: targetName,
-          reason: 'A better line was available based on current board state'
-        };
-      }
-    }
-
-    if (bestFlag) {
-      out.total_flags++;
-      out.flagged_turns.push(bestFlag);
-      out.byTurn[turn.turn] = bestFlag;
-      out.byKey[turn.turn + '|' + bestFlag.actor] = bestFlag;
-    }
-  }
-  return out;
+  // Current snapshots contain move inventories, not verified move/target availability.
+  // Positive PP cannot establish missing Disable, Encore, Choice or action-lock state.
+  // Preserve the public shape without turning heuristic scores into battle advice.
+  return { total_flags: 0, flagged_turns: [], byTurn: {}, byKey: {} };
 }
 
 function csRenderDecisionAuditChip(flag) {
@@ -4627,8 +5048,8 @@ function csTurnLogMemberSnapshot(member, index) {
   };
 }
 
-function csTurnLogTeamSnapshot(teamKey) {
-  var team = (typeof TEAMS !== 'undefined' && teamKey && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
+function csTurnLogTeamSnapshot(teamKey, executionTeam) {
+  var team = executionTeam || ((typeof TEAMS !== 'undefined' && teamKey && TEAMS[teamKey]) ? TEAMS[teamKey] : null);
   if (!team) return null;
   return {
     key: teamKey,
@@ -6112,6 +6533,12 @@ function csBuildMoveEffectLogicMatrix(mechanics, opts) {
 function csBuildQaCoverageSummary(turnLog, opts) {
   var rows = Array.isArray(turnLog) ? turnLog : [];
   var options = opts || {};
+  var coverageScope = options.scope || 'single-turn-log';
+  var coverageScopeNote = options.scope_note || (
+    /single-turn-log|downloaded-turn-log|retained-replay-card/.test(String(coverageScope || ''))
+      ? 'This is single-replay evidence. It proves only mechanics that occurred in this log; missing_targeted_proof is a list of mechanics absent from this sample, not a release-wide failure by itself.'
+      : 'This summary proves only mechanics that occurred in the exported evidence for this QA slice.'
+  );
   var qaSides = ['player', 'opponent'];
   var totals = {
     turns: rows.length,
@@ -6122,13 +6549,13 @@ function csBuildQaCoverageSummary(turnLog, opts) {
     turns_with_effect_events: 0
   };
   var mechanics = csQaBlankMechanicsSeen();
-  var tacticalSpeedSummary = csBuildTacticalSpeedSummary(rows, { scope: options.scope || 'single-turn-log' });
-  var durationEffectSummary = csBuildDurationEffectSummary(rows, { scope: options.scope || 'single-turn-log' });
-  var decisionLedger = csBuildDecisionOpportunityLedger(tacticalSpeedSummary, { scope: options.scope || 'single-turn-log' });
+  var tacticalSpeedSummary = csBuildTacticalSpeedSummary(rows, { scope: coverageScope });
+  var durationEffectSummary = csBuildDurationEffectSummary(rows, { scope: coverageScope });
+  var decisionLedger = csBuildDecisionOpportunityLedger(tacticalSpeedSummary, { scope: coverageScope });
   var faintCauseSummary = csBuildFaintCauseSummary(rows);
   var contactMoveAuditSummary = csBuildContactMoveAuditSummary(rows);
   var coachEventRows = csBuildCoachEventRows(tacticalSpeedSummary, durationEffectSummary, {
-    scope: options.scope || 'single-turn-log',
+    scope: coverageScope,
     player_team_id: options.player_team_id || null,
     opponent_team_id: options.opponent_team_id || null,
     format: options.format || null,
@@ -6279,9 +6706,10 @@ function csBuildQaCoverageSummary(turnLog, opts) {
       if (csQaEffectKindMatches(kind, 'item-recovery')) mechanics.item_recovery += 1;
     }
   }
+  totals.move_rule_trace_rows = Number(mechanics.move_rule_trace_rows || 0);
 
   var moveEffectLogicMatrix = csBuildMoveEffectLogicMatrix(mechanics, {
-    scope: options.scope || 'single-turn-log',
+    scope: coverageScope,
     contact_move_audit_summary: contactMoveAuditSummary,
     faint_cause_summary: faintCauseSummary
   });
@@ -6289,7 +6717,8 @@ function csBuildQaCoverageSummary(turnLog, opts) {
   return {
     schema_version: 'champions-qa-coverage-v1',
     generated_at: options.generated_at || new Date().toISOString(),
-    scope: options.scope || 'single-turn-log',
+    scope: coverageScope,
+    coverage_scope_note: coverageScopeNote,
     source: {
       build_id: options.build_id || ((typeof csGetBuildId === 'function') ? csGetBuildId() : null),
       source_url: options.source_url || ((typeof csGetSourceUrl === 'function') ? csGetSourceUrl() : null),
@@ -6309,7 +6738,7 @@ function csBuildQaCoverageSummary(turnLog, opts) {
     coach_event_rows: coachEventRows,
     coach_event_summary: csSummarizeCoachEventRows(coachEventRows),
     coach_brain_summary: csBuildCoachBrainSummary(decisionLedger, {
-      scope: options.scope || 'single-turn-log',
+      scope: coverageScope,
       player_team_id: options.player_team_id || null,
       opponent_team_id: options.opponent_team_id || null,
       format: options.format || null
@@ -6321,8 +6750,8 @@ function csBuildQaCoverageSummary(turnLog, opts) {
     effect_kinds: effectKinds,
     missing_targeted_proof: csQaMissingTargetedProof(mechanics),
     notes: [
-      'This summary only proves mechanics that occurred in this exported evidence.',
-      'Use targeted scenario logs for mechanics listed in missing_targeted_proof.'
+      coverageScopeNote,
+      'Use release-matrix or targeted scenario QA artifacts for release-wide mechanic proof.'
     ]
   };
 }
@@ -6429,6 +6858,7 @@ function csMergeQaCoverageSummaries(summaries, opts) {
     }
   }
 
+  merged.totals.move_rule_trace_rows = Number(merged.mechanics_seen && merged.mechanics_seen.move_rule_trace_rows || 0);
   merged.missing_targeted_proof = csQaMissingTargetedProof(merged.mechanics_seen);
   merged.decision_opportunity_ledger = csBuildDecisionOpportunityLedger(merged.tactical_speed_summary, { scope: options.scope || 'qa-artifact-retained-replay-cards' });
   merged.coach_event_rows = mergedCoachEventRows.slice(0, 240);
@@ -6490,6 +6920,9 @@ function csRunTargetedQaProofBattle(config) {
       opponentBring: config.opponentBring || null,
       forcedActions: Array.isArray(config.forcedActions) ? config.forcedActions : null
     });
+    result.evidence_scope = 'synthetic_mechanics_only';
+    result.competitive_eligible = false;
+    result.regulation_id = null;
     var summary = csBuildQaCoverageSummary(result && result.turnLog, {
       scope: 'targeted-qa-sweep-' + (config.id || 'proof'),
       build_id: config.build_id || ((typeof csGetBuildId === 'function') ? csGetBuildId() : null),
@@ -6694,6 +7127,45 @@ function csBuildTargetedQaSweepEvidence(opts) {
           evs: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 0 }
         }),
         csQaProofMon('Tauros-Paldea-Combat', ['Tackle'])
+      ])
+    }),
+    csRunTargetedQaProofBattle({
+      id: 'field_duration_trick_room_active',
+      label: 'Field-duration proof: Trick Room active state',
+      requireMechanic: 'trick_room_active',
+      build_id: buildId,
+      source_url: sourceUrl,
+      playerTeamId: 'targeted_qa_trick_room_player',
+      opponentTeamId: 'targeted_qa_trick_room_opponent',
+      format: 'doubles',
+      maxTurns: 1,
+      forcedActions: [
+        { turn: 1, side: 'player', slot: 0, move: 'Trick Room', targetSide: 'self' },
+        { turn: 1, side: 'opponent', slot: 0, move: 'Tackle', targetSide: 'enemy', targetSlot: 1 }
+      ],
+      playerTeam: csQaProofTeam('Targeted QA Trick Room Player', [
+        csQaProofMon('Cofagrigus', ['Trick Room'], {
+          ability: 'Mummy',
+          nature: 'Relaxed',
+          evs: { hp: 32, atk: 0, def: 32, spa: 0, spd: 32, spe: 0 }
+        }),
+        csQaProofMon('Torkoal', ['Tackle'], {
+          ability: 'Drought',
+          nature: 'Quiet',
+          evs: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 0 }
+        })
+      ]),
+      opponentTeam: csQaProofTeam('Targeted QA Trick Room Opponent', [
+        csQaProofMon('Garchomp', ['Tackle'], {
+          ability: 'Rough Skin',
+          nature: 'Jolly',
+          evs: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 32 }
+        }),
+        csQaProofMon('Arcanine', ['Tackle'], {
+          ability: 'Intimidate',
+          nature: 'Jolly',
+          evs: { hp: 32, atk: 32, def: 2, spa: 0, spd: 0, spe: 32 }
+        })
       ])
     }),
     csRunTargetedQaProofBattle({
@@ -7116,6 +7588,9 @@ async function csBuildForcedBranchMatrixSweepEvidence(opts) {
   }
   if (!playerTeam || !opponentTeam || typeof simulateBattle !== 'function') {
     return empty('unavailable', 'Required runtime teams or simulateBattle were not available.');
+  }
+  if (typeof canRunRegulationAnalysis !== 'function' || !canRunRegulationAnalysis(playerTeam, opponentTeam)) {
+    return empty('blocked_regulation', 'A verified regulation package is required for team branch analysis.');
   }
 
   var playerNames = csBranchMatrixMemberNames(playerTeam);
@@ -7806,19 +8281,54 @@ function csLatestCoachBrainForTeam(teamKey) {
 function downloadReplayTurnLog(replay, opts) {
   if (!replay || !Array.isArray(replay.turnLog)) return;
   opts = opts || {};
-  var playerKey = opts.playerKey || replay.playerKey || (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player');
-  var oppKey = opts.oppKey || replay.oppKey || null;
-  var playerTeam = csTurnLogTeamSnapshot(playerKey);
-  var opponentTeam = csTurnLogTeamSnapshot(oppKey);
+  var turnLog = Array.isArray(replay.turnLog) ? replay.turnLog : [];
+  var turnCount = turnLog.length;
+  var simTurnsReported = Number.isFinite(Number(replay.turns)) && Number(replay.turns) > 0 ? Number(replay.turns) : null;
+  var provenance = replay.provenance || null;
+  var playerKey = provenance && provenance.player_team_id || opts.playerKey || replay.playerKey || (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player');
+  var oppKey = provenance && provenance.opp_team_id || opts.oppKey || replay.oppKey || null;
+  var playerTeam = replay.team_snapshots ? replay.team_snapshots.player : (provenance ? null : csTurnLogTeamSnapshot(playerKey));
+  var opponentTeam = replay.team_snapshots ? replay.team_snapshots.opponent : (provenance ? null : csTurnLogTeamSnapshot(oppKey));
   var exportedAt = new Date().toISOString();
-  var buildId = (typeof csGetBuildId === 'function') ? csGetBuildId() : null;
+  var exporterBuildId = (typeof csGetBuildId === 'function') ? csGetBuildId() : null;
+  var buildId = provenance && provenance.build_id || exporterBuildId;
   var sourceUrl = (typeof csGetSourceUrl === 'function') ? csGetSourceUrl() : null;
-  var format = replay.format || (typeof currentFormat !== 'undefined' ? currentFormat : null);
+  var format = provenance && provenance.format || replay.format || (typeof currentFormat !== 'undefined' ? currentFormat : null);
+  var qaScope = 'single-turn-log';
+  var qaScopeNote = 'This downloaded turn log is single-replay evidence from one replay sample. It can prove what happened in this battle, but it is not release-wide targeted proof unless paired with Release Matrix or Targeted Mechanic QA.';
+  var qaCoverageSummary = csBuildQaCoverageSummary(turnLog, {
+    generated_at: exportedAt,
+    build_id: buildId,
+    source_url: sourceUrl,
+    format: format,
+    player_team_id: playerKey || null,
+    opponent_team_id: oppKey || null,
+    scope: qaScope,
+    scope_note: qaScopeNote
+  });
+  var singleReplayMissingMechanics = Array.isArray(qaCoverageSummary.missing_targeted_proof) ? qaCoverageSummary.missing_targeted_proof.slice() : [];
+  qaCoverageSummary.single_replay_missing_mechanics = singleReplayMissingMechanics;
+  qaCoverageSummary.missing_targeted_proof = [];
+  qaCoverageSummary.missing_targeted_proof_note = 'Suppressed for single-turn-log downloads. Use single_replay_missing_mechanics for mechanics absent from this one replay; use Release Matrix or Targeted Mechanic QA for release-wide missing proof.';
+  if (Array.isArray(qaCoverageSummary.notes)) {
+    qaCoverageSummary.notes.push(qaCoverageSummary.missing_targeted_proof_note);
+  }
   var payload = {
     schema_version: 'champions-turn-log-v2',
+    provenance: provenance,
+    evidence_policy: typeof getSimulationEvidencePolicy === 'function' ? getSimulationEvidencePolicy(provenance) : { poisoning_guard: 'unverified_evidence_do_not_train_or_rank' },
+    exporter_build_id: exporterBuildId,
+    team_snapshot_source: replay.team_snapshots ? 'execution_time' : (provenance ? 'unavailable' : 'export_time_unverified'),
+    participants: replay.participants || null,
+    bring: replay.bring || null,
     exported_at: exportedAt,
     build_id: buildId,
     source_url: sourceUrl,
+    qa_scope: qaScope,
+    qa_scope_note: qaScopeNote,
+    turns: turnCount,
+    sim_turns_reported: simTurnsReported,
+    turn_count_source: 'turnLog.length',
     seed: replay.seed || null,
     result: replay.result || null,
     format: format,
@@ -7829,48 +8339,42 @@ function downloadReplayTurnLog(replay, opts) {
     team_preview: {
       player_full_count: playerTeam && Array.isArray(playerTeam.members) ? playerTeam.members.length : null,
       opponent_full_count: opponentTeam && Array.isArray(opponentTeam.members) ? opponentTeam.members.length : null,
-      player_brought_count: csTurnLogBroughtSnapshot(replay.turnLog, 'player').length,
-      opponent_brought_count: csTurnLogBroughtSnapshot(replay.turnLog, 'opponent').length,
-      player_brought: csTurnLogBroughtSnapshot(replay.turnLog, 'player'),
-      opponent_brought: csTurnLogBroughtSnapshot(replay.turnLog, 'opponent')
+      player_brought_count: csTurnLogBroughtSnapshot(turnLog, 'player').length,
+      opponent_brought_count: csTurnLogBroughtSnapshot(turnLog, 'opponent').length,
+      player_brought: csTurnLogBroughtSnapshot(turnLog, 'player'),
+      opponent_brought: csTurnLogBroughtSnapshot(turnLog, 'opponent')
     },
     winCondition: replay.winCondition || null,
     turning_point: replay.turning_point || null,
     position_path: replay.position_path || [],
-    tactical_speed_summary: csBuildTacticalSpeedSummary(replay.turnLog, { scope: 'downloaded-turn-log' }),
-    duration_effect_summary: csBuildDurationEffectSummary(replay.turnLog, { scope: 'downloaded-turn-log' }),
-    decision_opportunity_ledger: csBuildDecisionOpportunityLedger(csBuildTacticalSpeedSummary(replay.turnLog, { scope: 'downloaded-turn-log' }), { scope: 'downloaded-turn-log' }),
-    faint_cause_summary: csBuildFaintCauseSummary(replay.turnLog),
-    contact_move_audit_summary: csBuildContactMoveAuditSummary(replay.turnLog),
-    coach_event_rows: csBuildCoachEventRows(csBuildTacticalSpeedSummary(replay.turnLog, { scope: 'downloaded-turn-log' }), csBuildDurationEffectSummary(replay.turnLog, { scope: 'downloaded-turn-log' }), {
+    tactical_speed_summary: csBuildTacticalSpeedSummary(turnLog, { scope: 'downloaded-turn-log' }),
+    duration_effect_summary: csBuildDurationEffectSummary(turnLog, { scope: 'downloaded-turn-log' }),
+    decision_opportunity_ledger: csBuildDecisionOpportunityLedger(csBuildTacticalSpeedSummary(turnLog, { scope: 'downloaded-turn-log' }), { scope: 'downloaded-turn-log' }),
+    faint_cause_summary: csBuildFaintCauseSummary(turnLog),
+    contact_move_audit_summary: csBuildContactMoveAuditSummary(turnLog),
+    coach_event_rows: csBuildCoachEventRows(csBuildTacticalSpeedSummary(turnLog, { scope: 'downloaded-turn-log' }), csBuildDurationEffectSummary(turnLog, { scope: 'downloaded-turn-log' }), {
       scope: 'downloaded-turn-log',
       player_team_id: playerKey || null,
       opponent_team_id: oppKey || null,
       format: format,
       maxRows: 120
     }),
-    coach_event_summary: csSummarizeCoachEventRows(csBuildCoachEventRows(csBuildTacticalSpeedSummary(replay.turnLog, { scope: 'downloaded-turn-log' }), csBuildDurationEffectSummary(replay.turnLog, { scope: 'downloaded-turn-log' }), {
+    coach_event_summary: csSummarizeCoachEventRows(csBuildCoachEventRows(csBuildTacticalSpeedSummary(turnLog, { scope: 'downloaded-turn-log' }), csBuildDurationEffectSummary(turnLog, { scope: 'downloaded-turn-log' }), {
       scope: 'downloaded-turn-log',
       player_team_id: playerKey || null,
       opponent_team_id: oppKey || null,
       format: format,
       maxRows: 120
     })),
-    coach_brain_summary: csBuildCoachBrainSummary(csBuildDecisionOpportunityLedger(csBuildTacticalSpeedSummary(replay.turnLog, { scope: 'downloaded-turn-log' }), { scope: 'downloaded-turn-log' }), {
+    coach_brain_summary: csBuildCoachBrainSummary(csBuildDecisionOpportunityLedger(csBuildTacticalSpeedSummary(turnLog, { scope: 'downloaded-turn-log' }), { scope: 'downloaded-turn-log' }), {
       scope: 'downloaded-turn-log',
       player_team_id: playerKey || null,
       opponent_team_id: oppKey || null,
       format: format
     }),
-    qa_coverage_summary: csBuildQaCoverageSummary(replay.turnLog, {
-      generated_at: exportedAt,
-      build_id: buildId,
-      source_url: sourceUrl,
-      format: format,
-      player_team_id: playerKey || null,
-      opponent_team_id: oppKey || null
-    }),
-    turnLog: replay.turnLog
+    qa_coverage_summary: qaCoverageSummary,
+    single_replay_missing_mechanics: singleReplayMissingMechanics,
+    turnLog: turnLog
   };
   var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
@@ -7886,29 +8390,11 @@ function csBuildReplayCoachingSummary(replay, opts) {
   var fallback = {
     issue_category: 'not enough evidence',
     evidence_label: 'not enough evidence',
-    next_action: 'Run another replay with structured turn log so the Replay Log can show a clearer decision review.',
-    detail: 'This replay does not expose enough structured evidence to label the miss confidently.'
+    next_action: 'Inspect the recorded actions and board changes in the Replay Log.',
+    detail: 'This evidence does not establish which alternatives were usable or how they would have changed the outcome.'
   };
   if (!replay || typeof replay !== 'object') return fallback;
 
-  var rows = Array.isArray(replay.turnLog) ? replay.turnLog : [];
-  if (rows.length) {
-    var audit = csBuildDecisionAudit(rows, {
-      playerKey: opts.playerKey || replay.playerKey || (typeof currentPlayerKey !== 'undefined' ? currentPlayerKey : 'player'),
-      oppKey: opts.oppKey || replay.oppKey || null,
-      teamLookup: opts.teamLookup,
-      oppLookup: opts.oppLookup
-    });
-    if (audit && audit.total_flags && Array.isArray(audit.flagged_turns) && audit.flagged_turns.length) {
-      var flag = audit.flagged_turns[0];
-      return {
-        issue_category: 'execution',
-        evidence_label: 'replay + turn log',
-        next_action: 'Review T' + flag.turn + ': compare ' + flag.chosen_move + ' against ' + flag.best_move + '.',
-        detail: 'The replay shows a clearer line on the turning turn, so the next review target is execution rather than team theory.'
-      };
-    }
-  }
 
   return fallback;
 }
@@ -8033,6 +8519,143 @@ function csRenderReplayTurn0(turn0, selectedSide) {
 
 var CS_LAST_REPLAY_SCENARIO_QUEUE = [];
 var CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
+var CS_LAST_REPLAY_IMPORT_PAYLOAD = null;
+var CS_LAST_REPLAY_IMPORT_SOURCE_FILE = '';
+
+function csReplayPersonalTeamsForImport() {
+  var out = [];
+  if (typeof TEAMS === 'undefined' || !TEAMS) return out;
+  Object.keys(TEAMS).forEach(function(key) {
+    var team = TEAMS[key];
+    if (!team) return;
+    var isCustom = team.source === 'custom' || /^custom_/.test(key);
+    if (!isCustom) return;
+    out.push({
+      key: key,
+      id: team.team_lab_team_id || team.id || key,
+      team_id: key,
+      team_lab_team_id: team.team_lab_team_id || team.id || key,
+      name: team.name || key,
+      label: team.label || '',
+      visibility: team.visibility || 'private'
+    });
+  });
+  return out.sort(function(a, b) {
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+}
+
+function csPopulateReplayReferenceTeamSelect(selectEl) {
+  if (!selectEl) return [];
+  var teams = csReplayPersonalTeamsForImport();
+  var selected = selectEl.value || '';
+  selectEl.innerHTML = '<option value="">Auto-match by filename or leave unmapped</option>';
+  teams.forEach(function(team) {
+    var opt = document.createElement('option');
+    opt.value = team.team_lab_team_id || team.team_id || team.key || team.name;
+    opt.textContent = (team.name || team.key || 'Custom team') + ' · private Pilot team';
+    selectEl.appendChild(opt);
+  });
+  if (selected) selectEl.value = selected;
+  return teams;
+}
+
+function csSelectedReplayReferenceTeam(selectEl) {
+  if (!selectEl || !selectEl.value) return null;
+  var selected = selectEl.value;
+  var teams = csReplayPersonalTeamsForImport();
+  for (var i = 0; i < teams.length; i += 1) {
+    var team = teams[i];
+    var ids = [team.key, team.id, team.team_id, team.team_lab_team_id].map(function(value) {
+      return String(value || '');
+    });
+    if (ids.indexOf(selected) >= 0) return team;
+  }
+  return {
+    key: selected,
+    id: selected,
+    team_id: selected,
+    team_lab_team_id: selected,
+    name: selected,
+    visibility: 'private'
+  };
+}
+
+function csBuildReplayPrivateImportPreview(raw, sourceFile, selectEl) {
+  var service = (typeof ChampionsSim !== 'undefined' && ChampionsSim) ? ChampionsSim.replayImportService : null;
+  if (!service || typeof service.buildReplayImportPayload !== 'function') return null;
+  var selected = csSelectedReplayReferenceTeam(selectEl);
+  var teams = csReplayPersonalTeamsForImport();
+  return service.buildReplayImportPayload(raw || '', {
+    filename: sourceFile || '',
+    source_filename: sourceFile || '',
+    personal_teams: teams,
+    reference_team_id: selected ? (selected.team_lab_team_id || selected.team_id || selected.key || selected.id) : '',
+    room_id: 'pilot-local-room',
+    uploaded_by_user_id: 'pilot-local-user',
+    regulation_id: 'champions_reg_m_b_2026',
+    format: (typeof currentFormat !== 'undefined' && currentFormat) ? currentFormat : 'doubles',
+    engine_version: (typeof csGetBuildId === 'function') ? csGetBuildId() : '',
+    ruleset_version: 'pilot-private-import-preview'
+  });
+}
+
+function csReplayImportStatusText(payload) {
+  var row = payload && (payload.import_row || payload.importRow);
+  if (!row) return '';
+  var match = row.metadata && row.metadata.personal_team_match;
+  var gaps = Array.isArray(row.source_gaps) ? row.source_gaps.length : 0;
+  if (match) {
+    return ' Private Trainer Room mapping: ' + (match.team_name || match.team_key || 'selected team') +
+      ' (' + match.match_type + '). Parse: ' + row.parse_status + '; source gaps: ' + gaps + '.';
+  }
+  return ' Private import is unmapped; filename/team mapping needs review. Parse: ' + row.parse_status + '; source gaps: ' + gaps + '.';
+}
+
+function csUpdateReplayImportSaveButton(message) {
+  var btn = (typeof document !== 'undefined') ? document.getElementById('replay-coach-save-import-btn') : null;
+  if (!btn) return;
+  var hasPayload = !!(CS_LAST_REPLAY_IMPORT_PAYLOAD && (CS_LAST_REPLAY_IMPORT_PAYLOAD.import_row || CS_LAST_REPLAY_IMPORT_PAYLOAD.importRow));
+  btn.disabled = !hasPayload;
+  btn.title = hasPayload
+    ? (message || 'Save this replay as private Trainer Room evidence.')
+    : 'Upload or paste a replay first.';
+}
+
+async function csSaveReplayPrivateImportPayload(payload) {
+  var adapter = (typeof window !== 'undefined' && window.SupabaseAdapter) ? window.SupabaseAdapter : null;
+  if (!payload || !(payload.import_row || payload.importRow)) {
+    return {
+      ok: false,
+      local_only: true,
+      message: 'No private replay import payload is ready yet.'
+    };
+  }
+  if (!adapter || !adapter.enabled || typeof adapter.saveReplayImport !== 'function') {
+    return {
+      ok: false,
+      local_only: true,
+      message: 'Local-only: private replay import was prepared but not saved because Supabase/Auth is unavailable.'
+    };
+  }
+  var saved = await adapter.saveReplayImport(payload);
+  if (!saved) {
+    return {
+      ok: false,
+      local_only: true,
+      message: 'Private replay import could not be saved. It remains local-only; check Auth/RLS before treating it as account history.'
+    };
+  }
+  return {
+    ok: true,
+    saved: saved,
+    message: 'Saved private Trainer Room replay import: ' +
+      ((saved.import_row && saved.import_row.id) ? saved.import_row.id : 'saved') +
+      ' · refs ' + ((saved.saved_counts && saved.saved_counts.refs) || 0) +
+      ' · events ' + ((saved.saved_counts && saved.saved_counts.events) || 0) + '.'
+  };
+}
+
 function csReplaySpeciesId(name) {
   return String(name || '')
     .replace(/-Mega(?:-[XY])?$/i, '')
@@ -8087,7 +8710,9 @@ function csReplayFindBestTeamMatch(preview, visible, opts) {
     else if (visibleList.length >= 4 && csReplayMatchSpeciesCount(csReplaySpeciesSet(visibleList), teamSet) >= 4) confidence = 'visible_four_match';
     var missing = required.filter(function(name) { return !teamSet[csReplaySpeciesId(name)]; });
     rows.push({
-      team_id: teamId,
+      team_id: null,
+      candidate_team_id: teamId,
+      status: 'needs_verification',
       team_name: team.name || teamId,
       confidence: confidence,
       matched_count: matched,
@@ -8095,8 +8720,8 @@ function csReplayFindBestTeamMatch(preview, visible, opts) {
       matched_species: required.filter(function(name) { return !!teamSet[csReplaySpeciesId(name)]; }),
       missing_species: missing,
       team_species: teamSpecies,
-      regulation_id: team.regulation_id || team.ruleset || team.champion_ruleset || null,
-      legality_status: team.legality_status || null
+      regulation_id: null,
+      legality_status: 'unknown'
     });
   });
   rows.sort(function(a, b) {
@@ -8119,12 +8744,12 @@ function csReplayScenarioResolveTeamMappings(row, context) {
   return {
     player: player,
     opponent: opponent,
-    status: (player.team_id && opponent.team_id) ? 'mapped' : (player.team_id || opponent.team_id ? 'partial_mapping' : 'no_match')
+    status: (player.candidate_team_id || opponent.candidate_team_id) ? 'needs_verification' : 'no_match'
   };
 }
-function csReplayScenarioTeamMapStatus(row) {
+function csReplayScenarioTeamMapStatus(row, context) {
   row = row || {};
-  var context = CS_LAST_REPLAY_SCENARIO_CONTEXT || {};
+  context = context || CS_LAST_REPLAY_SCENARIO_CONTEXT || {};
   var mappings = csReplayScenarioResolveTeamMappings(row, context);
   var board = row.boardContext || {};
   var yourLead = Array.isArray(board.yourLead) ? board.yourLead : [];
@@ -8148,7 +8773,7 @@ function csBuildReplayScenarioTacticalQaPayload(row, index, context) {
   var parsed = context.parsed || {};
   var review = context.review || {};
   var claimAudit = review.claimAudit || null;
-  var map = csReplayScenarioTeamMapStatus(row);
+  var map = csReplayScenarioTeamMapStatus(row, context);
   var buildId = typeof csGetBuildId === 'function' ? csGetBuildId() : 'unknown-engine';
   var mappings = map.mappings || csReplayScenarioResolveTeamMappings(row, context);
   return {
@@ -8157,8 +8782,9 @@ function csBuildReplayScenarioTacticalQaPayload(row, index, context) {
     scenario_index: index,
     source: 'battle_sensei_replay_scenario_queue',
     source_boundary: 'Replay-derived Tactical QA payload. This is player-match evidence and does not overwrite Champion legality, mechanics truth, or leaderboard rankings.',
-    engine_version: buildId,
-    ruleset_version: buildId,
+    exporter_build_id: buildId,
+    engine_version: 'unknown',
+    ruleset_version: 'unknown',
     regulation_id: 'needs_regulation_mapping',
     format: parsed.format || 'unknown',
     sample_size: 1,
@@ -8700,68 +9326,13 @@ function csUniquePokemonNames(names, teamKey, cap) {
 }
 
 function csBuildBattleSenseiSimPlan(parsed, selectedSide) {
-  parsed = parsed || {};
-  var playerKey = (typeof currentPlayerKey === 'string' && TEAMS[currentPlayerKey]) ? currentPlayerKey : 'player';
-  var results = (ChampionsSim && ChampionsSim.state && ChampionsSim.state.lastResults) ? ChampionsSim.state.lastResults : {};
-  var oppSide = (selectedSide || parsed.selectedSide || 'p1') === 'p1' ? 'p2' : 'p1';
-  var oppPreview = parsed.teamPreview && parsed.teamPreview[oppSide] ? parsed.teamPreview[oppSide] : [];
-  var oppSelect = (typeof document !== 'undefined') ? document.getElementById('opponent-select') : null;
-  var selectedOppKey = oppSelect && oppSelect.value && TEAMS[oppSelect.value] ? oppSelect.value : '';
-  var candidateKeys = Object.keys(results || {}).filter(function(k) { return TEAMS[k]; });
-  if (selectedOppKey && candidateKeys.indexOf(selectedOppKey) < 0) candidateKeys.unshift(selectedOppKey);
-  if (!candidateKeys.length) return null;
-
-  var ranked = candidateKeys.map(function(key) {
-    var previewScore = csTeamPreviewOverlap(oppPreview, key);
-    var hasResult = results && results[key] ? 0.25 : 0;
-    var selectedBoost = key === selectedOppKey ? 0.15 : 0;
-    return { key: key, score: previewScore + hasResult + selectedBoost, previewScore: previewScore, hasResult: !!(results && results[key]) };
-  }).sort(function(a, b) { return b.score - a.score; });
-  var best = ranked[0];
-  if (!best || (!best.hasResult && best.previewScore <= 0)) return null;
-
-  var scopedResults = {};
-  if (results && results[best.key]) scopedResults[best.key] = results[best.key];
-  var report = null;
-  try {
-    if (typeof buildStrategyReport === 'function') report = buildStrategyReport(playerKey, scopedResults, currentFormat);
-  } catch (e) { report = null; }
-  if (!report && typeof loadStrategyReport === 'function') {
-    try { report = loadStrategyReport(playerKey); } catch (_e) { report = null; }
-  }
-  if (!report) return null;
-
-  var leadSystem = report.lead_system || {};
-  var matchupIntel = report.matchup_intelligence || {};
-  var bestLeadLabel = (matchupIntel.safe_leads && matchupIntel.safe_leads[0]) || leadSystem.safe || leadSystem.speed || leadSystem.pressure || leadSystem.punish || '';
-  var bestLead = csSplitLeadPair(bestLeadLabel);
-  var preserveNames = [];
-  if (report.team_identity && report.team_identity.primary_win_condition) preserveNames = preserveNames.concat(csSplitLeadPair(report.team_identity.primary_win_condition.replace(/->/g, '+')));
-  if (report.team_identity && Array.isArray(report.team_identity.speed_control_mons)) preserveNames = preserveNames.concat(report.team_identity.speed_control_mons);
-  if (report.team_identity && Array.isArray(report.team_identity.pivot_mons)) preserveNames = preserveNames.concat(report.team_identity.pivot_mons);
-  var bestFour = csUniquePokemonNames(bestLead.concat(preserveNames), playerKey, getBringCount());
-  var matchConfidence = best.previewScore >= 0.5 && best.hasResult ? 'medium' : 'low';
-
-  return {
-    source: 'latest in-app simulation strategy report',
-    matchedOpponentKey: best.key,
-    matchedOpponentName: TEAMS[best.key] && TEAMS[best.key].name ? TEAMS[best.key].name : best.key,
-    registeredRoster: parsed.teamPreview && parsed.teamPreview[selectedSide] ? parsed.teamPreview[selectedSide] : [],
-    lineupSize: getBringCount(),
-    lineupMatrix: (ChampionsSim.replayLearning && typeof ChampionsSim.replayLearning.lineupCombinations === 'function' && parsed.teamPreview && parsed.teamPreview[selectedSide])
-      ? ChampionsSim.replayLearning.lineupCombinations(parsed.teamPreview[selectedSide], getBringCount())
-      : [],
-    matchConfidence: matchConfidence,
-    bestLead: bestLead,
-    bestFour: bestFour,
-    expectedWinPath: matchupIntel.best_win_path || (report.coaching_notes && report.coaching_notes.best_win_path) || (report.team_identity && report.team_identity.primary_win_condition) || '',
-    safestLine: report.pilot_plan ? report.pilot_plan.turn_1 : '',
-    confidence: matchConfidence,
-    sampleSize: report.sample_size || 0
-  };
+  // Selected UI teams and species overlap cannot prove the replay's team versions.
+  // Re-enable only behind a verified two-team, format and ruleset identity contract.
+  return null;
 }
 
 function csInitReplayCoachUi() {
+  var pendingReplaySource = null;
   var logEl = document.getElementById('replay-coach-log');
   var rosterEl = document.getElementById('replay-coach-full-roster');
   var urlEl = document.getElementById('replay-coach-url');
@@ -8770,9 +9341,13 @@ function csInitReplayCoachUi() {
   var clearBtn = document.getElementById('replay-coach-clear-btn');
   var uploadBtn = document.getElementById('replay-coach-upload-btn');
   var fetchBtn = document.getElementById('replay-coach-fetch-btn');
+  var saveImportBtn = document.getElementById('replay-coach-save-import-btn');
   var fileEl = document.getElementById('replay-coach-file');
+  var refTeamEl = document.getElementById('replay-coach-reference-team');
   var statusEl = document.getElementById('replay-coach-status');
   if (!logEl || !sideEl || !runBtn) return;
+  csPopulateReplayReferenceTeamSelect(refTeamEl);
+  csUpdateReplayImportSaveButton();
   csUpdateReplayScenarioExportButton('Upload and analyze a replay to enable Tactical QA payload export.');
 
   function setStatus(msg, isError) {
@@ -8781,7 +9356,27 @@ function csInitReplayCoachUi() {
     statusEl.classList.toggle('error', !!isError);
   }
 
+  function invalidateReplayReview() {
+    setStatus('');
+    CS_LAST_REPLAY_IMPORT_PAYLOAD = null;
+    CS_LAST_REPLAY_SCENARIO_QUEUE = [];
+    CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
+    csUpdateReplayImportSaveButton();
+    csUpdateReplayScenarioExportButton('Analyze the current replay before exporting evidence.');
+    var host = document.getElementById('replay-coach-results');
+    if (host) host.innerHTML = '<div class="replay-coach-empty"><strong>Analysis pending</strong></div>';
+  }
+  logEl.addEventListener('input', function() {
+    pendingReplaySource = null;
+    CS_LAST_REPLAY_IMPORT_SOURCE_FILE = '';
+    invalidateReplayReview();
+  });
+  if (rosterEl) rosterEl.addEventListener('input', invalidateReplayReview);
+  sideEl.addEventListener('change', invalidateReplayReview);
+
   runBtn.addEventListener('click', function() {
+    var previousImport = CS_LAST_REPLAY_IMPORT_PAYLOAD;
+    invalidateReplayReview();
     var api = ChampionsSim && ChampionsSim.replayCoach;
     if (!api || typeof api.analyzeShowdownReplay !== 'function') {
       setStatus('Battle Sensei parser is not available in this build.', true);
@@ -8794,7 +9389,12 @@ function csInitReplayCoachUi() {
     }
     try {
       var selectedSide = sideEl.value || 'p1';
-      var opts = { selectedSide: selectedSide, manualTeamPreview: rosterEl ? rosterEl.value : '' };
+      var opts = {
+        selectedSide: selectedSide,
+        manualTeamPreview: rosterEl ? rosterEl.value : '',
+        referenceTeam: csSelectedReplayReferenceTeam(refTeamEl),
+        privateImport: previousImport
+      };
       var analysis;
       if (typeof api.parseShowdownLog === 'function' && typeof api.buildReplayCoachReview === 'function') {
         var parsed = api.parseShowdownLog(raw, opts);
@@ -8806,15 +9406,50 @@ function csInitReplayCoachUi() {
       }
       csReplayCoachRenderAnalysis(analysis);
       var parsedTurns = analysis && analysis.parsed ? analysis.parsed.totalTurns : 0;
-      setStatus('Parsed ' + parsedTurns + ' turn' + (parsedTurns === 1 ? '' : 's') + '. Review is local-only unless you export or save it later.');
+      if (!CS_LAST_REPLAY_IMPORT_PAYLOAD) {
+        CS_LAST_REPLAY_IMPORT_SOURCE_FILE = CS_LAST_REPLAY_IMPORT_SOURCE_FILE || 'manual-replay-input.log';
+        var sourceRaw = pendingReplaySource && pendingReplaySource.normalized === raw ? pendingReplaySource.raw : raw;
+        CS_LAST_REPLAY_IMPORT_PAYLOAD = csBuildReplayPrivateImportPreview(sourceRaw, CS_LAST_REPLAY_IMPORT_SOURCE_FILE, refTeamEl);
+      }
+      csUpdateReplayImportSaveButton('Save analyzed replay as private Trainer Room evidence.');
+      setStatus('Parsed ' + parsedTurns + ' turn' + (parsedTurns === 1 ? '' : 's') + '. Review is local-only unless you export or save it later.' + csReplayImportStatusText(CS_LAST_REPLAY_IMPORT_PAYLOAD));
     } catch (e) {
+      invalidateReplayReview();
       setStatus('Could not analyze replay: ' + (e && e.message ? e.message : 'unknown error'), true);
     }
   });
 
+  if (refTeamEl) refTeamEl.addEventListener('change', function() {
+    invalidateReplayReview();
+    setStatus('Reference team updated. Analyze the replay again before saving evidence.');
+  });
+
+  if (saveImportBtn) saveImportBtn.addEventListener('click', async function() {
+    if (!CS_LAST_REPLAY_IMPORT_PAYLOAD || !CS_LAST_REPLAY_SCENARIO_CONTEXT) {
+      setStatus('Analyze the current replay before saving evidence.', true);
+      return;
+    }
+    csUpdateReplayImportSaveButton('Saving private Trainer Room import...');
+    saveImportBtn.disabled = true;
+    setStatus('Saving private Trainer Room replay import...');
+    try {
+      var result = await csSaveReplayPrivateImportPayload(CS_LAST_REPLAY_IMPORT_PAYLOAD);
+      setStatus(result.message, !result.ok && !result.local_only);
+    } catch (e) {
+      setStatus('Private replay import save failed: ' + (e && e.message ? e.message : 'unknown error'), true);
+    } finally {
+      csUpdateReplayImportSaveButton('Save this replay as private Trainer Room evidence.');
+    }
+  });
+
   if (clearBtn) clearBtn.addEventListener('click', function() {
+    pendingReplaySource = null;
     logEl.value = '';
     if (rosterEl) rosterEl.value = '';
+    if (refTeamEl) refTeamEl.value = '';
+    CS_LAST_REPLAY_IMPORT_PAYLOAD = null;
+    CS_LAST_REPLAY_IMPORT_SOURCE_FILE = '';
+    csUpdateReplayImportSaveButton();
     CS_LAST_REPLAY_SCENARIO_QUEUE = [];
     CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
     csUpdateReplayScenarioExportButton('Upload and analyze a replay to enable Tactical QA payload export.');
@@ -8833,12 +9468,15 @@ function csInitReplayCoachUi() {
         var api = ChampionsSim && ChampionsSim.replayCoach;
         var raw = String(reader.result || '');
         var normalized = api && typeof api.normalizeReplayLogInput === 'function' ? api.normalizeReplayLogInput(raw) : raw;
+        invalidateReplayReview();
+        pendingReplaySource = { raw: raw, normalized: normalized };
         logEl.value = normalized;
+        CS_LAST_REPLAY_IMPORT_SOURCE_FILE = file.name || '';
         CS_LAST_REPLAY_SCENARIO_QUEUE = [];
         CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
         csUpdateReplayScenarioExportButton('Replay loaded. Click Analyze Replay to create Tactical QA payload scenarios.');
         var htmlReplay = /\.html?$/i.test(file.name || '') || /^text\/html/i.test(file.type || '');
-        setStatus('Loaded ' + file.name + (htmlReplay ? ' as Showdown HTML replay evidence.' : '.') + ' Run analysis when ready.');
+        setStatus('Loaded ' + file.name + (htmlReplay ? ' as Showdown HTML replay evidence.' : '.') + ' Run analysis when ready.' + csReplayImportStatusText(CS_LAST_REPLAY_IMPORT_PAYLOAD));
       };
       reader.onerror = function() { setStatus('Could not read that file.', true); };
       reader.readAsText(file);
@@ -8861,11 +9499,14 @@ function csInitReplayCoachUi() {
       try {
         var normalized = await api.fetchReplayLog(rawUrl);
         if (!normalized) throw new Error('Replay log was empty.');
+        invalidateReplayReview();
+        pendingReplaySource = { raw: normalized, normalized: normalized };
         logEl.value = normalized;
+        CS_LAST_REPLAY_IMPORT_SOURCE_FILE = rawUrl || 'replay-url.log';
         CS_LAST_REPLAY_SCENARIO_QUEUE = [];
         CS_LAST_REPLAY_SCENARIO_CONTEXT = null;
         csUpdateReplayScenarioExportButton('Replay loaded. Click Analyze Replay to create Tactical QA payload scenarios.');
-        setStatus('Loaded replay URL into the log box. Run analysis when ready.');
+        setStatus('Loaded replay URL into the log box. Run analysis when ready.' + csReplayImportStatusText(CS_LAST_REPLAY_IMPORT_PAYLOAD));
       } catch (e) {
         setStatus((e && e.message) ? e.message : 'Could not load that replay URL.', true);
       }
@@ -9054,7 +9695,7 @@ async function csBuildMyDataExport(teamKey) {
   var team = (typeof TEAMS !== 'undefined' && TEAMS[key]) ? TEAMS[key] : null;
   var adapter = getWindowValue('SupabaseAdapter', null);
   var localReports = (typeof csLoadAllReports === 'function') ? csLoadAllReports() : {};
-  var localSimLog = (typeof csSimLogGetAll === 'function') ? csSimLogGetAll() : [];
+  var localSimLog = (typeof csSimLogGetAll === 'function') ? csSimLogGetAll({ includeQuarantined: true }) : [];
   var localTeamHistory = (typeof csSimLogForTeamBothSides === 'function') ? csSimLogForTeamBothSides(key) : [];
   var activeReport = (typeof csLoadReport === 'function') ? csLoadReport(key) : null;
   var dbAnalyses = [];
@@ -9080,6 +9721,15 @@ async function csBuildMyDataExport(teamKey) {
             wins: row.wins || 0,
             losses: row.losses || 0,
             sample_size: row.sample_size || 0,
+            engine_version: row.engine_version || 'unknown',
+            ruleset_id: row.ruleset_id || 'unknown',
+            policy_model: row.policy_model || 'unknown',
+            format: row.format || 'unknown',
+            evidence_policy: row.evidence_policy || { poisoning_guard: 'unverified_evidence_do_not_train_or_rank' },
+            stored_evidence_policy: row.analysis_json && row.analysis_json.evidence_policy || null,
+            analysis_json: row.analysis_json ? Object.assign({}, row.analysis_json, {
+              evidence_policy: row.evidence_policy || { poisoning_guard: 'unverified_evidence_do_not_train_or_rank' }
+            }) : null,
             logs: logs
           });
         }
@@ -9316,7 +9966,9 @@ function csCompactQaReplayCard(replay, playerKey) {
     playerKey: r.playerKey || playerKey || null,
     oppKey: r.oppKey || null,
     result: r.result || null,
-    turns: r.turns || 0,
+    turns: turnLog.length ? turnLog.length : (r.turns || 0),
+    sim_turns_reported: Number.isFinite(Number(r.turns)) && Number(r.turns) > 0 ? Number(r.turns) : null,
+    turn_count_source: turnLog.length ? 'turnLog.length' : 'replay.turns_fallback',
     winCondition: r.winCondition || null,
     trTurns: r.trTurns || 0,
     twTurns: r.twTurns || 0,
@@ -9348,6 +10000,429 @@ function csCompactQaReplayCard(replay, playerKey) {
     }),
     turnLog: turnLog,
     log: log
+  };
+}
+
+function csBuildQaSliceContract(payload) {
+  payload = payload || {};
+  var qaRunType = String(payload.qa_run_type || 'qa_artifact').toLowerCase();
+  var coverage = payload.qa_coverage_summary || {};
+  var mechanics = coverage.mechanics_seen || {};
+  var totals = coverage.totals || {};
+  var retained = payload.retained || {};
+  var replayCards = Array.isArray(retained.replay_cards) ? retained.replay_cards : [];
+  var branchTotals = payload.branch_move_analysis && payload.branch_move_analysis.totals ? payload.branch_move_analysis.totals : {};
+  var branchRows = Number(branchTotals.rows_read || branchTotals.rows || branchTotals.total_rows || 0);
+  var damageEvents = Number(totals.damage_events || mechanics.damage_events || payload.damage_events_total || 0);
+  var effectEvents = Number(totals.effect_events || mechanics.effect_events || payload.effect_events_total || 0);
+  var moveRuleTraceRows = Number(totals.move_rule_trace_rows || mechanics.move_rule_trace_rows || 0);
+  var missingProof = Array.isArray(coverage.missing_targeted_proof) ? coverage.missing_targeted_proof : [];
+  var dbSave = payload.db && payload.db.branch_coverage ? payload.db.branch_coverage.save_result : null;
+  var dbErrors = dbSave && Array.isArray(dbSave.errors) ? dbSave.errors : [];
+  var replayAudit = payload.replay_logic_audit || {};
+  var hasRetainedReplayRows = replayCards.some(function(card) {
+    return card && Array.isArray(card.turnLog) && card.turnLog.length;
+  });
+  var slice = {
+    id: 'current-evidence',
+    label: 'Current Evidence QA',
+    purpose: 'Checks the exported evidence already retained in the browser.',
+    best_for: 'Quick review of latest retained sim evidence before choosing the next targeted test.',
+    not_for: 'Not a full release gate, not exhaustive move coverage, and not official Champion legality.',
+    must_have: ['build_id and source_url', 'qa_coverage_summary', 'retained replay cards when reviewing replay behavior'],
+    pass_when: ['No release blockers are present', 'Relevant replay cards include structured turnLog rows', 'Yellow/red families are treated as QA targets, not proof'],
+    next_if_fails: 'Run the named targeted proof or export a fresh replay with structured turn logs.'
+  };
+  if (qaRunType === 'stress_lite_qa') {
+    slice = {
+      id: 'device-safe-stress',
+      label: 'Device-Safe Stress QA',
+      purpose: 'Runs capped browser-safe stress evidence under the 50 MB artifact budget.',
+      best_for: 'Phone/laptop validation that calculations, replay cards, targeted proof, and branch summaries are still wired.',
+      not_for: 'Not exhaustive Run All, not complete legality proof, and not a replacement for long CI battle audit.',
+      must_have: ['artifact_budget with final_bytes under max_bytes', 'damage_events or targeted proof evidence', 'stress_lite_josh_validation', 'qa_dashboard with battle/replay/coaching lanes'],
+      pass_when: ['Artifact stays under the Stress Lite byte budget', 'Battle Engine QA lane has no blocker', 'Replay Logic QA has no critical unexplained faint or HP-drop risk'],
+      next_if_fails: 'Use recommended_fix_order first; if size fails, reduce retained replay cards before changing battle logic.'
+    };
+  } else if (qaRunType === 'tactical_sweep') {
+    slice = {
+      id: 'tactical-coaching',
+      label: 'Tactical Coaching QA',
+      purpose: 'Validates branch/decision evidence for Battle Sensei before making coaching claims.',
+      best_for: 'Testing line choice, speed-control payoff, move/target alternatives, and matchup learning signals.',
+      not_for: 'Not a damage-only oracle and not proof that the suggested line is real ladder truth.',
+      must_have: ['tactical_sweep.opponents', 'branch_move_analysis.totals', 'decision_opportunity_ledger', 'coach_brain_summary'],
+      pass_when: ['branch_move_analysis has rows', 'coach_focus has a recommendation with confidence', 'source gaps are disclosed before any coaching claim'],
+      next_if_fails: 'Repair branch coverage/export or lower scope to selected matchup before expanding coaching.'
+    };
+  } else if (qaRunType === 'qa_artifact_with_targeted_sweep') {
+    slice = {
+      id: 'targeted-mechanic-proof',
+      label: 'Targeted Mechanic Proof QA',
+      purpose: 'Forces known high-risk mechanics so missing proof becomes explicit.',
+      best_for: 'Move mechanics like Foul Play, Body Press, Psyshock, action denial, priority blocks, field duration, recoil, drain, and faint transparency.',
+      not_for: 'Not a broad matchup ranking or coaching confidence run.',
+      must_have: ['targeted_qa_sweep.runs', 'qa_coverage_summary.missing_targeted_proof', 'move_rule_trace rows when damage math is involved'],
+      pass_when: ['The targeted mechanic appears in mechanics_seen', 'missing_targeted_proof is empty for the claimed family', 'No unexplained faint or HP-drop appears for the targeted replay cards'],
+      next_if_fails: 'Add or fix the targeted scenario that should trigger the missing mechanic before editing unrelated code.'
+    };
+  } else if (qaRunType === 'release_matrix_qa' || qaRunType === 'run_all_qa') {
+    slice = {
+      id: 'release-matrix',
+      label: 'Release Matrix QA',
+      purpose: 'Runs broad matchup coverage to catch integration regressions before public release.',
+      best_for: 'Deployment confidence, matchup matrix smoke, DB/team-load regressions, and top-level battle invariant failures.',
+      not_for: 'Not a complete mechanics oracle unless targeted proof and replay rows cover the mechanic.',
+      must_have: ['build_id and source_url', 'summary counts', 'qa_dashboard release and battle lanes', 'replay_logic_audit'],
+      pass_when: ['No release blockers', 'No DB save/load errors that affect the claim', 'No critical replay logic risks', 'Generated version surfaces agree'],
+      next_if_fails: 'Fix release/integration blockers before tactical coaching or leaderboard work.'
+    };
+  }
+  var blockers = [];
+  function addBlocker(code, severity, detail, pointer) {
+    blockers.push({ code: code, severity: severity, detail: detail, pointer: pointer || null });
+  }
+  if (!payload.build_id) addBlocker('BUILD_ID_MISSING', 'blocker', 'Artifact cannot be tied to a release build.', 'build_id');
+  if (!payload.source_url) addBlocker('SOURCE_URL_MISSING', 'warning', 'Artifact cannot prove which deployed URL produced it.', 'source_url');
+  if (!coverage.schema_version) addBlocker('COVERAGE_SUMMARY_MISSING', 'blocker', 'Artifact has no qa_coverage_summary.', 'qa_coverage_summary');
+  if ((slice.id === 'targeted-mechanic-proof' || slice.id === 'current-evidence') && damageEvents <= 0) {
+    addBlocker('DAMAGE_EVENTS_MISSING_FOR_SLICE', 'blocker', 'This slice cannot validate damage behavior without damage_events.', 'qa_coverage_summary.mechanics_seen.damage_events');
+  }
+  if ((slice.id === 'targeted-mechanic-proof' || slice.id === 'current-evidence') && moveRuleTraceRows <= 0) {
+    addBlocker('MOVE_RULE_TRACE_MISSING_FOR_SLICE', 'blocker', 'This slice cannot validate damage math without move_rule_trace rows.', 'qa_coverage_summary.mechanics_seen.move_rule_trace_rows');
+  }
+  if (slice.id === 'tactical-coaching' && branchRows <= 0) {
+    addBlocker('BRANCH_ANALYSIS_ROWS_MISSING_FOR_COACHING', 'blocker', 'Tactical coaching QA needs branch rows before ranking concrete lines.', 'branch_move_analysis.totals');
+  }
+  if (slice.id === 'device-safe-stress') {
+    var budget = payload.artifact_budget || payload.artifact_size_guard || (payload.stress_lite && payload.stress_lite.artifact_budget) || {};
+    if (!budget.schema_version) {
+      addBlocker('STRESS_LITE_BUDGET_MISSING', 'blocker', 'Stress Lite contract requires artifact budget evidence.', 'artifact_budget');
+    } else if (budget.final_bytes && budget.max_bytes && Number(budget.final_bytes) > Number(budget.max_bytes)) {
+      addBlocker('STRESS_LITE_BUDGET_EXCEEDED', 'blocker', 'Stress Lite artifact exceeded the browser-safe budget.', 'artifact_budget.final_bytes');
+    }
+  }
+  if (replayCards.length && !hasRetainedReplayRows) {
+    addBlocker('RETAINED_REPLAY_TURNLOGS_MISSING_FOR_SLICE', 'warning', 'Retained replay cards exist but do not include structured turnLog rows.', 'retained.replay_cards[].turnLog');
+  }
+  if (replayAudit.status === 'fail') {
+    addBlocker('REPLAY_LOGIC_AUDIT_FAILING', 'blocker', 'Replay Logic QA has a critical retained replay risk.', 'replay_logic_audit.risks');
+  }
+  if (dbErrors.length) {
+    addBlocker('DB_EVIDENCE_SAVE_ERRORS', 'warning', 'DB save errors mean database evidence is not durable for this run.', 'db.branch_coverage.save_result.errors');
+  }
+  if (missingProof.length && slice.id !== 'release-matrix') {
+    addBlocker('TARGETED_PROOF_GAPS_REMAIN_FOR_SLICE', 'warning', 'Named targeted proof gaps remain for this slice.', 'qa_coverage_summary.missing_targeted_proof');
+  }
+  return {
+    schema_version: 'champions-qa-slice-contract-v1',
+    qa_run_type: qaRunType,
+    slice_id: slice.id,
+    label: slice.label,
+    purpose: slice.purpose,
+    best_for: slice.best_for,
+    not_for: slice.not_for,
+    must_have: slice.must_have,
+    pass_when: slice.pass_when,
+    status: blockers.some(function(row) { return row.severity === 'blocker'; }) ? 'blocked' : (blockers.length ? 'partial' : 'ready'),
+    blockers: blockers,
+    next_if_fails: slice.next_if_fails,
+    evidence_counts: {
+      replay_cards: replayCards.length,
+      damage_events: damageEvents,
+      effect_events: effectEvents,
+      move_rule_trace_rows: moveRuleTraceRows,
+      branch_move_analysis_rows: branchRows,
+      missing_targeted_proof: missingProof.length
+    },
+    claim_boundary: 'This QA slice validates only the named purpose for this artifact. It does not become official Pokemon Champion truth or global leaderboard truth.'
+  };
+}
+
+function csBuildQaHundredReadiness(payload) {
+  payload = payload || {};
+  var coverage = payload.qa_coverage_summary || {};
+  var mechanics = coverage.mechanics_seen || {};
+  var totals = coverage.totals || {};
+  var replayAudit = payload.replay_logic_audit || {};
+  var matrix = coverage.move_effect_logic_matrix || {};
+  var families = Array.isArray(matrix.families) ? matrix.families : [];
+  var partialFamilies = families.filter(function(row) { return row && row.status === 'partial'; }).map(function(row) { return row.id || row.label || 'unknown'; });
+  var missingFamilies = families.filter(function(row) { return row && row.status === 'missing'; }).map(function(row) { return row.id || row.label || 'unknown'; });
+  var missingProof = Array.isArray(coverage.missing_targeted_proof) ? coverage.missing_targeted_proof : [];
+  var sourceGaps = payload.qa_claim_review && Array.isArray(payload.qa_claim_review.source_gaps) ? payload.qa_claim_review.source_gaps : [];
+  var branchRuns = Number(totals.branch_matrix_runs || payload.branch_matrix_runs || 0);
+  var branchCandidates = Number(totals.branch_matrix_candidate_runs || 0);
+  var unseenCandidates = Number(totals.branch_matrix_unseen_candidates || 0);
+  var retainedReplayCards = Number(replayAudit.retained_replay_cards || 0);
+  var retainedWithTurnLogs = Number(replayAudit.retained_replay_cards_with_turn_logs || 0);
+  var retainedTotals = replayAudit.retained_totals || {};
+  var releaseBlockers = Array.isArray(payload.qa_release_blockers) ? payload.qa_release_blockers : [];
+  var gates = [];
+  function buildLegalityEvidenceRequest() {
+    var regulationId = payload.regulation_id || payload.current_regulation_id || 'champions_reg_m_b_2026';
+    var format = payload.current_format || payload.format || 'doubles';
+    var rulesetVersion = payload.ruleset_version || 'needs_source_capture';
+    return {
+      schema_version: 'champions-regulation-legality-evidence-request-v1',
+      regulation_id: regulationId,
+      ruleset_version: rulesetVersion,
+      format: format,
+      package_id: regulationId + '-' + format + '-source-package',
+      status: 'needs_source_capture',
+      purpose: 'Create the source-backed package required before claiming active-regulation legality or using teams in official ranking/coaching lanes.',
+      required_source_captures: [
+        { id: 'official_regulation_notice', source_tier: 'official', required: true, proves: ['effective dates', 'regulation id/name', 'format scope', 'rules overview'] },
+        { id: 'in_game_rules_screen', source_tier: 'in_game_verified', required: true, proves: ['clauses', 'team size', 'bring size', 'level rules', 'timer/open sheet notes when visible'] },
+        { id: 'eligible_species_forms_list', source_tier: 'in_game_verified', required: true, proves: ['legal_pokemon_ids', 'legal_form_ids', 'banned or restricted rows'] },
+        { id: 'mega_eligibility_and_stones', source_tier: 'in_game_verified', required: true, proves: ['legal Mega forms', 'Mega Stone or Omni Ring constraints', 'special mechanic boundary'] },
+        { id: 'held_item_pool', source_tier: 'in_game_verified', required: true, proves: ['legal_item_ids', 'item clause assumptions'] },
+        { id: 'move_ability_training_legality', source_tier: 'in_game_verified', required: true, proves: ['legal_move_ids', 'legal_ability_ids', 'Champion-local training constraints'] }
+      ],
+      required_fixture_types: [
+        { fixture_type: 'known_legal', required: true, proves: 'A team accepted by Pokemon Champions under this regulation.' },
+        { fixture_type: 'known_illegal', required: true, proves: 'A species/form/move/item/Mega rule rejected by Pokemon Champions.' },
+        { fixture_type: 'stale', required: true, proves: 'Wrong-regulation or old-ruleset data is marked stale.' },
+        { fixture_type: 'needs_verification', required: true, proves: 'Unknown Champion data remains needs_verification instead of verified.' }
+      ],
+      allowlists_required: ['legal_pokemon_ids', 'legal_form_ids', 'legal_move_ids', 'legal_item_ids', 'legal_ability_ids'],
+      promotion_rule: 'Do not promote runtime legality, official Team Lab rankings, global learning, or coaching certainty until LegalityEvidencePackage.promotionReadinessFromEvidencePackage returns verified with all fixture types present.',
+      next_human_action: 'Attach official/in-game Regulation M-B captures and known accepted/rejected team fixtures; unknown rows stay needs_verification.'
+    };
+  }
+  var legalityEvidenceRequest = buildLegalityEvidenceRequest();
+  function addGate(id, label, status, evidence, missing, nextStep) {
+    gates.push({
+      id: id,
+      label: label,
+      status: status,
+      evidence: evidence || null,
+      missing: Array.isArray(missing) ? missing : (missing ? [missing] : []),
+      next_step: nextStep || null
+    });
+  }
+  addGate(
+    'release_identity',
+    'Release identity and artifact provenance',
+    payload.build_id && payload.source_url && releaseBlockers.length === 0 ? 'pass' : 'blocked',
+    { build_id: payload.build_id || null, source_url: payload.source_url || null, release_blockers: releaseBlockers.length },
+    releaseBlockers.length ? ['release blockers present'] : (!payload.build_id || !payload.source_url ? ['build_id/source_url missing'] : []),
+    'Do not use QA evidence without build_id and source_url.'
+  );
+  addGate(
+    'legality_truth',
+    'Official Champion legality source package',
+    'blocked',
+    { artifact_scope: 'QA export only' },
+    ['Complete active-regulation source package is not proven by this artifact alone.', 'Need official/client-captured legal species, forms, moves, abilities, held items, Mega rules, clauses, and known legal/illegal fixtures.'],
+    'Build and attach the Regulation M-B legality evidence package before claiming real-game legality.'
+  );
+  addGate(
+    'damage_math_trace',
+    'Damage math and move-rule trace evidence',
+    Number(mechanics.damage_events || totals.damage_events || 0) > 0 && Number(mechanics.move_rule_trace_rows || totals.move_rule_trace_rows || 0) > 0 ? 'pass' : 'blocked',
+    { damage_events: Number(mechanics.damage_events || totals.damage_events || 0), move_rule_trace_rows: Number(mechanics.move_rule_trace_rows || totals.move_rule_trace_rows || 0) },
+    Number(mechanics.move_rule_trace_rows || totals.move_rule_trace_rows || 0) > 0 ? [] : ['move_rule_trace rows missing'],
+    'Every damage bug report should start from turnLog[].damage_events[].move_rule_trace.'
+  );
+  addGate(
+    'mechanic_family_breadth',
+    'Mechanic family breadth',
+    missingFamilies.length || partialFamilies.length || missingProof.length ? 'partial' : 'pass',
+    { proven: matrix.totals && matrix.totals.proven || 0, partial: partialFamilies.length, missing: missingFamilies.length, missing_targeted_proof: missingProof.length },
+    missingFamilies.concat(partialFamilies).concat(missingProof).slice(0, 20),
+    'Run targeted proof for every partial/missing family before saying all gameplay possibilities are covered.'
+  );
+  addGate(
+    'replay_transparency',
+    'Replay transparency and explainability',
+    replayAudit.status === 'pass' && Number(retainedTotals.unexplained_faints || 0) === 0 && Number(retainedTotals.unexplained_hp_drops || 0) === 0 ? 'pass' : 'partial',
+    { replay_status: replayAudit.status || null, retained_replay_cards: retainedReplayCards, retained_with_turn_logs: retainedWithTurnLogs, unexplained_faints: Number(retainedTotals.unexplained_faints || 0), unexplained_hp_drops: Number(retainedTotals.unexplained_hp_drops || 0) },
+    replayAudit.status === 'pass' ? [] : ['Retained Replay Logic QA still has warnings or missing mechanic-family proof.'],
+    'Replay UI/export must explain HP loss, faint causes, misses, field state, status/action denial, and multi-target outcomes.'
+  );
+  addGate(
+    'scenario_breadth',
+    'Scenario breadth across branches and possibilities',
+    branchRuns > 0 && unseenCandidates === 0 ? 'pass' : (branchRuns > 0 ? 'partial' : 'blocked'),
+    { branch_matrix_runs: branchRuns, branch_matrix_candidate_runs: branchCandidates, branch_matrix_unseen_candidates: unseenCandidates },
+    unseenCandidates ? ['Unseen branch candidates remain: ' + unseenCandidates] : (branchRuns ? [] : ['No branch matrix runs in artifact']),
+    'Keep running Tactical Sweep/Stress QA until high-priority branch candidates are exhausted or explicitly scoped out.'
+  );
+  addGate(
+    'real_replay_parity',
+    'Real battle replay parity',
+    'partial',
+    { retained_replay_cards: retainedReplayCards, qa_run_type: payload.qa_run_type || null },
+    ['Need a reviewed set of real Pokemon Champions/Showdown battle logs mapped to teams, turns, field states, and outcomes without parser gaps.'],
+    'Use real uploaded battle files to compare how real matches flow against sim replay output.'
+  );
+  addGate(
+    'singles_doubles_coverage',
+    'Singles and doubles coverage',
+    'partial',
+    { current_format: payload.current_format || null },
+    ['This artifact proves only its captured format/scope. Need paired singles and doubles artifacts for the same release/ruleset.'],
+    'Export one singles and one doubles QA artifact before claiming format-wide readiness.'
+  );
+  addGate(
+    'source_gap_boundary',
+    'Source gap boundary',
+    sourceGaps.length ? 'partial' : 'pass',
+    { source_gaps: sourceGaps.map(function(gap) { return gap.code || 'SOURCE_GAP'; }) },
+    sourceGaps.map(function(gap) { return gap.code || gap.message || 'SOURCE_GAP'; }),
+    'Unknown Champion truth must stay needs_verification and cannot feed official rankings or coaching certainty.'
+  );
+  var blocked = gates.filter(function(gate) { return gate.status === 'blocked'; });
+  var partial = gates.filter(function(gate) { return gate.status === 'partial'; });
+  var firstBlockingGate = blocked[0] || null;
+  var firstPartialGate = partial[0] || null;
+  var activeGate = firstBlockingGate || firstPartialGate || null;
+  var priorityLaneMap = {
+    release_identity: 'release_provenance',
+    legality_truth: 'regulation_legality',
+    damage_math_trace: 'damage_math_trace',
+    mechanic_family_breadth: 'move_mechanics',
+    replay_transparency: 'replay_transparency',
+    scenario_breadth: 'scenario_breadth',
+    real_replay_parity: 'real_replay_parity',
+    singles_doubles_coverage: 'format_coverage',
+    source_gap_boundary: 'source_gap_boundary'
+  };
+  var recommendedTestMap = {
+    release_identity: 'Release Matrix QA',
+    legality_truth: 'Regulation M-B legality evidence package',
+    damage_math_trace: 'Current Evidence QA with damage trace',
+    mechanic_family_breadth: 'Targeted QA / Tactical Sweep for missing mechanic families',
+    replay_transparency: 'Replay Logic QA with retained turn logs',
+    scenario_breadth: 'Tactical Sweep / Stress Lite branch coverage',
+    real_replay_parity: 'Real replay upload review with mapped teams',
+    singles_doubles_coverage: 'Paired singles and doubles QA artifacts',
+    source_gap_boundary: 'Source-truth review before promotion'
+  };
+  var nextEvidenceRequest = activeGate ? {
+    gate_id: activeGate.id,
+    gate_label: activeGate.label,
+    gate_status: activeGate.status,
+    priority_lane: priorityLaneMap[activeGate.id] || 'qa_review',
+    recommended_test: recommendedTestMap[activeGate.id] || 'Focused QA artifact',
+    missing: activeGate.missing || [],
+    next_step: activeGate.next_step || null,
+    why_first: firstBlockingGate
+      ? 'This gate is blocked, so later partial gates cannot justify a 100% claim yet.'
+      : 'No blocked gates remain, so this is the first partial gate to close.'
+  } : {
+    gate_id: null,
+    gate_label: 'No blocked or partial QA 100 gate in this artifact scope',
+    gate_status: 'ready',
+    priority_lane: 'human_source_review',
+    recommended_test: 'Human source review and issue closeout',
+    missing: [],
+    next_step: 'Attach human-reviewed source proof and close the matching GitHub issue.',
+    why_first: 'Tracked QA 100 gates passed for this artifact scope.'
+  };
+  if (nextEvidenceRequest.gate_id === 'legality_truth') {
+    nextEvidenceRequest.legality_evidence_request = legalityEvidenceRequest;
+  }
+  return {
+    schema_version: 'champions-qa-100-readiness-v1',
+    verdict: blocked.length ? 'not_ready' : (partial.length ? 'partial_not_100' : 'ready_for_100_claim_review'),
+    plain_english: blocked.length || partial.length
+      ? 'This artifact is useful evidence, but it does not prove the simulator is 100% real-game complete across all possibilities yet.'
+      : 'All tracked 100% gates passed for this artifact scope; still require human source review before public claims.',
+    gates: gates,
+    blockers: blocked,
+    partials: partial,
+    first_blocking_gate: firstBlockingGate,
+    first_partial_gate: firstPartialGate,
+    active_priority_lane: nextEvidenceRequest.priority_lane,
+    recommended_test: nextEvidenceRequest.recommended_test,
+    legality_evidence_request: legalityEvidenceRequest,
+    next_evidence_request: nextEvidenceRequest,
+    next_priority: blocked.length
+      ? blocked[0].next_step
+      : (partial.length ? partial[0].next_step : 'Attach human-reviewed source proof and close the matching GitHub issue.')
+  };
+}
+
+function csBuildProductionReadinessGate(payload) {
+  payload = payload || {};
+  var hundred = payload.qa_100_readiness || {};
+  var dashboard = payload.qa_dashboard || {};
+  var gates = Array.isArray(hundred.gates) ? hundred.gates : [];
+  var releaseBlockers = Array.isArray(payload.qa_release_blockers) ? payload.qa_release_blockers : [];
+  var hardPublicGateIds = {
+    release_identity: true,
+    legality_truth: true,
+    damage_math_trace: true,
+    mechanic_family_breadth: true,
+    replay_transparency: true,
+    scenario_breadth: true,
+    real_replay_parity: true,
+    singles_doubles_coverage: true,
+    source_gap_boundary: true
+  };
+  var publicLaunchBlockers = gates.filter(function(gate) {
+    return gate && gate.status !== 'pass';
+  }).map(function(gate) {
+    return {
+      id: gate.id,
+      label: gate.label,
+      status: gate.status,
+      production_blocking: !!hardPublicGateIds[gate.id],
+      missing: Array.isArray(gate.missing) ? gate.missing.slice(0, 12) : [],
+      next_step: gate.next_step || null
+    };
+  });
+  var hardBlockers = publicLaunchBlockers.filter(function(row) {
+    return row.production_blocking || row.status === 'blocked';
+  });
+  var releaseIdentityPass = gates.some(function(gate) {
+    return gate && gate.id === 'release_identity' && gate.status === 'pass';
+  }) && releaseBlockers.length === 0;
+  var battleProofPass = dashboard.can_ship === true && dashboard.battle_engine_trust === 'verified_for_this_artifact';
+  var canInternalQa = releaseIdentityPass && battleProofPass;
+  var canBetaLaunch = canInternalQa && hardBlockers.length === 0 && publicLaunchBlockers.length === 0;
+  var canPublicLaunch = canBetaLaunch && hundred.verdict === 'ready_for_100_claim_review';
+  var nextEvidence = hundred.next_evidence_request || {};
+  var nextAction = hardBlockers.length
+    ? (hardBlockers[0].next_step || nextEvidence.next_step || 'Close the first production-blocking QA 100 gate.')
+    : (publicLaunchBlockers.length
+      ? (publicLaunchBlockers[0].next_step || nextEvidence.next_step || 'Close the first partial production readiness gate.')
+      : 'Run human source review, milestone closeout, and fresh live QA before public launch.');
+  return {
+    schema_version: 'champions-production-readiness-gate-v1',
+    purpose: 'Separates internal QA usefulness from public production readiness so clean battle evidence is not mistaken for complete Pokemon Champion truth.',
+    generated_at: payload.exported_at || new Date().toISOString(),
+    build_id: payload.build_id || null,
+    regulation_id: payload.regulation_id || payload.current_regulation_id || 'champions_reg_m_b_2026',
+    format: payload.current_format || payload.format || null,
+    ruleset_version: payload.ruleset_version || null,
+    engine_version: payload.engine_version || payload.build_id || null,
+    qa_run_type: payload.qa_run_type || 'unknown',
+    verdict: canPublicLaunch
+      ? 'public_launch_candidate'
+      : (canBetaLaunch ? 'limited_beta_candidate' : 'not_ready_for_public_launch'),
+    can_internal_qa: canInternalQa,
+    can_beta_launch: canBetaLaunch,
+    can_public_launch: canPublicLaunch,
+    public_launch_blockers: publicLaunchBlockers,
+    hard_blockers: hardBlockers,
+    next_production_action: nextAction,
+    next_evidence_request: nextEvidence,
+    safe_current_use: [
+      'Internal QA and targeted testing against the captured build.',
+      'Evidence review for damage/replay/coaching slices that the artifact actually contains.',
+      'Experimental Team Lab or coaching previews only when labeled with regulation, engine version, ruleset version, confidence, and sample size.'
+    ],
+    blocked_public_claims: [
+      'Production-ready public launch.',
+      'Complete Pokemon Champion legality.',
+      'Complete all-mechanics real-game parity.',
+      'Official or global best-team leaderboard truth.',
+      'Coaching certainty beyond source-backed and replay-verified evidence.'
+    ],
+    launch_rule: 'Public launch requires every qa_100_readiness gate to pass, no release blockers, current build/source evidence, and human source-review closeout. Unknown Champion facts stay needs_verification.'
   };
 }
 
@@ -9744,6 +10819,18 @@ function csBuildQaDashboard(payload) {
     }
   ];
   if (payload.replay_logic_audit) lanes.push(csReplayLogicAuditLane(payload.replay_logic_audit));
+  if (payload.qa_slice_contract) {
+    lanes.unshift({
+      id: 'qa_slice_contract',
+      label: payload.qa_slice_contract.label || 'QA Slice Contract',
+      status: payload.qa_slice_contract.status === 'ready' ? 'pass' : (payload.qa_slice_contract.status === 'blocked' ? 'fail' : 'warn'),
+      trust: payload.qa_slice_contract.status || 'partial',
+      summary: payload.qa_slice_contract.purpose || 'QA slice contract unavailable.',
+      gates: payload.qa_slice_contract.pass_when || [],
+      evidence_pointers: ['qa_slice_contract', 'qa_slice_contract.blockers', 'qa_slice_contract.evidence_counts'],
+      risk_count: Array.isArray(payload.qa_slice_contract.blockers) ? payload.qa_slice_contract.blockers.length : 0
+    });
+  }
   var fixOrder = actionPlan.map(function(item) {
     return {
       id: item.id,
@@ -9764,6 +10851,7 @@ function csBuildQaDashboard(payload) {
     schema_version: 'champions-qa-dashboard-v1',
     generated_at: payload.exported_at || new Date().toISOString(),
     qa_run_type: payload.qa_run_type || 'unknown',
+    qa_slice_contract: payload.qa_slice_contract || null,
     can_ship: releasePass && battlePass,
     battle_engine_trust: battlePass ? 'verified_for_this_artifact' : 'blocked_or_partial',
     coaching_product_trust: coachingPass ? 'usable' : 'partial',
@@ -10137,6 +11225,7 @@ function csApplyStressLiteArtifactBudget(payload, options) {
   };
   payload.retained = retained;
   payload.artifact_size_guard = trimReport;
+  payload.artifact_budget = trimReport;
   payload.stress_lite.artifact_budget = trimReport;
   return payload;
 }
@@ -10427,7 +11516,7 @@ async function csBuildQaArtifactExport(teamKey, opts) {
   var options = opts || {};
   var team = (typeof TEAMS !== 'undefined' && TEAMS[key]) ? TEAMS[key] : null;
   var adapter = getWindowValue('SupabaseAdapter', null);
-  var localSimLog = (typeof csSimLogGetAll === 'function') ? csSimLogGetAll() : [];
+  var localSimLog = (typeof csSimLogGetAll === 'function') ? csSimLogGetAll({ includeQuarantined: true }) : [];
   var localTeamHistory = (typeof csSimLogForTeamBothSides === 'function') ? csSimLogForTeamBothSides(key) : [];
   var replaySource = Array.isArray(options.replayCardsOverride) ? options.replayCardsOverride : (Array.isArray(allReplays) ? allReplays : []);
   var replayCards = replaySource.map(function(replay) {
@@ -10748,6 +11837,7 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     ]
   } : null;
   payload = csApplyStressLiteArtifactBudget(payload, options);
+  payload.qa_slice_contract = csBuildQaSliceContract(payload);
   payload.proof_manifest = csBuildQaProofManifest(payload);
   payload.qa_dashboard = csBuildQaDashboard(payload);
   payload.qa_claim_review = {
@@ -10760,10 +11850,31 @@ async function csBuildQaArtifactExport(teamKey, opts) {
     source_boundary: payload.qa_dashboard && payload.qa_dashboard.claim_boundary ? payload.qa_dashboard.claim_boundary.source_boundary : null,
     source_gaps: payload.qa_dashboard && payload.qa_dashboard.claim_boundary ? payload.qa_dashboard.claim_boundary.source_gaps : [],
     forbidden_claims: payload.qa_dashboard && payload.qa_dashboard.claim_boundary ? payload.qa_dashboard.claim_boundary.forbidden_claims : [],
-    reviewer_next_step: payload.recommended_next_test || (payload.proof_manifest && payload.proof_manifest.next_action) || 'Review qa_dashboard.recommended_fix_order before changing code.'
+    qa_slice_contract: payload.qa_slice_contract,
+    reviewer_next_step: payload.qa_slice_contract && payload.qa_slice_contract.status !== 'ready'
+      ? payload.qa_slice_contract.next_if_fails
+      : (payload.qa_run_type === 'stress_lite_qa'
+        ? ((payload.proof_manifest && payload.proof_manifest.next_action) || payload.recommended_next_test || 'Review qa_dashboard.recommended_fix_order before changing code.')
+        : (payload.recommended_next_test || (payload.proof_manifest && payload.proof_manifest.next_action) || 'Review qa_dashboard.recommended_fix_order before changing code.'))
   };
   payload.qa_gate_results = payload.codex_context.qa_gate_results;
   payload.qa_release_blockers = payload.codex_context.qa_release_blockers;
+  payload.qa_100_readiness = csBuildQaHundredReadiness(payload);
+  payload.production_readiness_gate = csBuildProductionReadinessGate(payload);
+  if (payload.qa_dashboard) {
+    payload.qa_dashboard.qa_100_readiness = payload.qa_100_readiness;
+    payload.qa_dashboard.production_readiness_gate = payload.production_readiness_gate;
+    payload.qa_dashboard.can_public_launch = !!payload.production_readiness_gate.can_public_launch;
+    payload.qa_dashboard.can_internal_qa = !!payload.production_readiness_gate.can_internal_qa;
+  }
+  if (payload.qa_claim_review) {
+    payload.qa_claim_review.qa_100_readiness = payload.qa_100_readiness;
+    payload.qa_claim_review.production_readiness_gate = payload.production_readiness_gate;
+    payload.qa_claim_review.next_evidence_request = payload.qa_100_readiness.next_evidence_request;
+    if (payload.qa_100_readiness && payload.qa_100_readiness.next_evidence_request) {
+      payload.qa_claim_review.reviewer_next_step = payload.qa_100_readiness.next_evidence_request.next_step || payload.qa_claim_review.reviewer_next_step;
+    }
+  }
   payload.recommended_fix_order = payload.qa_dashboard.recommended_fix_order;
   try {
     csRememberCoachBrainSummary(mergedCoverage && mergedCoverage.coach_brain_summary, {
@@ -10780,7 +11891,6 @@ async function csExportQaArtifactJson(teamKey, opts) {
   var payload = await csBuildQaArtifactExport(teamKey, opts);
   var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   await _saveQaArtifactBlob('champions-sim-qa-artifact-' + ts + '.json', 'application/json', JSON.stringify(payload, null, 2), opts);
-  csRenderQaClaimReviewReadout(payload);
   return payload;
 }
 
@@ -10790,8 +11900,8 @@ function csQaClaimReadoutHost() {
   if (existing) return existing;
   var el = document.createElement('div');
   el.id = 'qa-claim-review-readout';
-  el.className = 'qa-claim-review-readout';
-  var anchor = document.getElementById('beta-guard-note') || document.getElementById('progress-wrap');
+  el.className = 'qa-claim-review-readout qa-claim-review-readout-inline';
+  var anchor = document.getElementById('coverage-widget') || document.getElementById('progress-wrap') || document.getElementById('beta-guard-note');
   var parent = anchor && anchor.parentNode ? anchor.parentNode : (document.body || null);
   if (parent && parent.insertBefore && anchor && anchor.nextSibling) parent.insertBefore(el, anchor.nextSibling);
   else if (parent && parent.appendChild) parent.appendChild(el);
@@ -10803,38 +11913,72 @@ function csRenderQaClaimReviewReadout(payload) {
   if (!host || !payload) return;
   var review = payload.qa_claim_review || {};
   var dashboard = payload.qa_dashboard || {};
+  var slice = payload.qa_slice_contract || review.qa_slice_contract || {};
+  var hundred = payload.qa_100_readiness || review.qa_100_readiness || {};
+  var productionGate = payload.production_readiness_gate || review.production_readiness_gate || dashboard.production_readiness_gate || {};
   var scope = review.evidence_scope || {};
   var gaps = Array.isArray(review.source_gaps) ? review.source_gaps : [];
   var forbidden = Array.isArray(review.forbidden_claims) ? review.forbidden_claims : [];
   var blockers = Array.isArray(payload.qa_release_blockers) ? payload.qa_release_blockers : [];
-  var status = dashboard.can_ship ? 'PASS WITH BOUNDARIES' : 'BLOCKED / PARTIAL';
-  var statusClass = dashboard.can_ship ? 'low' : 'high';
+  var sliceBlockers = Array.isArray(slice.blockers) ? slice.blockers : [];
+  var nextEvidence = review.next_evidence_request || hundred.next_evidence_request || {};
+  var nextMissing = Array.isArray(nextEvidence.missing) ? nextEvidence.missing : [];
+  var status = productionGate.can_public_launch
+    ? 'PUBLIC CANDIDATE'
+    : (slice.status === 'ready'
+      ? 'SLICE READY / NOT PUBLIC'
+      : (dashboard.can_ship ? 'PASS WITH BOUNDARIES' : 'BLOCKED / PARTIAL'));
+  var statusClass = productionGate.can_public_launch ? 'low' : (slice.status === 'partial' ? 'medium' : 'high');
   var qaRunType = String(payload.qa_run_type || '').toLowerCase();
-  var qaSliceTitle = qaRunType === 'stress_lite_qa'
+  var qaSliceTitle = slice.label || (qaRunType === 'stress_lite_qa'
     ? 'Device-Safe Stress QA'
     : (qaRunType === 'tactical_sweep'
       ? 'Tactical Coaching QA'
       : (qaRunType === 'qa_artifact_with_targeted_sweep' || qaRunType === 'qa_artifact'
         ? 'Current Evidence QA'
-        : 'Release Matrix QA'));
+        : 'Release Matrix QA')));
   var forbiddenRows = forbidden.slice(0, 3).map(function(claim) {
     return '<span class="replay-coach-tag medium">' + _escapeHtml(claim) + '</span>';
   }).join('');
   var gapRows = gaps.slice(0, 4).map(function(gap) {
     return '<div class="replay-coach-list-row"><strong>' + _escapeHtml(gap.code || 'SOURCE_GAP') + '</strong>' + _escapeHtml(gap.message || '') + '</div>';
   }).join('');
+  var sliceBlockerRows = sliceBlockers.slice(0, 4).map(function(blocker) {
+    return '<div class="replay-coach-list-row"><strong>' + _escapeHtml(blocker.code || 'QA_SLICE_BLOCKER') + '</strong>' + _escapeHtml(blocker.detail || '') + '</div>';
+  }).join('');
+  var nextMissingRows = nextMissing.slice(0, 3).map(function(item) {
+    return '<li>' + _escapeHtml(typeof item === 'string' ? item : (item && (item.message || item.code || item.id)) || 'Missing evidence') + '</li>';
+  }).join('');
   host.innerHTML = '<div class="replay-coach-card qa-claim-review-card">' +
     '<div class="replay-coach-card-head"><h3 class="replay-coach-h3">QA Claim Review - ' + _escapeHtml(qaSliceTitle) + '</h3><span class="replay-coach-tag ' + _escapeHtml(statusClass) + '">' + _escapeHtml(status) + '</span></div>' +
     '<p class="replay-coach-turn-read">' + _escapeHtml(review.verdict || 'QA artifact exported. Review source gaps before treating it as proof.') + '</p>' +
+    '<div class="qa-readout-next-panel" aria-label="Active QA next step">' +
+      '<div><strong>Active QA gate</strong><span>' + _escapeHtml(nextEvidence.gate_label || 'No active gate reported') + '</span></div>' +
+      '<div><strong>Priority lane</strong><span>' + _escapeHtml(nextEvidence.priority_lane || hundred.active_priority_lane || 'qa_review') + '</span></div>' +
+      '<div><strong>Recommended test</strong><span>' + _escapeHtml(nextEvidence.recommended_test || hundred.recommended_test || payload.recommended_next_test || 'Focused QA artifact') + '</span></div>' +
+      '<div><strong>Production gate</strong><span>' + _escapeHtml(productionGate.verdict || 'not_checked') + '</span></div>' +
+      '<div class="qa-readout-next-step"><strong>Next evidence</strong><span>' + _escapeHtml(nextEvidence.next_step || review.reviewer_next_step || 'Review the QA dashboard gaps before changing code.') + '</span>' + (nextMissingRows ? '<ul>' + nextMissingRows + '</ul>' : '') + '</div>' +
+    '</div>' +
+    '<p class="replay-coach-turn-read"><strong>Slice purpose:</strong> ' + _escapeHtml(slice.purpose || 'This QA export is scoped evidence for the selected run type.') + '</p>' +
     '<div class="replay-coach-summary-grid">' +
       '<div class="replay-coach-metric"><strong>Release blockers</strong><span>' + _escapeHtml(String(blockers.length)) + '</span></div>' +
+      '<div class="replay-coach-metric"><strong>Slice blockers</strong><span>' + _escapeHtml(String(sliceBlockers.length)) + '</span></div>' +
+      '<div class="replay-coach-metric"><strong>100% gate</strong><span>' + _escapeHtml(String(hundred.verdict || 'not_checked')) + '</span></div>' +
+      '<div class="replay-coach-metric"><strong>Public launch</strong><span>' + _escapeHtml(productionGate.can_public_launch ? 'Yes' : 'No') + '</span></div>' +
+      '<div class="replay-coach-metric"><strong>Internal QA</strong><span>' + _escapeHtml(productionGate.can_internal_qa ? 'Yes' : 'No') + '</span></div>' +
       '<div class="replay-coach-metric"><strong>Source gaps</strong><span>' + _escapeHtml(String(gaps.length)) + '</span></div>' +
       '<div class="replay-coach-metric"><strong>Damage events</strong><span>' + _escapeHtml(String(scope.damage_events || 0)) + '</span></div>' +
       '<div class="replay-coach-metric"><strong>Branch rows</strong><span>' + _escapeHtml(String(scope.branch_analysis_rows || 0)) + '</span></div>' +
     '</div>' +
     '<div class="replay-coach-list">' +
       '<div class="replay-coach-list-row"><strong>Source boundary</strong>' + _escapeHtml(review.source_boundary || 'This artifact is scoped evidence, not official game truth.') + '</div>' +
+      '<div class="replay-coach-list-row"><strong>Best for</strong>' + _escapeHtml(slice.best_for || 'Scoped QA review for this artifact.') + '</div>' +
+      '<div class="replay-coach-list-row"><strong>Not for</strong>' + _escapeHtml(slice.not_for || 'Do not treat one artifact as complete game truth.') + '</div>' +
+      '<div class="replay-coach-list-row"><strong>100% readiness</strong>' + _escapeHtml(hundred.plain_english || '100% readiness was not evaluated for this artifact.') + '</div>' +
+      '<div class="replay-coach-list-row"><strong>Production gate</strong>' + _escapeHtml(productionGate.purpose || 'Production readiness was not evaluated for this artifact.') + '</div>' +
+      '<div class="replay-coach-list-row"><strong>Production next action</strong>' + _escapeHtml(productionGate.next_production_action || 'Review qa_100_readiness before public launch claims.') + '</div>' +
       '<div class="replay-coach-list-row"><strong>Next QA move</strong>' + _escapeHtml(review.reviewer_next_step || payload.recommended_next_test || 'Review qa_dashboard.recommended_fix_order.') + '</div>' +
+      (sliceBlockerRows ? '<div class="replay-coach-list-row"><strong>Top slice blockers</strong>' + sliceBlockerRows + '</div>' : '') +
       (gapRows ? '<div class="replay-coach-list-row"><strong>Top source gaps</strong>' + gapRows + '</div>' : '') +
     '</div>' +
     '<div class="replay-coach-tags"><span class="replay-coach-tag high">Forbidden claims</span>' + forbiddenRows + '</div>' +
@@ -10891,6 +12035,8 @@ if (typeof ChampionsSim !== 'undefined') {
   ChampionsSim.history.buildQaArtifactExport = csBuildQaArtifactExport;
   ChampionsSim.history.exportQaArtifactJson = csExportQaArtifactJson;
   ChampionsSim.history.buildCodexQaContext = csBuildCodexQaContext;
+  ChampionsSim.history.buildQaSliceContract = csBuildQaSliceContract;
+  ChampionsSim.history.buildQaHundredReadiness = csBuildQaHundredReadiness;
   ChampionsSim.history.buildStressLiteOptions = csBuildStressLiteOptions;
   ChampionsSim.history.chooseQaDropFolder = csChooseQaDropFolder;
 }
@@ -10901,6 +12047,8 @@ if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csEx
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildQaArtifactExport', csBuildQaArtifactExport);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csExportQaArtifactJson', csExportQaArtifactJson);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildCodexQaContext', csBuildCodexQaContext);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildQaSliceContract', csBuildQaSliceContract);
+if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildQaHundredReadiness', csBuildQaHundredReadiness);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csBuildStressLiteOptions', csBuildStressLiteOptions);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csAnalyzeBranchCoverageRows', csAnalyzeBranchCoverageRows);
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('csSummarizeBranchTactics', csSummarizeBranchTactics);
@@ -11017,6 +12165,96 @@ function randomBringFor(teamKey, seed) {
   }
   return pool.slice(0, count);
 }
+function csCountKey(names) {
+  if (!Array.isArray(names)) return '';
+  return names.filter(Boolean).map(String).join(' + ');
+}
+function csAddCount(map, key, amount) {
+  if (!map || !key) return;
+  map[key] = (map[key] || 0) + (Number(amount) || 1);
+}
+function csTopCountEntries(map, limit) {
+  return Object.entries(map || {})
+    .filter(function(entry) { return entry[0] && Number(entry[1]) > 0; })
+    .sort(function(a, b) { return Number(b[1]) - Number(a[1]); })
+    .slice(0, limit || 3);
+}
+function csResultSeriesCount(res) {
+  return Number((res && res.wins) || 0) + Number((res && res.losses) || 0) + Number((res && res.draws) || 0);
+}
+function csResultGameCount(res) {
+  return Number((res && res.totalBattles) || 0) || csResultSeriesCount(res);
+}
+function csResultPlayerBattleWins(res) {
+  return Number((res && res.battleWins) || 0) || Number((res && res.wins) || 0);
+}
+function csWinConditionPct(res, count) {
+  var denom = csResultPlayerBattleWins(res);
+  return denom > 0 ? Math.round((Number(count) || 0) / denom * 100) : 0;
+}
+function csBuildBringCandidatePool(teamKey, preferredBring) {
+  const team = TEAMS[teamKey];
+  const count = getBringCount();
+  const names = team && Array.isArray(team.members) ? team.members.map(function(m) { return m && m.name; }).filter(Boolean) : [];
+  const seen = Object.create(null);
+  const out = [];
+  function addBring(arr) {
+    const bring = _normalizeBringOrder(teamKey, arr);
+    if (bring.length !== count) return;
+    const key = csCountKey(bring);
+    if (!key || seen[key]) return;
+    seen[key] = true;
+    out.push(bring);
+  }
+  addBring(preferredBring);
+  function combos(start, cur) {
+    if (cur.length === count) {
+      for (let i = 0; i < cur.length; i++) {
+        for (let j = i + 1; j < cur.length; j++) {
+          const leads = [cur[i], cur[j]];
+          const back = cur.filter(function(n) { return n !== leads[0] && n !== leads[1]; });
+          addBring(leads.concat(back));
+        }
+      }
+      return;
+    }
+    for (let idx = start; idx < names.length; idx++) {
+      cur.push(names[idx]);
+      combos(idx + 1, cur);
+      cur.pop();
+    }
+  }
+  combos(0, []);
+  return out;
+}
+function csChooseIndexedBring(pool, avoidKey, indexSeed) {
+  if (!Array.isArray(pool) || !pool.length) return [];
+  const start = Math.abs(Number(indexSeed) || 0) % pool.length;
+  for (let i = 0; i < pool.length; i++) {
+    const candidate = pool[(start + i) % pool.length];
+    if (csCountKey(candidate) !== avoidKey) return candidate.slice();
+  }
+  return pool[start].slice();
+}
+function csPickBoGameBring(teamKey, mode, manualBring, pool, prevBattle, prevBring, side, seriesNumber, gameNumber) {
+  const preferred = (mode === 'manual' && Array.isArray(manualBring) && manualBring.length) ? manualBring : null;
+  if (gameNumber <= 1) {
+    if (preferred) return preferred.slice();
+    if (mode === 'random') return randomBringFor(teamKey);
+    return csChooseIndexedBring(pool, '', seriesNumber + gameNumber);
+  }
+  const prevKey = csCountKey(prevBring);
+  const playerWon = prevBattle && prevBattle.result === 'win';
+  const sideWon = side === 'player' ? playerWon : !playerWon;
+  if (sideWon && prevBring && prevBring.length) return prevBring.slice();
+  return csChooseIndexedBring(pool, prevKey, (seriesNumber * 17) + (gameNumber * 31) + (side === 'player' ? 3 : 11));
+}
+function csLineupBacklineLabel(lineupKey) {
+  const parts = String(lineupKey || '').split(' + ').filter(Boolean);
+  const leadCount = getLeadCount();
+  const back = parts.slice(leadCount);
+  return back.length ? back.join(' + ') : lineupKey;
+}
 // Legacy shims — kept in case external callers / saved sessions still reference
 // the pre-T9j.10 lead-only API. Map onto the bring picker (leads = first N).
 function getLeadsFor(teamKey) {
@@ -11054,13 +12292,43 @@ if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('getL
 if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('setLeadsFor', setLeadsFor);
 
 async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress) {
+  if (typeof checkTeamForSelectedRegulation !== 'function' || typeof getSelectedRegulationId !== 'function') throw new Error('Regulation validator unavailable; simulation blocked.');
+  const runRegulation = typeof getSelectedRegulationId === 'function' ? getSelectedRegulationId() : null;
+  if (typeof checkTeamForSelectedRegulation === 'function') {
+    for (const key of [playerTeamKey, oppTeamKey]) {
+      const check = checkTeamForSelectedRegulation(TEAMS[key], runRegulation, { format: currentFormat, bo: bo });
+      if (!check.allowed) throw new Error('Regulation preflight blocked: ' + (TEAMS[key] && TEAMS[key].name || key) + ': ' + check.errors.concat(check.source_gaps).join(' '));
+    }
+  }
   if (!isSimReadyTeam(playerTeamKey, TEAMS[playerTeamKey], { includeCustom: true })) {
     throw new Error('player team not loaded: ' + (playerTeamKey || 'none'));
   }
   if (!isSimReadyTeam(oppTeamKey, TEAMS[oppTeamKey], { includeCustom: true })) {
     throw new Error('opponent team not loaded: ' + (oppTeamKey || 'none'));
   }
-  const results = { wins:0, losses:0, draws:0, totalTurns:0, totalTrTurns:0, winConditions:{}, allLogs:[], turnDist:{} };
+  const results = {
+    wins:0,
+    losses:0,
+    draws:0,
+    totalTurns:0,
+    totalTrTurns:0,
+    totalTwTurns:0,
+    timerDraws:0,
+    timerWins:0,
+    timerLosses:0,
+    totalBattles:0,
+    battleWins:0,
+    battleLosses:0,
+    battleDraws:0,
+    winConditions:{},
+    playerLeadCounts:{},
+    playerWinLeadCounts:{},
+    playerBringCounts:{},
+    playerWinBringCounts:{},
+    lineupAdjustmentSamples:[],
+    allLogs:[],
+    turnDist:{}
+  };
   let liveW=0, liveL=0;
   const BATCH = 20;
   // T9j.10 — resolve bring picks. Manual mode: resolve ONCE per series (locked).
@@ -11070,40 +12338,117 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
   const oppMode    = getBringMode(oppTeamKey);
   const manualPlayerBring = (playerMode === 'manual') ? getBringFor(playerTeamKey) : null;
   const manualOpponentBring = (oppMode === 'manual') ? getBringFor(oppTeamKey) : null;
+  const playerBringPool = csBuildBringCandidatePool(playerTeamKey, manualPlayerBring);
+  const opponentBringPool = csBuildBringCandidatePool(oppTeamKey, manualOpponentBring);
+  const adaptiveSeries = bo > 1;
+  const runFormat = currentFormat;
+  const playerInput = JSON.stringify(TEAMS[playerTeamKey]);
+  const opponentInput = JSON.stringify(TEAMS[oppTeamKey]);
+  const playerDefinition = JSON.parse(playerInput);
+  const opponentDefinition = JSON.parse(opponentInput);
+  results.provenance = await _captureSimulationProvenance(playerTeamKey, oppTeamKey,
+    playerDefinition, opponentDefinition, runFormat, bo,
+    { player: playerMode, opponent: oppMode, adaptive: adaptiveSeries }, runRegulation);
 
   for (let i=0; i<numSeries; i+=BATCH) {
+    if ((typeof getSelectedRegulationId === 'function' && getSelectedRegulationId() !== runRegulation) || currentFormat !== runFormat || JSON.stringify(TEAMS[playerTeamKey]) !== playerInput || JSON.stringify(TEAMS[oppTeamKey]) !== opponentInput) {
+      throw new Error('Simulation inputs changed during the run; rerun with the new team or format.');
+    }
     const bSize = Math.min(BATCH, numSeries-i);
     for (let j=0; j<bSize; j++) {
+      const seriesNumber = i + j + 1;
       let seriesW=0, seriesL=0;
       const gamesNeeded = Math.ceil(bo/2);
       let gamesPlayed = 0;
       let seriesTurns=0, seriesTrTurns=0;
+      let seriesTwTurns=0;
 
-      // Per-series bring lock. Re-roll for random teams at each new series.
-      const playerBring   = manualPlayerBring   || randomBringFor(playerTeamKey);
-      const opponentBring = manualOpponentBring || randomBringFor(oppTeamKey);
+      // Bo1 uses one preview choice. Bo3/Bo5 adapts game-to-game: registered
+      // six stay locked, but the chosen 3/4 can change after each game.
+      let playerBring = null;
+      let opponentBring = null;
+      let previousBattle = null;
 
       // Phase 4a (Refs #52) — capture every game of this series so we can
       // append one sim-log entry per series at the end.
       const seriesBattles = [];
 
       while (seriesW<gamesNeeded && seriesL<gamesNeeded && gamesPlayed<bo) {
-        const battle = simulateBattle(TEAMS[playerTeamKey], TEAMS[oppTeamKey], {
-          format: currentFormat,
+        const nextGameNumber = gamesPlayed + 1;
+        playerBring = adaptiveSeries
+          ? csPickBoGameBring(playerTeamKey, playerMode, manualPlayerBring, playerBringPool, previousBattle, playerBring, 'player', seriesNumber, nextGameNumber)
+          : (manualPlayerBring || randomBringFor(playerTeamKey));
+        opponentBring = adaptiveSeries
+          ? csPickBoGameBring(oppTeamKey, oppMode, manualOpponentBring, opponentBringPool, previousBattle, opponentBring, 'opponent', seriesNumber, nextGameNumber)
+          : (manualOpponentBring || randomBringFor(oppTeamKey));
+        if (typeof checkTeamForSelectedRegulation === 'function') {
+          for (const pair of [[playerDefinition, playerBring], [opponentDefinition, opponentBring]]) {
+            const check = checkTeamForSelectedRegulation(pair[0], runRegulation, { format: runFormat, bo: bo, bring: pair[1] });
+            if (!check.allowed) throw new Error('Selected-four preflight blocked: ' + check.errors.concat(check.source_gaps).join(' '));
+          }
+        }
+        const battle = simulateBattle(playerDefinition, opponentDefinition, {
+          format: runFormat,
           playerBring,
           opponentBring,
           roleAwareOpeners: true
         });
+        battle.boGame = nextGameNumber;
+        battle.boSeries = seriesNumber;
+        battle.provenance = Object.assign({}, results.provenance);
+        battle.team_snapshots = {
+          player: csTurnLogTeamSnapshot(playerTeamKey, playerDefinition),
+          opponent: csTurnLogTeamSnapshot(oppTeamKey, opponentDefinition)
+        };
+        battle.boAdjustment = {
+          schema_version: 'champions-bo-adjustment-v1',
+          enabled: adaptiveSeries,
+          game: nextGameNumber,
+          player_lineup: playerBring.slice(),
+          opponent_lineup: opponentBring.slice(),
+          reason: nextGameNumber === 1
+            ? 'team_preview_game_1'
+            : 'between_game_adjustment_after_' + (previousBattle && previousBattle.result ? previousBattle.result : 'unknown')
+        };
+        if (adaptiveSeries && results.lineupAdjustmentSamples.length < 120) {
+          results.lineupAdjustmentSamples.push({
+            series: seriesNumber,
+            game: nextGameNumber,
+            previous_result: previousBattle ? previousBattle.result : null,
+            player_lineup: playerBring.slice(),
+            opponent_lineup: opponentBring.slice(),
+            reason: battle.boAdjustment.reason
+          });
+        }
+        results.totalBattles++;
         if (battle.result==='win') seriesW++;
         else if (battle.result==='loss') seriesL++;
         else { seriesW+=0.5; seriesL+=0.5; }
+        if (battle.result === 'win') results.battleWins++;
+        else if (battle.result === 'loss') results.battleLosses++;
+        else results.battleDraws++;
         seriesTurns+=battle.turns;
         seriesTrTurns+=battle.trTurns;
+        seriesTwTurns+=(battle.twTurns || 0);
         gamesPlayed++;
         results.turnDist[battle.turns]=(results.turnDist[battle.turns]||0)+1;
-        if (battle.winCondition) results.winConditions[battle.winCondition]=(results.winConditions[battle.winCondition]||0)+1;
-        if (results.allLogs.length<50) results.allLogs.push({...battle, playerKey:playerTeamKey, oppKey:oppTeamKey, format:currentFormat});
+        if (battle.timerExpired) {
+          if (battle.result === 'draw') results.timerDraws++;
+          else if (battle.result === 'win') results.timerWins++;
+          else if (battle.result === 'loss') results.timerLosses++;
+        }
+        const leadKey = csCountKey(battle.leads && battle.leads.player);
+        const bringKey = csCountKey(battle.bring && battle.bring.player);
+        csAddCount(results.playerLeadCounts, leadKey);
+        csAddCount(results.playerBringCounts, bringKey);
+        if (battle.result === 'win') {
+          csAddCount(results.playerWinLeadCounts, leadKey);
+          csAddCount(results.playerWinBringCounts, bringKey);
+          if (battle.winCondition) results.winConditions[battle.winCondition]=(results.winConditions[battle.winCondition]||0)+1;
+        }
+        if (results.allLogs.length<50) results.allLogs.push({...battle, playerKey:playerTeamKey, oppKey:oppTeamKey, format:runFormat});
         seriesBattles.push(battle);
+        previousBattle = battle;
       }
 
       const seriesResult = seriesW>seriesL?'wins':seriesW<seriesL?'losses':'draws';
@@ -11112,6 +12457,7 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
       if (seriesResult==='losses') liveL++;
       results.totalTurns += seriesTurns/gamesPlayed;
       results.totalTrTurns += seriesTrTurns/gamesPlayed;
+      results.totalTwTurns += seriesTwTurns/gamesPlayed;
 
       // Phase 4a — append one entry per series to the sim log. Wrapped in
       // try so a storage failure never kills the sim run.
@@ -11124,7 +12470,7 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
           csSimLogAppendSeries({
             playerKey: playerTeamKey,
             oppKey: oppTeamKey,
-            format: currentFormat,
+            format: runFormat,
             bo: bo,
             battleResults: seriesBattles,
             seriesResult: srOut
@@ -11141,25 +12487,43 @@ async function runBoSeries(numSeries, playerTeamKey, oppTeamKey, bo, onProgress)
   results.allLogs = results.allLogs.map(function(battle) {
     return csCapBattleReplay(battle);
   });
-  results.winRate = results.wins/numSeries;
-  results.avgTurns = results.totalTurns/numSeries;
-  results.avgTrTurns = results.totalTrTurns/numSeries;
+  const validSeries = results.wins + results.losses + results.draws;
+  results.winRate = validSeries ? results.wins/validSeries : 0;
+  results.avgTurns = validSeries ? results.totalTurns/validSeries : 0;
+  results.avgTrTurns = validSeries ? results.totalTrTurns/validSeries : 0;
+  results.avgTwTurns = validSeries ? results.totalTwTurns/validSeries : 0;
+  results.sampleSize = validSeries;
+  results.retainedLogSampleSize = results.allLogs.length;
+  results.adaptiveBringEnabled = adaptiveSeries;
+  results.playerBringPoolSize = playerBringPool.length;
+  results.opponentBringPoolSize = opponentBringPool.length;
+  results.confidenceNote = validSeries < 20 ? 'Low confidence - run more series or increase sample size'
+    : (validSeries < 100 ? 'Moderate confidence' : 'High confidence');
   results.playerKey = playerTeamKey;
   results.oppKey = oppTeamKey;
   results.bo = bo;
-  results.format = currentFormat;
+  results.format = runFormat;
   return results;
 }
 
 // runAllMatchupsUI — UI wrapper; distinct from engine.js runAllMatchups
 // Issue #T6: when LADDER_MODE is ON, iterate only ladder-legal opponents.
 async function runAllMatchupsUI(numSeries, bo, onProgress, onDone, simCtx) {
+  if (typeof checkTeamForSelectedRegulation !== 'function' || typeof getSelectedRegulationId !== 'function') throw new Error('Regulation validator unavailable; simulation blocked.');
   simCtx = simCtx || resolveSimContext({ numSeries: numSeries, bo: bo });
   var playerKey = simCtx.playerKey;
   const opps = getRunAllOpponentKeys(playerKey, simCtx);
   if (!opps.length) throw new Error('no opponents available for ' + getSimScopeLabel(simCtx.simScope || getSimScopeMode()));
+  const runRegulation = typeof getSelectedRegulationId === 'function' ? getSelectedRegulationId() : null;
+  if (typeof checkTeamForSelectedRegulation === 'function') {
+    for (const key of [playerKey].concat(opps)) {
+      const check = checkTeamForSelectedRegulation(TEAMS[key], runRegulation, { format: currentFormat, bo: bo });
+      if (!check.allowed) throw new Error('Run-all preflight blocked: ' + key + ': ' + check.errors.concat(check.source_gaps).join(' '));
+    }
+  }
   let done=0;
   for (const opp of opps) {
+    if (typeof getSelectedRegulationId === 'function' && getSelectedRegulationId() !== runRegulation) throw new Error('Regulation changed during the matchup batch.');
     const res = await runBoSeries(numSeries,playerKey,opp,bo,(cur,tot,w,l)=>{
       if (onProgress) onProgress(done*numSeries+cur, opps.length*numSeries, w, l);
     });
@@ -11181,6 +12545,36 @@ async function runAllMatchupsUI(numSeries, bo, onProgress, onDone, simCtx) {
 // M4 — _buildAnalysisPayload: builds the canonical payload for SupabaseAdapter.saveAnalysis
 // ============================================================
 var _M4_VALID_BO = [1, 3, 5, 10];
+var _csRunTeamIdentities = {};
+
+async function _captureSimulationProvenance(playerKey, oppKey, playerTeam, oppTeam, format, bo, selectionPolicy, selectedRegulation) {
+  async function digest(team) {
+    if (typeof crypto === 'undefined' || !crypto.subtle) return null;
+    const bytes = new TextEncoder().encode(JSON.stringify(team));
+    const hash = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  function ruleset(team) { return team.ruleset_id || (team.metadata && team.metadata.ruleset_id) || null; }
+  const profile = typeof getChampionsRuleset === 'function' ? getChampionsRuleset(selectedRegulation || ruleset(playerTeam)) : {};
+  // Capture scalar identity before awaiting hashes. Never read current UI selection at save time.
+  const provenance = {
+    schema_version: 'champions-simulation-provenance-v1',
+    engine_version: typeof ENGINE_VERSION !== 'undefined' ? ENGINE_VERSION : 'unknown',
+    build_id: typeof CHAMPIONS_RELEASE_MANIFEST !== 'undefined' ? CHAMPIONS_RELEASE_MANIFEST.build_id : 'unknown',
+    ruleset_id: selectedRegulation ? profile.id : ruleset(playerTeam), opponent_ruleset_id: selectedRegulation ? profile.id : ruleset(oppTeam),
+    original_player_ruleset_id: ruleset(playerTeam), original_opponent_ruleset_id: ruleset(oppTeam),
+    ruleset_version: profile.version || null, regulation_id: profile.id || null,
+    engine_format_id: profile.engineFormatId || null,
+    level_policy: selectedRegulation === 'champions_custom_practice' ? 'missing_level_defaults_to_50_in_engine' : 'explicit_level_50',
+    format: format, bo: bo, player_team_id: playerKey, opp_team_id: oppKey,
+    policy_model: 'deterministic-v1', selection_policy: Object.assign({}, selectionPolicy)
+  };
+  provenance.player_team_digest = await digest(playerTeam);
+  provenance.opp_team_digest = await digest(oppTeam);
+  _csRunTeamIdentities[playerKey] = { input: JSON.stringify(playerTeam), digest: provenance.player_team_digest };
+  _csRunTeamIdentities[oppKey] = { input: JSON.stringify(oppTeam), digest: provenance.opp_team_digest };
+  return provenance;
+}
 
 function _stripTurnLogForPersistence(logRow) {
   if (!logRow || typeof logRow !== 'object') return logRow;
@@ -11192,6 +12586,10 @@ function _stripTurnLogForPersistence(logRow) {
     winCondition: logRow.winCondition || null,
     win_condition: logRow.win_condition || logRow.winCondition || null,
     seed: logRow.seed || null,
+    format: logRow.format || null,
+    provenance: logRow.provenance ? JSON.parse(JSON.stringify(logRow.provenance)) : null,
+    bring: logRow.bring || null,
+    participants: logRow.participants || null,
     log: Array.isArray(logRow.log) ? logRow.log.slice(0, 200) : (logRow.log || []),
     position_path: Array.isArray(logRow.position_path) ? logRow.position_path.slice(0, 40) : [],
     turning_point: logRow.turning_point || null
@@ -11223,23 +12621,28 @@ function _buildAnalysisPayload(playerKey, oppKey, bo, res) {
     throw new Error('[M4] _buildAnalysisPayload: win_rate out of [0,1]: ' + winRate);
   }
 
-  var rulesetId = 'champions_reg_m_doubles_bo3';
-  if (typeof TEAMS !== 'undefined' && TEAMS[playerKey] && TEAMS[playerKey].metadata && TEAMS[playerKey].metadata.ruleset_id) {
-    rulesetId = TEAMS[playerKey].metadata.ruleset_id;
-  }
-  var rulesetEvidence = typeof getRulesetEvidencePolicy === 'function'
-    ? getRulesetEvidencePolicy(rulesetId)
+  var provenance = res && res.provenance ? JSON.parse(JSON.stringify(res.provenance)) : null;
+  var rulesetId = provenance && provenance.ruleset_id || 'unknown';
+  var rulesetEvidence = typeof getSimulationEvidencePolicy === 'function'
+    ? getSimulationEvidencePolicy(provenance, res && (res.logs || res.allLogs))
     : {
       ruleset_id: rulesetId,
       ruleset_status: 'unknown',
       runtime_promotable: false,
-      learning_eligibility: 'unknown',
+      learning_eligibility: 'blocked_missing_provenance',
       data_policy: 'unknown',
       coaching_policy: 'unknown',
       poisoning_guard: 'unknown_ruleset_do_not_train_or_rank'
     };
 
-  var engineVersion = (typeof window === 'undefined') ? '1.0.0' : (window['ENGINE_VERSION'] || '1.0.0');
+  if (provenance && (provenance.player_team_id !== playerKey || provenance.opp_team_id !== oppKey || provenance.bo !== bo ||
+      (res.format && res.format !== provenance.format) || (res.policy_model && res.policy_model !== provenance.policy_model))) {
+    rulesetEvidence.learning_eligibility = 'blocked_identity_mismatch';
+    rulesetEvidence.poisoning_guard = 'identity_mismatch_do_not_train_or_rank';
+    rulesetEvidence.data_policy = 'do_not_write_trusted_stats';
+    rulesetEvidence.coaching_policy = 'review_only_no_matchup_learning';
+  }
+  var engineVersion = provenance && provenance.engine_version || 'unknown';
 
   var winConditions = [];
   if (res && res.winConditions && typeof res.winConditions === 'object') {
@@ -11261,7 +12664,15 @@ function _buildAnalysisPayload(playerKey, oppKey, bo, res) {
     logs = res.logs.slice(0, 50).map(_stripTurnLogForPersistence);
   }
 
-  var analysisJson = (res && res.analysis_json) || {};
+  var analysisJson = JSON.parse(JSON.stringify((res && res.analysis_json) || {}));
+  analysisJson.provenance = provenance;
+  analysisJson.evidence_policy = rulesetEvidence;
+  // Existing JSON column retains per-game identity without requiring a schema migration.
+  analysisJson.game_provenance = logs.map(function(row) {
+    return { seed: row && row.seed || null, format: row && row.format || null,
+      bring: row && row.bring || null, participants: row && row.participants || null,
+      provenance: row && row.provenance || null };
+  });
   if (res && res.turning_point && !analysisJson.turning_point) analysisJson.turning_point = res.turning_point;
   if (res && Array.isArray(res.position_path) && !analysisJson.position_path) {
     analysisJson.position_path = res.position_path.slice(0, 40);
@@ -11288,6 +12699,7 @@ function _buildAnalysisPayload(playerKey, oppKey, bo, res) {
 
   return {
     engine_version:    engineVersion,
+    format:            provenance && provenance.format || 'unknown',
     ruleset_id:        rulesetId,
     ruleset_status:    rulesetEvidence.ruleset_status,
     learning_eligibility: rulesetEvidence.learning_eligibility,
@@ -11425,6 +12837,8 @@ if (typeof exposeLegacyWindowAlias === 'function') exposeLegacyWindowAlias('_ups
 let simRunning = false;
 
 function setProgress(pct, label, w, l) {
+  var runError = document.getElementById('sim-run-error');
+  if (pct === 0 && runError) { runError.hidden = true; runError.textContent = ''; }
   document.getElementById('progress-fill').style.width=pct+'%';
   document.getElementById('progress-label').textContent=label;
   if (w!==undefined) {
@@ -11472,6 +12886,8 @@ function setBranchProgress(pct, label, meta) {
 
 function setSimError(err) {
   var msg = (err && err.message) ? err.message : String(err || 'Unknown simulation error');
+  var runError = document.getElementById('sim-run-error');
+  if (runError) { runError.hidden = false; runError.textContent = msg; }
   UILog.error('Simulation run failed', err);
   var wrap = document.getElementById('progress-wrap');
   var fill = document.getElementById('progress-fill');
@@ -11501,7 +12917,7 @@ function csGetPublicBetaGuardProfile() {
     device_memory_gb: deviceMemory || null,
     is_low_memory: isLowMemory,
     should_force_stress_lite: shouldForceStressLite,
-    max_series_value: shouldForceStressLite ? 500 : 10000,
+    max_series_value: shouldForceStressLite ? 500 : CS_BROWSER_OPTION_MAX_SERIES,
     max_tactical_depth_value: shouldForceStressLite ? 250 : null
   };
 }
@@ -11516,11 +12932,11 @@ function csApplyPublicBetaGuardrails() {
   if (!profile.should_force_stress_lite) {
     if (runAllBtn) {
       runAllBtn.disabled = false;
-      runAllBtn.title = 'Run all matchups across the current scope';
+      runAllBtn.title = 'On-page matchup matrix: runs the selected team against every loaded team, including custom/imported teams and mirror matches.';
     }
     if (qaRunBtn) {
       qaRunBtn.disabled = false;
-      qaRunBtn.title = 'Run all matchups, then download one retained-evidence QA Artifact JSON';
+      qaRunBtn.title = 'QA file export: runs all loaded team matchups, then downloads one retained-evidence QA Artifact JSON.';
     }
     if (noteEl) noteEl.style.display = 'none';
     return profile;
@@ -11571,7 +12987,7 @@ document.getElementById('run-sim-btn')?.addEventListener('click', async function
   try {
     document.getElementById('results-section').style.display='none';
     document.getElementById('progress-wrap').style.display='';
-    setProgress(0,'Starting…',0,0);
+    setProgress(0,'0% · Starting simulation...',0,0);
 
     var swappedOpp = enforceDistinctBattleTeams();
     if (swappedOpp && TEAMS[swappedOpp]) {
@@ -11582,14 +12998,23 @@ document.getElementById('run-sim-btn')?.addEventListener('click', async function
     var simCtx = resolveSimContext();
     var playerKey = simCtx.playerKey;
     const oppKey=simCtx.oppKey;
-    const n=simCtx.numSeries;
+    var n=simCtx.numSeries;
     const bo=simCtx.bo;
     if (!Number.isFinite(n) || n < 1) throw new Error('invalid simulation count');
+    var selectedBudget = csBrowserRunBudget(n, bo, 1, 'selected');
+    if (selectedBudget.wasClamped) {
+      n = selectedBudget.numSeries;
+      simCtx.numSeries = n;
+      csSetSimBudgetNote('Browser safety capped this selected BO' + bo + ' run from ' + formatSeriesCount(selectedBudget.requestedSeries) + ' to ' + formatSeriesCount(n) + ' series. Use QA/DB stress tooling for larger evidence jobs.', 'warn');
+    } else {
+      csSetSimBudgetNote('Browser-safe estimate: up to ' + formatSeriesCount(selectedBudget.estimatedMaxGames) + ' games for this selected matchup.', 'info');
+    }
     const matBadge=document.getElementById('matrix-badge');
     if(matBadge) matBadge.textContent=`${simCtx.formatLabel} · Bo${bo} · ${formatSeriesCount(n)} series`;
 
     const res = await runBoSeries(n,playerKey,oppKey,bo,(cur,tot,w,l)=>{
-      setProgress(Math.round(cur/tot*100),`Running… ${cur} / ${tot}`,w,l);
+      var pct = Math.round(cur/tot*100);
+      setProgress(pct,`${pct}% · Running selected matchup · ${formatSeriesCount(cur)} / ${formatSeriesCount(tot)} series`,w,l);
     });
 
     document.getElementById('progress-wrap').style.display='none';
@@ -11646,13 +13071,21 @@ async function csRunAllMatchupsFromButton(allBtn, opts) {
     document.getElementById('matchup-tbody').innerHTML='<tr><td colspan="7" style="color:var(--text-m);font-size:12px;text-align:center;padding:20px;font-family:var(--font-mono)">Running all matchups…</td></tr>';
 
     var simCtx = resolveSimContext();
-    const n=simCtx.numSeries;
+    var n=simCtx.numSeries;
     const bo=simCtx.bo;
     var playerKey = simCtx.playerKey;
     var runOpps = getRunAllOpponentKeys(playerKey, simCtx);
     if (!Number.isFinite(n) || n < 1) throw new Error('invalid simulation count');
+    var runAllBudget = csBrowserRunBudget(n, bo, runOpps.length, 'run_all');
+    if (runAllBudget.wasClamped) {
+      n = runAllBudget.numSeries;
+      simCtx.numSeries = n;
+      csSetSimBudgetNote('Browser safety capped Run All BO' + bo + ' from ' + formatSeriesCount(runAllBudget.requestedSeries) + ' to ' + formatSeriesCount(n) + ' series per opponent across ' + formatSeriesCount(runOpps.length) + ' opponents. Use QA/DB stress tooling for larger evidence jobs.', 'warn');
+    } else {
+      csSetSimBudgetNote('Browser-safe Run All estimate: up to ' + formatSeriesCount(runAllBudget.estimatedMaxGames) + ' games across loaded opponents.', 'info');
+    }
     document.getElementById('progress-wrap').style.display='';
-    setProgress(0,'Starting…',0,0);
+    setProgress(0,'0% · Starting matchup matrix...',0,0);
     const matBadge=document.getElementById('matrix-badge');
     if(matBadge) matBadge.textContent=`${simCtx.formatLabel} · Bo${bo} · ${getRunScopeBadgeText(simCtx, runOpps.length)}`;
 
@@ -11663,7 +13096,8 @@ async function csRunAllMatchupsFromButton(allBtn, opts) {
 
     await runAllMatchupsUI(n,bo,(cur,tot,w,l)=>{
       totalW=w; totalL=l;
-      setProgress(Math.round(cur/tot*100),`Running matchups… ${cur} / ${tot}`,w,l);
+      var pct = Math.round(cur/tot*100);
+      setProgress(pct,`${pct}% · Running loaded-team matrix · ${formatSeriesCount(cur)} / ${formatSeriesCount(tot)} series`,w,l);
     },(opp,res)=>{
       ChampionsSim.state.lastResults[opp] = res;
       const winPct=Math.round(res.winRate*100);
@@ -11948,7 +13382,8 @@ function generatePilotGuide(oppKey, results, simCtx) {
   const emptyEl = el.querySelector('.pilot-empty');
   safeRemoveNode(emptyEl);
 
-  const total = results.wins + results.losses + results.draws;
+  const total = csResultSeriesCount(results);
+  const totalGames = csResultGameCount(results);
   const winPct = Math.round(results.winRate * 100);
 
   let verdict, verdictClass;
@@ -11965,10 +13400,11 @@ function generatePilotGuide(oppKey, results, simCtx) {
   const allLogs = results.allLogs || [];
   const winLogs = allLogs.filter(g => g.result === 'win');
   for (const game of winLogs) {
-    const names = (game.leads && Array.isArray(game.leads.player)) ? game.leads.player : [];
-    for (const n of names) leadCounts[n] = (leadCounts[n] || 0) + 1;
+    const leadKey = csCountKey(game.leads && game.leads.player);
+    csAddCount(leadCounts, leadKey);
   }
-  const leads = Object.entries(leadCounts).sort((a,b) => b[1]-a[1]).slice(0,2).map(e => e[0]);
+  const leadPairs = csTopCountEntries(results.playerWinLeadCounts, 2).map(e => e[0]);
+  const leads = leadPairs.length ? leadPairs : csTopCountEntries(leadCounts, 2).map(e => e[0]);
 
   const lossSeries = allLogs.filter(g => g.result === 'loss');
   const riskCounts = {};
@@ -11990,8 +13426,12 @@ function generatePilotGuide(oppKey, results, simCtx) {
     .map(e => e[0]);
 
   const tips = [];
-  if (leads.length >= 2) tips.push(`Lead ${leads[0]} + ${leads[1]} as the first option.`);
-  if (wcEntries.length) tips.push(`${wcEntries[0][0]} was the top win condition in ${Math.round(wcEntries[0][1]/total*100)}% of all series.`);
+  tips.push(`${total} Bo${simCtx.bo || currentBo} series produced ${totalGames} actual games; win/loss uses all series, while replay examples are retained samples.`);
+  if (results.adaptiveBringEnabled) tips.push(`Bo adaptation was active: game 2/3 lineups could change after the previous game result.`);
+  if (leads.length) tips.push(`Use ${leads[0]} as the first winning lead reference.`);
+  const bestWinningLineup = csTopCountEntries(results.playerWinBringCounts, 1)[0];
+  if (bestWinningLineup) tips.push(`Most common winning lineup: ${bestWinningLineup[0]}.`);
+  if (wcEntries.length) tips.push(`${wcEntries[0][0]} was the top win condition in ${csWinConditionPct(results, wcEntries[0][1])}% of player game wins.`);
   if (risks.length) tips.push(`Watch for ${risks[0]} — it appeared in over 40% of your losses.`);
   else if (winPct > 55) tips.push('Your team has a consistent edge — focus on denying their setup turns.');
   if (winPct < 45) tips.push('Open with Fake Out + speed control to disrupt their gameplan.');
@@ -12045,13 +13485,13 @@ function generatePilotGuide(oppKey, results, simCtx) {
       </div>
       <div class="pilot-details">
         ${preCoach ? `<details class="cs-pre-coach"><summary>PRE coaching</summary><pre>${_escapeHtml(preCoach)}</pre></details>` : ''}
-        ${leads.length ? `<div class="pilot-leads"><span class="pilot-section-label">LEADS</span> ${leads.join(' + ')}</div>` : ''}
+        ${leads.length ? `<div class="pilot-leads"><span class="pilot-section-label">WINNING LEAD EVIDENCE</span> ${leads.join(' · ')}</div>` : ''}
         <div class="pilot-section-label">WIN CONDITIONS</div>
         ${wcEntries.map(([cond,cnt]) => `
           <div class="pilot-wc-row">
             <span>${cond}</span>
             <div class="pilot-wc-bar-wrap"><div class="pilot-wc-bar" style="width:${Math.round(cnt/maxWC*100)}%"></div></div>
-            <span style="font-size:10px;color:var(--primary);font-family:var(--font-mono)">${Math.round(cnt/total*100)}%</span>
+            <span style="font-size:10px;color:var(--primary);font-family:var(--font-mono)">${csWinConditionPct(results, cnt)}%</span>
           </div>`).join('')}
         ${risks.length ? `<div class="pilot-section-label" style="margin-top:8px">RISKS</div>
           ${risks.map(r => `<div class="pilot-risk">⚠ Watch out for: <strong>${r}</strong></div>`).join('')}` : ''}
@@ -12106,7 +13546,8 @@ function teamHasMega(team) {
 }
 
 function megaTriggerCacheKey(playerKey, oppKey, bo, format) {
-  return [playerKey, oppKey, bo || 1, format || 'doubles'].join('|');
+  return _stableResultsStringify([playerKey, TEAMS[playerKey] || null,
+    oppKey, TEAMS[oppKey] || null, bo || 1, format || 'doubles', strategyExecutionContext()]);
 }
 
 function getCachedMegaSweep(playerKey, oppKey, bo, format) {
@@ -12235,6 +13676,7 @@ function buildMegaTriggerPdfSummary(sweep) {
 // team has no Mega holder, so callers can cheaply skip rendering.
 function computeMegaTriggerSweep(playerKey, oppKey, bo, format) {
   if (typeof TEAMS === 'undefined' || !TEAMS[playerKey] || !TEAMS[oppKey]) return null;
+  if (typeof canRunRegulationAnalysis !== 'function' || !canRunRegulationAnalysis(TEAMS[playerKey], TEAMS[oppKey])) return null;
   if (!teamHasMega(TEAMS[playerKey])) return null;
   if (typeof runMegaTriggerSweep !== 'function') return null;
 
@@ -12691,26 +14133,179 @@ function _escapeHtml(s) {
 }
 
 var CS_OVERVIEW_DATA = {
-  updated: '2026-07-01',
+  updated: '2026-08-30',
   metrics: [
     { label: 'Current Truth', value: 'Not 100% yet' },
+    { label: 'Brain MVP', value: 'Core local foundation green' },
+    { label: 'Learning Rule', value: 'Evidence -> Tests -> Release' },
     { label: 'Damage Logs', value: 'Applied/calc split fixed locally' },
-    { label: 'Release Teams', value: '15 approved runtime rows' },
+    { label: 'Catalog Teams', value: '15 reference catalog rows' },
+    { label: 'Regulation Gate', value: 'M-A / M-B not verified; practice only' },
     { label: 'Testing Catalog Target', value: 'Top 10 Champion archetypes live' },
     { label: 'Removed Teams', value: '17 legacy/inferred rows' },
     { label: 'DB Team Rule', value: 'Approved rows must pass gates' },
     { label: 'Stress Status', value: 'Stress Lite totals + coaching summary live' },
+    { label: 'QA Contract', value: 'Slice purpose + blockers exported' },
     { label: 'Sim Truth Gate', value: 'Mechanics first' },
-    { label: 'Live Supabase', value: 'Teams + analyses, gated' },
+    { label: 'Live Supabase', value: 'Public reads proven; migration pending' },
     { label: 'DB Log Detail', value: 'Summary/capped; exports are forensic proof' },
     { label: 'Showdown DB', value: 'Manual approval only' },
     { label: 'Team Format', value: 'Champion/SP focus' },
     { label: 'Turn Logs', value: 'Strict applied damage fields' },
-    { label: 'Move Support', value: '120 verified / 0 baseline' },
+    { label: 'Move Support', value: '123 verified / 11 baseline' },
     { label: 'Showdown Oracle', value: '56/56 green' },
-    { label: 'Ability Inventory', value: '80/80 modeled' }
+    { label: 'Ability Inventory', value: '84/84 curated modeled' },
+    { label: 'Edge Cases', value: '17 covered / 17 partial / 10 open' }
   ],
   shipped: [
+    {
+      status: 'done',
+      title: 'Hospitality, grounding and multi-hit priority fixes validated locally',
+      detail: 'Fifteen synthetic boundary cases cover both-side Hospitality, Thousand Arrows grounding and switch reset, and Gale Wings multi-hit protection before accuracy. Exact HP is now included in roster logs. Singles fixtures are shared-mechanics evidence, not doubles readiness. Default bring-four, broader imported mechanics and production deployment remain open.'
+    },
+    {
+      status: 'done',
+      title: 'Worlds 2026 top-cut review catalog captured locally',
+      detail: 'All 13 Masters top-cut entrants, including three byes, have linked RK9 sheets and 78 stable member IDs. Published items, abilities, moves and stat alignments are preserved; private stat points remain unknown. These rows are review-only, not runtime teams or approved database rows. Permanent regressions and edge-case fixtures remain separate benchmark categories.'
+    },
+    {
+      status: 'done',
+      title: 'Two independently reproduced battle defects fixed locally',
+      detail: 'Both replacement fields now populate before entry effects, removing the demonstrated opponent Intimidate advantage. Scrappy and Minds Eye again bypass Ghost immunity during move execution. Hospitality and named Thousand Arrows boundaries have since received local fixes. Default bring-four reporting, broader entry ordering and competitive parity remain open.'
+    },
+    {
+      status: 'done',
+      title: 'Supabase connection and governance audit completed',
+      detail: 'The deployed app authenticated through the public anon path and returned 8,653 approved Showdown rows with zero duplicate keys or invalid hashes. Local hardening now blocks browser writes to shared catalog/evidence tables, fixes adapter column drift, protects mixed-privacy Team Lab evidence, scopes privileged workflow secrets, makes production migrations main-only and transactional, and prevents scheduled Showdown checks from consuming unpromoted changes. Production migration/readback and digest-bound Showdown approval remain open.'
+    },
+    {
+      status: 'done',
+      title: 'Full Champion source inventory framework added',
+      detail: 'A machine-readable source manifest now covers official public pages, required in-game captures, the Showdown baseline, and field-level ownership for species/forms, stats, moves, Abilities, items, learnsets, rules, and mechanics. The first read-only run reached and hashed 9 of 11 public endpoints; two optional Support pages require manual review, and seven client capture sets remain open.'
+    },
+    {
+      status: 'done',
+      title: 'Strategy and agent operating audit added',
+      detail: 'The product wedge is now a replay-verifiable Champion battle laboratory, with one shared agent operating contract for source priority, proof states, task priority, Supabase boundaries, controlled Brain learning, definition of done, and handoffs. The north-star metric is evidence-backed claim survival, not raw battle or feature count.'
+    },
+    {
+      status: 'done',
+      title: 'Project and DB audit refreshed',
+      detail: 'The project audit now links the full Supabase audit and records the current truth: public connection/read quality is proven, Team Lab tables are absent from the live public schema cache, active Champions overrides are empty, local source-truth/governance tests are green, and production migration plus deployment readback are still required.'
+    },
+    {
+      status: 'done',
+      title: 'No-API Brain roadmap organized',
+      detail: 'The 2026-07-05 roadmap now defines the Brain as a local deterministic coach, not a live LLM or self-training system. The safe loop is Simulator facts -> EvidenceBundle -> Local Brain Composer -> Brain Validator -> UI Cards -> Feedback -> Improvement Pack -> Codex Regression Loop. Docs added/updated: docs/architecture/llm-brain-context.md, docs/architecture/llm-brain-integration-audit.md, and ROADMAP.md.'
+    },
+    {
+      status: 'done',
+      title: 'No-API Brain foundation implemented locally',
+      detail: 'Branch analysis/no-api-brain-foundation adds the local foundation without changing engine mechanics: EvidenceBundle schema, confidence/provenance helpers, deterministic analysis tool contracts, BrainAnalysis schema, local rules/templates/composer/validator, feedback storage, Brain output storage helpers, improvement-pack storage/export, fixture seeds, and focused regression tests. No API calls, no LLM calls, no Supabase Edge Functions, no release_manifest.js change, and no chat UI.'
+    },
+    {
+      status: 'done',
+      title: 'Project open-items audit documented',
+      detail: 'Branch audit/project-open-items-2026-07-05 adds docs/release/PROJECT_OPEN_ITEMS_AUDIT_2026-07-05.md. The audit groups the live open work into Reg M-B source promotion, Josh/QA review, Team Lab evidence/privacy, Battle Sensei accuracy, deployment hardening, and no-API Brain review. It also fixes the Windows Showdown DB writer CLI entrypoint and aligns the stale M9 bundle-size guard with the current static Pages budget.'
+    },
+    {
+      status: 'done',
+      title: 'Beginner-friendly Brain build plan added',
+      detail: 'The roadmap now explains the pieces in plain language: simulator equals referee, analysis tools equal stat sheet, EvidenceBundle equals game film, Brain Composer equals coach, validator equals fact checker, and feedback equals the player teaching the coach through reviewed releases.'
+    },
+    {
+      status: 'done',
+      title: 'Single replay proof boundary cleaned up',
+      detail: 'v2.2.131-production-launch-gate adds a production readiness gate to QA artifacts and the visible QA Claim Review card. It separates internal QA usefulness from public launch readiness, keeps public/beta launch false while legality truth, replay parity, scenario breadth, singles/doubles coverage, or source boundaries are unresolved, and lists the next production action without inventing Champion data.'
+    },
+    {
+      status: 'done',
+      title: 'Shared regulation preflight implemented locally',
+      detail: 'v2.2.134 shares regulation selection across Simulator and Set Editor, preserves registration identity, checks both teams and selected four, and blocks unverified rules. Engine 1.1.2 fixes registered Mega-form bring selection. M-A and M-B are not verified; only explicitly selected custom practice can run. Historical M-A evidence is quarantined until regulation data approval. No deployment or live DB change.'
+    },
+    {
+      status: 'planned',
+      title: 'Approve regulation data and prove competitive parity',
+      detail: 'Review versioned species/forms, species-specific moves and abilities, items and combinations against official Champions sources. Implement digest-bound database eligibility packages and offline snapshots. Resolve Showdown Tailwind, fixed-damage and stat-drop disagreements, plus replay display gaps, before competitive coaching. Reference data and passing consistency tests are not 99% game accuracy.'
+    },
+    {
+      detail: 'v2.2.130-single-replay-proof-boundary keeps single replay downloads from looking like failed release proof. For champions-turn-log-v2 files, qa_coverage_summary.missing_targeted_proof is empty because one replay is not a release matrix. Mechanics absent from that one battle are still preserved under single_replay_missing_mechanics with an explicit missing_targeted_proof_note.'
+    },
+    {
+      status: 'done',
+      title: 'Completed battle turn count aligned',
+      detail: 'v2.2.129 fixes the sim-page turn-count source so simulateBattle().turns, downloaded turn-log JSON, and retained replay-card evidence use completed turnLog rows instead of a loop counter that could run one turn high after terminal KO/end conditions. Exports preserve the old/internal count as sim_turns_reported and mark turn_count_source so QA can audit the difference without confusing sim results.'
+    },
+    {
+      status: 'done',
+      title: 'Turn-log export scope and turn count fixed',
+      detail: 'v2.2.128 fixes downloaded single replay turn-log exports after QA logs showed valid turnLog rows but top-level turns:null. champions-turn-log-v2 now includes turns, qa_scope, qa_scope_note, qa_coverage_summary.coverage_scope_note, and single_replay_missing_mechanics so Josh/Codex can separate one-replay coverage gaps from release-wide proof failures. The validator now rejects top-level turns that drift from the structured turnLog row count.'
+    },
+    {
+      status: 'done',
+      title: 'Targeted Trick Room active proof exported',
+      detail: 'v2.2.127 adds a named targeted QA fixture for Trick Room active-state coverage in browser-exported QA artifacts. Tactical Coaching QA should now show mechanics_seen.trick_room_active > 0 and should not list Trick Room active state under missing_targeted_proof when using the current targeted sweep bundle.'
+    },
+    {
+      status: 'done',
+      title: 'Regulation legality evidence request added',
+      detail: 'v2.2.110 adds a Regulation M-B legality_evidence_request inside qa_100_readiness and next_evidence_request when legality_truth is the active blocker. It names the required official/in-game captures, allowlists, known legal/illegal/stale/needs_verification fixtures, and promotion rule without inventing Champion data. This turns the current QA blocker into a source-capture checklist instead of a vague legality warning.'
+    },
+    {
+      status: 'done',
+      title: 'QA 100 next-gate guidance added',
+      detail: 'v2.2.109 strengthens qa_100_readiness so every QA artifact names first_blocking_gate, first_partial_gate, active_priority_lane, recommended_test, and next_evidence_request. This keeps the team from jumping around: if legality is blocked, work the Regulation M-B evidence package first; if no blockers remain, close the first partial gate such as move mechanics, replay transparency, scenario breadth, real replay parity, or singles/doubles proof.'
+    },
+    {
+      status: 'done',
+      title: 'Review private replay save added',
+      detail: 'v2.2.108 wires the Review upload flow to private replay persistence through an explicit Save Private Import button. The button saves only trainer_replay_imports, trainer_replay_import_refs, and trainer_replay_import_events through SupabaseAdapter.saveReplayImport when Supabase/Auth is available, and otherwise reports local-only status. Saved evidence belongs in the future Trainer Room and must remain regulation-scoped by regulation_id, ruleset_version, and engine_version. It still blocks public Team Lab rankings, official legality claims, global learning, and bot memory promotion.'
+    },
+    {
+      status: 'done',
+      title: 'Trainer Room team filename mapping added',
+      detail: 'v2.2.107 aligns product language: the Trainer Room is the future logged-in account workspace. replay_import_service.js now maps an uploaded Showdown replay/log to a private personal team when the filename matches a personal/custom team name or when the player selects a Reference team in Review upload, stores that match in personal_team_match metadata, marks team_mapping_status as mapped, and adds a private team_lab_team ref when available. This is private Trainer Room evidence only; it does not prove official legality, public ranking, global learning, or bot memory.'
+    },
+    {
+      status: 'done',
+      title: 'Private replay import persistence added',
+      detail: 'v2.2.106 adds SupabaseAdapter.saveReplayImport for trainer-owned replay imports. The adapter inserts the trainer_replay_imports parent first, remaps child trainer_replay_import_refs and trainer_replay_import_events to the returned import id, returns saved counts, and fails soft when Supabase is disabled or RLS rejects the write. It does not write Team Lab official rankings, global learning, promotion audits, or bot memory.'
+    },
+    {
+      status: 'done',
+      title: 'Private replay parser service added',
+      detail: 'v2.2.105 adds replay_import_service.js, a private parser adapter that turns Showdown HTML/text, Champions turn-log JSON, and QA artifact JSON into trainer_replay_imports, trainer_replay_import_refs, and trainer_replay_import_events shaped payloads. It preserves parser_version, source_hash, source gaps, parser confidence, source-line/event pointers, regulation, format, engine_version, and ruleset_version while failing closed on unknown files. It does not write to Supabase, Team Lab official rankings, global learning, or bot memory.'
+    },
+    {
+      status: 'done',
+      title: 'Replay import governance added',
+      detail: 'v2.2.104 adds private replay import governance for future Showdown HTML/text uploads, QA artifacts, and turn logs: trainer_replay_imports, trainer_replay_import_refs, trainer_replay_import_events, parser_version, source_hash, parse_status, team_mapping_status, source_gaps, confidence_flags, regulation/format/version scope, and owner-scoped RLS. These rows are private parser evidence only and cannot promote to official Team Lab rankings, global learning, or bot memory in this slice.'
+    },
+    {
+      status: 'done',
+      title: 'Trainer-room schema foundation added',
+      detail: 'v2.2.103 adds the private Trainer Room database frame for future accounts and personal coaching: trainer_profiles, trainer_rooms, trainer_room_teams, owner-scoped RLS, no anon read/write policies, and Team Lab team links that do not expose hidden moves/items/EVs. Trainer Room will hold long-term saved teams, regulation-scoped sim data, Showdown logs, improvement metrics, loss diagnosis, team degradation, what-worked notes, and future turn-by-turn bot training. This is only a privacy container; replay imports, personal coaching facts, global learning, and bot sessions remain separate future slices.'
+    },
+    {
+      status: 'done',
+      title: 'DB architecture stress-test plan added',
+      detail: 'v2.2.102 stress-tests the database split against the full roadmap before migrations: source truth, runtime catalog, evidence truth, trainer rooms, global aggregate learning, and future bot practice. The plan challenges browser writes, personal-versus-global evidence, simulator-bug poisoning, replay parser partials, and Team Lab overclaiming, then frames trainer rooms as the first safe migration slice.'
+    },
+    {
+      status: 'done',
+      title: 'DB architecture growth audit added',
+      detail: 'v2.2.101 documents the database future-state needed after simulator truth improves: source truth, evidence truth, trainer rooms, private replay imports, personal coaching memory, anonymized global learning, trusted promotion, and future bot practice sessions. The audit also flags broad anon DB writes and branch-memory promotion as risks before public scale.'
+    },
+    {
+      status: 'done',
+      title: 'QA 100 readiness gate added',
+      detail: 'v2.2.100 adds qa_100_readiness to QA artifacts and the visible QA readout. The artifact now separates useful slice evidence from 100% simulator readiness by checking release identity, official Champion legality source proof, damage trace evidence, mechanic-family breadth, replay transparency, scenario breadth, real-replay parity, singles/doubles coverage, and source-gap boundaries.'
+    },
+    {
+      status: 'done',
+      title: 'True QA slice contract added',
+      detail: 'v2.2.99 adds qa_slice_contract to QA artifacts and the visible claim-review card. Each export now names whether it is Current Evidence QA, Device-Safe Stress QA, Tactical Coaching QA, Targeted Mechanic Proof QA, or Release Matrix QA, then states purpose, best use, not-for boundary, pass criteria, blockers, evidence counts, and next failed-slice action.'
+    },
     {
       status: 'done',
       title: 'GitHub generated-artifact release guard documented',
@@ -13345,6 +14940,21 @@ var CS_OVERVIEW_DATA = {
   validation: [
     {
       status: 'validated',
+      title: '2026-07-05 open issue snapshot checked',
+      detail: 'GitHub API check found 68 open issues in TheYfactora12/Pokemon-Champions-Sim-Planner and 56 open issues in alfredocox/Pokemon-Champions-Sim-Planner. The Y repo had one open PR (#145) unrelated to the no-API Brain audit branch. Candidate branch for this roadmap work is analysis/llm-brain-audit; create/merge a PR before treating the live Pages site as updated.'
+    },
+    {
+      status: 'validated',
+      title: 'No-API Brain foundation tests are green',
+      detail: 'node tests/no_api_brain_foundation_tests.js passes 15 checks: valid/invalid EvidenceBundle handling, duplicate evidence IDs, deterministic tool contracts, composer output, fake evidence rejection, high-confidence-with-uncertainty rejection, missing legality rejection, illegal-as-legal rejection, replay overstatement rejection, local feedback storage, Brain output storage, improvement-pack storage/export, document-listed card types, and benchmark fixture seeds.'
+    },
+    {
+      status: 'validated',
+      title: 'Project audit local sweeps are green',
+      detail: 'The audit pass installed declared npm dependencies, then ran a PowerShell non-DB JS sweep with 122 test files passing and 14 intentional skips, plus a PowerShell DB mock sweep with 10 DB test files passing. Focused proof includes showdown_damage_oracle_tests.js at 56/56, showdown_db_writer_tests.js at 3/3, and db_m9_hardening_tests.js at 11/11. Live DB tests remain skipped unless RUN_LIVE_DB=1 and credentials are set.'
+    },
+    {
+      status: 'validated',
       title: 'Focused local damage-log proof is green',
       detail: '`recoil_faint_turn_log_tests.js` now proves an overkill hit records applied HP loss in visible logs and damage_events, preserves larger formula output as `calculated_damage`, records `overkill_damage`, marks the HP cap, and bases recoil on applied damage.'
     },
@@ -13436,7 +15046,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'validated',
       title: '100% Champion parity checklist is explicit',
-      detail: 'reports/champion_parity_100_checklist.md defines the practical 100% gate: 120 shipped moves verified with zero baseline/incomplete rows, legal Champion teams, DB rows unable to override clean bundled data, browser single-run/Run All/QA artifact proof, current source versions, and every known gap labeled before accuracy claims.'
+      detail: 'reports/champion_parity_100_checklist.md is a truth-gate checklist, not a universal accuracy claim. Current evidence classifies 134 shipped moves as 123 verified, 11 baseline, and 0 incomplete; baseline rows and named battle-audit gaps block broad parity claims.'
     },
     {
       status: 'validated',
@@ -13466,7 +15076,17 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'validated',
       title: 'Ability coverage guard is green',
-      detail: 'ability_coverage_audit_tests.js reports 80/80 curated and mega abilities modeled; ability_damage_parity_tests.js and ability_priority_targeting_tests.js cover the current high-risk behavior paths added in the ability parity slice.'
+      detail: 'ability_coverage_audit_tests.js reports 84/84 curated and Mega abilities modeled, including Regenerator switch-out healing. The case matrix still marks full importable ability inventory and interaction ordering as unproved.'
+    },
+    {
+      status: 'validated',
+      title: 'Battle edge cases are now tracked individually',
+      detail: 'battle_edge_case_matrix.json names 44 lifecycle, ordering, targeting, residual, RNG, resource, transformation, import, and Champion-delta cases: 17 covered, 17 partial, and 10 open. A stress pass cannot promote an open case without deterministic boundary evidence. Pinned Showdown reference findings and STATUS.md supersede older accuracy snapshots.'
+    },
+    {
+      status: 'validated',
+      title: 'Historical variation sweep retained as evidence',
+      detail: 'The earlier 23,120-battle sweep belongs to an older engine and is not proof of current competitive parity. The current accuracy runner uses explicit bring-four doubles and bring-three singles, source digests, retained logs and separate per-format results. Unresolved warnings and missing in-game oracles remain visible in its report.'
     },
     {
       status: 'validated',
@@ -13528,7 +15148,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'gap',
       title: '100% parity still has non-move gates',
-      detail: 'The team-load, item timing, ability inventory, typed held-item damage boosts, Champion-gated legacy Tera data, Low Kick target-weight base power, Knock Off removable-item behavior, stat/speed snapshot evidence, target category bridge, stale opposing-target retarget, and shipped move-support slices are covered. Move support is 120 verified / 0 baseline / 0 incomplete. Remaining 100% proof still needs deployed-browser single/Run All/QA artifacts, DB runtime-source promotion or explicit static fallback signoff, source-drift visibility, and deeper long-tail checks for redirection, Protect-family interactions, switching/replacement, status, items, and Champion overrides as sources change.'
+      detail: 'The team-load, item timing, typed held-item damage boosts, Champion-gated legacy Tera data, Low Kick target-weight base power, Knock Off removable-item behavior, stat/speed snapshots, target categories, retargeting, and named move-support slices have regressions. Current move support is 123 verified / 11 baseline / 0 incomplete across 134 shipped moves. The battle audit manifest keeps stats/forms, damage combinations, moves, abilities, items, targeting, Champion deltas, and combinatorial interactions visibly partial or open.'
     },
     {
       status: 'gap',
@@ -13557,6 +15177,11 @@ var CS_OVERVIEW_DATA = {
     },
     {
       status: 'gap',
+      title: 'No-API Brain UI and runtime wiring are not implemented yet',
+      detail: 'The local foundation exists on analysis/no-api-brain-foundation, but the app still does not render Evidence Mode cards or call the composer from the UI. Next work must connect real simulator/replay evidence into the deterministic tool contracts, then add validated UI cards with feedback buttons and improvement-pack export. Brain claims must stay local/test-only until that UI slice is reviewed.'
+    },
+    {
+      status: 'gap',
       title: 'Battle Sensei tactical learning is still being built',
       detail: 'Replay upload friction is fixed, but number-one coaching needs the brain layer: speed-control reversal/neutralization, deferred payoff, move/target alternatives, switch preservation, decision-opportunity denominators, and repeated matchup learning. Manual team selection must lock the registered team for the sim scope; BO3/BO5 may only swap selected game lineups from that same six.'
     },
@@ -13572,6 +15197,46 @@ var CS_OVERVIEW_DATA = {
     },
   ],
   next: [
+    {
+      status: 'next',
+      title: 'Review and merge the no-API Brain foundation branch',
+      detail: 'The local foundation branch should be reviewed before UI work: analysis/no-api-brain-foundation includes schemas, evidence bundles, tool contracts, composer, validator, feedback, Brain output and improvement-pack storage helpers, benchmark fixture seeds, and tests. Confirm no engine, damage, legality, Supabase Edge Function, release manifest, API key, or chat UI changes slipped in.'
+    },
+    {
+      status: 'next',
+      title: 'Wire deterministic Brain tools to real simulator and replay evidence',
+      detail: 'The initial tool contracts are conservative. Next, connect them to validated simulator/replay/source-truth surfaces: legality validators, speed_order_details, damage_events, effect_events, replay parser output, critical turns, and source gaps. Do not duplicate damage or speed mechanics inside the Brain.'
+    },
+    {
+      status: 'next',
+      title: 'Add Evidence Mode UI cards after validator proof',
+      detail: 'Render AI Brain Analysis - Evidence Mode only after BrainAnalysis validates. Cards should show Summary, Team Identity, Win Conditions, Best Leads, Major Threats, Recommended Changes, Replay Turning Point, Confidence, Evidence Used, Uncertainty, feedback buttons, reason tags, correction notes, and Export Brain Improvement Pack.'
+    },
+    {
+      status: 'next',
+      title: 'Keep every Brain improvement tied to a regression test',
+      detail: 'Brain learning means Evidence -> Feedback -> Improvement Pack -> Codex -> Tests -> Release. Starter fixture seeds now exist for missing evidence, fake evidence IDs, weak-evidence confidence, illegal suggestions, replay overstatement, missed turning point, and wrong lead. Every future improvement pack fix needs a benchmark fixture update. No test, no learning.'
+    },
+    {
+      status: 'next',
+      title: 'Sim truth gates return to active priority',
+      detail: 'Current focus returns to 99-100% simulation truth before login expansion: Regulation M-B legality proof, move mechanics parity, replay transparency, damage/status/field-effect auditability, and QA evidence that singles/doubles behavior matches trusted Champion evidence. Trainer Room login, saved long-term account history, and bot-practice memory stay future-gated until these sim-truth gates are reliable.'
+    },
+    {
+      status: 'future',
+      title: 'Future-gated Trainer Room login and saved history',
+      detail: 'After sim truth is trusted, replace local placeholder room/user ids with real authenticated Trainer Room context, then show saved import history by regulation. Logged-in sessions should save teams, sims, Showdown logs, replay reviews, bot practice, improvement metrics, skill trends, loss diagnosis, team degradation, and what-worked notes by regulation_id, ruleset_version, and engine_version. This must not launch before privacy, RLS, export/delete, consent, and stale-version controls are validated.'
+    },
+    {
+      status: 'next',
+      title: 'Use QA 100 readiness to drive the next fixes',
+      detail: 'Fresh artifacts should now be read through qa_100_readiness first. If the verdict is not_ready or partial_not_100, work qa_100_readiness.next_evidence_request before claiming the sim plays like the real game across all possibilities. If the active blocker is legality_truth, use qa_100_readiness.legality_evidence_request as the exact Regulation M-B source-capture checklist. Expected later gates are partial mechanic families, replay transparency warnings, scenario breadth, real replay parity, and paired singles/doubles proof.'
+    },
+    {
+      status: 'next',
+      title: 'Validate true QA slice contract live',
+      detail: 'After v2.2.99 deploys, export one Current Evidence QA or Stress Lite artifact and confirm qa_slice_contract appears in the JSON and visible QA Claim Review readout. The contract should show slice purpose, best_for, not_for, pass_when, blockers, evidence counts, and the next_if_fails action before using the artifact for fixes.'
+    },
     {
       status: 'next',
       title: 'Run non-standard stat-source targeted proof first',
@@ -13645,7 +15310,7 @@ var CS_OVERVIEW_DATA = {
     {
       status: 'next',
       title: 'Prove post-move mechanics by battle system',
-      detail: 'With the shipped move audit at 120 verified / 0 baseline / 0 incomplete, continue from exported-log evidence into deployed-browser proof, DB approved-runtime promotion, long-run/golden trace auditing, source-drift guardrails, and battle-system slices for redirection, Protect family, switching/replacement, status, abilities, items, terrain/weather, and Champion-only overrides.'
+      detail: 'With the shipped move audit at 123 verified / 11 baseline / 0 incomplete, close baseline move behavior and the manifest gaps before broad coaching claims. Continue exported-log evidence, deployed-browser proof, DB promotion controls, structured golden states, differential parity, and Champion-only override evidence.'
     },
     {
       status: 'next',
@@ -13721,10 +15386,21 @@ var CS_OVERVIEW_DATA = {
     { label: 'release gates', active: true }
   ],
   docs: [
+    { label: 'Project Readiness And Cleanup Audit', href: '../docs/release/PROJECT_READINESS_AND_CLEANUP_2026-08-29.md' },
+    { label: 'Supabase Full Audit', href: '../docs/release/SUPABASE_FULL_AUDIT_2026-08-29.md' },
+    { label: 'Champion Full Source Inventory', href: 'docs/CHAMPIONS_FULL_SOURCE_INVENTORY_2026-08-29.md' },
+    { label: 'Product Strategy And Agent Audit', href: '../docs/strategy/PRODUCT_STRATEGY_AND_AGENT_AUDIT_2026-08-29.md' },
+    { label: 'No-API Brain Context', href: '../docs/architecture/llm-brain-context.md' },
+    { label: 'No-API Brain Integration Audit', href: '../docs/architecture/llm-brain-integration-audit.md' },
+    { label: 'Project And DB Audit', href: '../docs/release/PROJECT_AND_DB_AUDIT_2026-08-29.md' },
+    { label: 'Project Open Items Audit', href: '../docs/release/PROJECT_OPEN_ITEMS_AUDIT_2026-07-05.md' },
+    { label: 'Learning Brain Architecture Roadmap', href: 'docs/LEARNING_BRAIN_ARCHITECTURE_ROADMAP_2026-07-04.md' },
     { label: 'Recent Fix + Issue Snapshot', href: 'reports/recent-fixes-and-open-issues-2026-06-21.md' },
     { label: 'Architecture + Evidence Map', href: 'docs/CHAMPION_SIM_ARCHITECTURE_AND_EVIDENCE.md' },
     { label: 'Release Discipline + Cleanup Gates', href: 'docs/RELEASE_DISCIPLINE_AND_CLEANUP_GATES.md' },
     { label: 'Active Slice Closeout Status', href: 'docs/ACTIVE_SLICE_CLOSEOUT_STATUS.md' },
+    { label: 'DB Architecture Growth Audit', href: 'docs/DB_ARCHITECTURE_GROWTH_AUDIT_2026-07-01.md' },
+    { label: 'DB Architecture Stress-Test Plan', href: 'docs/DB_ARCHITECTURE_STRESS_TEST_PLAN_2026-07-01.md' },
     { label: 'Legality 99 Target Plan', href: 'docs/LEGALITY_99_TARGET_PLAN.md' },
     { label: 'Data Source Registry', href: 'docs/DATA_SOURCE_REGISTRY.md' },
     { label: 'Source Truth Document Audit', href: 'docs/SOURCE_TRUTH_DOCUMENT_AUDIT_2026-06-26.md' },
@@ -13749,6 +15425,34 @@ var CS_OVERVIEW_DATA = {
     { label: 'Spec Index', href: 'docs/SPECS_INDEX.md' }
   ],
   sourceDocs: [
+    {
+      label: 'Project Readiness And Cleanup Audit',
+      href: '../docs/release/PROJECT_READINESS_AND_CLEANUP_2026-08-29.md',
+      role: 'Canonical Now/Next/Later review of product scope, repository hygiene, workflows, governance, and release blockers',
+      status: 'active project gate',
+      notes: 'Use with STATUS.md before choosing work. It separates locally closed cleanup from unproven deployment, DB, Reg M-B, mechanics, Brain, and Team Lab claims.'
+    },
+    {
+      label: 'Supabase Full Audit',
+      href: '../docs/release/SUPABASE_FULL_AUDIT_2026-08-29.md',
+      role: 'Live connection proof, data-quality profile, RLS/workflow findings, fixes, and deployment checklist',
+      status: 'active database release gate',
+      notes: 'Use before any DB or release claim. Public reads are proven; production hardening migration, missing Team Lab/Trainer Room migrations, live deny tests, and digest-bound Showdown approval remain open.'
+    },
+    {
+      label: 'Champion Full Source Inventory',
+      href: 'docs/CHAMPIONS_FULL_SOURCE_INVENTORY_2026-08-29.md',
+      role: 'Complete species/form/stat/move/Ability/item/learnset/rule/mechanics source map and capture gate',
+      status: 'active inventory',
+      notes: 'Public official metadata is hashed, but complete Champion truth still requires seven in-game capture sets and reviewed field-level comparison against pinned Showdown rows.'
+    },
+    {
+      label: 'Product Strategy And Agent Audit',
+      href: '../docs/strategy/PRODUCT_STRATEGY_AND_AGENT_AUDIT_2026-08-29.md',
+      role: 'Product wedge, north-star metric, risk register, agent audit, and execution gates',
+      status: 'active strategy',
+      notes: 'Read with AGENTS.md before choosing work. It converts the innovation/masterclass lessons into a narrow battle-lab wedge and a proof-first 30-day execution order.'
+    },
     {
       label: 'Data Source Registry',
       href: 'docs/DATA_SOURCE_REGISTRY.md',
@@ -13776,6 +15480,55 @@ var CS_OVERVIEW_DATA = {
       role: 'Current 99% / 100% / blocker map',
       status: 'canonical for active closeout',
       notes: 'Use to decide what can close, what stays open, and what the next priority is before adding more features.'
+    },
+    {
+      label: 'No-API Brain Context',
+      href: '../docs/architecture/llm-brain-context.md',
+      role: 'Beginner-friendly no-API Brain roadmap and learning loop',
+      status: 'canonical for Brain MVP',
+      notes: 'Use before implementing Brain work. It explains that the simulator creates facts, the Brain explains facts, feedback becomes improvement packs, and Codex turns those into rules/templates/tests.'
+    },
+    {
+      label: 'LLM Brain Integration Audit',
+      href: '../docs/architecture/llm-brain-integration-audit.md',
+      role: 'Repo-safe audit of source-of-truth boundaries and implementation sequence',
+      status: 'audit for Brain MVP',
+      notes: 'Use to confirm which files can be touched during the evidence-schema slice and which runtime/source-truth files must stay unchanged.'
+    },
+    {
+      label: 'Project And DB Audit',
+      href: '../docs/release/PROJECT_AND_DB_AUDIT_2026-08-29.md',
+      role: 'Current repo, GitHub Pages, Supabase, and next-work alignment',
+      status: 'active audit closeout',
+      notes: 'Use when deciding the next task. It records that public Supabase reads are proven, local DB/source-truth tests are green, GitHub Pages is behind this branch, and production migration/readback must happen before Team Lab promotion rules.'
+    },
+    {
+      label: 'Project Open Items Audit',
+      href: '../docs/release/PROJECT_OPEN_ITEMS_AUDIT_2026-07-05.md',
+      role: 'Current open issue lanes, audit fixes, and next safe coding targets',
+      status: 'active audit closeout',
+      notes: 'Use when deciding what to tackle next. It records live GitHub issue/PR counts, local test proof, the Windows CLI fix, the stale bundle-budget guard fix, and the safe next-fix queue.'
+    },
+    {
+      label: 'Learning Brain Architecture Roadmap',
+      href: 'docs/LEARNING_BRAIN_ARCHITECTURE_ROADMAP_2026-07-04.md',
+      role: 'Long-term evidence ledger and learning database roadmap',
+      status: 'future architecture',
+      notes: 'Use after the no-API local Brain loop is proven; it covers raw intake, normalized evidence, feature extraction, aggregates, Trainer Room privacy, and global learning gates.'
+    },
+    {
+      label: 'DB Architecture Growth Audit',
+      href: 'docs/DB_ARCHITECTURE_GROWTH_AUDIT_2026-07-01.md',
+      role: 'Trainer-room, personal coaching, global learning, and bot-practice database plan',
+      status: 'canonical for DB product growth',
+      notes: 'Use before adding account, training-room, replay-import, global learning, or bot-session tables so private player data does not poison shared rankings or coaching.'
+    },
+    {
+      label: 'DB Architecture Stress-Test Plan',
+      href: 'docs/DB_ARCHITECTURE_STRESS_TEST_PLAN_2026-07-01.md',
+      role: 'Stress-tested DB slice order before migrations',
+      status: 'canonical for DB slice sequencing',
+      notes: 'Challenges source truth, runtime catalog, evidence truth, trainer rooms, global learning, and bot practice before the trainer-room migration starts.'
     },
     {
       label: 'Legality 99 Target Plan',
@@ -13851,7 +15604,7 @@ function csOverviewMilestoneRules() {
       title: 'Coaching, UX & Player Learning',
       kicker: 'product',
       summary: 'Battle Sensei, tactical sweep, decision ledgers, Strategy flow, editor UX, player-facing explanations, and coaching trust.',
-      match: /coach|sensei|strategy|tactical|decision|battle iq|learning|player|ux|editor|upload|set editor|flow|practice|recommendation/i
+      match: /coach|sensei|strategy|tactical|decision|battle iq|learning|player|ux|editor|upload|set editor|flow|practice|recommendation|brain|evidencebundle|improvement pack|no-api|feedback/i
     }
   ];
 }
@@ -13967,6 +15720,11 @@ function csRenderOverviewSourceDocs(data) {
 function csRenderOverviewQaJoshIssues() {
   var rows = [
     {
+      status: 'next',
+      title: 'Josh/QA assignment: Showdown reference battle review',
+      detail: 'Owner: Josh (@Jdoutt38). GitHub #190. Current handoff build: v2.2.116-regmb-review-items-abilities. Use source/reg-m-b-showdown-reference-battles.json, /Users/kevinmedeiros/Downloads/battles, and QA artifact /Users/kevinmedeiros/Downloads/champions-sim-qa-artifact-2026-07-02T18-13-16.json. First Reg M-B test: Gen9ChampionsVGC2026RegMB-2026-06-24-pcrlbot02888784c1-silvijd.html. Confirm Review upload extracts battle-log-data, parser mapping, turn events, Battle Sensei language, and tactical calibration. Label the evidence showdown_reference. Plain-English rule: Showdown logs are real gameplay reference evidence, not official Champion legality, Team Lab official ranking proof, or accepted/rejected in-game validation.'
+    },
+    {
       status: 'gap',
       title: 'Josh review: Pokemon data audit workbook (#123)',
       detail: 'Open QA/reviewer gate under M9. Treat this as the human data-audit checkpoint before stronger legality or coaching claims.'
@@ -14022,12 +15780,12 @@ function csRenderOverviewTeamLabPlan() {
     {
       status: 'gap',
       title: 'Trusted evidence import worker (#187)',
-      detail: 'Missing follow-up: browser exports can normalize evidence, but protected Supabase writes must happen through a trusted worker/server action with audit logging, not through anon browser clients.'
+      detail: 'Adapter/service prep added: trusted imports can resolve Team Lab mappings before private persistence. Still open: deploy the server/worker action with protected credentials and audit logging.'
     },
     {
-      status: 'gap',
+      status: 'done',
       title: 'Artifact team-ID mapping resolver (#188)',
-      detail: 'Missing follow-up: QA artifacts still use local keys like player or bundled opponent IDs until a reviewed resolver maps them to Team Lab team UUIDs without poisoning leaderboard data.'
+      detail: 'Resolver and trusted import prep added: QA/import artifact keys map through reviewed Team Lab key-mapping rows, preserve source gaps when missing, refuse ambiguous mappings, and attach mapping proof refs.'
     },
     {
       status: 'gap',
@@ -14066,147 +15824,69 @@ function csRenderOverviewTeamLabPlan() {
 }
 
 function csPokemonNewsFeedItems() {
-  var localNewsImage = 'assets/news-card.svg';
-  function safeNewsImage(value) {
-    var src = String(value || '').trim();
-    if (!src) return localNewsImage;
-    if (/battle-stadium\.jpg|game-screenshot-2\.png/i.test(src)) return localNewsImage;
-    return src;
-  }
-  var synced = (typeof CHAMPIONS_NEWS_FEED !== 'undefined' && CHAMPIONS_NEWS_FEED && Array.isArray(CHAMPIONS_NEWS_FEED.items))
-    ? CHAMPIONS_NEWS_FEED.items
-    : [];
-  var sourceWatchCards = [
-    {
-      category: 'Official source watch',
-      date: 'Live source watch',
-      title: 'Pokemon Champions Official Source Hub',
-      detail: 'Use official Champion pages for game availability, modes, regulation announcements, and source-truth checks before changing legality claims.',
-      source: 'Pokemon Champions official site',
-      url: 'https://champions.pokemon.com/',
-      image: 'https://champions.pokemon.com/_images/home/mar24_thumbnail.jpg',
-      alt: 'Pokemon Champions official key art.'
-    },
-    {
-      category: 'Release status',
-      date: 'Current build',
-      title: 'Evidence-First Rankings Stay Gated',
-      detail: 'Top teams stay experimental until legality, sample size, engine version, ruleset version, and stale checks line up.',
-      source: 'Battle Labs release and Team Lab gate',
-      url: 'https://theyfactora12.github.io/Pokemon-Champions-Sim-Planner/',
-      image: localNewsImage,
-      alt: 'Battle Labs source-truth card.'
-    }
-  ];
-  if (synced.length) {
-    var syncedCards = synced.map(function(item) {
-      return {
-        category: item.category || 'News',
-        date: item.date || 'Recently synced',
-        title: item.title || 'Pokemon news update',
-        detail: item.detail || 'Synced Pokemon news. Treat meta/news context separately from rules truth.',
-        source: item.source || 'Synced news feed',
-        url: item.url || 'https://www.pokemon.com/us/pokemon-news',
-        image: safeNewsImage(item.image),
-        alt: item.alt || 'Pokemon news image.'
-      };
-    });
-    return syncedCards.concat(sourceWatchCards).slice(0, 8);
-  }
-  return [
-    {
-      category: 'Official news',
-      date: 'June 17, 2026',
-      title: 'Pokemon Champions Is Available Now on iOS and Android Devices',
-      detail: 'Mobile launch and cross-platform access are the top player-facing update for the current Champion season.',
-      source: 'Pokemon.com via Champions latest news',
-      url: 'https://www.pokemon.com/us/pokemon-news/pokemon-champions-is-available-now-on-ios-and-android-devices',
-      image: 'https://champions.pokemon.com/_images/home/mar24_thumbnail.jpg',
-      alt: 'Pokemon Champions key art with trainers and Pokemon in a stadium.'
-    },
-    {
-      category: 'Regulations',
-      date: 'June 17, 2026',
-      title: 'Regulation Set M-B Kicks off a New Ranked Battles Season',
-      detail: 'Regulation changes are source-truth events for legality, team ranking, and stale leaderboard warnings.',
-      source: 'Pokemon.com via Champions latest news',
-      url: 'https://www.pokemon.com/us/pokemon-news/regulation-set-m-b-kicks-off-a-new-ranked-battles-season-and-battle-pass-in-pokemon-champions',
-      image: 'https://champions.pokemon.com/_images/home/overview/game-screenshot-1.png',
-      alt: 'Pokemon Champions battle screenshot inside an arena.'
-    },
-    {
-      category: 'Online competition',
-      date: 'June 17, 2026',
-      title: 'Pokemon Champions Monthly Challenge Series June 2026',
-      detail: 'Competition news should feed future event context, format tags, and ranked-team benchmark pools.',
-      source: 'Pokemon.com via Champions latest news',
-      url: 'https://www.pokemon.com/us/pokemon-news/sign-up-for-the-pokemon-champions-monthly-challenge-series-june-2026',
-      image: 'https://champions.pokemon.com/_images/home/battle-focused/champ-emblem.png',
-      alt: 'Pokemon Champions emblem.'
-    },
-    {
-      category: 'Championships',
-      date: 'June 10, 2026',
-      title: 'Relive the Eras of Pokemon VGC',
-      detail: 'Championship/VGC context belongs beside Team Lab so players understand format history and meta changes.',
-      source: 'Pokemon.com via Champions latest news',
-      url: 'https://www.pokemon.com/us/pokemon-news/relive-the-eras-of-pokemon-vgc',
-      image: 'https://champions.pokemon.com/_images/pokemon/ideal-team/en/featured-main.jpg',
-      alt: 'Pokemon Champions team menu screenshot featuring Hydrapple.'
-    },
-    sourceWatchCards[0],
-    sourceWatchCards[1]
-  ];
+  var feed = typeof CHAMPIONS_NEWS_FEED !== 'undefined' ? CHAMPIONS_NEWS_FEED : {};
+  return (feed.items || []).filter(function(item) {
+    var published = Date.parse(item.published_at);
+    return /^https:\/\//.test(item.url || '') && isFinite(published) &&
+      published <= Date.now() && published >= Date.now() - 90 * 86400000;
+  }).sort(function(a, b) { return Date.parse(b.published_at) - Date.parse(a.published_at); });
 }
 
 function csRenderPokemonNewsFeed() {
-  var cards = csPokemonNewsFeedItems().map(function(item, index) {
-    var fallback = 'assets/news-card.svg';
-    return '<article class="pokemon-news-slide' + (index === 0 ? ' active' : '') + '" data-news-slide="' + index + '">' +
-      '<a class="pokemon-news-image-link" href="' + _escapeHtml(item.url) + '" target="_blank" rel="noopener">' +
-        '<img src="' + _escapeHtml(item.image) + '" data-news-fallback-src="' + _escapeHtml(fallback) + '" alt="' + _escapeHtml(item.alt) + '" loading="' + (index === 0 ? 'eager' : 'lazy') + '">' +
-      '</a>' +
-      '<div class="pokemon-news-copy">' +
-        '<div class="pokemon-news-meta"><span>' + _escapeHtml(item.category) + '</span><span>' + _escapeHtml(item.date) + '</span></div>' +
-        '<h4><a href="' + _escapeHtml(item.url) + '" target="_blank" rel="noopener">' + _escapeHtml(item.title) + '</a></h4>' +
-        '<p>' + _escapeHtml(item.detail) + '</p>' +
-        '<small>' + _escapeHtml(item.source) + '</small>' +
-      '</div>' +
-    '</article>';
+  var feed = typeof CHAMPIONS_NEWS_FEED !== 'undefined' ? CHAMPIONS_NEWS_FEED : {};
+  var items = csPokemonNewsFeedItems();
+  var checked = Date.parse(feed.generated_at);
+  var outdated = !isFinite(checked) || Date.now() - checked > 24 * 3600000;
+  var failures = (feed.errors || []).length;
+  var status = isFinite(checked) ? 'Last checked ' + new Date(checked).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : 'Feed not checked';
+  if (outdated) status += ' | Update overdue';
+  if (failures) status += ' | ' + failures + ' source(s) unavailable';
+  var cards = items.map(function(item, index) {
+    var image = /^https:\/\//.test(item.image || '') ? item.image : 'assets/news-card.svg';
+    return '<article class="pokemon-news-slide' + (index === 0 ? ' active' : '') + '" data-news-slide="' + index + '" data-news-kind="' + _escapeHtml(item.content_type || 'news') + '">' +
+      '<a class="pokemon-news-image-link" href="' + _escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer">' +
+        '<img src="' + _escapeHtml(image) + '" data-news-fallback-src="assets/news-card.svg" alt="' + _escapeHtml(item.alt || item.title) + '" loading="' + (index === 0 ? 'eager' : 'lazy') + '">' +
+      '</a><div class="pokemon-news-copy">' +
+        '<div class="pokemon-news-meta"><span>' + _escapeHtml(item.category) + '</span><span>' + _escapeHtml(item.date) + (item.stale ? ' | Cached: source unavailable' : '') + '</span></div>' +
+        '<h4><a href="' + _escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer">' + _escapeHtml(item.title) + '</a></h4>' +
+        '<p>' + _escapeHtml(item.detail) + '</p><small>' + _escapeHtml(item.source) + ' | ' + (item.source_tier === 'official' ? 'Official source' : 'Community source') + '</small>' +
+      '</div></article>';
   }).join('');
-  var dots = csPokemonNewsFeedItems().map(function(_item, index) {
-    return '<button type="button" class="pokemon-news-dot' + (index === 0 ? ' active' : '') + '" data-news-dot="' + index + '" aria-label="Show news item ' + (index + 1) + '"></button>';
+  var dots = items.map(function(_item, index) {
+    return '<button type="button" class="pokemon-news-dot" data-news-dot="' + index + '" aria-label="Show news item ' + (index + 1) + '"></button>';
   }).join('');
-  var headlines = csPokemonNewsFeedItems().map(function(item, index) {
-    return '<button type="button" class="pokemon-news-headline' + (index === 0 ? ' active' : '') + '" data-news-dot="' + index + '">' +
-      '<span>' + _escapeHtml(item.category) + '</span>' +
-      '<strong>' + _escapeHtml(item.title) + '</strong>' +
-    '</button>';
+  var headlines = items.map(function(item, index) {
+    return '<button type="button" class="pokemon-news-headline" data-news-dot="' + index + '"><span>' + _escapeHtml(item.category) + '</span><strong>' + _escapeHtml(item.title) + '</strong></button>';
   }).join('');
-  return '<section class="pokemon-news-feed" aria-label="Pokemon news feed">' +
-    '<div class="pokemon-news-feed-head">' +
-      '<div><span class="overview-kicker">Source-backed news watch</span><h3>Latest Champion Updates</h3><p>Article thumbnails come from approved feed metadata when available. News and meta inform context; mechanics truth still requires reviewed source rows.</p></div>' +
-      '<div class="pokemon-news-controls">' +
-        '<button type="button" data-news-prev aria-label="Previous news">Prev</button>' +
-        '<button type="button" data-news-next aria-label="Next news">Next</button>' +
-      '</div>' +
-    '</div>' +
-    '<div class="pokemon-news-slides">' + cards + '</div>' +
-    '<div class="pokemon-news-headlines" aria-label="News headlines">' + headlines + '</div>' +
-    '<div class="pokemon-news-dots">' + dots + '</div>' +
-  '</section>';
+  var profiles = (feed.profiles || []).filter(function(profile) { return /^https:\/\/www.youtube.com\/@[\w-]+$/.test(profile.url); }).map(function(profile) {
+    return '<a href="' + _escapeHtml(profile.url) + '" target="_blank" rel="noopener noreferrer">' + _escapeHtml(profile.name) + '</a>';
+  }).join('');
+  var filters = [['all', 'All'], ['news', 'News'], ['video', 'Player videos'], ['worlds', 'Worlds broadcasts']].map(function(pair) {
+    var available = pair[0] === 'all' || items.some(function(item) { return item.content_type === pair[0]; });
+    return '<button type="button" role="tab" data-news-filter="' + pair[0] + '" aria-selected="' + (pair[0] === 'all') + '"' + (available ? '' : ' disabled') + '>' + pair[1] + '</button>';
+  }).join('');
+  return '<section id="champion-news" class="pokemon-news-feed" aria-label="Pokemon news feed">' +
+    '<div class="pokemon-news-feed-head"><div><span class="overview-kicker">Champion news</span><h3>News &amp; competitive coverage</h3>' +
+    '<p class="pokemon-news-health">' + _escapeHtml(status) + '</p></div>' +
+    '<div class="pokemon-news-controls"><button type="button" data-news-prev aria-label="Previous news" title="Previous news">&larr;</button>' +
+    '<button type="button" data-news-pause aria-label="Pause news rotation" title="Pause news rotation">Pause</button>' +
+    '<button type="button" data-news-next aria-label="Next news" title="Next news">&rarr;</button></div></div>' +
+    '<div class="pokemon-news-filters" role="tablist" aria-label="Coverage type">' + filters + '</div>' +
+    '<div class="pokemon-news-slides">' + (cards || '<p>No recent articles available. <a href="https://champions.pokemon.com/en-us/news/" target="_blank" rel="noopener noreferrer">Official Champions news</a></p>') + '</div>' +
+    '<div class="pokemon-news-headlines" aria-label="News headlines">' + headlines + '</div><div class="pokemon-news-dots">' + dots + '</div>' +
+    '<nav class="pokemon-news-profiles" aria-label="Curated channels"><strong>Channels</strong>' + profiles + '</nav></section>';
 }
 
 function csRenderHomeStartRail() {
   return '<section class="home-start-rail" aria-label="Quick start">' +
-    '<div><span class="overview-kicker">New here?</span><strong>Start with one decision.</strong></div>' +
+    '<div><span class="overview-kicker">New here?</span><strong>Follow four simple steps.</strong></div>' +
     '<ol>' +
-      '<li><span>1</span>Pick a team</li>' +
-      '<li><span>2</span>Run one matchup</li>' +
-      '<li><span>3</span>Upload a replay</li>' +
-      '<li><span>4</span>Improve one choice</li>' +
+      '<li><span>1</span>Pick your team</li>' +
+      '<li><span>2</span>Pick the opponent</li>' +
+      '<li><span>3</span>Run or upload</li>' +
+      '<li><span>4</span>Try one fix</li>' +
     '</ol>' +
-    '<button type="button" data-home-tab="simulator">Start now</button>' +
+    '<button type="button" data-home-tab="simulator">Start Team Test</button>' +
   '</section>';
 }
 
@@ -14225,17 +15905,29 @@ function csRenderHomeProofSnapshot(hasEvidenceRows, previewRows) {
 }
 
 function csRenderHomeStartCycle() {
-  var steps = [
-    ['1', 'Choose or import a team', 'Start with a bundled Champion test team or import a custom team, then check legality warnings before trusting results.', 'Open Teams', 'teams'],
-    ['2', 'Run the matchup', 'Pick an opponent, format, and series length. Test leads, selected four, speed control, and swaps before you lock a plan.', 'Start Simulating', 'simulator'],
-    ['3', 'Read the swing turn', 'Open replay evidence for move order, damage rows, status denials, recoil, field state, and why a Pokemon fainted.', 'Analyze Replay', 'replay-coach'],
-    ['4', 'Change one thing and rerun', 'Edit one move, item, lead, or lineup, then repeat the same benchmark so improvement is measurable.', 'Review Strategy', 'strategy']
+  var links = [
+    ['Pick', 'Pick Team', 'teams', 'beaker'],
+    ['Simulate', 'Battle Sim', 'simulator', 'flask'],
+    ['Replay', 'Showdown Replay Analysis', 'replay-coach', 'tube'],
+    ['Fix', 'Fix Your Team', 'editor', 'beaker']
   ];
-  return '<section class="home-start-cycle overview-section" aria-label="Start here cycle">' +
-    '<div class="overview-section-head"><div><span class="overview-kicker">Start here</span><h3>The 4-step testing cycle</h3></div><span class="overview-status next">Player guide</span></div>' +
-    '<div class="home-start-steps">' + steps.map(function(step) {
-      return '<article class="home-start-step"><strong>' + _escapeHtml(step[0]) + '</strong><div><h4>' + _escapeHtml(step[1]) + '</h4><p>' + _escapeHtml(step[2]) + '</p><button type="button" data-home-tab="' + _escapeHtml(step[4]) + '">' + _escapeHtml(step[3]) + '</button></div></article>';
-    }).join('') + '</div>' +
+  return '<section class="home-action-cycle overview-section" aria-label="Battle Labs quick links">' +
+    '<div class="home-action-copy">' +
+      '<span class="overview-kicker">How it works</span>' +
+      '<h3>A mad scientist lab for better teams.</h3>' +
+      '<p>Pick a team, simulate a battle, study a Showdown replay, then fix the team and test again.</p>' +
+    '</div>' +
+    '<div class="home-lab-stage" aria-label="Battle Labs lab actions">' +
+      '<div class="home-lab-board"><span>Battle formula</span><strong>Pick + Sim + Replay + Fix</strong></div>' +
+      '<div class="home-lab-shelf">' + links.map(function(link, index) {
+        return '<button type="button" class="home-lab-glass home-lab-' + _escapeHtml(link[3]) + ' home-lab-glass-' + index + '" data-home-tab="' + _escapeHtml(link[2]) + '">' +
+          '<span>' + _escapeHtml(link[0]) + '</span>' +
+          '<strong>' + _escapeHtml(link[1]) + '</strong>' +
+          '<i></i>' +
+        '</button>';
+      }).join('') + '</div>' +
+      '<div class="home-lab-bubbles"><span></span><span></span><span></span><span></span></div>' +
+    '</div>' +
   '</section>';
 }
 
@@ -14277,9 +15969,9 @@ function csRenderHomeQuestionCards() {
 
 function csRenderHomeTrustStrip() {
   return '<section class="home-trust-strip" aria-label="Simulator trust gates">' +
-    '<div><strong>Evidence-bound rankings</strong><span>No team becomes “Top 25” without regulation, ruleset version, engine version, sample size, legality, and stale checks.</span></div>' +
-    '<div><strong>Champion-source guardrails</strong><span>Unknown Pokemon Champion data stays needs_verification instead of being silently treated as legal.</span></div>' +
-    '<div><strong>Replay-verifiable coaching</strong><span>Advice should point back to turn logs, damage/effect rows, source gaps, and matchup evidence.</span></div>' +
+    '<div><strong>No fake certainty</strong><span>If Champion data is unknown, the app marks it as needs verification instead of pretending it is proven.</span></div>' +
+    '<div><strong>Every result has a label</strong><span>Rankings and replay advice show regulation, engine version, ruleset version, sample size, and stale warnings.</span></div>' +
+    '<div><strong>Replays explain the why</strong><span>Turn logs should show move order, damage, status, field effects, items, recoil, and faint reasons.</span></div>' +
   '</section>';
 }
 
@@ -14355,11 +16047,42 @@ function csTeamLabLoadDbBranchRows() {
   }
 }
 
+function csTeamLabCanonicalTeamKey(key) {
+  var raw = String(key || '').trim();
+  if (raw && raw !== 'player' && raw !== 'my_team' && raw !== 'my-active-team') return raw;
+  try {
+    var selected = (typeof currentPlayerKey !== 'undefined' && currentPlayerKey) ? String(currentPlayerKey) : '';
+    if (selected && selected !== 'player' && typeof TEAMS !== 'undefined' && TEAMS[selected]) return selected;
+  } catch (e) {}
+  try {
+    var selectors = ['player-select', 'player-team-select', 'team-select'];
+    for (var i = 0; i < selectors.length; i += 1) {
+      var el = document.getElementById(selectors[i]);
+      if (el && el.value && typeof TEAMS !== 'undefined' && TEAMS[el.value]) return String(el.value);
+    }
+  } catch (e2) {}
+  return raw || 'unknown_team';
+}
+
 function csTeamLabPrettyKey(key) {
-  return String(key || 'unknown team')
-    .replace(/^player$/, 'My active team')
+  var canonical = csTeamLabCanonicalTeamKey(key);
+  try {
+    if (typeof TEAMS !== 'undefined' && TEAMS[canonical]) {
+      var team = TEAMS[canonical];
+      var name = team.name || team.label || team.team_name || '';
+      if (name) return String(name);
+    }
+  } catch (e) {}
+  return String(canonical || key || 'unknown team')
+    .replace(/^player$/, 'Current Team')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
+}
+
+function csTeamLabDisplayNameForKey(key, fallbackName) {
+  var fallback = String(fallbackName || '').trim();
+  if (fallback && fallback !== 'player' && fallback !== 'my_team') return fallback;
+  return csTeamLabPrettyKey(key);
 }
 
 function csTeamLabLocalResetTimestamp() {
@@ -14386,15 +16109,19 @@ function csBuildTeamLabLocalTop25Rows() {
 
   var resetTs = csTeamLabLocalResetTimestamp();
   var stats = {};
-  function ensure(teamKey) {
-    if (!stats[teamKey]) stats[teamKey] = { teamKey: teamKey, games: 0, wins: 0, losses: 0, draws: 0, opponents: {}, formats: {} };
+  function ensure(teamKey, displayName) {
+    if (!stats[teamKey]) stats[teamKey] = { teamKey: teamKey, displayName: displayName || '', games: 0, wins: 0, losses: 0, draws: 0, opponents: {}, formats: {} };
+    if (displayName && !stats[teamKey].displayName) stats[teamKey].displayName = displayName;
     return stats[teamKey];
   }
-  function addGame(teamKey, opponentKey, result, format) {
-    var s = ensure(teamKey);
+  function addGame(teamKey, opponentKey, result, format, displayName, opponentDisplayName) {
+    teamKey = csTeamLabCanonicalTeamKey(teamKey);
+    opponentKey = csTeamLabCanonicalTeamKey(opponentKey);
+    var s = ensure(teamKey, csTeamLabDisplayNameForKey(teamKey, displayName));
     s.games += 1;
     s.formats[format || 'doubles'] = true;
     if (opponentKey) s.opponents[opponentKey] = true;
+    if (opponentKey) ensure(opponentKey, csTeamLabDisplayNameForKey(opponentKey, opponentDisplayName));
     if (result === 'win') s.wins += 1;
     else if (result === 'loss') s.losses += 1;
     else s.draws += 1;
@@ -14402,11 +16129,13 @@ function csBuildTeamLabLocalTop25Rows() {
   entries.forEach(function(entry) {
     if (!entry || !entry.playerKey || !entry.oppKey) return;
     if (resetTs && Number(entry.ts || 0) <= resetTs) return;
+    var playerDisplay = entry.playerTeamName || entry.player_team_name || entry.player_name || entry.playerLabel || '';
+    var opponentDisplay = entry.oppTeamName || entry.opponentTeamName || entry.opp_team_name || entry.opponent_name || entry.oppLabel || '';
     (entry.games || []).forEach(function(game) {
       var result = game && game.result ? game.result : null;
       if (!result) return;
-      addGame(entry.playerKey, entry.oppKey, result, entry.format);
-      addGame(entry.oppKey, entry.playerKey, result === 'win' ? 'loss' : result === 'loss' ? 'win' : 'draw', entry.format);
+      addGame(entry.playerKey, entry.oppKey, result, entry.format, playerDisplay, opponentDisplay);
+      addGame(entry.oppKey, entry.playerKey, result === 'win' ? 'loss' : result === 'loss' ? 'win' : 'draw', entry.format, opponentDisplay, playerDisplay);
     });
   });
 
@@ -14419,7 +16148,7 @@ function csBuildTeamLabLocalTop25Rows() {
     var confidence = s.games >= 200 ? 'high' : s.games >= 60 ? 'medium' : 'low';
     return {
       rank: 0,
-      team: csTeamLabPrettyKey(teamKey),
+      team: s.displayName || csTeamLabPrettyKey(teamKey),
       archetype: teamKey === 'player' ? 'Local player evidence' : 'Benchmark opponent',
       score: score.toFixed(3),
       quality: 'local QA preview',
@@ -14446,10 +16175,11 @@ function csBuildTeamLabDbBranchTop25Rows(rowsOverride) {
   if (!Array.isArray(rows) || !rows.length) return [];
   var resetTs = csTeamLabLocalResetTimestamp();
   var stats = {};
-  function ensure(teamKey) {
+  function ensure(teamKey, displayName) {
     if (!stats[teamKey]) {
       stats[teamKey] = {
         teamKey: teamKey,
+        displayName: displayName || '',
         games: 0,
         wins: 0,
         losses: 0,
@@ -14459,6 +16189,7 @@ function csBuildTeamLabDbBranchTop25Rows(rowsOverride) {
         drift: 0
       };
     }
+    if (displayName && !stats[teamKey].displayName) stats[teamKey].displayName = displayName;
     return stats[teamKey];
   }
   rows.forEach(function(row) {
@@ -14466,7 +16197,8 @@ function csBuildTeamLabDbBranchTop25Rows(rowsOverride) {
     var seenAt = row.last_seen_at ? Date.parse(row.last_seen_at) || 0 : 0;
     if (resetTs && seenAt && seenAt <= resetTs) return;
     var teamKey = row.player_team_id;
-    var opponentKey = row.opponent_team_id || 'unknown-opponent';
+    teamKey = csTeamLabCanonicalTeamKey(teamKey);
+    var opponentKey = csTeamLabCanonicalTeamKey(row.opponent_team_id || 'unknown-opponent');
     var weight = Math.max(1, Number(row.run_count || 1));
     var result = row.result === 'win' || row.result === 'loss' || row.result === 'draw' ? row.result : null;
     if (!result && row.tactical_summary && typeof row.tactical_summary === 'object') {
@@ -14475,12 +16207,13 @@ function csBuildTeamLabDbBranchTop25Rows(rowsOverride) {
         : null;
     }
     if (!result) return;
-    var s = ensure(teamKey);
+    var s = ensure(teamKey, csTeamLabDisplayNameForKey(teamKey, row.player_team_name || row.player_name));
     s.games += weight;
     if (result === 'win') s.wins += weight;
     else if (result === 'loss') s.losses += weight;
     else s.draws += weight;
     s.opponents[opponentKey] = true;
+    ensure(opponentKey, csTeamLabDisplayNameForKey(opponentKey, row.opponent_team_name || row.opponent_name));
     s.drift += Number(row.outcome_drift_count || 0);
     if (row.last_seen_at && (!s.lastSeen || String(row.last_seen_at) > String(s.lastSeen))) s.lastSeen = row.last_seen_at;
   });
@@ -14510,7 +16243,7 @@ function csBuildTeamLabDbBranchTop25Rows(rowsOverride) {
       : Math.max(0, Math.min(1, adjusted + coverageBonus - driftPenalty));
     return {
       rank: 0,
-      team: csTeamLabPrettyKey(teamKey),
+      team: s.displayName || csTeamLabPrettyKey(teamKey),
       archetype: team && team.tags && team.tags.length ? team.tags.slice(0, 2).join(', ') : 'DB branch evidence',
       score: Number(score || 0).toFixed(3),
       quality: legality === 'verified' ? 'DB evidence preview' : 'experimental DB preview',
@@ -14548,6 +16281,21 @@ function csRenderTeamLabTop25Rows(rows) {
       '<td>' + _escapeHtml(row.status) + '</td>' +
     '</tr>';
   }).join('');
+}
+
+function csRefreshTeamLabTop25Preview(root) {
+  root = root || document.getElementById('team-lab-home-hub');
+  if (!root || !root.querySelector) return false;
+  var rows = csTeamLabTop25Rows();
+  var hasEvidenceRows = rows.length && rows[0] && rows[0].rank !== 'locked';
+  var tableBody = root.querySelector('[data-team-lab-top25-body]');
+  if (tableBody) tableBody.innerHTML = csRenderTeamLabTop25Rows(rows);
+  var status = root.querySelector('.team-lab-leaderboard-head .overview-status');
+  if (status) {
+    status.textContent = hasEvidenceRows ? 'Experimental preview' : 'Locked until proven';
+    status.className = 'overview-status ' + (hasEvidenceRows ? 'warn' : 'gap');
+  }
+  return true;
 }
 
 function csTeamLabRankingGates() {
@@ -14616,47 +16364,42 @@ function csRenderTeamLabNewsroomHub() {
   return '<section class="team-lab-newsroom overview-section">' +
     '<div class="home-landing-hero">' +
       '<div>' +
-        '<span class="overview-kicker">Pokemon Champion battle lab</span>' +
+        '<span class="overview-kicker">Pokemon Champions practice lab</span>' +
         '<h2>Battle Labs</h2>' +
-        '<p>Build stronger teams by testing real matchups, reading the swing turn, and changing one thing with proof.</p>' +
+        '<p>Practice smarter. Test teams, study replays, and see what to try next.</p>' +
         '<div class="home-landing-actions">' +
-          '<button type="button" data-home-tab="simulator">Start Simulating</button>' +
-          '<button type="button" data-home-tab="replay-coach">Analyze a Replay</button>' +
-          '<button type="button" data-home-tab="teams">Edit a Team</button>' +
+          '<button type="button" data-home-tab="simulator">Start Team Test</button>' +
+          '<button type="button" data-home-tab="replay-coach">Upload Replay</button>' +
+          '<button type="button" data-home-tab="editor">Edit a Team</button>' +
         '</div>' +
         '<div class="home-landing-chips" aria-label="Battle Labs trust promises">' +
-          '<span>Champion rules guarded</span>' +
-          '<span>Replay evidence</span>' +
-          '<span>Versioned rankings</span>' +
+          '<span>Singles and Doubles</span>' +
+          '<span>Replay Lessons</span>' +
+          '<span>Safer Team Testing</span>' +
         '</div>' +
       '</div>' +
-      '<div class="home-landing-proof">' +
-        '<span>Question</span><strong>Which lead, four, move, or switch gives me the best line?</strong>' +
-        '<span>Answer</span><strong>Run the matchup, inspect the replay, and compare evidence.</strong>' +
-        '<span>Guardrail</span><strong>Unknown Champion data stays marked needs verification.</strong>' +
+      '<div class="retro-intro">' +
+        '<input class="retro-pause" type="checkbox" id="retro-intro-pause"><label for="retro-intro-pause">Pause animation</label>' +
+        '<div class="retro-screen" role="img" aria-label="Decorative Game Boy-style opening: Gengar faces Nidorino. Not a simulated battle.">' +
+          '<span class="retro-name retro-name-rival" aria-hidden="true">NIDORINO</span>' +
+          '<img class="retro-fighter retro-nidorino" src="assets/retro-intro/nidorino.png" width="56" height="56" alt="">' +
+          '<img class="retro-fighter retro-gengar" src="assets/retro-intro/gengar.png" width="56" height="56" alt="">' +
+          '<span class="retro-name retro-name-player" aria-hidden="true">GENGAR</span>' +
+        '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="home-value-strip" aria-label="Why Battle Labs matters">' +
-      '<article><span>01</span><strong>Sim the matchup</strong><p>Run singles or doubles into benchmark teams and see which plans keep pressure.</p></article>' +
-      '<article><span>02</span><strong>Review the battle</strong><p>Upload real Showdown logs to expose speed control, damage, status, field, item, and faint causes.</p></article>' +
-      '<article><span>03</span><strong>Improve cleanly</strong><p>Change one move, item, lead, or lineup at a time so the next result teaches something real.</p></article>' +
-    '</div>' +
-    csRenderHomeStartRail() +
-    csRenderPokemonNewsFeed() +
+    csRenderHomeStartCycle() +
     '<div class="team-lab-leaderboard-head">' +
-      '<div><span class="overview-kicker">Team Lab leaderboard</span><h4>' + (hasEvidenceRows ? 'Top 25 Simulator Teams' : 'Top 25 waits for proof') + '</h4><p>' + (hasEvidenceRows ? 'Experimental rows are visible. Official rankings still require verified legality and promotion rules.' : 'Top 25 is locked until enough verified simulator evidence exists.') + '</p></div>' +
+      '<div><span class="overview-kicker">Team Lab</span><h4>' + (hasEvidenceRows ? 'Top 25 Simulator Teams' : 'Top 25 waits for proof') + '</h4><p>' + (hasEvidenceRows ? 'These rankings are simulator evidence, not magic. Each row needs enough games, current versions, and legality checks.' : 'No fake leaderboard. Top 25 opens only when the evidence is strong enough.') + '</p></div>' +
       '<span class="overview-status ' + (hasEvidenceRows ? 'warn' : 'gap') + '">' + (hasEvidenceRows ? 'Experimental preview' : 'Locked until proven') + '</span>' +
     '</div>' +
-    csRenderHomeProofSnapshot(hasEvidenceRows, previewRows) +
     '<div class="overview-db-table-wrap team-lab-top25-wrap"><table class="overview-db-table team-lab-top25-table">' +
       '<thead><tr><th>Rank</th><th>Team</th><th>Archetype</th><th>Score</th><th>Quality</th><th>Adj. win rate</th><th>Games</th><th>Confidence</th><th>Status</th></tr></thead>' +
       '<tbody data-team-lab-top25-body>' + csRenderTeamLabTop25Rows(previewRows) + '</tbody>' +
     '</table></div>' +
-    csRenderHomeStartCycle() +
-    csRenderHomeSimPreview() +
+    '<details class="home-admin-details"><summary>Admin QA reset</summary>' + csRenderTeamLabAdminControls() + '</details>' +
+    csRenderPokemonNewsFeed() +
     csRenderHomeTrustStrip() +
-    csRenderTeamLabRankingGates() +
-    csRenderTeamLabAdminControls() +
   '</section>';
 }
 
@@ -14721,41 +16464,84 @@ function csInitTeamLabAdminControls(root) {
 
 function csInitPokemonNewsCarousel(root) {
   if (!root || typeof root.querySelectorAll !== 'function') return;
-  var slides = Array.prototype.slice.call(root.querySelectorAll('[data-news-slide]'));
-  var dots = Array.prototype.slice.call(root.querySelectorAll('[data-news-dot]'));
-  if (!slides.length) return;
-  Array.prototype.slice.call(root.querySelectorAll('img[data-news-fallback-src]')).forEach(function(img) {
-    img.addEventListener('error', function() {
-      var fallback = img.getAttribute('data-news-fallback-src') || 'assets/news-card.svg';
-      if (img.getAttribute('src') !== fallback) img.setAttribute('src', fallback);
-    });
-  });
+  var region = root.querySelector('.pokemon-news-feed');
+  if (!region) return;
+  if (root._newsCleanup) root._newsCleanup();
+  var slides = Array.prototype.slice.call(region.querySelectorAll('[data-news-slide]'));
+  var dots = Array.prototype.slice.call(region.querySelectorAll('[data-news-dot]'));
+  var filters = Array.prototype.slice.call(region.querySelectorAll('[data-news-filter]'));
+  var visible = slides.map(function(_slide, index) { return index; });
   var active = 0;
   var timer = null;
+  var paused = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hovered = false;
+  var focused = false;
+  var pause = region.querySelector('[data-news-pause]');
   function paint(next) {
-    active = (next + slides.length) % slides.length;
+    if (!visible.length) return;
+    active = (next + visible.length) % visible.length;
     slides.forEach(function(slide, index) {
-      slide.classList.toggle('active', index === active);
+      slide.classList.toggle('active', index === visible[active]);
+      slide.setAttribute('aria-hidden', index === visible[active] ? 'false' : 'true');
     });
-    dots.forEach(function(dot, index) {
-      dot.classList.toggle('active', index === active);
-      dot.setAttribute('aria-current', index === active ? 'true' : 'false');
+    dots.forEach(function(dot) {
+      var index = Number(dot.getAttribute('data-news-dot'));
+      dot.hidden = visible.indexOf(index) < 0 || (dot.classList.contains('pokemon-news-headline') && visible.indexOf(index) >= 4);
+      dot.classList.toggle('active', index === visible[active]);
+      dot.setAttribute('aria-current', index === visible[active] ? 'true' : 'false');
     });
   }
   function restart() {
     if (timer) clearInterval(timer);
-    timer = setInterval(function() { paint(active + 1); }, 8000);
+    timer = null;
+    if (pause) {
+      pause.textContent = paused ? 'Play' : 'Pause';
+      pause.setAttribute('aria-label', paused ? 'Resume news rotation' : 'Pause news rotation');
+      pause.title = paused ? 'Resume news rotation' : 'Pause news rotation';
+    }
+    if (!paused && !hovered && !focused && !document.hidden && visible.length > 1) {
+      timer = setInterval(function() {
+        if (!region.isConnected) { cleanup(); return; }
+        paint(active + 1);
+      }, 8000);
+    }
   }
-  dots.forEach(function(dot, index) {
+  function cleanup() {
+    if (timer) clearInterval(timer);
+    document.removeEventListener('visibilitychange', restart);
+  }
+  root._newsCleanup = cleanup;
+  region.querySelectorAll('img[data-news-fallback-src]').forEach(function(img) {
+    img.addEventListener('error', function() {
+      var fallback = img.getAttribute('data-news-fallback-src');
+      if (img.getAttribute('src') !== fallback) img.setAttribute('src', fallback);
+    });
+  });
+  dots.forEach(function(dot) {
     dot.addEventListener('click', function() {
-      paint(index);
+      paint(visible.indexOf(Number(dot.getAttribute('data-news-dot'))));
       restart();
     });
   });
-  var prev = root.querySelector('[data-news-prev]');
-  var next = root.querySelector('[data-news-next]');
+  filters.forEach(function(filter) {
+    filter.addEventListener('click', function() {
+      var kind = filter.getAttribute('data-news-filter');
+      visible = slides.map(function(slide, index) { return kind === 'all' || slide.getAttribute('data-news-kind') === kind ? index : -1; }).filter(function(index) { return index >= 0; });
+      filters.forEach(function(button) { button.setAttribute('aria-selected', button === filter ? 'true' : 'false'); });
+      paint(0);
+      restart();
+    });
+  });
+  var prev = region.querySelector('[data-news-prev]');
+  var next = region.querySelector('[data-news-next]');
   if (prev) prev.addEventListener('click', function() { paint(active - 1); restart(); });
   if (next) next.addEventListener('click', function() { paint(active + 1); restart(); });
+  if (pause) pause.addEventListener('click', function() { paused = !paused; restart(); });
+  region.addEventListener('mouseenter', function() { hovered = true; restart(); });
+  region.addEventListener('mouseleave', function() { hovered = false; restart(); });
+  region.addEventListener('focusin', function() { focused = true; restart(); });
+  region.addEventListener('focusout', function(event) { focused = region.contains(event.relatedTarget); restart(); });
+  document.addEventListener('visibilitychange', restart);
   paint(0);
   restart();
 }
@@ -14765,7 +16551,7 @@ function csInitHomeTabActions(root) {
   root.querySelectorAll('[data-home-tab]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var tab = btn.getAttribute('data-home-tab');
-      if (tab && typeof _activateTab === 'function') _activateTab(tab, { focus: true });
+      if (tab && typeof _activateTab === 'function') _activateTab(tab, { focusPanel: true });
     });
   });
 }
@@ -14886,6 +16672,54 @@ function csToggleShowdownDbInspector() {
   });
 }
 
+function csRenderTournamentCatalog() {
+  if (typeof CS_TOURNAMENT_CATALOG === 'undefined') return '';
+  var catalog = CS_TOURNAMENT_CATALOG;
+  var rows = catalog.teams.map(function(team) {
+    var members = team.members.map(function(mon) {
+      return '<tr><th scope="row">' + _escapeHtml(mon.registered_slot + '. ' + mon.species) + '</th>' +
+        '<td>' + _escapeHtml(mon.item) + '</td><td>' + _escapeHtml(mon.ability) + '</td>' +
+        '<td>' + _escapeHtml(mon.stat_alignment) + '</td><td>' + _escapeHtml(mon.moves.join(' / ')) + '</td></tr>';
+    }).join('');
+    return '<details class="overview-section"><summary>' + _escapeHtml(team.player) + ' - Top cut</summary>' +
+      '<p>Open sheet verified; stat points unknown. Exact-stat simulation blocked.</p>' +
+      '<a href="' + _escapeHtml(team.source.url) + '" target="_blank" rel="noopener noreferrer">RK9 team sheet</a>' +
+      '<div class="overview-db-table-wrap"><table class="overview-db-table"><thead><tr><th>Pokemon</th><th>Item</th><th>Ability</th><th>Alignment</th><th>Moves</th></tr></thead><tbody>' + members + '</tbody></table></div></details>';
+  }).join('');
+  return '<section aria-label="Worlds top-cut teams"><h3>Worlds 2026: Masters Doubles Top Cut</h3>' +
+    '<p>August 28-30 | 13 teams | Review only | Captured ' + _escapeHtml(catalog.checked_at.slice(0, 10)) + '</p>' +
+    '<p>Round 12 entrants, including three byes. Final placements and ruleset approval pending.</p>' + rows + '</section>';
+}
+
+function csRenderCurrentRoadmap() {
+  var plan = typeof CHAMPIONS_PROJECT_ROADMAP !== 'undefined' ? CHAMPIONS_PROJECT_ROADMAP : null;
+  if (!plan || plan.schema_version !== 'champions-project-roadmap-v1' || !Array.isArray(plan.milestones)) {
+    return '<section class="roadmap-current" aria-label="Current roadmap"><h3>Current roadmap unavailable</h3><p>Historical notes below do not establish current project status.</p></section>';
+  }
+  var titles = {};
+  plan.milestones.forEach(function(row) { titles[row.id] = row.title; });
+  function list(items) {
+    return '<ul>' + items.map(function(item) { return '<li>' + _escapeHtml(item) + '</li>'; }).join('') + '</ul>';
+  }
+  var firstBlockedId = (plan.milestones.find(function(row) { return row.status === 'blocked'; }) || {}).id;
+  var rows = plan.milestones.map(function(row) {
+    var evidence = row.evidence.map(function(link) {
+      var href = 'https://github.com/TheYfactora12/Pokemon-Champions-Sim-Planner/blob/main/' + link.split('/').map(encodeURIComponent).join('/');
+      return '<a href="' + _escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + _escapeHtml(link.split('/').pop()) + '</a>';
+    }).join(' ');
+    return '<details class="roadmap-current-milestone" id="roadmap-' + _escapeHtml(row.id) + '"' + (row.id === firstBlockedId ? ' open' : '') + '>' +
+      '<summary><strong>' + _escapeHtml(row.title) + '</strong><span>' + _escapeHtml(plan.status_labels[row.status]) + '</span></summary>' +
+      '<p class="roadmap-owner">' + _escapeHtml(row.owner) + '</p>' +
+      (row.depends_on.length ? '<p>Depends on: ' + row.depends_on.map(function(id) { return '<a href="#roadmap-' + _escapeHtml(id) + '">' + _escapeHtml(titles[id]) + '</a>'; }).join(', ') + '</p>' : '') +
+      '<h4>Recorded Work</h4>' + list(row.completed_locally) + '<h4>Remaining</h4>' + list(row.remaining) +
+      '<p><strong>Completion gate:</strong> ' + _escapeHtml(row.exit) + '</p>' +
+      '<div class="roadmap-evidence">' + evidence + '</div></details>';
+  }).join('');
+  return '<section class="roadmap-current" aria-label="Current roadmap" data-roadmap-reviewed="' + _escapeHtml(plan.reviewed_at) + '">' +
+    '<h3>' + _escapeHtml(plan.direction) + '</h3><p>Reviewed ' + _escapeHtml(plan.reviewed_at) + ' | ' + _escapeHtml(plan.scope) + '</p>' +
+    '<p>' + _escapeHtml(plan.proof_note) + '</p><p class="roadmap-owner">Evidence links target GitHub main; local candidate documents may not be published yet.</p><h4>Next Action</h4><p>' + _escapeHtml(plan.next_action) + '</p>' + rows + '</section>';
+}
+
 function renderOverviewTab() {
   var host = document.getElementById('overview-content');
   if (!host) return false;
@@ -14903,7 +16737,9 @@ function renderOverviewTab() {
   var docs = data.docs.map(function(doc) {
     return '<a href="' + _escapeHtml(doc.href) + '" target="_blank" rel="noopener">' + _escapeHtml(doc.label) + '</a>';
   }).join('');
-  host.innerHTML =
+  host.innerHTML = csRenderCurrentRoadmap() + csRenderTournamentCatalog() +
+    '<details class="roadmap-history"><summary>Historical implementation notes (not current status)</summary>' +
+    '<p>Archived snapshots may contain superseded builds, issue assignments and validation counts. Current priorities and proof limits are listed above.</p>' +
     '<div class="overview-metrics">' + metrics + '</div>' +
     '<div class="overview-milestone-board">' +
       '<div class="overview-section overview-board-intro">' +
@@ -14927,7 +16763,7 @@ function renderOverviewTab() {
           '<div class="overview-doc-links">' + docs + '</div>' +
         '</div>' +
       '</div>' +
-    '</div>';
+    '</div></details>';
   var inspectButton = document.getElementById('overview-showdown-db-inspect');
   if (inspectButton) inspectButton.addEventListener('click', csToggleShowdownDbInspector);
   csUpdateShowdownDbStatus();
@@ -15191,9 +17027,11 @@ function generatePDFReport() {
       if (ld.length === 2) { var k = ld.slice().sort().join(' + '); leadCounts[k] = (leadCounts[k]||0)+1; }
       if (back.length) { var kb = back.slice().sort().join(' + '); backCounts[kb] = (backCounts[kb]||0)+1; }
     });
-    var bestLead = Object.entries(leadCounts).sort(function(a,b){return b[1]-a[1];})[0];
-    var bestBack = Object.entries(backCounts).sort(function(a,b){return b[1]-a[1];})[0];
-    var notes = winPct + '% WR — ' + v.label;
+    var bestLead = csTopCountEntries(res.playerWinLeadCounts, 1)[0] || Object.entries(leadCounts).sort(function(a,b){return b[1]-a[1];})[0];
+    var bestLineup = csTopCountEntries(res.playerWinBringCounts, 1)[0];
+    var bestBack = bestLineup ? [csLineupBacklineLabel(bestLineup[0]), bestLineup[1]] : Object.entries(backCounts).sort(function(a,b){return b[1]-a[1];})[0];
+    var notes = winPct + '% WR — ' + v.label + ' · ' + csResultSeriesCount(res) + ' series / ' + csResultGameCount(res) + ' games';
+    if (res.adaptiveBringEnabled) notes += ' · adaptive Bo lineups';
 
     var megaCell = '';
     if (pdfShowMegaCol) {
@@ -15419,38 +17257,32 @@ function renderSeriesSummary() {
 // ============================================================
 // PART 5A: SPEED TIER WIDGET (Teams Tab)
 // ============================================================
-const NATURE_SPE = {
-  Timid:1.1, Jolly:1.1, Naive:1.1, Hasty:1.1,
-  Modest:0.9, Adamant:0.9, Bold:0.9, Impish:0.9, Careful:0.9, Calm:0.9,
-  Quiet:0.9, Brave:0.9, Relaxed:0.9, Sassy:0.9, Serious:1, Hardy:1, Bashful:1, Docile:1, Quirky:1
-};
-
-function getEffectiveSpe(member) {
-  const base = BASE_STATS[member.name];
-  if (!base) return 0;
-  const nat = NATURE_SPE[member.nature] || 1;
-  const ev = (member.evs && member.evs.spe) ? member.evs.spe : 0;
-  const raw = Math.floor((2 * base.spe + 31 + Math.floor(ev / 4)) * 50 / 100 + 5);
-  return Math.floor(raw * nat);
+function getEffectiveSpe(member, teamFormat) {
+  if (!member || typeof member.name !== 'string' || typeof Pokemon !== 'function') return null;
+  const format = teamFormat ?? member.format ?? 'champions';
+  if (format !== 'champions' && format !== 'sv') return null;
+  const source = typeof _showdownSpeciesBase === 'function' ? _showdownSpeciesBase(member.name) : null;
+  if (!source && !(typeof BASE_STATS !== 'undefined' && BASE_STATS[member.name])) return null;
+  // This widget shows the unboosted starting-form stat, not battle action order.
+  const mon = new Pokemon(Object.assign({}, member, { moves: Array.isArray(member.moves) ? member.moves : [] }), '', format);
+  return !mon.formatMismatch && Number.isFinite(mon.baseSpe) ? mon.baseSpe : null;
 }
 
-function buildSpeedTierHTML(members) {
+function buildSpeedTierHTML(members, teamFormat) {
   const sorted = [...members].map(m => ({
     name: m.name,
-    spe: getEffectiveSpe(m),
-    item: m.item || '',
-    note: m.item === 'Choice Scarf' ? '×1.5 Scarf' : ''
-  })).sort((a,b) => b.spe - a.spe);
+    spe: getEffectiveSpe(m, teamFormat)
+  })).sort((a,b) => a.spe === null ? (b.spe === null ? 0 : 1) : b.spe === null ? -1 : b.spe - a.spe);
 
   return `<div class="speed-tier-section">
-    <button class="speed-tier-toggle" type="button">
-      ▸ Speed Tiers
+    <button class="speed-tier-toggle" type="button" title="Unboosted starting-form Speed. Item, ability, status, stage and field effects are not included.">
+      ▸ Speed Stats
     </button>
     <div class="speed-tier-list">
       ${sorted.map((s,i) => `<div class="speed-tier-row">
-        <span class="speed-rank">${i+1}</span>
+        <span class="speed-rank">${s.spe === null ? '-' : i+1}</span>
         <span class="speed-name">${_escapeHtml(s.name)}</span>
-        <span class="speed-val">${s.spe}${s.note ? ` <em style="color:var(--text-m);font-size:9px">${s.note}</em>` : ''}</span>
+        <span class="speed-val">${s.spe === null ? 'Unknown' : s.spe}</span>
       </div>`).join('')}
     </div>
   </div>`;
@@ -15466,7 +17298,7 @@ function renderSpeedTiersForGrid() {
     if (!team || !team.members) return;
     const existing = card.querySelector('.speed-tier-section');
     safeRemoveNode(existing);
-    card.insertAdjacentHTML('beforeend', buildSpeedTierHTML(team.members));
+    card.insertAdjacentHTML('beforeend', buildSpeedTierHTML(team.members, team.format));
   });
 }
 
@@ -15612,31 +17444,8 @@ const META_THREATS = [
 ];
 
 function computeThreatLevel(threat) {
-  const playerTeam = getActivePlayerTeam();
-  const playerMembers = (playerTeam && Array.isArray(playerTeam.members)) ? playerTeam.members : [];
-  const playerMoves = playerMembers.flatMap(m => m.moves || []);
-  const playerSpeeds = playerMembers.map(m => getEffectiveSpe(m));
-  const maxPlayerSpe = playerSpeeds.length ? Math.max(...playerSpeeds) : 0;
-
-  let hasSECoverage = false;
-  for (const mv of playerMoves) {
-    const mvType = (typeof MOVE_TYPES !== 'undefined') ? MOVE_TYPES[mv] : null;
-    if (!mvType) continue;
-    let eff = 1;
-    for (const dt of threat.types) {
-      const row = (typeof TYPE_CHART !== 'undefined' && TYPE_CHART[mvType]) ? TYPE_CHART[mvType] : {};
-      eff *= (row[dt] !== undefined ? row[dt] : 1);
-    }
-    if (eff >= 2) { hasSECoverage = true; break; }
-  }
-
-  const threatBase = BASE_STATS[threat.name];
-  const threatSpe = threatBase ? threatBase.spe : 100;
-  const hasSpeedAdv = maxPlayerSpe > threatSpe;
-
-  if (hasSECoverage && hasSpeedAdv) return 'radar-safe';
-  if (hasSECoverage || hasSpeedAdv) return 'radar-neutral';
-  return 'radar-threat';
+  // Species-only entries have no opponent set or battle evidence to rate safety.
+  return 'radar-unknown';
 }
 
 function renderMetaRadar() {
@@ -15644,7 +17453,7 @@ function renderMetaRadar() {
   if (!grid) return;
   grid.innerHTML = META_THREATS.map(t => {
     const lvl = computeThreatLevel(t);
-    const dot = lvl === 'radar-safe' ? '#22c55e' : lvl === 'radar-neutral' ? '#f59e0b' : '#ef4444';
+    const dot = '#6b7280';
     return `<div class="radar-card ${lvl}">
       <div class="radar-card-header">
         <span style="width:10px;height:10px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0"></span>
@@ -15652,8 +17461,7 @@ function renderMetaRadar() {
       </div>
       <div class="radar-types">${t.types.map(tp => `<span class="type-chip" style="background:${typeColor(tp)}20;color:${typeColor(tp)};border:1px solid ${typeColor(tp)}40">${tp}</span>`).join('')}</div>
       <div class="radar-stats">
-        <span>Usage: <strong>${t.usage}%</strong></span>
-        <span>WR: <strong>${t.winRate}%</strong></span>
+        <span>Matchup unverified</span>
       </div>
     </div>`;
   }).join('');
@@ -15825,11 +17633,19 @@ function _t9j16_hash(s) {
 
 function teamSignature(team) {
   if (!team || !Array.isArray(team.members) || !team.members.length) return 'empty';
-  var parts = team.members.map(function(m){
-    var moves = (m.moves || []).slice().sort().join(',');
-    return [m.name||'', m.item||'', m.ability||'', moves].join('|');
-  }).sort();
-  return _t9j16_hash(parts.join('||'));
+  var snapshot = Object.assign({}, team, { members: team.members.map(function(m) {
+    return Object.assign({}, m, { moves: (m.moves || []).slice().sort() });
+  }) });
+  return _t9j16_hash(_stableResultsStringify(snapshot));
+}
+
+function strategyExecutionContext() {
+  return {
+    regulation: typeof getSelectedRegulationId === 'function' ? getSelectedRegulationId() : 'unknown',
+    rulesets: typeof CHAMPIONS_RULESETS !== 'undefined' ? CHAMPIONS_RULESETS : null,
+    build: typeof CHAMPIONS_RELEASE_MANIFEST !== 'undefined' ? CHAMPIONS_RELEASE_MANIFEST.build_id : 'unknown',
+    engine: typeof ENGINE_VERSION !== 'undefined' ? ENGINE_VERSION : 'unknown'
+  };
 }
 
 function _stableResultsStringify(value) {
@@ -15855,7 +17671,12 @@ var _strategyReportCacheLimit = 32;
 
 function _strategyReportCacheKey(teamKey, results, fmt) {
   var team = (typeof TEAMS !== 'undefined' && TEAMS[teamKey]) ? TEAMS[teamKey] : null;
-  return [teamSignature(team), strategyResultsHash(results), fmt || 'doubles'].join('::');
+  var opponents = Object.keys(results || {}).sort().map(function(key) {
+    return [key, typeof TEAMS !== 'undefined' ? TEAMS[key] || null : null];
+  });
+  // Exact canonical inputs prevent hash collisions and preserve registered identity.
+  return _stableResultsStringify([teamKey, team, opponents, results || {},
+    fmt || (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles'), strategyExecutionContext()]);
 }
 
 function csClearStrategyReportCache() {
@@ -15987,27 +17808,19 @@ var T9J16_RULES = [
   },
   {
     id: 'fake-out-illegal-timing',
-    when: function(c){
-      var foUsers = (c.members||[]).filter(function(m){ return (m.moves||[]).indexOf('Fake Out') >= 0; });
-      if (!foUsers.length) return false;
-      // Leads aggregated; if no FO user appears in top leads, FO is unused
-      var leadNames = (c.lead_top || []);
-      return !foUsers.some(function(m){ return leadNames.indexOf(m.name) >= 0; });
-    },
+    // Aggregate lead choices do not prove an illegal action or failed Fake Out.
+    when: function(){ return false; },
     severity: function(){ return 'high'; },
-    explain: function(){ return 'Fake Out only works the first turn a Pokemon is out. Your sim shows it never triggering because the user is not leading.'; },
-    correct: function(){ return 'Lead with your Fake Out user, or click it the turn they switch in. Otherwise drop it for coverage.'; }
+    explain: function(){ return 'Action evidence is required to assess Fake Out timing.'; },
+    correct: function(){ return 'Review the action and the user\'s most recent switch-in before changing its set.'; }
   },
   {
     id: 'redirection-vs-spread',
-    when: function(c){
-      var hasSpread = (c.members||[]).some(function(m){ return _pdfHasAny(m, PDF_SPREAD); });
-      var hasRedirect = (c.members||[]).some(function(m){ return _pdfHasAny(m, PDF_REDIRECT); });
-      return hasSpread && !hasRedirect && c.format === 'doubles';
-    },
+    // The retired heuristic incorrectly treated redirection as spread protection.
+    when: function(){ return false; },
     severity: function(){ return 'medium'; },
-    explain: function(){ return 'Your spread damage gets canceled into Follow Me / Rage Powder teams. You have no redirector to mirror it.'; },
-    correct: function(){ return 'Click target-pressure single-target moves into redirection. Save spread for when redirect is gone or off-target.'; }
+    explain: function(){ return 'Team composition alone does not establish a targeting mistake.'; },
+    correct: function(){ return 'Inspect the resolved targets and protection events in the replay.'; }
   },
   {
     id: 'double-switch-over-read',
@@ -18753,40 +20566,6 @@ function _csSimLogWrite(store) {
   }
 }
 
-function csShouldBootstrapSimulatorBoard() {
-  try {
-    var resultsSection = document.getElementById('results-section');
-    if (resultsSection && resultsSection.style.display !== 'none') return false;
-    if (typeof Storage === 'undefined') return true;
-    var simlog = Storage.get(CS_SIMLOG_KEY);
-    if (simlog && Array.isArray(simlog.entries) && simlog.entries.length) return false;
-    return true;
-  } catch (e) {
-    UILog.warn('bootstrap sim-board check failed', e);
-    return false;
-  }
-}
-
-async function csBootstrapSimulatorBoard() {
-  if (simRunning) return false;
-  if (!csShouldBootstrapSimulatorBoard()) return false;
-  var simCtx = null;
-  try { simCtx = resolveSimContext({ bo: currentBo }); } catch (_ctxErr) { return false; }
-  var oppKey = simCtx.oppKey;
-  var playerKey = simCtx.playerKey;
-  simRunning = true;
-  try {
-    var res = await runBoSeries(1, playerKey, oppKey, currentBo, function(){});
-    displayResults(res, oppKey, simCtx);
-    return true;
-  } catch (e) {
-    UILog.warn('sim-board bootstrap skipped', e);
-    return false;
-  } finally {
-    simRunning = false;
-  }
-}
-
 // Shape a single simulateBattle result into the compact sim-log game form.
 // Keeps the essentials (result/turns/leads/bring/survivors/winCondition
 // /TR+TW turns/koEvents). Drops the big "log" string array — not needed
@@ -18806,6 +20585,9 @@ function _csGameFromBattle(battle) {
   }
   return {
     result: battle.result || null,
+    format: battle.format || null,
+    provenance: battle.provenance ? JSON.parse(JSON.stringify(battle.provenance)) : null,
+    participants: battle.participants ? JSON.parse(JSON.stringify(battle.participants)) : null,
     turns: battle.turns || 0,
     leads: battle.leads || { player: [], opponent: [] },
     bring: battle.bring || { player: [], opponent: [] },
@@ -18859,6 +20641,7 @@ function csSimLogAppendSeries(opts) {
       oppKey:    opts.oppKey,
       format:    opts.format || 'doubles',
       bo:        opts.bo || 1,
+      provenance: battles[0] && battles[0].provenance ? JSON.parse(JSON.stringify(battles[0].provenance)) : null,
       games:     battles.map(_csGameFromBattle).filter(Boolean),
       seriesResult: opts.seriesResult || null
     };
@@ -18882,9 +20665,25 @@ function csSimLogAppendSeries(opts) {
 }
 
 // Read helpers for Phase 4b/c/d.
-function csSimLogGetAll() { return _csSimLogRead().entries.slice(); }
+function csSimLogEntryEligible(entry) {
+  var p = entry && entry.provenance;
+  if (!p || entry._mirrored || typeof getSimulationEvidencePolicy !== 'function') return false;
+  if (entry.format !== p.format || entry.bo !== p.bo || entry.playerKey !== p.player_team_id || entry.oppKey !== p.opp_team_id) return false;
+  if (typeof ENGINE_VERSION === 'undefined' || p.engine_version !== ENGINE_VERSION) return false;
+  if (typeof CHAMPIONS_RELEASE_MANIFEST === 'undefined' || p.build_id !== CHAMPIONS_RELEASE_MANIFEST.build_id) return false;
+  if (typeof TEAMS === 'undefined' || typeof _csRunTeamIdentities === 'undefined') return false;
+  if ([['player_team_id', 'player_team_digest'], ['opp_team_id', 'opp_team_digest']].some(function(keys) {
+    var identity = _csRunTeamIdentities[p[keys[0]]];
+    return !identity || identity.digest !== p[keys[1]] || identity.input !== JSON.stringify(TEAMS[p[keys[0]]]);
+  })) return false;
+  return getSimulationEvidencePolicy(p, entry.games).poisoning_guard === 'trusted_stats_allowed';
+}
+function csSimLogGetAll(options) {
+  var entries = _csSimLogRead().entries.slice();
+  return options && options.includeQuarantined ? entries : entries.filter(csSimLogEntryEligible);
+}
 function csSimLogForTeam(teamKey) {
-  return _csSimLogRead().entries.filter(function(e){ return e.playerKey === teamKey; });
+  return csSimLogGetAll().filter(function(e){ return e.playerKey === teamKey; });
 }
 // Refs #95 - return every entry that involves teamKey on EITHER side, normalized
 // to teamKey's point-of-view. Entries where teamKey was the opponent are returned
@@ -18897,7 +20696,7 @@ function _flipResult(r) {
   return r === 'win' ? 'loss' : r === 'loss' ? 'win' : r;
 }
 function csSimLogForTeamBothSides(teamKey) {
-  var all = _csSimLogRead().entries;
+  var all = csSimLogGetAll();
   var out = [];
   for (var i = 0; i < all.length; i++) {
     var e = all[i];
@@ -18918,6 +20717,7 @@ function csSimLogForTeamBothSides(teamKey) {
         format:    e.format,
         bo:        e.bo,
         games:     flippedGames,
+        provenance: e.provenance,
         seriesResult: _flipResult(e.seriesResult),
         _mirrored: true
       });
@@ -18926,7 +20726,7 @@ function csSimLogForTeamBothSides(teamKey) {
   return out;
 }
 function csSimLogForMatchup(playerKey, oppKey) {
-  return _csSimLogRead().entries.filter(function(e){
+  return csSimLogGetAll().filter(function(e){
     return e.playerKey === playerKey && e.oppKey === oppKey;
   });
 }
@@ -19405,7 +21205,8 @@ function computeTeamHistory(teamKey) {
   if (!teamKey) return null;
   // Cache hit?
   var cached = _csHistoryCache[teamKey];
-  if (cached && (Date.now() - cached.ts) < CS_HISTORY_TTL_MS) {
+  var cacheScope = JSON.stringify(typeof TEAMS !== 'undefined' ? TEAMS : {});
+  if (cached && cached.scope === cacheScope && (Date.now() - cached.ts) < CS_HISTORY_TTL_MS) {
     return cached.history;
   }
   // Refs #95 - Use both-sides view so teams that were only simmed as the
@@ -19416,6 +21217,7 @@ function computeTeamHistory(teamKey) {
   var entries = (typeof csSimLogForTeamBothSides === 'function')
     ? csSimLogForTeamBothSides(teamKey)
     : ((typeof csSimLogForTeam === 'function') ? csSimLogForTeam(teamKey) : []);
+  entries = entries.filter(csSimLogEntryEligible);
   var games = [];
   entries.forEach(function(e){ if (e.games) games = games.concat(e.games); });
 
@@ -19685,7 +21487,7 @@ function computeTeamHistory(teamKey) {
     }
   };
 
-  _csHistoryCache[teamKey] = { ts: Date.now(), history: history };
+  _csHistoryCache[teamKey] = { ts: Date.now(), scope: cacheScope, history: history };
   return history;
 }
 
@@ -20241,9 +22043,10 @@ function _cs4dCompareBranches(a, b) {
 
 function solveThreatResponse(teamKey, oppKey, opts) {
   opts = opts || {};
+  if (typeof canRunRegulationAnalysis !== 'function' || typeof TEAMS === 'undefined' || !canRunRegulationAnalysis(TEAMS[teamKey], TEAMS[oppKey])) return null;
   var branches = opts.branches || CS_PHASE4D_BRANCHES;
   var simsPerBranch = Math.max(1, opts.simsPerBranch || 30);
-  var cacheKey = [teamKey, oppKey, simsPerBranch, opts.rngSeed || '', (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles')].join('|');
+  var cacheKey = [typeof getSelectedRegulationId === 'function' ? getSelectedRegulationId() : 'unknown', teamKey, oppKey, simsPerBranch, opts.rngSeed || '', (typeof currentFormat !== 'undefined' ? currentFormat : 'doubles')].join('|');
   if (!opts.noCache && CS_PHASE4D_CACHE[cacheKey]) return CS_PHASE4D_CACHE[cacheKey];
   if (typeof TEAMS === 'undefined' || !TEAMS[teamKey] || !TEAMS[oppKey] || typeof simulateBattle !== 'function') return null;
 
@@ -20764,6 +22567,7 @@ if (typeof window !== 'undefined') {
     if (!chip) return;
     var states = {
       connected: { text: '[DB connected]', bg: '#064e3b', fg: '#bbf7d0', border: '#10b981', title: 'Live team database connected' },
+      review: { text: '[DB review needed]', bg: '#713f12', fg: '#fef3c7', border: '#f59e0b', title: 'Live database responded, but its roster did not pass the current catalog gate' },
       retrying: { text: '[DB retrying]', bg: '#713f12', fg: '#fef3c7', border: '#f59e0b', title: 'Retrying live team database before falling back' },
       fallback: { text: '[Bundled roster]', bg: '#334155', fg: '#e2e8f0', border: '#94a3b8', title: 'Using bundled roster after live database was unavailable' },
       disabled: { text: '[Local roster]', bg: '#334155', fg: '#e2e8f0', border: '#94a3b8', title: 'Live database disabled or not configured; using bundled roster' },
@@ -20838,7 +22642,10 @@ if (typeof window !== 'undefined') {
           if (typeof mergeDbTeamsIntoCatalog !== 'function') Object.assign(TEAMS, dbTeams);
           if (typeof normalizeTeamCatalogForSim === 'function') normalizeTeamCatalogForSim();
           UILog.info('TEAMS patched with DB teams', { count: Object.keys(dbTeams).length, merge: dbMerge, attempts: dbLoad.attempts, status: dbLoad.status });
-          setDbChip('connected', 'Live team database connected after ' + dbLoad.attempts + ' attempt(s) - accepted ' + (dbMerge.added + dbMerge.replaced) + ' teams, blocked ' + dbMerge.skipped + ' stale/illegal rows');
+          var acceptedDbTeams = dbMerge.added + dbMerge.replaced;
+          var dbState = acceptedDbTeams === 0 && dbMerge.skipped > 0 ? 'review' : 'connected';
+          setDbChip(dbState, 'Live database responded after ' + dbLoad.attempts + ' attempt(s) - accepted ' + acceptedDbTeams +
+            ' teams, blocked ' + dbMerge.skipped + '. Reasons: ' + JSON.stringify(dbMerge.reason_counts || {}) + '. Bundled roster remains authoritative.');
         } else {
           var status = dbLoad && dbLoad.status ? dbLoad.status : null;
           var reason = status && status.detail ? ' Last DB status: ' + status.detail : '';
@@ -20859,10 +22666,6 @@ if (typeof window !== 'undefined') {
     if (typeof rebuildTeamSelects === 'function') {
       try { rebuildTeamSelects(); } catch (_e) { /* fail-soft */ }
     }
-
-    // On fresh origins with no prior local sim history, paint one seeded board
-    // so the first-load website experience matches the local board-first view.
-    try { setTimeout(function(){ csBootstrapSimulatorBoard(); }, 50); } catch (_e) {}
 
     // Render when Strategy tab is opened
     document.querySelectorAll('.tab-btn[data-tab="strategy"]').forEach(function(btn){

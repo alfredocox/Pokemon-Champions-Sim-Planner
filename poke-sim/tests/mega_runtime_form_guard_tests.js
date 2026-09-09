@@ -98,6 +98,7 @@ load('data.js');
 load('engine.js');
 load('storage_adapter.js');
 load('generated/pokemon_showdown_legal_data.js');
+load('generated/champions_move_pools.js');
 ctx.ChampionsSim = ctx.ChampionsSim || {};
 ctx.ChampionsSim.pokemonDataAudit = require(path.join(ROOT, 'generated', 'pokemon_showdown_legal_data.js'));
 load('move_legality.js');

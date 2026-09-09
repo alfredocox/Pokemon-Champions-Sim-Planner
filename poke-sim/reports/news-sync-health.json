@@ -1,0 +1,50 @@
+{
+  "checked_at": "2026-08-30T22:39:03.974Z",
+  "sources": [
+    {
+      "source_id": "champions-official",
+      "status": "ok",
+      "checked_at": "2026-08-30T22:39:03.974Z",
+      "last_success_at": "2026-08-30T22:39:03.974Z",
+      "sha256": "7ff23a41b4993766538406095d3eeda9c526549ec5c680e937d0256fc3af665b",
+      "error": null,
+      "eligible_count": 15
+    },
+    {
+      "source_id": "victory-road-news",
+      "status": "ok",
+      "checked_at": "2026-08-30T22:39:03.974Z",
+      "last_success_at": "2026-08-30T22:39:03.974Z",
+      "sha256": "f284cbc87ecc33fecec2db2717ca8d2b3ca794c0d4e06df36a1e5adbf014bfa8",
+      "error": null,
+      "eligible_count": 4
+    },
+    {
+      "source_id": "play-pokemon",
+      "status": "ok",
+      "checked_at": "2026-08-30T22:39:03.974Z",
+      "last_success_at": "2026-08-30T22:39:03.974Z",
+      "sha256": "e4884479867876ac9be06fe6832c20bdb8eb2bbdf5b211f241e59a3110c02559",
+      "error": null,
+      "eligible_count": 1
+    },
+    {
+      "source_id": "cybertronvgc",
+      "status": "ok",
+      "checked_at": "2026-08-30T22:39:03.974Z",
+      "last_success_at": "2026-08-30T22:39:03.974Z",
+      "sha256": "15ba384542fcab1ca18944a9b3655463beb3605e52d5f50c739fcf37fe9d0fcc",
+      "error": null,
+      "eligible_count": 6
+    },
+    {
+      "source_id": "wolfeyvgc",
+      "status": "ok",
+      "checked_at": "2026-08-30T22:39:03.974Z",
+      "last_success_at": "2026-08-30T22:39:03.974Z",
+      "sha256": "f3ea12e8d6989cc1b989fff7c68c4c53a11054888e329908e5875d0b00f775d2",
+      "error": null,
+      "eligible_count": 3
+    }
+  ]
+}

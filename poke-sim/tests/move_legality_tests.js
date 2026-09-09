@@ -1,7 +1,12 @@
-// Species/form learnset legality checks from generated Pokemon Showdown data.
+// Historical species/form membership, not current Champions eligibility.
 
 require('../generated/pokemon_showdown_legal_data.js');
-const moveLegality = require('../move_legality.js');
+const sourceAPI = require('../move_legality.js');
+const moveLegality = {
+  ...sourceAPI,
+  isMoveLegalForSpecies: (species, move) => sourceAPI.isMoveLegalForSpecies(species, move, { learnsetContext: 'historical' }),
+  legalMoveDisplayNamesForSpecies: species => sourceAPI.legalMoveDisplayNamesForSpecies(species, { learnsetContext: 'historical' })
+};
 const auditData = require('../generated/pokemon_showdown_legal_data.js');
 
 let pass = 0;
@@ -80,7 +85,7 @@ T('8. Rotom appliance forms keep form identity while accepting explicit shared R
   eq(hisui.legal, false, 'regional-form moves must not be globally shared');
 });
 
-T('9. Champion Eternal Flower Mega keeps app form identity for move legality aliases', () => {
+T('9. historical virtual Eternal Flower Mega keeps app identity without Champions approval', () => {
   const out = moveLegality.isMoveLegalForSpecies('Floette (Eternal Flower)-Mega', 'Light of Ruin');
   eq(out.legal, true, 'Light of Ruin should validate for Champion Eternal Flower Mega');
   eq(out.canonicalSpeciesKey, 'Floette (Eternal Flower)-Mega', 'Champion Mega form identity should be preserved');

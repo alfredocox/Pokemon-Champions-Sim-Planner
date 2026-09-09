@@ -1,6 +1,10 @@
 # Reg M-B Source Conversion Table
 
-Status: active conversion ledger, not runtime legality.
+Status: historical visual conversion ledger, not runtime legality. The official
+235-row capture at `../source/reg-m-b-official-roster.json` supersedes visual
+extraction for eligibility evidence. Duplicate Hawlucha and incorrect/missing
+species entries were found; do not promote this visual ledger unchanged.
+See [sign-off audit](../../docs/release/REG_MB_SIGNOFF_AUDIT.md).
 
 Last reviewed in repo: June 27, 2026.
 
@@ -21,7 +25,7 @@ The top-1% simulator standard is:
 
 | Claim | Source | Status |
 |---|---|---|
-| Reg M-B runs June 17 to September 2, 2026 | Victory Road Champion regulations | Verified |
+| Ranked M-B runs June 17 02:00 UTC to September 9 01:59 UTC, 2026 | Official notice 776, updated August 5 | Date extension verified; candidate runtime corrected |
 | Reg M-B is used for in-game Ranked Battles and VGC events on those dates, including Worlds 2026 | Victory Road Champion regulations | Verified |
 | Mega Evolutions are allowed | Victory Road Champion regulations | Verified |
 | All Reg M-A Mega Evolutions remain allowed | Victory Road Champion regulations | Verified |

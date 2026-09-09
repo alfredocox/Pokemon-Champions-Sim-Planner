@@ -138,17 +138,17 @@ T('3. Rock Tomb lowers target Speed after damage', () => {
     evs: { atk: 252, spe: 252, hp: 4, def: 0, spa: 0, spd: 0 }
   }]);
   const opp = team('Dummy', [{
-    name: 'Charizard',
-    ability: 'Blaze',
+    name: 'Torkoal',
+    ability: 'Shell Armor',
     item: '',
-    nature: 'Timid',
+    nature: 'Bold',
     level: 50,
     moves: ['Tackle'],
-    evs: { hp: 252, def: 0, spa: 0, spd: 0, spe: 252, atk: 0 }
+    evs: { hp: 252, def: 252, spa: 0, spd: 0, spe: 0, atk: 0 }
   }]);
   const battle = simulateBattle(player, opp, { format: 'singles', seed: [1, 2, 3, 4], maxTurns: 1 });
   const renderedLog = battle.log.map((line) => String(line)).join('\n');
-  truthy(renderedLog.includes("Charizard's Speed fell!"), 'Rock Tomb speed-drop log missing');
+  truthy(renderedLog.includes("Torkoal's Speed fell!"), 'Rock Tomb speed-drop log missing');
 });
 
 T('4. Light Screen reduces special damage', () => {
@@ -1901,7 +1901,7 @@ T('61. Noble Roar lowers the target Attack and Special Attack', () => {
     item: '',
     nature: 'Relaxed',
     level: 50,
-    moves: ['Protect'],
+    moves: ['Splash'],
     evs: { hp: 252, def: 252, spd: 4, atk: 0, spa: 0, spe: 0 }
   }]);
   const battle = simulateBattle(player, opp, { format: 'singles', seed: [3, 1, 4, 1], maxTurns: 1 });

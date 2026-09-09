@@ -183,10 +183,13 @@ DROP POLICY IF EXISTS team_lab_read_sim_runs_visible_teams ON team_lab_sim_runs;
 CREATE POLICY team_lab_read_sim_runs_visible_teams ON team_lab_sim_runs
   FOR SELECT TO anon, authenticated
   USING (
-    EXISTS (
+    NOT EXISTS (
       SELECT 1 FROM team_lab_teams t
       WHERE t.id IN (team_lab_sim_runs.team_a_id, team_lab_sim_runs.team_b_id)
-        AND (t.visibility IN ('public', 'hidden_details') OR t.owner_user_id = auth.uid())
+        AND NOT (
+          (t.visibility IN ('public', 'hidden_details') AND t.legality_status <> 'illegal')
+          OR t.owner_user_id = (SELECT auth.uid())
+        )
     )
   );
 
